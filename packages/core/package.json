@@ -13,6 +13,7 @@
     "start": "node --env-file=../../.env dist/run.js"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.33",
     "@tacit/db": "workspace:^",
     "ai": "^7.0.55",
     "zod": "^4.4.3"
