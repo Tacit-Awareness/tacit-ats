@@ -9,6 +9,15 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "start": "node --env-file=../../.env dist/run.js"
+  },
+  "dependencies": {
+    "@tacit/db": "workspace:^",
+    "ai": "^7.0.55",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
   }
 }
