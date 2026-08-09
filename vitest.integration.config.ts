@@ -1,5 +1,5 @@
 import { defineConfig } from "vitest/config";
-import { workspaceAliases } from "./vitest.config.js";
+import { workspaceAliases } from "./test/aliases.js";
 
 // Integration tests run against the local Supabase stack (`supabase start`
 // in packages/db). They share one `people` table, so files run serially.
