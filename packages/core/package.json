@@ -10,7 +10,8 @@
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",
-    "start": "node --env-file=../../.env dist/run.js"
+    "start": "node --env-file=../../.env dist/run.js",
+    "build:edge": "node scripts/build-edge.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.33",
@@ -19,6 +20,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2"
+    "@types/node": "^26.1.2",
+    "esbuild": "^0.28.2"
   }
 }
