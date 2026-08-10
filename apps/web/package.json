@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@tacit/core": "workspace:^",
     "@tacit/db": "workspace:^",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

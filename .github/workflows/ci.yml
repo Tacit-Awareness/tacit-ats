@@ -38,12 +38,14 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # The handler is the one file outside every tsconfig -- deno check is
-      # the only typecheck it gets. Runs after the bundle build since it
-      # imports ./_core.js.
-      - name: Typecheck edge handler (Deno)
-        run: deno check index.ts
-        working-directory: packages/db/supabase/functions/granola-webhook
+      # The handlers are the files outside every tsconfig -- deno check is
+      # the only typecheck they get. Runs after the bundle build since they
+      # import ../_shared/core.js.
+      - name: Typecheck edge handlers (Deno)
+        run: |
+          deno check granola-webhook/index.ts
+          deno check sixtyfour-webhook/index.ts
+        working-directory: packages/db/supabase/functions
       # Pinned to the version the local dev stack is verified against.
       # Requires the grant_public_schema_privileges migration -- newer
       # postgres images stopped auto-granting API-role table privileges.
@@ -136,7 +138,7 @@ jobs:
       - name: Build edge bundle
         if: steps.creds.outputs.have_creds == 'true'
         run: pnpm build:functions
-      - name: Deploy granola-webhook
+      - name: Deploy edge functions
         if: steps.creds.outputs.have_creds == 'true'
-        run: supabase functions deploy granola-webhook --no-verify-jwt --project-ref "$PROJECT_REF"
+        run: supabase functions deploy --no-verify-jwt --project-ref "$PROJECT_REF"
         working-directory: packages/db

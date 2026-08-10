@@ -9,8 +9,8 @@ export type RecordedCall = {
   args?: unknown;
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
-  filters: Array<{ method: "eq" | "ilike"; column: string; value: unknown }>;
-  modifiers: Array<{ method: "order"; column: string; options?: unknown }>;
+  filters: Array<{ method: "eq" | "ilike" | "in"; column: string; value: unknown }>;
+  modifiers: Array<{ method: "order" | "limit"; column?: string; options?: unknown; value?: number }>;
   terminal?: "single" | "maybeSingle" | "await";
 };
 
@@ -82,6 +82,14 @@ export class FakeSupabase {
       },
       ilike(column: string, value: unknown) {
         call.filters.push({ method: "ilike", column, value });
+        return builder;
+      },
+      in(column: string, value: unknown[]) {
+        call.filters.push({ method: "in", column, value });
+        return builder;
+      },
+      limit(value: number) {
+        call.modifiers.push({ method: "limit", value });
         return builder;
       },
       maybeSingle() {
