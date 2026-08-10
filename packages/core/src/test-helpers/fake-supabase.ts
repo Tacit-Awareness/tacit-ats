@@ -4,10 +4,13 @@ export type FakeResult = { data?: unknown; error?: unknown };
 
 export type RecordedCall = {
   table: string;
-  op: "select" | "insert" | "update";
-  /** select columns / insert row / update patch */
+  op: "select" | "insert" | "update" | "upsert";
+  /** select columns / insert row / update patch / upsert rows */
   args?: unknown;
+  /** upsert options ({ onConflict, ignoreDuplicates }) */
+  options?: unknown;
   filters: Array<{ method: "eq" | "ilike"; column: string; value: unknown }>;
+  modifiers: Array<{ method: "order"; column: string; options?: unknown }>;
   terminal?: "single" | "maybeSingle" | "await";
 };
 
@@ -43,7 +46,7 @@ export class FakeSupabase {
   }
 
   from(table: string) {
-    const call: RecordedCall = { table, op: "select", filters: [] };
+    const call: RecordedCall = { table, op: "select", filters: [], modifiers: [] };
     this.calls.push(call);
     const next = () => this.next();
 
@@ -58,9 +61,19 @@ export class FakeSupabase {
         call.args = row;
         return builder;
       },
+      upsert(rows: unknown, options?: unknown) {
+        call.op = "upsert";
+        call.args = rows;
+        call.options = options;
+        return builder;
+      },
       update(patch: unknown) {
         call.op = "update";
         call.args = patch;
+        return builder;
+      },
+      order(column: string, options?: unknown) {
+        call.modifiers.push({ method: "order", column, options });
         return builder;
       },
       eq(column: string, value: unknown) {
