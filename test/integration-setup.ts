@@ -32,12 +32,14 @@ export default function setup(): void {
 
   const url = vars.get("API_URL");
   const serviceKey = vars.get("SERVICE_ROLE_KEY") ?? vars.get("SECRET_KEY");
-  if (!url || !serviceKey) {
+  const anonKey = vars.get("ANON_KEY") ?? vars.get("PUBLISHABLE_KEY");
+  if (!url || !serviceKey || !anonKey) {
     throw new Error(
-      `Could not find API_URL / SERVICE_ROLE_KEY in \`supabase status -o env\` output. Keys seen: ${[...vars.keys()].join(", ")}`,
+      `Could not find API_URL / SERVICE_ROLE_KEY / ANON_KEY in \`supabase status -o env\` output. Keys seen: ${[...vars.keys()].join(", ")}`,
     );
   }
 
   process.env.SUPABASE_URL = url;
   process.env.SUPABASE_SECRET_KEY = serviceKey;
+  process.env.SUPABASE_ANON_KEY = anonKey;
 }
