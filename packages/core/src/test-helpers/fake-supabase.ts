@@ -9,7 +9,7 @@ export type RecordedCall = {
   args?: unknown;
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
-  filters: Array<{ method: "eq" | "ilike" | "in"; column: string; value: unknown }>;
+  filters: Array<{ method: "eq" | "ilike" | "in" | "is" | "gt"; column: string; value: unknown }>;
   modifiers: Array<{ method: "order" | "limit"; column?: string; options?: unknown; value?: number }>;
   terminal?: "single" | "maybeSingle" | "await";
 };
@@ -17,7 +17,8 @@ export type RecordedCall = {
 /**
  * Hand-rolled scripted+recording fake covering exactly the query chains this
  * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
- * insert…select…single, update…eq (awaited directly). Responses are consumed
+ * insert…select…single, update…eq (awaited directly), and the guarded consume
+ * update…eq…is…gt…select. Responses are consumed
  * in order, one per terminal operation; every chain is recorded on `calls`
  * for assertions. Not a PostgREST emulation -- if production code grows a new
  * chain shape, add it here deliberately.
@@ -86,6 +87,14 @@ export class FakeSupabase {
       },
       in(column: string, value: unknown[]) {
         call.filters.push({ method: "in", column, value });
+        return builder;
+      },
+      is(column: string, value: unknown) {
+        call.filters.push({ method: "is", column, value });
+        return builder;
+      },
+      gt(column: string, value: unknown) {
+        call.filters.push({ method: "gt", column, value });
         return builder;
       },
       limit(value: number) {
