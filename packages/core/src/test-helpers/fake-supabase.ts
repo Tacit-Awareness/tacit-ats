@@ -1,6 +1,6 @@
 import type { Db } from "@tacit/db";
 
-export type FakeResult = { data?: unknown; error?: unknown };
+export type FakeResult = { data?: unknown; error?: unknown; count?: number | null };
 
 export type RecordedCall = {
   table: string;
@@ -10,14 +10,21 @@ export type RecordedCall = {
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
   filters: Array<{ method: "eq" | "ilike" | "in"; column: string; value: unknown }>;
-  modifiers: Array<{ method: "order" | "limit"; column?: string; options?: unknown; value?: number }>;
+  modifiers: Array<{
+    method: "order" | "limit" | "range";
+    column?: string;
+    options?: unknown;
+    /** limit: the row count; range: [from, to] */
+    value?: number | [number, number];
+  }>;
   terminal?: "single" | "maybeSingle" | "await";
 };
 
 /**
  * Hand-rolled scripted+recording fake covering exactly the query chains this
  * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
- * insert…select…single, update…eq (awaited directly). Responses are consumed
+ * select…eq…order…range (awaited, paged), select(…, {count, head}) (awaited,
+ * reads `count`), insert…select…single, update…eq (awaited directly). Responses are consumed
  * in order, one per terminal operation; every chain is recorded on `calls`
  * for assertions. Not a PostgREST emulation -- if production code grows a new
  * chain shape, add it here deliberately.
@@ -35,14 +42,14 @@ export class FakeSupabase {
     return this;
   }
 
-  private next(): { data: unknown; error: unknown } {
+  private next(): { data: unknown; error: unknown; count: number | null } {
     const r = this.responses.shift();
     if (r === undefined) {
       throw new Error(
         `FakeSupabase: query executed but no scripted response left (call #${this.calls.length})`,
       );
     }
-    return { data: r.data ?? null, error: r.error ?? null };
+    return { data: r.data ?? null, error: r.error ?? null, count: r.count ?? null };
   }
 
   from(table: string) {
@@ -90,6 +97,10 @@ export class FakeSupabase {
       },
       limit(value: number) {
         call.modifiers.push({ method: "limit", value });
+        return builder;
+      },
+      range(from: number, to: number) {
+        call.modifiers.push({ method: "range", value: [from, to] });
         return builder;
       },
       maybeSingle() {
