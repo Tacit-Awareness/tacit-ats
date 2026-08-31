@@ -60,16 +60,17 @@
   --radius: 0.5rem;
 }
 
-/* the flicker switch's light state — bone ground, umber foreground.
+/* the flicker switch's light state — paper ground, dark-brown foreground
+   (the live site's values, which superseded the brand kit's bone/umber).
    --cream/--hairline/etc are re-declared here on purpose: nested custom
    properties resolve in their declaring scope, so a :root-only definition
    would stay locked to the dark foreground. */
 .light {
-  --ink-1: #e9e2cf;
-  --ink-0: #e1d9c2;
-  --fg-rgb: 51, 40, 26;
+  --ink-1: #f7f7f7; /* paper ground */
+  --ink-0: #ededed; /* deeper paper, recessed */
+  --fg-rgb: 36, 28, 18; /* dark brown, deepened for paper */
   --cream: rgb(var(--fg-rgb));
-  --muted-text: #6e5c41; /* darker than dark-mode muted so it clears AA on bone */
+  --muted-text: #5c4b35; /* darker brown — clears AA on paper at 16px+ */
   --hairline: rgba(var(--fg-rgb), 0.3);
   --pill-outline: rgba(var(--fg-rgb), 0.22);
   --divider: rgba(var(--fg-rgb), 0.08);
@@ -142,6 +143,17 @@
   background: var(--cream);
   -webkit-mask: url("/tacit-mark.png") center / contain no-repeat;
   mask: url("/tacit-mark.png") center / contain no-repeat;
+}
+
+/* the flicker switch's bulb, same masked-PNG treatment as the mark so it
+   takes the theme foreground (icon from the marketing site's assets) */
+.icon-bulb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: url("/icon-bulb.png") center / contain no-repeat;
+  mask: url("/icon-bulb.png") center / contain no-repeat;
 }
 
 /* the drafting vocabulary: a dotted hairline, used sparingly for structural
