@@ -4,6 +4,17 @@
 // jsx: "preserve", so vitest must compile it itself), `server-only` imports
 // need a no-op stub (see test/stubs/server-only.js), and `@/*` needs to
 // resolve the way Next's own tsconfig maps it.
+//
+// This transform is why the root package.json carries `react`/`react-dom` as
+// devDependencies even though the root has no app of its own: pnpm doesn't
+// hoist a sibling workspace app's dependencies, and `apps/landing` has no
+// package.json yet, so nothing else lets `pnpm test` (run from here) resolve
+// `react-dom/server` for JSX tests under `apps/*/src`. Keep that pair
+// version-aligned with whatever react version the apps under test declare
+// themselves (currently 19.2.8 everywhere) — if they drift apart, pnpm's
+// isolated node_modules gives a test two distinct React copies, the classic
+// hooks/context footgun. They can be deleted once every app with tests also
+// declares react as a real dependency of its own.
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 import { workspaceAliases } from "./test/aliases.js";
