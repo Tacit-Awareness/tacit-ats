@@ -9,7 +9,12 @@ export type RecordedCall = {
   args?: unknown;
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
-  filters: Array<{ method: "eq" | "ilike" | "in"; column: string; value: unknown }>;
+  filters: Array<{
+    method: "eq" | "ilike" | "in" | "is" | "gt" | "gte" | "not";
+    column: string;
+    /** for `not`: { operator, value } */
+    value: unknown;
+  }>;
   modifiers: Array<{
     method: "order" | "limit" | "range";
     column?: string;
@@ -24,7 +29,8 @@ export type RecordedCall = {
  * Hand-rolled scripted+recording fake covering exactly the query chains this
  * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
  * select…eq…order…range (awaited, paged), select(…, {count, head}) (awaited,
- * reads `count`), insert…select…single, update…eq (awaited directly). Responses are consumed
+ * reads `count`), insert…select…single, update…eq (awaited directly), and the
+ * guarded consume update…eq…is…gt…select. Responses are consumed
  * in order, one per terminal operation; every chain is recorded on `calls`
  * for assertions. Not a PostgREST emulation -- if production code grows a new
  * chain shape, add it here deliberately.
@@ -93,6 +99,22 @@ export class FakeSupabase {
       },
       in(column: string, value: unknown[]) {
         call.filters.push({ method: "in", column, value });
+        return builder;
+      },
+      is(column: string, value: unknown) {
+        call.filters.push({ method: "is", column, value });
+        return builder;
+      },
+      gt(column: string, value: unknown) {
+        call.filters.push({ method: "gt", column, value });
+        return builder;
+      },
+      gte(column: string, value: unknown) {
+        call.filters.push({ method: "gte", column, value });
+        return builder;
+      },
+      not(column: string, operator: string, value: unknown) {
+        call.filters.push({ method: "not", column, value: { operator, value } });
         return builder;
       },
       limit(value: number) {

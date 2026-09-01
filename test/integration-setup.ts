@@ -32,12 +32,18 @@ export default function setup(): void {
 
   const url = vars.get("API_URL");
   const serviceKey = vars.get("SERVICE_ROLE_KEY") ?? vars.get("SECRET_KEY");
-  if (!url || !serviceKey) {
+  const anonKey = vars.get("ANON_KEY") ?? vars.get("PUBLISHABLE_KEY");
+  // Direct Postgres URL, for the one assertion PostgREST cannot serve:
+  // catalog tables like pg_class are not in an exposed schema.
+  const dbUrl = vars.get("DB_URL");
+  if (!url || !serviceKey || !anonKey || !dbUrl) {
     throw new Error(
-      `Could not find API_URL / SERVICE_ROLE_KEY in \`supabase status -o env\` output. Keys seen: ${[...vars.keys()].join(", ")}`,
+      `Could not find API_URL / SERVICE_ROLE_KEY / ANON_KEY / DB_URL in \`supabase status -o env\` output. Keys seen: ${[...vars.keys()].join(", ")}`,
     );
   }
 
   process.env.SUPABASE_URL = url;
   process.env.SUPABASE_SECRET_KEY = serviceKey;
+  process.env.SUPABASE_ANON_KEY = anonKey;
+  process.env.SUPABASE_DB_URL = dbUrl;
 }
