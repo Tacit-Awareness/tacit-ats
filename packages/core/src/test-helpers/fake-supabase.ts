@@ -4,8 +4,8 @@ export type FakeResult = { data?: unknown; error?: unknown; count?: number | nul
 
 export type RecordedCall = {
   table: string;
-  op: "select" | "insert" | "update" | "upsert";
-  /** select columns / insert row / update patch / upsert rows */
+  op: "select" | "insert" | "update" | "upsert" | "rpc";
+  /** select columns / insert row / update patch / upsert rows / rpc args */
   args?: unknown;
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
@@ -29,11 +29,12 @@ export type RecordedCall = {
  * Hand-rolled scripted+recording fake covering exactly the query chains this
  * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
  * select…eq…order…range (awaited, paged), select(…, {count, head}) (awaited,
- * reads `count`), insert…select…single, update…eq (awaited directly), and the
- * guarded consume update…eq…is…gt…select. Responses are consumed
- * in order, one per terminal operation; every chain is recorded on `calls`
- * for assertions. Not a PostgREST emulation -- if production code grows a new
- * chain shape, add it here deliberately.
+ * reads `count`), insert…select…single, update…eq (awaited directly), the
+ * guarded consume update…eq…is…gt…select, and rpc(fn, args) (awaited
+ * directly, not chained). Responses are consumed in order, one per terminal
+ * operation; every chain is recorded on `calls` for assertions. Not a
+ * PostgREST emulation -- if production code grows a new chain shape, add it
+ * here deliberately.
  */
 export class FakeSupabase {
   calls: RecordedCall[] = [];
@@ -140,6 +141,12 @@ export class FakeSupabase {
       },
     };
     return builder;
+  }
+
+  rpc(fn: string, args?: object) {
+    const call: RecordedCall = { table: fn, op: "rpc", args, filters: [], modifiers: [], terminal: "await" };
+    this.calls.push(call);
+    return Promise.resolve(this.next());
   }
 
   asDb(): Db {
