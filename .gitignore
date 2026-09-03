@@ -28,3 +28,6 @@ supabase/.temp/
 # repo root. One of those console logs reached 167 MB and was committed by
 # accident, making the branch unpushable (GitHub rejects blobs over 100 MB).
 .playwright-mcp/
+
+# superpowers brainstorming companion sessions (mockups, events)
+.superpowers/
