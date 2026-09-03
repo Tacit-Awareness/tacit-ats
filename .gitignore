@@ -22,3 +22,9 @@ packages/db/supabase/functions/_shared/core.js
 
 # supabase CLI link cache (machine-local; the real project root is packages/db)
 supabase/.temp/
+
+# Browser-automation scratch. The Playwright MCP server writes screenshots,
+# page snapshots and console logs into its working directory, which is the
+# repo root. One of those console logs reached 167 MB and was committed by
+# accident, making the branch unpushable (GitHub rejects blobs over 100 MB).
+.playwright-mcp/
