@@ -16,6 +16,8 @@
     "build:functions": "pnpm --filter @tacit/core build:edge"
   },
   "devDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "^5.7.0",
     "vitest": "^4.1.10"
   }
