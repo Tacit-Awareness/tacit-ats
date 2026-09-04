@@ -34,3 +34,20 @@ packages/db/supabase/functions/_shared/core.js
 
 # supabase CLI link cache (machine-local; the real project root is packages/db)
 supabase/.temp/
+
+# Browser-automation scratch. The Playwright MCP server writes screenshots,
+# page snapshots and console logs into its working directory, which is the
+# repo root. One of those console logs reached 167 MB and was committed by
+# accident, making the branch unpushable (GitHub rejects blobs over 100 MB).
+.playwright-mcp/
+
+# Agent worktrees. Each Claude session takes its own checkout here rather than
+# sharing the repo root — two sessions on one HEAD interleave their commits
+# onto whichever branch is current, which has already happened once. These are
+# full working copies of the repo; committing one would duplicate the tree.
+.claude/worktrees/
+
+# Subagent-driven-development scratch: ledgers, task briefs, review packages,
+# per-task reports. Local coordination state, superseded by git history and the
+# tracked spec in docs/superpowers/ once a plan lands.
+.superpowers/
