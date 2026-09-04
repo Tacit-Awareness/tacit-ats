@@ -29,5 +29,14 @@ supabase/.temp/
 # accident, making the branch unpushable (GitHub rejects blobs over 100 MB).
 .playwright-mcp/
 
-# superpowers brainstorming companion sessions (mockups, events)
+# Agent worktrees. Each Claude session takes its own checkout here rather than
+# sharing the repo root — two sessions on one HEAD interleave their commits
+# onto whichever branch is current, which has already happened once. These are
+# full working copies of the repo; committing one would duplicate the tree.
+.claude/worktrees/
+
+# Superpowers scratch: subagent-driven-development ledgers, task briefs, review
+# packages and per-task reports, plus brainstorming-companion mockups. Local
+# coordination state, superseded by git history and the tracked spec/plan in
+# docs/superpowers/ once a plan lands.
 .superpowers/
