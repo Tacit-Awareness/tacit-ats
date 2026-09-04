@@ -33,10 +33,10 @@ export default defineConfig({
     alias: {
       ...workspaceAliases,
       "server-only": here("./test/stubs/server-only.js"),
-      // Only apps/landing has tests today, so one root "@" alias is safe.
-      // apps/internal has its own "@" meaning apps/internal/src but no tests
-      // yet — the moment it gains a test, this must become test.projects so
-      // each app's "@" resolves independently.
+      // One root "@" alias, pointing at apps/landing. apps/internal also has
+      // tests (lib/*.test.ts) but they import relatively and their modules
+      // under test don't use "@" — keep it that way, or switch to
+      // test.projects so each app's "@" resolves independently.
       "@": here("./apps/landing/src"),
     },
   },
