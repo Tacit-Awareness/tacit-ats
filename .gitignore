@@ -47,7 +47,8 @@ supabase/.temp/
 # full working copies of the repo; committing one would duplicate the tree.
 .claude/worktrees/
 
-# Subagent-driven-development scratch: ledgers, task briefs, review packages,
-# per-task reports. Local coordination state, superseded by git history and the
-# tracked spec in docs/superpowers/ once a plan lands.
+# Superpowers scratch: subagent-driven-development ledgers, task briefs, review
+# packages and per-task reports, plus brainstorming-companion mockups. Local
+# coordination state, superseded by git history and the tracked spec/plan in
+# docs/superpowers/ once a plan lands.
 .superpowers/
