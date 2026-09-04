@@ -164,12 +164,21 @@
 
 /* ---------- the sign-in mark ----------
    The marketing site's hero, ported without GSAP: the same masked PNG split
-   into two halves by clip-path, which part on hover/focus of the enclosing
-   link. The box is wider than the artwork (1300 vs 900) so parted brackets
+   into two halves by clip-path. Two separate links (mark, caption) are the
+   only hit areas; hovering or focusing either one parts the brackets and
+   brightens the caption through `:has()` on the shared .sign-in wrapper, so
+   the two controls still feel like one. The mark box is wider than the
+   artwork (1300 vs 620 tall, artwork in the middle 900) so parted brackets
    stay inside it. */
+.sign-in-mark-link {
+  display: block;
+  width: min(72%, 580px);
+  padding: clamp(16px, 3vw, 40px) clamp(20px, 4vw, 56px);
+}
 .sign-in-mark {
+  display: block; /* a span inside a block link: without this the link collapses to one line-height */
   position: relative;
-  width: min(67%, 520px);
+  width: 100%;
   aspect-ratio: 1300 / 620;
 }
 .sign-in-mark > span {
@@ -189,27 +198,31 @@
 .sign-in-mark > .bracket-r {
   clip-path: inset(0 0 0 51%);
 }
-.sign-in-link:hover .bracket-l,
-.sign-in-link:focus-visible .bracket-l {
+.sign-in:has(.sign-in-link:hover) .bracket-l,
+.sign-in:has(.sign-in-link:focus-visible) .bracket-l {
   transform: translateX(-4%);
 }
-.sign-in-link:hover .bracket-r,
-.sign-in-link:focus-visible .bracket-r {
+.sign-in:has(.sign-in-link:hover) .bracket-r,
+.sign-in:has(.sign-in-link:focus-visible) .bracket-r {
   transform: translateX(4%);
 }
+.sign-in:has(.sign-in-link:hover) .sign-in-caption,
+.sign-in:has(.sign-in-link:focus-visible) .sign-in-caption {
+  color: rgba(var(--fg-rgb), 0.9);
+}
 @media (max-width: 640px) {
-  .sign-in-mark {
-    width: min(320px, 76vw);
+  .sign-in-mark-link {
+    width: min(360px, 84vw);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .sign-in-mark > span {
     transition: none;
   }
-  .sign-in-link:hover .bracket-l,
-  .sign-in-link:hover .bracket-r,
-  .sign-in-link:focus-visible .bracket-l,
-  .sign-in-link:focus-visible .bracket-r {
+  .sign-in:has(.sign-in-link:hover) .bracket-l,
+  .sign-in:has(.sign-in-link:hover) .bracket-r,
+  .sign-in:has(.sign-in-link:focus-visible) .bracket-l,
+  .sign-in:has(.sign-in-link:focus-visible) .bracket-r {
     transform: none;
   }
 }
