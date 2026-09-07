@@ -10,7 +10,7 @@ export type RecordedCall = {
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
   filters: Array<{
-    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "not";
+    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "not";
     column: string;
     /** for `not`: { operator, value } */
     value: unknown;
@@ -127,6 +127,14 @@ export class FakeSupabase {
       },
       gte(column: string, value: unknown) {
         call.filters.push({ method: "gte", column, value });
+        return builder;
+      },
+      lt(column: string, value: unknown) {
+        call.filters.push({ method: "lt", column, value });
+        return builder;
+      },
+      lte(column: string, value: unknown) {
+        call.filters.push({ method: "lte", column, value });
         return builder;
       },
       not(column: string, operator: string, value: unknown) {
