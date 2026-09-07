@@ -20,6 +20,7 @@
     "@ai-sdk/anthropic": "^4.0.33",
     "@tacit/db": "workspace:^",
     "ai": "^7.0.55",
+    "exa-js": "2.19.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
