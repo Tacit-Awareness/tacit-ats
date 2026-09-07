@@ -4,13 +4,13 @@ export type FakeResult = { data?: unknown; error?: unknown; count?: number | nul
 
 export type RecordedCall = {
   table: string;
-  op: "select" | "insert" | "update" | "upsert" | "rpc";
+  op: "select" | "insert" | "update" | "upsert" | "delete" | "rpc";
   /** select columns / insert row / update patch / upsert rows / rpc args */
   args?: unknown;
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
   filters: Array<{
-    method: "eq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "not";
+    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "not";
     column: string;
     /** for `not`: { operator, value } */
     value: unknown;
@@ -30,7 +30,8 @@ export type RecordedCall = {
  * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
  * select…eq…order…range (awaited, paged), select(…, {count, head}) (awaited,
  * reads `count`), insert…select…single, update…eq (awaited directly), the
- * guarded consume update…eq…is…gt…select, and rpc(fn, args) (awaited
+ * guarded consume update…eq…is…gt…select, delete…eq…eq (awaited), and
+ * rpc(fn, args) (awaited
  * directly, not chained). Responses are consumed in order, one per terminal
  * operation; every chain is recorded on `calls` for assertions. Not a
  * PostgREST emulation -- if production code grows a new chain shape, add it
@@ -86,12 +87,22 @@ export class FakeSupabase {
         call.args = patch;
         return builder;
       },
+      // delete()…eq()…eq(), awaited directly (extraction's transcript-fact
+      // replace). No args of its own -- the filters are the whole statement.
+      delete() {
+        call.op = "delete";
+        return builder;
+      },
       order(column: string, options?: unknown) {
         call.modifiers.push({ method: "order", column, options });
         return builder;
       },
       eq(column: string, value: unknown) {
         call.filters.push({ method: "eq", column, value });
+        return builder;
+      },
+      neq(column: string, value: unknown) {
+        call.filters.push({ method: "neq", column, value });
         return builder;
       },
       ilike(column: string, value: unknown) {

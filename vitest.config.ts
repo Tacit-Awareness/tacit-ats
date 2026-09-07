@@ -18,34 +18,63 @@
 // version the apps under test declare themselves (currently 19.2.8
 // everywhere) -- if they drift apart, pnpm's isolated node_modules gives a
 // test two distinct React copies, the classic hooks/context footgun.
+//
+// `@/` forced the move to `test.projects`: apps/internal and apps/landing BOTH
+// map `@/` to their own `src/`, and a single global alias can't tell which app
+// a test file belongs to. Each project below owns its `@/` mapping and a
+// non-overlapping `include`, so every test file is matched by exactly one
+// project. The shared bits (oxc JSX transform, the `@tacit/*` source aliases,
+// the server-only stub) are factored into `base` and spread into each.
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
-import { workspaceAliases } from "./test/aliases.js";
+import { atAliasFor, packageAliases } from "./test/aliases.js";
 
 const here = (p: string) => fileURLToPath(new URL(p, import.meta.url));
+const serverOnlyStub = { find: "server-only", replacement: here("./test/stubs/server-only.js") };
+const exclude = ["**/node_modules/**", "**/dist/**", "**/*.integration.test.ts"];
+
+// Everything a project needs except its `@/` mapping and its file glob.
+const base = {
+  oxc: { jsx: { runtime: "automatic" as const } },
+};
 
 export default defineConfig({
-  // tsconfig sets jsx: "preserve" for Next; vitest has to transform it itself.
-  // Vite 8 transforms with Oxc, not esbuild — esbuild: { jsx: "automatic" }
-  // was tried and still fails, so this must stay under `oxc`.
-  oxc: { jsx: { runtime: "automatic" } },
-  resolve: {
-    alias: {
-      ...workspaceAliases,
-      "server-only": here("./test/stubs/server-only.js"),
-      // One root "@" alias, pointing at apps/landing. apps/internal also has
-      // tests (lib/*.test.ts) but they import relatively and their modules
-      // under test don't use "@" — keep it that way, or switch to
-      // test.projects so each app's "@" resolves independently.
-      "@": here("./apps/landing/src"),
-    },
-  },
   test: {
-    include: [
-      "apps/*/src/**/*.test.{ts,tsx}",
-      "packages/*/src/**/*.test.ts",
-      "packages/db/supabase/functions/**/*.test.ts",
+    projects: [
+      {
+        ...base,
+        resolve: { alias: [...packageAliases, serverOnlyStub, atAliasFor("internal")] },
+        test: {
+          name: "internal",
+          include: ["apps/internal/src/**/*.test.{ts,tsx}"],
+          exclude,
+        },
+      },
+      {
+        ...base,
+        resolve: { alias: [...packageAliases, serverOnlyStub, atAliasFor("landing")] },
+        test: {
+          name: "landing",
+          include: ["apps/landing/src/**/*.test.{ts,tsx}"],
+          exclude,
+        },
+      },
+      {
+        // Everything with no `@/` of its own: the other apps and all packages.
+        ...base,
+        resolve: { alias: [...packageAliases, serverOnlyStub] },
+        test: {
+          name: "rest",
+          include: [
+            "apps/mcp/src/**/*.test.{ts,tsx}",
+            "apps/ingest-local/src/**/*.test.{ts,tsx}",
+            "apps/ingest-cloud/src/**/*.test.{ts,tsx}",
+            "packages/*/src/**/*.test.ts",
+            "packages/db/supabase/functions/**/*.test.ts",
+          ],
+          exclude,
+        },
+      },
     ],
-    exclude: ["**/node_modules/**", "**/dist/**", "**/*.integration.test.ts"],
   },
 });
