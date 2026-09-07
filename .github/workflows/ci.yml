@@ -31,6 +31,11 @@ jobs:
           SUPABASE_URL: http://127.0.0.1:54321
           SUPABASE_PUBLISHABLE_KEY: ci-dummy
           SUPABASE_SECRET_KEY: ci-dummy
+          # apps/internal's sign-in code reads these lazily; dummies keep the build honest about the var names.
+          GOOGLE_OAUTH_CLIENT_ID: ci-dummy
+          GOOGLE_OAUTH_CLIENT_SECRET: ci-dummy
+          SESSION_SECRET: ci-dummy-ci-dummy-ci-dummy-ci-dummy
+          INTERNAL_ORIGIN: http://localhost:3000
       - run: pnpm typecheck
       - run: pnpm test
       - name: Build edge bundle
