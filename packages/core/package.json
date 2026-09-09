@@ -14,6 +14,7 @@
     "mint-key": "node --env-file=../../.env dist/scripts/mint-key.js",
     "backfill-x-handles": "node --env-file=../../.env dist/scripts/backfill-x-handles.js",
     "backfill-lookups": "node --env-file=../../.env dist/scripts/backfill-lookups.js",
+    "bench-sixtyfour": "node --env-file=../../.env dist/scripts/bench-sixtyfour.js",
     "build:edge": "node scripts/build-edge.mjs"
   },
   "dependencies": {
