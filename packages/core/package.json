@@ -12,7 +12,6 @@
     "clean": "rm -rf dist",
     "start": "node --env-file=../../.env dist/run.js",
     "mint-key": "node --env-file=../../.env dist/scripts/mint-key.js",
-    "backfill-x-handles": "node --env-file=../../.env dist/scripts/backfill-x-handles.js",
     "backfill-lookups": "node --env-file=../../.env dist/scripts/backfill-lookups.js",
     "build:edge": "node scripts/build-edge.mjs"
   },
