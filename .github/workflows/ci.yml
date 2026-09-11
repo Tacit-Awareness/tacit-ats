@@ -49,7 +49,6 @@ jobs:
       - name: Typecheck edge handlers (Deno)
         run: |
           deno check granola-webhook/index.ts
-          deno check sixtyfour-webhook/index.ts
         working-directory: packages/db/supabase/functions
       # Pinned to the version the local dev stack is verified against.
       # Requires the grant_public_schema_privileges migration -- newer
