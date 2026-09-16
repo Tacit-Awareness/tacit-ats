@@ -13,6 +13,7 @@
     "start": "node --env-file=../../.env dist/run.js",
     "mint-key": "node --env-file=../../.env dist/scripts/mint-key.js",
     "backfill-lookups": "node --env-file=../../.env dist/scripts/backfill-lookups.js",
+    "backfill-mentions": "node --env-file=../../.env dist/scripts/backfill-mentions.js",
     "build:edge": "node scripts/build-edge.mjs"
   },
   "dependencies": {
