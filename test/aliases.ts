@@ -11,6 +11,10 @@ export const packageAliases = [
     find: "@tacit/core",
     replacement: fileURLToPath(new URL("../packages/core/src/index.ts", import.meta.url)),
   },
+  {
+    find: "@tacit/engine",
+    replacement: fileURLToPath(new URL("../packages/engine/src/index.ts", import.meta.url)),
+  },
 ];
 
 // `@/` is a Next tsconfig path alias, and BOTH apps/internal and apps/landing
