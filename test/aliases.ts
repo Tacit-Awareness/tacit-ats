@@ -3,6 +3,14 @@ import { fileURLToPath } from "node:url";
 // Tests import workspace packages from source (src/index.ts), not dist/ --
 // no build step needed before running tests.
 export const packageAliases = [
+  // Deep dist imports -- the off-barrel research machinery apps deep-import
+  // (`@tacit/core/dist/enrichment/agent/exa.js`, `dist/connections/enrich-run.js`,
+  // ...) -- resolve to their source file, the same no-build-step contract as
+  // the barrel alias below. Must precede the bare `@tacit/core` entry.
+  {
+    find: /^@tacit\/core\/dist\/(.*)\.js$/,
+    replacement: fileURLToPath(new URL("../packages/core/src/", import.meta.url)) + "$1.ts",
+  },
   {
     find: "@tacit/db",
     replacement: fileURLToPath(new URL("../packages/db/src/index.ts", import.meta.url)),
