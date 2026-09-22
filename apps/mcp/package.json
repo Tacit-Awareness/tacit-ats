@@ -13,6 +13,7 @@
     "@modelcontextprotocol/server": "^2",
     "@tacit/core": "workspace:^",
     "@tacit/db": "workspace:^",
+    "@tacit/engine": "workspace:^",
     "mcp-handler": "^2",
     "next": "16.3.0",
     "react": "19.2.8",

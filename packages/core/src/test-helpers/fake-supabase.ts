@@ -10,7 +10,8 @@ export type RecordedCall = {
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
   filters: Array<{
-    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "not";
+    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "not" | "or";
+    /** The filtered column -- "" for `or`, whose whole statement is its value. */
     column: string;
     /** for `not`: { operator, value } */
     value: unknown;
@@ -27,7 +28,7 @@ export type RecordedCall = {
 
 /**
  * Hand-rolled scripted+recording fake covering exactly the query chains this
- * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike…maybeSingle/single,
+ * codebase uses (see packages/db/CLAUDE.md): select…eq/ilike/or…maybeSingle/single,
  * select…eq…order…range (awaited, paged), select(…, {count, head}) (awaited,
  * reads `count`), insert…select…single, update…eq (awaited directly), the
  * guarded consume update…eq…is…gt…select, delete…eq…eq (awaited), and
@@ -135,6 +136,13 @@ export class FakeSupabase {
       },
       lte(column: string, value: unknown) {
         call.filters.push({ method: "lte", column, value });
+        return builder;
+      },
+      // .or("a.ilike.%x%,b.ilike.%x%") -- the rolodex reads' one-shot fan-out
+      // across several columns. Recorded whole: PostgREST parses the string
+      // itself, so there is no single column to attribute it to.
+      or(statement: string) {
+        call.filters.push({ method: "or", column: "", value: statement });
         return builder;
       },
       not(column: string, operator: string, value: unknown) {
