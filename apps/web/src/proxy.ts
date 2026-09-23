@@ -1,6 +1,7 @@
 // The auth gate. Every request that isn't the login page, the OAuth
-// endpoints, a cron route (own bearer check), or a static asset must carry a
-// valid tacit_session cookie; otherwise it's bounced to /login with the
+// endpoints, a cron route (own bearer check), a Slack slash command (own
+// signature check), or a static asset must carry a valid tacit_session
+// cookie; otherwise it's bounced to /login with the
 // original path in ?next=. On success the *raw, already-verified* session
 // token rides along to the page/action as the x-tacit-user header (see
 // lib/auth.ts) — not the parsed claims. That way, even if this proxy is
@@ -17,7 +18,12 @@ export const config = {
     // reachable signed-out, and static assets — which are only ever
     // top-level files (tacit-mark.png, favicon.ico…) or under fonts/, so a
     // dot elsewhere (e.g. a dynamic slug) must never be exempted.
-    "/((?!_next/|login$|auth/|api/cron/|fonts/|[^/]+\\.[\\w]+$).*)",
+    // api/slack/ is exempt for the same reason api/cron/ is: the caller is
+    // a machine that carries no cookie and proves itself another way -- a
+    // v0 HMAC over the raw body, checked in the route itself, which refuses
+    // outright when SLACK_SIGNING_SECRET is unset. Exempting the prefix
+    // without that check in place would publish the rolodex.
+    "/((?!_next/|login$|auth/|api/cron/|api/slack/|fonts/|[^/]+\\.[\\w]+$).*)",
   ],
 };
 
