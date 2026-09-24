@@ -2,6 +2,9 @@ name: CI
 
 on:
   pull_request:
+    # Evaluated against the whole PR diff, not each push: a PR that touches
+    # any code still runs CI on every later commit.
+    paths-ignore: ['**.md', '**.csv']
   push:
     branches: [main]
   workflow_dispatch:
@@ -21,21 +24,40 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Build before typecheck: cross-package type resolution goes through
-      # each package's dist/index.d.ts, which only exists after a build.
-      # Dummy Supabase env: apps/internal constructs its client at module
-      # scope, so next build's page-data collection needs the vars to exist;
-      # every page is dynamic, so nothing actually connects at build time.
-      - run: pnpm build
-        env:
-          SUPABASE_URL: http://127.0.0.1:54321
-          SUPABASE_PUBLISHABLE_KEY: ci-dummy
-          SUPABASE_SECRET_KEY: ci-dummy
-          # apps/internal's sign-in code reads these lazily; dummies keep the build honest about the var names.
-          GOOGLE_OAUTH_CLIENT_ID: ci-dummy
-          GOOGLE_OAUTH_CLIENT_SECRET: ci-dummy
-          SESSION_SECRET: ci-dummy-ci-dummy-ci-dummy-ci-dummy
-          INTERNAL_ORIGIN: http://localhost:3000
+      # A migration created before the newest one already on main would be
+      # refused by `supabase db push` AFTER merge -- fail here instead, so the
+      # author renames the file to a fresh timestamp while it's still a PR.
+      # A step, not its own job: GitHub bills a 1-minute minimum per job.
+      - name: New migrations must sort after everything on main
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --depth=1 origin main
+          dir=packages/db/supabase/migrations/
+          on_main=$(git ls-tree -r --name-only FETCH_HEAD -- "$dir" | grep '\.sql$' | sort || true)
+          latest_main=$(echo "$on_main" | tail -1)
+          if [ -z "$latest_main" ]; then
+            echo "No migrations on main yet -- nothing to order against."
+            exit 0
+          fi
+          fail=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [[ "$(basename "$f")" < "$(basename "$latest_main")" ]]; then
+              echo "::error file=$f::$(basename "$f") sorts before $(basename "$latest_main"), which is already on main. supabase db push would refuse this after merge. Rename it to a fresh timestamp: 'supabase migration new <name>' and move your SQL into the new file."
+              fail=1
+            fi
+          done < <(comm -13 <(echo "$on_main") <(git ls-tree -r --name-only HEAD -- "$dir" | grep '\.sql$' | sort))
+          [ "$fail" = 0 ] && echo "Migration ordering OK."
+          exit $fail
+      # Build only the tsc packages: cross-package type resolution goes
+      # through each package's dist/index.d.ts. The Next apps are NOT built
+      # here -- Vercel builds every one of them on each preview deploy, so a
+      # `next build` in CI was ~90s of duplicate work. `next typegen` writes
+      # the .next/types/*.d.ts that next-env.d.ts imports, in under a second.
+      - name: Build packages
+        run: pnpm -r --filter '!@tacit/internal' --filter '!@tacit/landing' --filter '!@tacit/mcp' build
+      - name: Generate Next route types
+        run: pnpm -r --filter @tacit/internal --filter @tacit/landing --filter @tacit/mcp exec next typegen
       - run: pnpm typecheck
       - run: pnpm test
       - name: Build edge bundle
@@ -50,46 +72,26 @@ jobs:
         run: |
           deno check granola-webhook/index.ts
         working-directory: packages/db/supabase/functions
+      # Integration is PR-only: the post-squash-merge push to main would just
+      # re-validate a tree that passed moments ago, and the Supabase stack is
+      # the slowest part of the run.
       # Pinned to the version the local dev stack is verified against.
       # Requires the grant_public_schema_privileges migration -- newer
       # postgres images stopped auto-granting API-role table privileges.
       - uses: supabase/setup-cli@v1
+        if: github.event_name == 'pull_request'
         with:
           version: 2.113.0
       # Fresh stack applies every migration from scratch -- this is also the
       # "do the migrations still replay cleanly in order" validation.
+      # Integration tests only use PostgREST (via kong) and direct Postgres,
+      # so skip pulling/starting every service they never touch.
       - name: Start local Supabase
-        run: supabase start
+        if: github.event_name == 'pull_request'
+        run: supabase start -x studio,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,postgres-meta,mailpit,supavisor
         working-directory: packages/db
       - run: pnpm test:integration
-
-  # A migration created before the newest one already on main would be
-  # refused by `supabase db push` AFTER merge -- fail here instead, so the
-  # author renames the file to a fresh timestamp while it's still a PR.
-  migration-order:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: New migrations must sort after everything on main
-        run: |
-          latest_main=$(git ls-tree -r --name-only origin/main -- packages/db/supabase/migrations/ | grep '\.sql$' | sort | tail -1 || true)
-          if [ -z "$latest_main" ]; then
-            echo "No migrations on main yet -- nothing to order against."
-            exit 0
-          fi
-          fail=0
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            if [[ "$(basename "$f")" < "$(basename "$latest_main")" ]]; then
-              echo "::error file=$f::$(basename "$f") sorts before $(basename "$latest_main"), which is already on main. supabase db push would refuse this after merge. Rename it to a fresh timestamp: 'supabase migration new <name>' and move your SQL into the new file."
-              fail=1
-            fi
-          done < <(git diff --name-only --diff-filter=A origin/main...HEAD -- 'packages/db/supabase/migrations/*.sql')
-          [ "$fail" = 0 ] && echo "Migration ordering OK."
-          exit $fail
+        if: github.event_name == 'pull_request'
 
   deploy:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
