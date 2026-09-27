@@ -1,5 +1,8 @@
 name: CI
 
+# PRs run the checks; merges to main only deploy. The squash-merge lands the
+# tree that just passed on the PR, so re-checking it on main was ~3 min of
+# duplicate work per merge (private repo, 2,000 Actions min/month).
 on:
   pull_request:
     # Evaluated against the whole PR diff, not each push: a PR that touches
@@ -15,6 +18,7 @@ concurrency:
 
 jobs:
   checks:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,78 +28,35 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # A migration created before the newest one already on main would be
-      # refused by `supabase db push` AFTER merge -- fail here instead, so the
-      # author renames the file to a fresh timestamp while it's still a PR.
       # A step, not its own job: GitHub bills a 1-minute minimum per job.
       - name: New migrations must sort after everything on main
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch --depth=1 origin main
-          dir=packages/db/supabase/migrations/
-          on_main=$(git ls-tree -r --name-only FETCH_HEAD -- "$dir" | grep '\.sql$' | sort || true)
-          latest_main=$(echo "$on_main" | tail -1)
-          if [ -z "$latest_main" ]; then
-            echo "No migrations on main yet -- nothing to order against."
-            exit 0
-          fi
-          fail=0
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            if [[ "$(basename "$f")" < "$(basename "$latest_main")" ]]; then
-              echo "::error file=$f::$(basename "$f") sorts before $(basename "$latest_main"), which is already on main. supabase db push would refuse this after merge. Rename it to a fresh timestamp: 'supabase migration new <name>' and move your SQL into the new file."
-              fail=1
-            fi
-          done < <(comm -13 <(echo "$on_main") <(git ls-tree -r --name-only HEAD -- "$dir" | grep '\.sql$' | sort))
-          [ "$fail" = 0 ] && echo "Migration ordering OK."
-          exit $fail
-      # Build only the tsc packages: cross-package type resolution goes
-      # through each package's dist/index.d.ts. The Next apps are NOT built
-      # here -- Vercel builds every one of them on each preview deploy, so a
-      # `next build` in CI was ~90s of duplicate work. `next typegen` writes
-      # the .next/types/*.d.ts that next-env.d.ts imports, in under a second.
-      - name: Build packages
-        run: pnpm -r --filter '!@tacit/internal' --filter '!@tacit/landing' --filter '!@tacit/mcp' build
-      - name: Generate Next route types
-        run: pnpm -r --filter @tacit/internal --filter @tacit/landing --filter @tacit/mcp exec next typegen
+        run: scripts/ci/check-migration-order.sh
+      - run: pnpm ci:build
       - run: pnpm typecheck
       - run: pnpm test
-      - name: Build edge bundle
-        run: pnpm build:functions
+      - run: pnpm build:functions
+      # The edge handlers are outside every tsconfig -- deno check is the only
+      # typecheck they get. Needs the bundle above (they import ../_shared/core.js).
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      # The handlers are the files outside every tsconfig -- deno check is
-      # the only typecheck they get. Runs after the bundle build since they
-      # import ../_shared/core.js.
       - name: Typecheck edge handlers (Deno)
-        run: |
-          deno check granola-webhook/index.ts
+        run: deno check granola-webhook/index.ts
         working-directory: packages/db/supabase/functions
-      # Integration is PR-only: the post-squash-merge push to main would just
-      # re-validate a tree that passed moments ago, and the Supabase stack is
-      # the slowest part of the run.
       # Pinned to the version the local dev stack is verified against.
-      # Requires the grant_public_schema_privileges migration -- newer
-      # postgres images stopped auto-granting API-role table privileges.
       - uses: supabase/setup-cli@v1
-        if: github.event_name == 'pull_request'
         with:
           version: 2.113.0
-      # Fresh stack applies every migration from scratch -- this is also the
-      # "do the migrations still replay cleanly in order" validation.
-      # Integration tests only use PostgREST (via kong) and direct Postgres,
-      # so skip pulling/starting every service they never touch.
+      # A fresh stack replays every migration from scratch, which doubles as the
+      # "do migrations still apply in order" check. Integration tests only use
+      # PostgREST (via kong) and direct Postgres, so skip every other service.
       - name: Start local Supabase
-        if: github.event_name == 'pull_request'
         run: supabase start -x studio,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,postgres-meta,mailpit,supavisor
         working-directory: packages/db
       - run: pnpm test:integration
-        if: github.event_name == 'pull_request'
 
   deploy:
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    needs: checks
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -103,19 +64,7 @@ jobs:
       PROJECT_REF: qlqebxtjzcotiwgdnukj
     steps:
       - uses: actions/checkout@v4
-      # Both secrets or nothing: deploying new function code without having
-      # pushed the migrations it depends on is worse than skipping.
-      - name: Check deploy credentials
-        id: creds
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then
-            echo "::warning::SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD secrets not set -- skipping deploy."
-            echo "have_creds=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "have_creds=true" >> "$GITHUB_OUTPUT"
-          fi
       - uses: supabase/setup-cli@v1
-        if: steps.creds.outputs.have_creds == 'true'
         with:
           version: latest
       # Migrations FIRST: the new function code may depend on the new schema.
@@ -127,24 +76,17 @@ jobs:
       # No --include-all: an out-of-order migration that somehow reached main
       # fails loudly here rather than being applied out of order.
       - name: Push migrations
-        if: steps.creds.outputs.have_creds == 'true'
         run: |
           supabase link --project-ref "$PROJECT_REF"
           supabase db push
         working-directory: packages/db
       - uses: pnpm/action-setup@v4
-        if: steps.creds.outputs.have_creds == 'true'
       - uses: actions/setup-node@v4
-        if: steps.creds.outputs.have_creds == 'true'
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-        if: steps.creds.outputs.have_creds == 'true'
-      - name: Build edge bundle
-        if: steps.creds.outputs.have_creds == 'true'
-        run: pnpm build:functions
+      - run: pnpm build:functions
       - name: Deploy edge functions
-        if: steps.creds.outputs.have_creds == 'true'
         run: supabase functions deploy --no-verify-jwt --project-ref "$PROJECT_REF"
         working-directory: packages/db
