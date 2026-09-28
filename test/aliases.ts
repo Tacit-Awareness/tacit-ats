@@ -20,6 +20,10 @@ export const packageAliases = [
     replacement: fileURLToPath(new URL("../packages/core/src/index.ts", import.meta.url)),
   },
   {
+    find: "@tacit/scheduling",
+    replacement: fileURLToPath(new URL("../packages/scheduling/src/index.ts", import.meta.url)),
+  },
+  {
     find: "@tacit/engine",
     replacement: fileURLToPath(new URL("../packages/engine/src/index.ts", import.meta.url)),
   },
