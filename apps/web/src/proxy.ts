@@ -1,6 +1,6 @@
 // The auth gate. Every request that isn't the login page, the OAuth
 // endpoints, a cron route (own bearer check), a Slack slash command (own
-// signature check), or a static asset must carry a valid tacit_session
+// signature check), tacit-bot's key minting (own bearer check), or a static asset must carry a valid tacit_session
 // cookie; otherwise it's bounced to /login with the
 // original path in ?next=. On success the *raw, already-verified* session
 // token rides along to the page/action as the x-tacit-user header (see
@@ -22,8 +22,9 @@ export const config = {
     // a machine that carries no cookie and proves itself another way -- a
     // v0 HMAC over the raw body, checked in the route itself, which refuses
     // outright when SLACK_SIGNING_SECRET is unset. Exempting the prefix
-    // without that check in place would publish the rolodex.
-    "/((?!_next/|login$|auth/|api/cron/|api/slack/|fonts/|[^/]+\\.[\\w]+$).*)",
+    // without that check in place would publish the rolodex. api/tacit-bot/
+    // likewise: a bearer check in the route, refusing when its secret is unset.
+    "/((?!_next/|login$|auth/|api/cron/|api/slack/|api/tacit-bot/|fonts/|[^/]+\\.[\\w]+$).*)",
   ],
 };
 
