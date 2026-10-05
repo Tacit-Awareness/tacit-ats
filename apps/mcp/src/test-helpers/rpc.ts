@@ -14,6 +14,5 @@ export function rpc(method: string, params: Record<string, unknown> = {}, id = 1
 export function withAuth(request: Request): Request {
   const headers = new Headers(request.headers);
   headers.set("authorization", "Bearer tk_abc123_ssshhh");
-  headers.set("x-poke-user-id", "test-user");
   return new Request(request, { headers });
 }
