@@ -19,6 +19,8 @@ export type ConnectorConfig = {
   resendApiKey: string | null;
   /** Tacit Testbench's origin, for reading assessment results. Null = those tools refuse. */
   testbenchUrl: string | null;
+  /** For find_adjacent's two model calls. Null = that tool refuses. */
+  anthropicApiKey: string | null;
 };
 
 export const DEFAULT_EMAIL_DOMAIN = "tacitawareness.com";
@@ -37,6 +39,7 @@ export function connectorConfig(env: Record<string, string | undefined> = proces
     workosApiKey: env.WORKOS_API_KEY?.trim() || null,
     resendApiKey: env.RESEND_API_KEY?.trim() || null,
     testbenchUrl: env.TESTBENCH_URL?.trim() ? trimSlash(env.TESTBENCH_URL.trim()) : null,
+    anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
   };
 }
 
