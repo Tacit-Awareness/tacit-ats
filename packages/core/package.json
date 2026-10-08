@@ -12,6 +12,7 @@
     "clean": "rm -rf dist",
     "start": "node --env-file=../../.env dist/run.js",
     "mint-key": "node --env-file=../../.env dist/scripts/mint-key.js",
+    "backfill-funnel": "node --env-file=../../.env dist/scripts/backfill-funnel.js",
     "backfill-lookups": "node --env-file=../../.env dist/scripts/backfill-lookups.js",
     "import-follow-edges": "node --env-file=../../.env dist/scripts/import-follow-edges.js",
     "backfill-mentions": "node --env-file=../../.env dist/scripts/backfill-mentions.js",
