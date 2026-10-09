@@ -21,6 +21,8 @@ export type ConnectorConfig = {
   testbenchUrl: string | null;
   /** For find_adjacent's two model calls. Null = that tool refuses. */
   anthropicApiKey: string | null;
+  /** The internal app's origin, for the link on a nudge. Null = nudges carry no link. */
+  internalOrigin: string | null;
 };
 
 export const DEFAULT_EMAIL_DOMAIN = "tacitawareness.com";
@@ -40,6 +42,7 @@ export function connectorConfig(env: Record<string, string | undefined> = proces
     resendApiKey: env.RESEND_API_KEY?.trim() || null,
     testbenchUrl: env.TESTBENCH_URL?.trim() ? trimSlash(env.TESTBENCH_URL.trim()) : null,
     anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
+    internalOrigin: env.INTERNAL_ORIGIN?.trim() ? trimSlash(env.INTERNAL_ORIGIN.trim()) : null,
   };
 }
 
