@@ -20,7 +20,8 @@
     "import-linkedin-connections": "node --env-file=../../.env dist/scripts/import-linkedin-connections.js",
     "import-instagram-connections": "node --env-file=../../.env dist/scripts/import-instagram-connections.js",
     "network": "node --env-file=../../.env dist/scripts/network.js",
-    "seed-neolabs": "node --env-file=../../.env dist/scripts/seed-neolabs.js"
+    "seed-neolabs": "node --env-file=../../.env dist/scripts/seed-neolabs.js",
+    "post-test-card": "node --env-file=../../.env dist/scripts/post-test-card.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.33",
