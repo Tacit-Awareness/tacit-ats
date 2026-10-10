@@ -23,6 +23,8 @@ export type ConnectorConfig = {
   anthropicApiKey: string | null;
   /** The internal app's origin, for the link on a nudge. Null = nudges carry no link. */
   internalOrigin: string | null;
+  /** Reviews an offer, rejection or intro when the client has no owner, or its owner wrote it. */
+  fallbackReviewerEmail: string | null;
 };
 
 export const DEFAULT_EMAIL_DOMAIN = "tacitawareness.com";
@@ -43,6 +45,7 @@ export function connectorConfig(env: Record<string, string | undefined> = proces
     testbenchUrl: env.TESTBENCH_URL?.trim() ? trimSlash(env.TESTBENCH_URL.trim()) : null,
     anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
     internalOrigin: env.INTERNAL_ORIGIN?.trim() ? trimSlash(env.INTERNAL_ORIGIN.trim()) : null,
+    fallbackReviewerEmail: env.REVIEW_FALLBACK_EMAIL?.trim().toLowerCase() || null,
   };
 }
 
