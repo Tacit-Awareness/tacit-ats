@@ -25,6 +25,8 @@ export type ConnectorConfig = {
   internalOrigin: string | null;
   /** Reviews an offer, rejection or intro when the client has no owner, or its owner wrote it. */
   fallbackReviewerEmail: string | null;
+  /** The Google OAuth client apps/internal's /connect grants are made to. Null = the scheduling tools refuse. */
+  googleOauth: { clientId: string; clientSecret: string } | null;
 };
 
 export const DEFAULT_EMAIL_DOMAIN = "tacitawareness.com";
@@ -46,6 +48,9 @@ export function connectorConfig(env: Record<string, string | undefined> = proces
     anthropicApiKey: env.ANTHROPIC_API_KEY?.trim() || null,
     internalOrigin: env.INTERNAL_ORIGIN?.trim() ? trimSlash(env.INTERNAL_ORIGIN.trim()) : null,
     fallbackReviewerEmail: env.REVIEW_FALLBACK_EMAIL?.trim().toLowerCase() || null,
+    googleOauth: env.GOOGLE_OAUTH_CLIENT_ID?.trim() && env.GOOGLE_OAUTH_CLIENT_SECRET?.trim()
+      ? { clientId: env.GOOGLE_OAUTH_CLIENT_ID.trim(), clientSecret: env.GOOGLE_OAUTH_CLIENT_SECRET.trim() }
+      : null,
   };
 }
 
