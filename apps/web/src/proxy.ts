@@ -9,7 +9,17 @@
 // to be a token signed with SESSION_SECRET, which currentUser() re-verifies
 // before trusting anything in it. A missing SESSION_SECRET fails closed:
 // nothing verifies, everyone lands on /login.
+//
+// Two kinds of session, kept apart by path (2026-10-13). Tacit's own team
+// signs in with Google and holds tacit_session; it is honoured everywhere
+// EXCEPT under /client. A member of a client org signs in through WorkOS
+// AuthKit; that session is honoured ONLY under /client. So a client session
+// can never reach a staff page, route or action, whatever gets added later:
+// there is no list to keep up to date. Under /client the staff header is
+// stripped, and a staff cookie counts for nothing.
+import { applyResponseHeaders, authkit, handleAuthkitHeaders, partitionAuthkitHeaders } from "@workos-inc/authkit-nextjs";
 import { NextResponse, type NextRequest } from "next/server";
+import { CLIENT_CALLBACK_PATH, clientRedirectUri, clientSignInConfigured, isClientPath } from "@/lib/client/config";
 import { SESSION_COOKIE, USER_HEADER, verifySession } from "@/lib/session";
 
 export const config = {
@@ -28,7 +38,32 @@ export const config = {
   ],
 };
 
+/**
+ * The client area. 404 until client sign-in is configured, so this ships
+ * dormant. Otherwise AuthKit reads (and refreshes) the sealed session cookie;
+ * no session means a redirect to WorkOS, except on the callback itself.
+ */
+async function clientProxy(request: NextRequest) {
+  if (!clientSignInConfigured()) return new NextResponse(null, { status: 404 });
+
+  const { session, headers, authorizationUrl } = await authkit(request, {
+    redirectUri: clientRedirectUri(request.nextUrl.origin),
+  });
+  if (!session.user && request.nextUrl.pathname !== CLIENT_CALLBACK_PATH) {
+    if (!authorizationUrl) return new NextResponse(null, { status: 404 });
+    return handleAuthkitHeaders(request, headers, { redirect: authorizationUrl });
+  }
+
+  // AuthKit's own request headers go to the page (withAuth reads them) and
+  // never to the browser. A staff identity never rides into the client area.
+  const { requestHeaders, responseHeaders } = partitionAuthkitHeaders(request, headers);
+  requestHeaders.delete(USER_HEADER);
+  return applyResponseHeaders(NextResponse.next({ request: { headers: requestHeaders } }), responseHeaders);
+}
+
 export async function proxy(request: NextRequest) {
+  if (isClientPath(request.nextUrl.pathname)) return clientProxy(request);
+
   const secret = process.env.SESSION_SECRET;
   const token = request.cookies.get(SESSION_COOKIE)?.value ?? "";
   const user = secret ? await verifySession(token, secret) : null;
