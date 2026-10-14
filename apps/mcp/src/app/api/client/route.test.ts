@@ -232,11 +232,12 @@ describe("the tools", () => {
       "add_candidate", "update_stage", "set_next_action", "add_note",
       "create_job", "update_job", "get_hiring_team", "add_to_hiring_team", "remove_from_hiring_team",
       "set_member_access", "invite_member", "list_invites", "withdraw_invite",
+      "list_my_interviews", "schedule_interview", "update_interview", "submit_feedback", "get_feedback",
     ]);
-    for (const read of ["whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites"]) {
+    for (const read of ["whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites", "list_my_interviews", "get_feedback"]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     }
-    for (const change of ["update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite"]) {
+    for (const change of ["update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite", "update_interview"]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }
   });

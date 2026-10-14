@@ -607,6 +607,166 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "list_my_interviews",
+        {
+          title: "List my interviews",
+          description:
+            "The interviews you are an interviewer on: when, where, which candidate and job, and whether " +
+            "you have filed your feedback (each with an interview_id for submit_feedback). when is " +
+            "upcoming (default), past or all.",
+          inputSchema: z.object({ when: z.enum(["upcoming", "past", "all"]).optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_my_interviews", "read", args, async () => {
+            const list = await clientTools.listMyInterviews(db, ctx, { when: args.when });
+            const pending = list.filter((i) => !i.feedbackFiled && i.status !== "cancelled" && Date.parse(i.startsAt) <= Date.now()).length;
+            return {
+              summary: `${list.length} interview${list.length === 1 ? "" : "s"}${pending ? `, ${pending} waiting on your feedback` : ""}.`,
+              data: {
+                interviews: list.map((i) => ({
+                  interview_id: i.interviewId, application_id: i.applicationId, candidate_id: i.candidateId,
+                  candidate: named(i.candidateName), job_id: i.jobId, job: i.jobTitle,
+                  starts_at: i.startsAt, ends_at: i.endsAt, status: i.status, step: i.step,
+                  location_or_link: i.locationOrLink, your_feedback_filed: i.feedbackFiled,
+                })),
+              },
+              candidateIds: [...new Set(list.map((i) => i.candidateId))],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "schedule_interview",
+        {
+          title: "Schedule an interview",
+          description:
+            "Records an interview on one application (application_id) with your company's interviewers " +
+            "(user_ids from list_team). Times are ISO 8601 with their offset. This only records it in " +
+            "Tacit: no calendar invite is sent to anyone, the candidate included. Needs the right to " +
+            "schedule on that job. Confirm the time and interviewers with the user first.",
+          inputSchema: z.object({
+            application_id: uuid("application_id"),
+            starts_at: z.string().max(40),
+            ends_at: z.string().max(40),
+            interviewer_user_ids: z.array(uuid("each interviewer")).min(1).max(10),
+            location_or_link: z.string().max(500).optional(),
+            step: z.string().max(120).optional(),
+          }),
+        },
+        (args) =>
+          run("schedule_interview", "write", args, async () => {
+            const r = await clientTools.scheduleInterview(db, ctx, {
+              applicationId: args.application_id, startsAt: args.starts_at, endsAt: args.ends_at,
+              interviewerIds: args.interviewer_user_ids, locationOrLink: args.location_or_link, step: args.step,
+            });
+            return {
+              summary: "Interview recorded. Nobody was sent an invitation.",
+              data: { interview_id: r.interviewId, application_id: args.application_id },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "update_interview",
+        {
+          title: "Change or cancel an interview",
+          description:
+            `Moves an interview, changes its interviewers or location, or sets its status (${clientTools.INTERVIEW_STATUSES.join(", ")}). ` +
+            "Only what you pass changes. Needs the right to schedule on that job. Tell the user what will " +
+            "change and wait for a yes.",
+          inputSchema: z.object({
+            interview_id: uuid("interview_id"),
+            starts_at: z.string().max(40).optional(),
+            ends_at: z.string().max(40).optional(),
+            interviewer_user_ids: z.array(uuid("each interviewer")).min(1).max(10).optional(),
+            location_or_link: z.string().max(500).nullable().optional(),
+            status: z.enum(clientTools.INTERVIEW_STATUSES).optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_interview", "write", args, async () => {
+            const r = await clientTools.updateInterview(db, ctx, {
+              interviewId: args.interview_id, startsAt: args.starts_at, endsAt: args.ends_at,
+              interviewerIds: args.interviewer_user_ids, locationOrLink: args.location_or_link, status: args.status,
+            });
+            return {
+              summary: r.outcome === "updated" ? `Updated ${r.changed.join(", ")}.` : "Nothing to change.",
+              data: { outcome: r.outcome, interview_id: args.interview_id, changed: r.changed },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "submit_feedback",
+        {
+          title: "Submit interview feedback",
+          description:
+            `Files your feedback on an interview you were an interviewer on, once it has started: a ` +
+            `recommendation (${clientTools.RECOMMENDATIONS.join(", ")}), an optional rating from 1 to 4, ` +
+            "and notes. Filing again replaces yours. Feedback is private to your company's hiring team: " +
+            "never put it in a message to the candidate.",
+          inputSchema: z.object({
+            interview_id: uuid("interview_id"),
+            recommendation: z.enum(clientTools.RECOMMENDATIONS),
+            rating: z.number().int().min(1).max(4).optional(),
+            notes: z.string().min(1).max(10_000),
+          }),
+        },
+        (args) =>
+          run("submit_feedback", "write", { interview_id: args.interview_id, recommendation: args.recommendation }, async () => {
+            const r = await clientTools.submitFeedback(db, ctx, {
+              interviewId: args.interview_id, recommendation: args.recommendation, rating: args.rating, notes: args.notes,
+            });
+            return {
+              summary: r.replaced ? "Your feedback was replaced." : "Feedback filed.",
+              data: { feedback_id: r.feedbackId, interview_id: args.interview_id, replaced: r.replaced },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "get_feedback",
+        {
+          title: "Read interview feedback",
+          description:
+            "The feedback filed on one interview (interview_id) or every interview of one application " +
+            "(application_id), with each interview's interviewers. Whose feedback you can read follows " +
+            "your company's setting: often only after you have filed your own. Private to the hiring " +
+            "team: never put it in a message to the candidate.",
+          inputSchema: z.object({ interview_id: uuid("interview_id").optional(), application_id: uuid("application_id").optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_feedback", "read", args, async () => {
+            const f = await clientTools.getFeedback(db, ctx, { interviewId: args.interview_id, applicationId: args.application_id });
+            return {
+              summary:
+                `${f.feedback.length} piece${f.feedback.length === 1 ? "" : "s"} of feedback across ${f.interviews.length} interview${f.interviews.length === 1 ? "" : "s"}.` +
+                (f.yoursOutstanding ? " Yours is still outstanding, so others' may be hidden until you file it." : ""),
+              data: {
+                private: true,
+                interviews: f.interviews.map((i) => ({
+                  interview_id: i.interviewId, starts_at: i.startsAt, status: i.status, step: i.step,
+                  interviewers: i.interviewers.map((p) => ({ user_id: p.userId, name: p.name })),
+                })),
+                feedback: f.feedback.map((e) => ({
+                  feedback_id: e.feedbackId, interview_id: e.interviewId, interviewer_id: e.interviewerId, interviewer: e.interviewer,
+                  recommendation: e.recommendation, rating: e.rating, notes: fence("feedback", e.notes),
+                  submitted_at: e.submittedAt, yours: e.mine,
+                })),
+                yours_outstanding: f.yoursOutstanding,
+              },
+              candidateIds: [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -614,9 +774,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "Your company's hiring workspace in Tacit: its jobs, the candidates in each job's pipeline, and " +
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
-        "returns. Before update_stage, update_job, set_member_access, invite_member or removing someone " +
+        "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview or removing someone " +
         "from a hiring team, tell the user exactly what will change and wait for a yes. Nothing here " +
-        "deletes a candidate or a job.\n\n" +
+        "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
+        "in a message to a candidate.\n\n" +
         UNTRUSTED_PREAMBLE,
     },
   );

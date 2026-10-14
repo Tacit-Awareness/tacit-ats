@@ -27,6 +27,7 @@ const GLOBEX_ROLE = "c2b00000-0000-4000-8000-000000000001";
 const PAT = "c1c00000-0000-4000-8000-000000000001";
 const SECRET_PERSON = "c2c00000-0000-4000-8000-000000000001";
 const PAT_APP = "c1d00000-0000-4000-8000-000000000001";
+const UPCOMING = "c1e00000-0000-4000-8000-000000000001";
 
 /** Setup writes throw: a fixture that silently failed would make every refusal test pass for the wrong reason. */
 function must<T extends { error: { message: string } | null }>(result: T): T {
@@ -45,7 +46,7 @@ const workos = { sent: [] as Array<{ email: string; organizationId: string; invi
 async function clear() {
   const ids = [ACME, GLOBEX];
   // org_id references orgs without a cascade: every row in these orgs goes first.
-  for (const table of ["audit_log", "application_events", "interviews", "applications", "person_notes", "people", "companies"] as const) {
+  for (const table of ["audit_log", "interview_feedback", "application_events", "interviews", "applications", "person_notes", "people", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("actors").delete().in("org_id", ids);
@@ -141,7 +142,7 @@ beforeEach(async () => {
   ]));
   const soon = Date.now() + 86_400_000;
   must(await db().from("interviews").insert({
-    org_id: ACME, application_id: PAT_APP, interviewer_actor_ids: [INTERVIEWER],
+    id: UPCOMING, org_id: ACME, application_id: PAT_APP, interviewer_actor_ids: [INTERVIEWER],
     starts_at: new Date(soon).toISOString(), ends_at: new Date(soon + 3_600_000).toISOString(),
   }));
 });
@@ -402,5 +403,74 @@ describe("the admin tools against real Postgres", () => {
     expect(workos.revoked).toEqual(["zed@acme.test"]);
     const { count } = await db().from("actors").select("*", { count: "exact", head: true }).eq("id", invite.user_id);
     expect(count).toBe(0);
+  });
+});
+
+describe("interviews and feedback against real Postgres", () => {
+  const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+
+  test("an interviewer lists their interview with the candidate and job, though they cannot read the application", async () => {
+    const { interviews } = await ok(IVAN, "list_my_interviews");
+    expect(interviews).toHaveLength(1);
+    expect(interviews[0]).toMatchObject({
+      interview_id: UPCOMING, application_id: PAT_APP, candidate_id: PAT, job: "Founding Engineer", your_feedback_filed: false,
+    });
+    expect(interviews[0].candidate).toContain("Pat Candidate");
+    expect((await ok(IVAN, "list_my_interviews", { when: "past" })).interviews).toEqual([]);
+  });
+
+  test("feedback waits for the interview, then lands as the interviewer's own, with the notes kept out of the audit row", async () => {
+    expect((await tool(IVAN, "submit_feedback", { interview_id: UPCOMING, recommendation: "yes", notes: "early" })).content[0].text)
+      .toMatch(/not happened yet/);
+
+    const past = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: hoursFromNow(-3), ends_at: hoursFromNow(-2), interviewer_user_ids: [INTERVIEWER], step: "Onsite",
+    });
+    const { interviews } = await ok(IVAN, "list_my_interviews", { when: "past" });
+    expect(interviews.map((i: { interview_id: string }) => i.interview_id)).toEqual([past.interview_id]);
+
+    const filed = await ok(IVAN, "submit_feedback", {
+      interview_id: past.interview_id, recommendation: "strong_yes", rating: 4, notes: "PRIVATE-MARKER great systems sense",
+    });
+    expect(filed.replaced).toBe(false);
+    const { data: row } = await db().from("interview_feedback").select("org_id, interviewer_actor_id, notes").eq("id", filed.feedback_id).single();
+    expect(row).toEqual({ org_id: ACME, interviewer_actor_id: INTERVIEWER, notes: "PRIVATE-MARKER great systems sense" });
+    const { data: audit } = await db().from("audit_log").select("action, before, after").eq("actor_id", INTERVIEWER);
+    expect(audit!.map((a) => a.action)).toEqual(["feedback.submit"]);
+    expect(JSON.stringify(audit)).not.toContain("PRIVATE-MARKER");
+
+    const read = await ok(ADA, "get_feedback", { application_id: PAT_APP });
+    expect(read.private).toBe(true);
+    expect(read.feedback).toHaveLength(1);
+    expect(read.feedback[0]).toMatchObject({ interviewer_id: INTERVIEWER, interviewer: "Ivan Interviewer", recommendation: "strong_yes", rating: 4 });
+    expect(read.feedback[0].notes).toContain("<<<UNTRUSTED_DATA>>>");
+    expect(read.feedback[0].notes).toContain("PRIVATE-MARKER");
+    expect((await ok(IVAN, "list_my_interviews", { when: "past" })).interviews[0].your_feedback_filed).toBe(true);
+  });
+
+  test("an interviewer can neither schedule nor file feedback on someone else's interview", async () => {
+    const scheduled = await tool(IVAN, "schedule_interview", {
+      application_id: PAT_APP, starts_at: hoursFromNow(24), ends_at: hoursFromNow(25), interviewer_user_ids: [INTERVIEWER],
+    });
+    expect(scheduled.isError).toBe(true);
+    const adaOnly = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: hoursFromNow(-5), ends_at: hoursFromNow(-4), interviewer_user_ids: [ADMIN],
+    });
+    expect((await tool(IVAN, "submit_feedback", { interview_id: adaOnly.interview_id, recommendation: "no", notes: "x" })).content[0].text)
+      .toMatch(/not an interviewer/);
+  });
+
+  test("cancelling an interview changes only its status", async () => {
+    expect(await ok(ADA, "update_interview", { interview_id: UPCOMING, status: "cancelled" }))
+      .toEqual({ outcome: "updated", interview_id: UPCOMING, changed: ["status"] });
+    const { data } = await db().from("interviews").select("status").eq("id", UPCOMING).single();
+    expect(data!.status).toBe("cancelled");
+  });
+
+  test("a time without an offset is refused, not guessed", async () => {
+    const out = await tool(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: "2026-11-01T10:00:00", ends_at: "2026-11-01T11:00:00", interviewer_user_ids: [ADMIN],
+    });
+    expect(out.content[0].text).toMatch(/with its offset/);
   });
 });

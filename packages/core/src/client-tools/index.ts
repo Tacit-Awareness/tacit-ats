@@ -10,3 +10,8 @@ export {
   updateJob, withdrawInvite,
 } from "./admin.js";
 export type { HiringTeamMember, InviteDeps, JobChange, JobInput, JobStatus, TeamRole } from "./admin.js";
+export {
+  INTERVIEW_STATUSES, RECOMMENDATIONS,
+  getFeedback, listMyInterviews, scheduleInterview, submitFeedback, updateInterview,
+} from "./interviews.js";
+export type { FeedbackEntry, FeedbackSummary, InterviewStatus, MyInterview, Recommendation } from "./interviews.js";
