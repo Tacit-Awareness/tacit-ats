@@ -231,7 +231,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Get a candidate",
           description:
             "One candidate by candidate_id: their profile, the jobs they are in (application_id, stage, " +
-            "next action) and the team's notes. An interviewer gets the name, headline and LinkedIn of " +
+            "next action, why they closed, and the latest offer if you manage the job) and the team's notes. An interviewer gets the name, headline and LinkedIn of " +
             "someone they interview, and their own notes.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
           annotations: { readOnlyHint: true },
@@ -253,6 +253,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 jobs: c.applications.map((a) => ({
                   application_id: a.applicationId, job_id: a.jobId, job: a.jobTitle, stage: a.stage,
                   next_action: a.nextAction, next_action_due: a.nextActionDue, last_touch_at: a.lastTouchAt,
+                  rejection_reason: a.rejectionReason, rejection_note: fence("note", a.rejectionNote),
+                  offer: a.offer ? { offer_id: a.offer.offerId, status: a.offer.status } : null,
                 })),
                 notes: c.notes.map((n) => ({ note_id: n.noteId, text: fence("note", n.text), author: n.author, created_at: n.createdAt, yours: n.mine })),
               },
@@ -322,25 +324,36 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             `Moves one application (application_id) to another stage: ${STAGE_LIST}. Pass expected_stage, ` +
             "the stage you last saw: if someone moved them since, nothing changes and you get the current " +
-            "stage back. Tell the user what will change and wait for a yes before calling this.",
+            "stage back. Moving to rejected or withdrawn needs rejection_reason_id (from " +
+            "list_rejection_reasons, of the matching kind) and takes an optional rejection_note; calling it " +
+            "again on someone already there replaces the reason. Tell the user what will change and wait " +
+            "for a yes before calling this.",
           inputSchema: z.object({
             application_id: uuid("application_id"),
             stage: z.enum(APPLICATION_STAGES),
             expected_stage: z.enum(APPLICATION_STAGES).optional(),
+            rejection_reason_id: uuid("rejection_reason_id").optional(),
+            rejection_note: z.string().max(2000).optional(),
           }),
           annotations: { destructiveHint: true },
         },
         (args) =>
-          run("update_stage", "write", args, async () => {
+          run("update_stage", "write", { ...args, rejection_note: undefined }, async () => {
             const r = await clientTools.updateStage(db, ctx, {
               applicationId: args.application_id, stage: args.stage, expectedStage: args.expected_stage,
+              reasonId: args.rejection_reason_id, note: args.rejection_note,
             });
             const summary = {
-              moved: `Moved to ${r.stage}.`,
+              moved: `Moved to ${r.stage}${r.reason ? ` (${r.reason})` : ""}.`,
               unchanged: `Already at ${r.stage}. Nothing changed.`,
               changed_since: `Not moved: someone changed it since; it is at ${r.stage} now. Ask the user again.`,
+              reason_set: `Still ${r.stage}; the reason is now ${r.reason}.`,
             }[r.outcome];
-            return { summary, data: { outcome: r.outcome, application_id: args.application_id, stage: r.stage }, candidateIds: [] };
+            return {
+              summary,
+              data: { outcome: r.outcome, application_id: args.application_id, stage: r.stage, rejection_reason: r.reason },
+              candidateIds: [],
+            };
           }),
       );
 
@@ -767,6 +780,126 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "list_rejection_reasons",
+        {
+          title: "List rejection reasons",
+          description:
+            "Your company's reasons an application can close, each with a rejection_reason_id for " +
+            "update_stage. kind rejected is for a candidate the company passed on (stage rejected), " +
+            "withdrew for one who pulled out (stage withdrawn).",
+          inputSchema: z.object({}),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_rejection_reasons", "read", args, async () => {
+            const reasons = await clientTools.listRejectionReasons(db, ctx);
+            return {
+              summary: `${reasons.length} reason${reasons.length === 1 ? "" : "s"}.`,
+              data: { reasons: reasons.map((r) => ({ rejection_reason_id: r.reasonId, kind: r.kind, name: r.name })) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      const offerOut = (o: clientTools.Offer) => ({
+        offer_id: o.offerId, application_id: o.applicationId, status: o.status,
+        salary: o.salary, currency: o.currency, bonus: o.bonus, equity: o.equity,
+        start_date: o.startDate, expires_on: o.expiresOn, notes: fence("note", o.notes),
+        created_by: o.createdBy, created_at: o.createdAt, extended_at: o.extendedAt, resolved_at: o.resolvedAt,
+      });
+      const OFFER_TERMS = {
+        salary: z.number().int().min(0).max(100_000_000).nullable().optional(),
+        currency: z.string().length(3).optional(),
+        bonus: z.string().max(500).nullable().optional(),
+        equity: z.string().max(500).nullable().optional(),
+        start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD").nullable().optional(),
+        expires_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD").nullable().optional(),
+        notes: z.string().max(5000).nullable().optional(),
+      };
+      const termsIn = (a: { salary?: number | null; currency?: string; bonus?: string | null; equity?: string | null;
+        start_date?: string | null; expires_on?: string | null; notes?: string | null }) => ({
+        salary: a.salary, currency: a.currency, bonus: a.bonus, equity: a.equity,
+        startDate: a.start_date, expiresOn: a.expires_on, notes: a.notes,
+      });
+
+      server.registerTool(
+        "get_offers",
+        {
+          title: "Get a candidate's offers",
+          description:
+            "Every offer on one application (application_id), newest first: status, salary (a whole " +
+            "amount a year), currency, bonus, equity, start date, expiry, who drafted it and when it was " +
+            "extended or closed. Only for the people who manage the job. Compensation is confidential: " +
+            "share it only with the user.",
+          inputSchema: z.object({ application_id: uuid("application_id") }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_offers", "read", args, async () => {
+            const offers = await clientTools.getOffers(db, ctx, { applicationId: args.application_id });
+            const open = offers.find((o) => o.status === "draft" || o.status === "extended");
+            return {
+              summary: `${offers.length} offer${offers.length === 1 ? "" : "s"}${open ? `, one ${open.status}` : ""}.`,
+              data: { application_id: args.application_id, offers: offers.map(offerOut) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_offer",
+        {
+          title: "Draft an offer",
+          description:
+            "Drafts an offer on one application with its terms: salary (a whole amount a year), currency " +
+            "(three letters, USD by default), bonus, equity, start_date and expires_on (YYYY-MM-DD), notes. " +
+            "It starts as a draft; update_offer extends it once the user says it went out. One open offer " +
+            "per application. Only for the people who manage the job. This does not move the candidate's " +
+            "stage or send anything. Confirm the terms with the user first.",
+          inputSchema: z.object({ application_id: uuid("application_id"), ...OFFER_TERMS }),
+        },
+        (args) =>
+          run("create_offer", "write", { application_id: args.application_id }, async () => {
+            const r = await clientTools.createOffer(db, ctx, { applicationId: args.application_id, ...termsIn(args) });
+            return {
+              summary: "Offer drafted. Nothing was sent to the candidate.",
+              data: { offer_id: r.offerId, application_id: args.application_id, status: "draft" },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "update_offer",
+        {
+          title: "Change an offer or record its outcome",
+          description:
+            `Changes a draft offer's terms, or moves an offer along: a draft becomes extended (it went to ` +
+            "the candidate) or withdrawn; an extended one becomes accepted, declined or withdrawn. An " +
+            "extended offer's terms never change: withdraw it and draft a new one. A closed offer never " +
+            "changes. Notes can change while it is open. Only what you pass changes. Recording accepted " +
+            "does not mark them hired: move their stage with update_stage. Tell the user what will change " +
+            "and wait for a yes.",
+          inputSchema: z.object({
+            offer_id: uuid("offer_id"),
+            status: z.enum(clientTools.OFFER_STATUSES).optional(),
+            ...OFFER_TERMS,
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_offer", "write", { offer_id: args.offer_id, status: args.status }, async () => {
+            const r = await clientTools.updateOffer(db, ctx, { offerId: args.offer_id, status: args.status, ...termsIn(args) });
+            const summary = {
+              updated: `Offer updated (${r.changed.join(", ")}); it is ${r.status}.`,
+              unchanged: `Nothing to change; it is ${r.status}.`,
+              changed_since: `Not changed: someone changed the offer since; it is ${r.status}. Ask the user again.`,
+            }[r.outcome];
+            return { summary, data: { outcome: r.outcome, offer_id: args.offer_id, status: r.status, changed: r.changed }, candidateIds: [] };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -774,10 +907,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "Your company's hiring workspace in Tacit: its jobs, the candidates in each job's pipeline, and " +
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
-        "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview or removing someone " +
+        "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
+        "create_offer, update_offer or removing someone " +
         "from a hiring team, tell the user exactly what will change and wait for a yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
-        "in a message to a candidate.\n\n" +
+        "in a message to a candidate. Offer terms are confidential: share them only with the user.\n\n" +
         UNTRUSTED_PREAMBLE,
     },
   );

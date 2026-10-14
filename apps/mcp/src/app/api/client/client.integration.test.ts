@@ -278,7 +278,7 @@ describe("the pipeline tools against real Postgres", () => {
 
   test("a stage move is made as the member, recorded in the pipeline and in audit_log", async () => {
     const moved = await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "interviewing", expected_stage: "screening" });
-    expect(moved).toEqual({ outcome: "moved", application_id: PAT_APP, stage: "interviewing" });
+    expect(moved).toEqual({ outcome: "moved", application_id: PAT_APP, stage: "interviewing", rejection_reason: null });
     const { data: events } = await db().from("application_events").select("actor_id, from_stage, to_stage").eq("application_id", PAT_APP);
     expect(events).toEqual([{ actor_id: ADMIN, from_stage: "screening", to_stage: "interviewing" }]);
     const { data: audit } = await db().from("audit_log").select("org_id, actor_id, source, action, entity_id, before, after").eq("actor_id", ADMIN);
@@ -472,5 +472,92 @@ describe("interviews and feedback against real Postgres", () => {
       application_id: PAT_APP, starts_at: "2026-11-01T10:00:00", ends_at: "2026-11-01T11:00:00", interviewer_user_ids: [ADMIN],
     });
     expect(out.content[0].text).toMatch(/with its offset/);
+  });
+});
+
+describe("rejection reasons and offers against real Postgres", () => {
+  const reasonId = async (kind: string, name: string) => {
+    const { reasons } = await ok(ADA, "list_rejection_reasons");
+    return reasons.find((r: { kind: string; name: string }) => r.kind === kind && r.name === name).rejection_reason_id as string;
+  };
+
+  test("a company is seeded with reasons, which an interviewer does not get", async () => {
+    const { reasons } = await ok(ADA, "list_rejection_reasons");
+    expect(reasons.filter((r: { kind: string }) => r.kind === "rejected")).toHaveLength(8);
+    expect(reasons.filter((r: { kind: string }) => r.kind === "withdrew")).toHaveLength(6);
+    expect((await tool(IVAN, "list_rejection_reasons")).content[0].text).toMatch(/Interviewers do not close/);
+  });
+
+  test("rejecting needs a reason of the right kind, and keeps it with the application", async () => {
+    expect((await tool(ADA, "update_stage", { application_id: PAT_APP, stage: "rejected" })).content[0].text)
+      .toMatch(/needs a rejection_reason_id/);
+    const timing = await reasonId("withdrew", "Timing");
+    expect((await tool(ADA, "update_stage", { application_id: PAT_APP, stage: "rejected", rejection_reason_id: timing })).content[0].text)
+      .toMatch(/candidate who withdrew/);
+
+    const skills = await reasonId("rejected", "Skills or experience");
+    const moved = await ok(ADA, "update_stage", {
+      application_id: PAT_APP, stage: "rejected", rejection_reason_id: skills, rejection_note: "Needs more systems depth",
+    });
+    expect(moved).toMatchObject({ outcome: "moved", stage: "rejected", rejection_reason: "Skills or experience" });
+    const { data: app } = await db().from("applications").select("rejection_reason_id, rejection_note").eq("id", PAT_APP).single();
+    expect(app).toEqual({ rejection_reason_id: skills, rejection_note: "Needs more systems depth" });
+    const { data: events } = await db().from("application_events").select("to_stage, detail").eq("application_id", PAT_APP);
+    expect(events).toEqual([{ to_stage: "rejected", detail: "Skills or experience" }]);
+    const { data: audit } = await db().from("audit_log").select("after").eq("actor_id", ADMIN).eq("action", "application.stage_change").single();
+    expect(audit!.after).toEqual({ stage: "rejected", rejection_reason: "Skills or experience" });
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    expect(card.jobs[0]).toMatchObject({ stage: "rejected", rejection_reason: "Skills or experience" });
+    expect(card.jobs[0].rejection_note).toContain("Needs more systems depth");
+
+    // Reopening clears it.
+    await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "screening" });
+    const { data: reopened } = await db().from("applications").select("rejection_reason_id, rejection_note").eq("id", PAT_APP).single();
+    expect(reopened).toEqual({ rejection_reason_id: null, rejection_note: null });
+  });
+
+  test("an offer is drafted, extended, frozen and accepted, and closed for good", async () => {
+    const drafted = await ok(ADA, "create_offer", {
+      application_id: PAT_APP, salary: 185000, currency: "usd", equity: "0.4%", start_date: "2026-12-01", notes: "Board approved the band",
+    });
+    expect(drafted.status).toBe("draft");
+    expect((await tool(ADA, "create_offer", { application_id: PAT_APP, salary: 1 })).content[0].text).toMatch(/already has an open offer \(.+, draft\)/);
+
+    expect((await tool(ADA, "update_offer", { offer_id: drafted.offer_id, status: "accepted" })).content[0].text)
+      .toMatch(/can only become extended or withdrawn/);
+    const extended = await ok(ADA, "update_offer", { offer_id: drafted.offer_id, salary: 190000, status: "extended" });
+    expect(extended).toMatchObject({ outcome: "updated", status: "extended" });
+    expect((await tool(ADA, "update_offer", { offer_id: drafted.offer_id, salary: 200000 })).content[0].text)
+      .toMatch(/Withdraw it and draft a new one/);
+    expect((await ok(ADA, "update_offer", { offer_id: drafted.offer_id, status: "accepted" })).status).toBe("accepted");
+    expect((await tool(ADA, "update_offer", { offer_id: drafted.offer_id, notes: "late change" })).content[0].text).toMatch(/closed/);
+
+    const { offers } = await ok(ADA, "get_offers", { application_id: PAT_APP });
+    expect(offers).toHaveLength(1);
+    expect(offers[0]).toMatchObject({ status: "accepted", salary: 190000, currency: "USD", equity: "0.4%", start_date: "2026-12-01", created_by: "Ada Admin" });
+    expect(offers[0].extended_at).toBeTruthy();
+    expect(offers[0].resolved_at).toBeTruthy();
+    // Accepting moved nothing.
+    const { data: app } = await db().from("applications").select("stage").eq("id", PAT_APP).single();
+    expect(app!.stage).toBe("screening");
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).jobs[0].offer).toEqual({ offer_id: drafted.offer_id, status: "accepted" });
+
+    // The notes never reach the audit row.
+    const { data: audit } = await db().from("audit_log").select("action, after").eq("actor_id", ADMIN).like("action", "offer.%");
+    expect(audit!.map((a) => a.action).sort()).toEqual(["offer.create", "offer.update", "offer.update"]);
+    expect(JSON.stringify(audit)).not.toContain("Board approved");
+
+    // A new offer once the last one closed.
+    expect((await ok(ADA, "create_offer", { application_id: PAT_APP, salary: 1 })).status).toBe("draft");
+  });
+
+  test("an interviewer neither reads nor makes offers", async () => {
+    await ok(ADA, "create_offer", { application_id: PAT_APP, salary: 150000 });
+    expect((await tool(IVAN, "get_offers", { application_id: PAT_APP })).isError).toBe(true);
+    expect((await tool(IVAN, "create_offer", { application_id: PAT_APP })).isError).toBe(true);
+    const { data } = await db().from("offers").select("id").eq("application_id", PAT_APP);
+    expect(data).toHaveLength(1);
+    expect((await ok(IVAN, "get_candidate", { candidate_id: PAT })).jobs).toEqual([]);
   });
 });

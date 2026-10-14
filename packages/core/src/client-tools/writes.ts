@@ -6,6 +6,9 @@ import {
 } from "../pipeline/pipeline.js";
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
+import { reasonForStage } from "./offers.js";
+
+const REJECTION_NOTE_MAX = 2000;
 
 /**
  * The client connector's writes, each one core's pipeline function on the
@@ -80,26 +83,75 @@ async function editableApplication(db: Db, applicationId: string): Promise<Appli
   return data;
 }
 
-export type StageResult = { outcome: "moved" | "unchanged" | "changed_since"; stage: string };
+export type StageResult = {
+  outcome: "moved" | "unchanged" | "changed_since" | "reason_set";
+  stage: string;
+  /** The rejection reason's name, when the application closed with one. */
+  reason: string | null;
+};
 
+const CLOSING = ["rejected", "withdrawn"] as const;
+const isClosing = (s: string): s is (typeof CLOSING)[number] => (CLOSING as readonly string[]).includes(s);
+
+/**
+ * Moves an application. Closing one (rejected, withdrawn) needs a reason from
+ * list_rejection_reasons, of the matching kind, and takes an optional note;
+ * the same call on an application already closed at that stage replaces its
+ * reason. Leaving those stages clears the reason (the database does that).
+ */
 export async function updateStage(
   db: Db,
   ctx: ClientToolCtx,
-  input: { applicationId: string; stage: string; expectedStage?: string },
+  input: { applicationId: string; stage: string; expectedStage?: string; reasonId?: string | null; note?: string | null },
 ): Promise<StageResult> {
   if (!isApplicationStage(input.stage)) throw new ClientToolError("invalid", "Unknown stage.");
   const stage: ApplicationStage = input.stage;
+  const note = input.note?.trim() || null;
+  if (note && note.length > REJECTION_NOTE_MAX) throw new ClientToolError("invalid", `A note on why is at most ${REJECTION_NOTE_MAX} characters.`);
+  if (!isClosing(stage) && (input.reasonId || note)) {
+    throw new ClientToolError("invalid", "A rejection reason and note only go with a move to rejected or withdrawn.");
+  }
+  if (isClosing(stage) && !input.reasonId) {
+    throw new ClientToolError(
+      "invalid",
+      `Moving someone to ${stage} needs a rejection_reason_id. Call list_rejection_reasons and ask the user which applies.`,
+    );
+  }
   const app = await editableApplication(db, input.applicationId);
-  if (app.stage === stage) return { outcome: "unchanged", stage };
-  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage };
+  const reason = isClosing(stage) ? await reasonForStage(db, input.reasonId!, stage) : null;
+
+  if (app.stage === stage) {
+    if (!reason) return { outcome: "unchanged", stage, reason: null };
+    return withAudit(db, ctx, { action: "application.close_reason", entity: "application" }, async () => {
+      const { data: updated, error } = await db
+        .from("applications")
+        .update({ rejection_reason_id: reason.reasonId, rejection_note: note, updated_at: new Date().toISOString() })
+        .eq("id", app.id).eq("stage", stage).select("id");
+      if (error) throw new Error(error.message);
+      const ok = !!updated?.length;
+      return {
+        result: ok ? { outcome: "reason_set" as const, stage, reason: reason.name } : { outcome: "changed_since" as const, stage, reason: null },
+        entityId: app.id,
+        after: { rejection_reason: reason.name },
+        changed: ok,
+      };
+    });
+  }
+  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
   return withAudit(db, ctx, { action: "application.stage_change", entity: "application" }, async () => {
-    const r = await moveStage(db, { applicationId: app.id, stage, actorId: ctx.actorId, expectedStage: app.stage });
+    const r = await moveStage(db, {
+      applicationId: app.id, stage, actorId: ctx.actorId, expectedStage: app.stage,
+      closeReason: reason ? { reasonId: reason.reasonId, reasonName: reason.name, note } : undefined,
+    });
     const moved = r.status === "updated";
     return {
-      result: moved ? { outcome: "moved" as const, stage } : { outcome: "changed_since" as const, stage: app.stage },
+      result: moved
+        ? { outcome: "moved" as const, stage, reason: reason?.name ?? null }
+        : { outcome: "changed_since" as const, stage: app.stage, reason: null },
       entityId: app.id,
       before: { stage: app.stage },
-      after: { stage },
+      // The reason's name is the record; the note stays with the application.
+      after: reason ? { stage, rejection_reason: reason.name } : { stage },
       changed: moved,
     };
   });

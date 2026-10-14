@@ -156,6 +156,11 @@ export type CandidateDetail = {
     nextAction: string | null;
     nextActionDue: string | null;
     lastTouchAt: string;
+    /** Why it closed, at rejected or withdrawn. */
+    rejectionReason: string | null;
+    rejectionNote: string | null;
+    /** The newest offer, for someone who manages the job; null otherwise or when there is none. */
+    offer: { offerId: string; status: string } | null;
   }>;
   notes: CandidateNote[];
 };
@@ -217,14 +222,26 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
   if (!person) throw notFound();
   const { data: apps, error: appsError } = await db
     .from("applications")
-    .select("id, role_id, stage, next_action, next_action_due, last_touch_at, roles(title)")
+    .select("id, role_id, stage, next_action, next_action_due, last_touch_at, rejection_note, roles(title), rejection_reasons(name)")
     .eq("person_id", candidateId)
     .order("last_touch_at", { ascending: false })
     .overrideTypes<
-      Array<{ id: string; role_id: string; stage: string; next_action: string | null; next_action_due: string | null; last_touch_at: string; roles: { title: string } | null }>,
+      Array<{
+        id: string; role_id: string; stage: string; next_action: string | null; next_action_due: string | null; last_touch_at: string;
+        rejection_note: string | null; roles: { title: string } | null; rejection_reasons: { name: string } | null;
+      }>,
       { merge: false }
     >();
   if (appsError) throw new Error(appsError.message);
+  // Offers read only for someone who manages the job: the policy returns none to anyone else.
+  const offers = new Map<string, { offerId: string; status: string }>();
+  if (apps?.length) {
+    const { data: rows, error: offersError } = await db
+      .from("offers").select("id, application_id, status").in("application_id", apps.map((a) => a.id))
+      .order("created_at", { ascending: false });
+    if (offersError) throw new Error(offersError.message);
+    for (const o of rows ?? []) if (!offers.has(o.application_id)) offers.set(o.application_id, { offerId: o.id, status: o.status });
+  }
   return {
     candidateId,
     name: person.display_name,
@@ -242,6 +259,9 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       nextAction: a.next_action,
       nextActionDue: a.next_action_due,
       lastTouchAt: a.last_touch_at,
+      rejectionReason: a.rejection_reasons?.name ?? null,
+      rejectionNote: a.rejection_note,
+      offer: offers.get(a.id) ?? null,
     })),
     notes: await notesFor(db, ctx, candidateId),
   };

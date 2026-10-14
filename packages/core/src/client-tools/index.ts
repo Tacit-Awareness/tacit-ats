@@ -15,3 +15,8 @@ export {
   getFeedback, listMyInterviews, scheduleInterview, submitFeedback, updateInterview,
 } from "./interviews.js";
 export type { FeedbackEntry, FeedbackSummary, InterviewStatus, MyInterview, Recommendation } from "./interviews.js";
+export {
+  OFFER_STATUSES, REJECTION_KINDS,
+  createOffer, getOffers, listRejectionReasons, updateOffer,
+} from "./offers.js";
+export type { Offer, OfferStatus, OfferTerms, RejectionKind, RejectionReason } from "./offers.js";

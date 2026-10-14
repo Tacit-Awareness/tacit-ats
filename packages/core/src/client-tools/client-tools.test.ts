@@ -46,10 +46,10 @@ describe("updateStage", () => {
   test("no move and no claim when it is already there, or moved since the user looked", async () => {
     const same = new FakeSupabase([{ data: APP }, { data: true }]);
     expect(await updateStage(same.asDb(), ctx(), { applicationId: "app-1", stage: "screening" }))
-      .toEqual({ outcome: "unchanged", stage: "screening" });
+      .toEqual({ outcome: "unchanged", stage: "screening", reason: null });
     const since = new FakeSupabase([{ data: APP }, { data: true }]);
     expect(await updateStage(since.asDb(), ctx(), { applicationId: "app-1", stage: "offer", expectedStage: "sourced" }))
-      .toEqual({ outcome: "changed_since", stage: "screening" });
+      .toEqual({ outcome: "changed_since", stage: "screening", reason: null });
     expect([...rpcs(same), ...rpcs(since)]).not.toContain("client_claim_write");
   });
 
@@ -61,7 +61,7 @@ describe("updateStage", () => {
       { data: null },
     ]);
     expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "interviewing" }))
-      .toEqual({ outcome: "moved", stage: "interviewing" });
+      .toEqual({ outcome: "moved", stage: "interviewing", reason: null });
     expect(rpcs(fake)).toEqual(["can_edit_application", "client_claim_write", "client_finish_write"]);
     const [claim, finish] = fake.calls.filter((c) => c.table.startsWith("client_"));
     expect(claim.args).toEqual({ p_source: "claude", p_action: "application.stage_change", p_entity: "application" });
@@ -76,6 +76,51 @@ describe("updateStage", () => {
     const err = await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "offer" }));
     expect(err.code).toBe("rate_limited");
     expect(fake.calls.filter((c) => c.op === "update")).toEqual([]);
+  });
+
+  test("closing an application needs a reason, and a reason goes with nothing else", async () => {
+    const fake = new FakeSupabase();
+    expect((await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected" }))).message)
+      .toMatch(/list_rejection_reasons/);
+    expect((await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "offer", reasonId: "r-1" }))).code)
+      .toBe("invalid");
+    expect(fake.calls).toEqual([]);
+  });
+
+  test("a reason of the other kind is refused before any claim", async () => {
+    const fake = new FakeSupabase([{ data: APP }, { data: true }, { data: { id: "r-1", kind: "rejected", name: "Skills", archived_at: null } }]);
+    const err = await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "withdrawn", reasonId: "r-1" }));
+    expect(err.message).toMatch(/move them to rejected/);
+    expect(rpcs(fake)).not.toContain("client_claim_write");
+  });
+
+  test("a rejection writes the reason and note with the move, and names the reason in the event", async () => {
+    const fake = new FakeSupabase([
+      { data: APP }, { data: true }, { data: { id: "r-1", kind: "rejected", name: "Skills or experience", archived_at: null } },
+      { data: "audit-1" },
+      { data: { stage: "screening" } }, { data: [{ id: "app-1" }] }, { data: null },
+      { data: null },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected", reasonId: "r-1", note: " needs depth " }))
+      .toEqual({ outcome: "moved", stage: "rejected", reason: "Skills or experience" });
+    expect(fake.calls.find((c) => c.op === "update")?.args).toMatchObject({
+      stage: "rejected", rejection_reason_id: "r-1", rejection_note: "needs depth",
+    });
+    expect(fake.calls.find((c) => c.table === "application_events")?.args).toMatchObject({ to_stage: "rejected", detail: "Skills or experience" });
+    // The note stays on the application, out of the audit row.
+    expect(fake.calls.find((c) => c.table === "client_finish_write")?.args).toMatchObject({
+      p_after: { stage: "rejected", rejection_reason: "Skills or experience" },
+    });
+  });
+
+  test("the same stage with a reason replaces the reason", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...APP, stage: "withdrawn" } }, { data: true }, { data: { id: "r-2", kind: "withdrew", name: "Timing", archived_at: null } },
+      { data: "audit-1" }, { data: [{ id: "app-1" }] }, { data: null },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "withdrawn", reasonId: "r-2" }))
+      .toEqual({ outcome: "reason_set", stage: "withdrawn", reason: "Timing" });
+    expect(fake.calls.find((c) => c.op === "update")?.args).toMatchObject({ rejection_reason_id: "r-2", rejection_note: null });
   });
 
   test("an unknown stage is refused before any read", async () => {
