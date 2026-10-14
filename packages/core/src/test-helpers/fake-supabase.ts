@@ -157,6 +157,10 @@ export class FakeSupabase {
         call.modifiers.push({ method: "range", value: [from, to] });
         return builder;
       },
+      // A compile-time cast for embedded selects; at runtime it is the same query.
+      overrideTypes() {
+        return builder;
+      },
       maybeSingle() {
         call.terminal = "maybeSingle";
         return Promise.resolve(next());

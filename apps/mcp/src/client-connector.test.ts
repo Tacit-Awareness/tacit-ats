@@ -66,11 +66,11 @@ describe("the client connector never holds a database client other than the memb
     expect(offenders, "Use the member's `db` from resolveMember instead.").toEqual([]);
   });
 
-  test("the two allowed modules export one function each, and no client", () => {
-    for (const [file, name] of [["client/bind.ts", "bindMember"], ["client/audit.ts", "auditClientCall"]]) {
+  test("the two allowed modules export only their functions, and no client", () => {
+    for (const [file, names] of [["client/bind.ts", ["bindMember"]], ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]]] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
-      expect(exported, file).toEqual([name]);
+      expect(exported, file).toEqual(names);
     }
   });
 

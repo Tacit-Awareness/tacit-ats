@@ -1,5 +1,5 @@
 import type { JWTVerifyGetKey } from "jose";
-import type { BindClientResult, ClientIdentity } from "@tacit/core";
+import { connector, type BindClientResult, type ClientIdentity } from "@tacit/core";
 
 // Relative and without ".js": see the note in app/api/mcp/route.ts.
 import { challenge, verifyAccessToken } from "../connector/auth";
@@ -55,5 +55,7 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
     console.warn(`[client-mcp] refused subject ${claims.subject}: ${gate.reason}`);
     return Response.json({ error: "forbidden", error_description: REFUSAL_TEXT[gate.reason] }, { status: 403 });
   }
-  return buildClientHandler(gate.member, { audit: deps.audit })(request);
+  // The handler is stateless, so a tool call does not carry initialize's clientInfo: the User-Agent decides.
+  const source = connector.sourceFromClient(null, request.headers.get("user-agent")) === "chatgpt" ? "chatgpt" : "claude";
+  return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth })(request);
 }

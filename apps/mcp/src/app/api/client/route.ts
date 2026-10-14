@@ -1,5 +1,5 @@
 // Relative and without ".js": see the note in api/mcp/route.ts.
-import { auditClientCall } from "../../../client/audit";
+import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
 import { clientMcpConfig } from "../../../client/config";
 import { handleClientRequest } from "../../../client/handler";
@@ -12,7 +12,12 @@ import { handleClientRequest } from "../../../client/handler";
  * on a database client carrying the member's own token, so RLS decides.
  */
 async function handle(request: Request): Promise<Response> {
-  return handleClientRequest(request, { config: clientMcpConfig(), bind: bindMember, audit: auditClientCall });
+  return handleClientRequest(request, {
+    config: clientMcpConfig(),
+    bind: bindMember,
+    audit: auditClientCall,
+    breadth: clientBreadthExceeded,
+  });
 }
 
 export const maxDuration = 60;
