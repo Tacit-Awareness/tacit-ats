@@ -1,52 +1,16 @@
-import { resolveClient, type ClientGate } from "@/lib/client/session";
+import Link from "next/link";
+import { resolveClient } from "@/lib/client/session";
+import { Refusal } from "./refusal";
 
 // The client area's home: who you are, the jobs you can see, and your team.
 // Every row on this page was read with the signed-in user's own token, so it
 // is exactly what their access allows and nothing has to be filtered here.
 
-type Refusal = Extract<ClientGate, { status: "forbidden" }>["reason"];
-
-const REFUSALS: Record<Refusal, { title: string; body: string }> = {
-  signed_out: { title: "You're signed out", body: "Sign in again to continue." },
-  not_invited: {
-    title: "You haven't been invited yet",
-    body: "Ask an admin at your company to invite this email address, then sign in again.",
-  },
-  email_unverified: {
-    title: "Verify your email first",
-    body: "Your email address hasn't been verified. Check your inbox for a verification link, then sign in again.",
-  },
-  no_org: {
-    title: "No company on this sign-in",
-    body: "You signed in without a company. Use the invitation link your admin sent you.",
-  },
-  unknown_org: {
-    title: "This company isn't set up yet",
-    body: "Your company doesn't have a Tacit workspace yet. Contact your Tacit partner.",
-  },
-  subject_mismatch: {
-    title: "This email is linked to another sign-in",
-    body: "Sign in the same way you did the first time, or ask your admin to re-send your invitation.",
-  },
-  token_rejected: {
-    title: "We couldn't open your workspace",
-    body: "Something on our side isn't configured for your sign-in. Contact your Tacit partner.",
-  },
-};
-
 const LEVELS = { limited: "Interviewer", elevated: "Hiring team", admin: "Admin" } as const;
 
 export default async function ClientHome() {
   const gate = await resolveClient();
-  if (gate.status !== "ok") {
-    const refusal = REFUSALS[gate.reason];
-    return (
-      <main>
-        <h1 className="text-2xl font-medium">{refusal.title}</h1>
-        <p className="mt-3 text-[15px] text-muted-foreground">{refusal.body}</p>
-      </main>
-    );
-  }
+  if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
   const { db, org, user, accessLevel } = gate.ctx;
   const [roles, team, candidates] = await Promise.all([
@@ -60,7 +24,7 @@ export default async function ClientHome() {
   if (candidates.error) throw new Error(candidates.error.message);
 
   return (
-    <main className="space-y-10">
+    <main className="max-w-3xl space-y-10">
       <section>
         <h1 className="text-2xl font-medium">{org.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -69,7 +33,12 @@ export default async function ClientHome() {
       </section>
 
       <section>
-        <h2 className="text-sm font-medium text-muted-foreground">Jobs</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">Jobs</h2>
+          <Link href="/client/jobs" className="text-sm text-muted-foreground hover:text-foreground">
+            All jobs
+          </Link>
+        </div>
         {roles.data.length === 0 ? (
           <p className="mt-2 text-[15px] text-muted-foreground">
             {accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}
@@ -77,9 +46,14 @@ export default async function ClientHome() {
         ) : (
           <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
             {roles.data.map((role) => (
-              <li key={role.id} className="flex items-center justify-between px-4 py-3">
-                <span className="text-[15px]">{role.title}</span>
-                <span className="text-xs text-muted-foreground">{role.status}</span>
+              <li key={role.id}>
+                <Link
+                  href={`/client/jobs/${role.id}`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-[color:var(--soft)]"
+                >
+                  <span className="text-[15px]">{role.title}</span>
+                  <span className="text-xs text-muted-foreground">{role.status}</span>
+                </Link>
               </li>
             ))}
           </ul>

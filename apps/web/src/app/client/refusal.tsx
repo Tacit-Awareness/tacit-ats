@@ -1,0 +1,43 @@
+import type { ClientGate } from "@/lib/client/session";
+
+// What a client-area page shows when resolveClient() turns the user away.
+
+export type RefusalReason = Extract<ClientGate, { status: "forbidden" }>["reason"];
+
+const REFUSALS: Record<RefusalReason, { title: string; body: string }> = {
+  signed_out: { title: "You're signed out", body: "Sign in again to continue." },
+  not_invited: {
+    title: "You haven't been invited yet",
+    body: "Ask an admin at your company to invite this email address, then sign in again.",
+  },
+  email_unverified: {
+    title: "Verify your email first",
+    body: "Your email address hasn't been verified. Check your inbox for a verification link, then sign in again.",
+  },
+  no_org: {
+    title: "No company on this sign-in",
+    body: "You signed in without a company. Use the invitation link your admin sent you.",
+  },
+  unknown_org: {
+    title: "This company isn't set up yet",
+    body: "Your company doesn't have a Tacit workspace yet. Contact your Tacit partner.",
+  },
+  subject_mismatch: {
+    title: "This email is linked to another sign-in",
+    body: "Sign in the same way you did the first time, or ask your admin to re-send your invitation.",
+  },
+  token_rejected: {
+    title: "We couldn't open your workspace",
+    body: "Something on our side isn't configured for your sign-in. Contact your Tacit partner.",
+  },
+};
+
+export function Refusal({ reason }: { reason: RefusalReason }) {
+  const refusal = REFUSALS[reason];
+  return (
+    <main>
+      <h1 className="text-2xl font-medium">{refusal.title}</h1>
+      <p className="mt-3 text-[15px] text-muted-foreground">{refusal.body}</p>
+    </main>
+  );
+}
