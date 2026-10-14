@@ -14,12 +14,16 @@ export {
   INTERVIEW_STATUSES, RECOMMENDATIONS,
   getFeedback, listMyInterviews, scheduleInterview, submitFeedback, updateInterview,
 } from "./interviews.js";
-export type { FeedbackEntry, FeedbackSummary, InterviewStatus, MyInterview, Recommendation } from "./interviews.js";
+export type {
+  FeedbackEntry, FeedbackRating, FeedbackSummary, InterviewStatus, MyInterview, RatingInput, Recommendation,
+} from "./interviews.js";
 export {
   OFFER_STATUSES, REJECTION_KINDS,
   createOffer, getOffers, listRejectionReasons, updateOffer,
 } from "./offers.js";
 export type { Offer, OfferStatus, OfferTerms, RejectionKind, RejectionReason } from "./offers.js";
+export { getScorecard, setScorecard } from "./scorecards.js";
+export type { Scorecard, ScorecardAttribute, ScorecardChange, ScorecardEntry } from "./scorecards.js";
 export { PLAN_STEPS_MAX, STEP_NAME_MAX, getInterviewPlan, setInterviewPlan } from "./plans.js";
 export type { FeedbackState, InterviewPlan, PlanChange, PlanInterview, PlanProgress, StepState } from "./plans.js";
 export {

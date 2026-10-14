@@ -48,7 +48,10 @@ const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: str
 async function clear() {
   const ids = [ACME, GLOBEX];
   // org_id references orgs without a cascade: every row in these orgs goes first.
-  for (const table of ["audit_log", "interview_feedback", "application_events", "interviews", "applications", "person_notes", "people", "companies"] as const) {
+  for (const table of [
+    "audit_log", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
+    "scorecard_attributes", "person_notes", "people", "companies",
+  ] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("actors").delete().in("org_id", ids);
@@ -779,6 +782,98 @@ describe("files against real Postgres, with Storage stood in for", () => {
       deps.files = files;
     }
     const { count } = await db().from("person_files").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(count).toBe(0);
+  });
+});
+
+describe("scorecards against real Postgres", () => {
+  const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+  const ids = (attributes: Array<{ attribute_id: string; name: string }>) =>
+    Object.fromEntries(attributes.map((a) => [a.name, a.attribute_id])) as Record<string, string>;
+
+  test("a manager sets a job's scorecard, idempotently by name, and its interviewer reads it", async () => {
+    const set = await ok(ADA, "set_scorecard", {
+      job_id: ENGINEER, attributes: [{ name: "Systems design", description: "DESCRIPTION-MARKER tradeoffs" }, { name: "Communication" }],
+    });
+    expect(set).toMatchObject({ outcome: "updated", added: ["Systems design", "Communication"], archived: [] });
+    expect((await ok(ADA, "set_scorecard", { job_id: ENGINEER, attributes: [{ name: "Systems design" }, { name: "Communication" }] })).outcome)
+      .toBe("unchanged");
+
+    const card = await ok(IVAN, "get_scorecard", { job_id: ENGINEER });
+    expect(card.attributes.map((a: { name: string }) => a.name)).toEqual(["Systems design", "Communication"]);
+    expect(card.attributes[0].description).toContain("<<<UNTRUSTED_DATA>>>");
+    expect((await tool(IVAN, "set_scorecard", { job_id: ENGINEER, attributes: [] })).content[0].text).toMatch(/manage this job/);
+    expect((await tool(IVAN, "get_scorecard", { job_id: DESIGNER })).isError).toBe(true);
+
+    // Renamed by id; what is left out is archived, not deleted.
+    const { Communication } = ids(card.attributes);
+    const renamed = await ok(ADA, "set_scorecard", { job_id: ENGINEER, attributes: [{ attribute_id: Communication, name: "Clear communication" }] });
+    expect(renamed).toMatchObject({ renamed: [{ from: "Communication", to: "Clear communication" }], archived: ["Systems design"] });
+    expect((await ok(ADA, "get_scorecard", { job_id: ENGINEER })).attributes).toHaveLength(1);
+    const all = await ok(ADA, "get_scorecard", { job_id: ENGINEER, include_archived: true });
+    expect(all.attributes.map((a: { name: string; archived: boolean }) => [a.name, a.archived]))
+      .toEqual([["Clear communication", false], ["Systems design", true]]);
+
+    const { data: audit } = await db().from("audit_log").select("action, entity_id").eq("actor_id", ADMIN).eq("action", "scorecard.set");
+    expect(audit).toHaveLength(2);
+    expect(audit!.every((a) => a.entity_id === ENGINEER)).toBe(true);
+    expect(JSON.stringify(audit)).not.toContain("DESCRIPTION-MARKER");
+  });
+
+  test("an interviewer rates the job's attributes on their own feedback, replaced when they file again", async () => {
+    const { attributes } = await ok(ADA, "set_scorecard", { job_id: ENGINEER, attributes: [{ name: "Systems design" }, { name: "Communication" }] });
+    const engineer = ids(attributes);
+    const designer = ids((await ok(ADA, "set_scorecard", { job_id: DESIGNER, attributes: [{ name: "Taste" }] })).attributes);
+    const past = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: hoursFromNow(-3), ends_at: hoursFromNow(-2), interviewer_user_ids: [INTERVIEWER],
+    });
+
+    const offJob = await tool(IVAN, "submit_feedback", {
+      interview_id: past.interview_id, recommendation: "yes", notes: "x", ratings: [{ attribute_id: designer.Taste, rating: 3 }],
+    });
+    expect(offJob.content[0].text).toMatch(/get_scorecard/);
+    const { count: none } = await db().from("interview_feedback").select("*", { count: "exact", head: true }).eq("interview_id", past.interview_id);
+    expect(none).toBe(0);
+
+    const filed = await ok(IVAN, "submit_feedback", {
+      interview_id: past.interview_id, recommendation: "strong_yes", notes: "PRIVATE-MARKER",
+      ratings: [
+        { attribute_id: engineer["Systems design"], rating: 4, note: "RATING-MARKER clear tradeoffs" },
+        { attribute_id: engineer.Communication, rating: 3 },
+      ],
+    });
+    expect(filed).toMatchObject({ replaced: false, ratings: 2 });
+    const { data: rows } = await db().from("interview_feedback_ratings").select("org_id, rating").eq("feedback_id", filed.feedback_id);
+    expect(rows!.map((r) => [r.org_id, r.rating]).sort()).toEqual([[ACME, 3], [ACME, 4]]);
+    const { data: audit } = await db().from("audit_log").select("before, after").eq("actor_id", INTERVIEWER).eq("action", "feedback.submit");
+    expect(JSON.stringify(audit)).not.toMatch(/RATING-MARKER|PRIVATE-MARKER/);
+
+    const read = await ok(ADA, "get_feedback", { interview_id: past.interview_id });
+    expect(read.feedback[0].ratings.map((r: { attribute: string; rating: number }) => [r.attribute, r.rating]))
+      .toEqual([["Systems design", 4], ["Communication", 3]]);
+    expect(read.feedback[0].ratings[0].note).toContain("<<<UNTRUSTED_DATA>>>");
+    expect(read.feedback[0].ratings[0].note).toContain("RATING-MARKER");
+
+    const again = await ok(IVAN, "submit_feedback", {
+      interview_id: past.interview_id, recommendation: "yes", notes: "On reflection", ratings: [{ attribute_id: engineer.Communication, rating: 2 }],
+    });
+    expect(again).toMatchObject({ feedback_id: filed.feedback_id, replaced: true, ratings: 1 });
+    const { data: after } = await db().from("interview_feedback_ratings").select("attribute_id, rating").eq("feedback_id", filed.feedback_id);
+    expect(after).toEqual([{ attribute_id: engineer.Communication, rating: 2 }]);
+
+    // Archiving an attribute keeps the ratings already filed against it, and takes no new ones.
+    await ok(ADA, "set_scorecard", { job_id: ENGINEER, attributes: [{ name: "Systems design" }] });
+    expect((await ok(ADA, "get_feedback", { interview_id: past.interview_id })).feedback[0].ratings)
+      .toMatchObject([{ attribute: "Communication", rating: 2 }]);
+    expect((await tool(IVAN, "submit_feedback", {
+      interview_id: past.interview_id, recommendation: "yes", notes: "x", ratings: [{ attribute_id: engineer.Communication, rating: 4 }],
+    })).content[0].text).toMatch(/taken off/);
+  });
+
+  test("another company's job has no scorecard anyone here can read or set", async () => {
+    expect((await tool(ADA, "get_scorecard", { job_id: GLOBEX_ROLE })).isError).toBe(true);
+    expect((await tool(ADA, "set_scorecard", { job_id: GLOBEX_ROLE, attributes: [{ name: "Planted" }] })).isError).toBe(true);
+    const { count } = await db().from("scorecard_attributes").select("*", { count: "exact", head: true }).eq("role_id", GLOBEX_ROLE);
     expect(count).toBe(0);
   });
 });

@@ -240,6 +240,7 @@ describe("the tools", () => {
       "list_rejection_reasons", "get_offers", "create_offer", "update_offer",
       "get_interview_plan", "set_interview_plan",
       "list_files", "get_file_link", "add_file",
+      "get_scorecard", "set_scorecard",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -253,6 +254,8 @@ describe("the tools", () => {
     ]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }
+    expect(byName.get_scorecard).toMatchObject({ readOnlyHint: true });
+    expect(byName.set_scorecard).toMatchObject({ destructiveHint: true });
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {

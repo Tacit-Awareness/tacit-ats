@@ -736,23 +736,33 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             `Files your feedback on an interview you were an interviewer on, once it has started: a ` +
             `recommendation (${clientTools.RECOMMENDATIONS.join(", ")}), an optional rating from 1 to 4, ` +
-            "and notes. Filing again replaces yours. Feedback is private to your company's hiring team: " +
-            "never put it in a message to the candidate.",
+            "notes, and optionally a 1-4 rating with a short note for each attribute on the job's " +
+            "scorecard (attribute_ids from get_scorecard). Filing again replaces yours, ratings included. " +
+            "Feedback is private to your company's hiring team: never put it in a message to the candidate.",
           inputSchema: z.object({
             interview_id: uuid("interview_id"),
             recommendation: z.enum(clientTools.RECOMMENDATIONS),
             rating: z.number().int().min(1).max(4).optional(),
             notes: z.string().min(1).max(10_000),
+            ratings: z.array(z.object({
+              attribute_id: uuid("attribute_id"),
+              rating: z.number().int().min(1).max(4),
+              note: z.string().max(500).optional(),
+            })).max(25).optional(),
           }),
         },
         (args) =>
-          run("submit_feedback", "write", { interview_id: args.interview_id, recommendation: args.recommendation }, async () => {
+          run("submit_feedback", "write", {
+            interview_id: args.interview_id, recommendation: args.recommendation, ratings: args.ratings?.length ?? 0,
+          }, async () => {
             const r = await clientTools.submitFeedback(db, ctx, {
               interviewId: args.interview_id, recommendation: args.recommendation, rating: args.rating, notes: args.notes,
+              ratings: args.ratings?.map((x) => ({ attributeId: x.attribute_id, rating: x.rating, note: x.note })),
             });
             return {
-              summary: r.replaced ? "Your feedback was replaced." : "Feedback filed.",
-              data: { feedback_id: r.feedbackId, interview_id: args.interview_id, replaced: r.replaced },
+              summary: (r.replaced ? "Your feedback was replaced." : "Feedback filed.") +
+                (r.ratings ? ` ${r.ratings} scorecard rating${r.ratings === 1 ? "" : "s"}.` : ""),
+              data: { feedback_id: r.feedbackId, interview_id: args.interview_id, replaced: r.replaced, ratings: r.ratings },
               candidateIds: [],
             };
           }),
@@ -764,7 +774,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Read interview feedback",
           description:
             "The feedback filed on one interview (interview_id) or every interview of one application " +
-            "(application_id), with each interview's interviewers. Whose feedback you can read follows " +
+            "(application_id), with each interview's interviewers and each feedback's scorecard ratings. " +
+            "Whose feedback you can read follows " +
             "your company's setting: often only after you have filed your own. Private to the hiring " +
             "team: never put it in a message to the candidate.",
           inputSchema: z.object({ interview_id: uuid("interview_id").optional(), application_id: uuid("application_id").optional() }),
@@ -786,6 +797,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 feedback: f.feedback.map((e) => ({
                   feedback_id: e.feedbackId, interview_id: e.interviewId, interviewer_id: e.interviewerId, interviewer: e.interviewer,
                   recommendation: e.recommendation, rating: e.rating, notes: fence("feedback", e.notes),
+                  ratings: e.ratings.map((x) => ({
+                    attribute_id: x.attributeId, attribute: x.attribute, rating: x.rating, note: fence("feedback", x.note),
+                  })),
                   submitted_at: e.submittedAt, yours: e.mine,
                 })),
                 yours_outstanding: f.yoursOutstanding,
@@ -1096,6 +1110,82 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 filename: fence("filename", r.filename), size_bytes: r.sizeBytes,
               },
               candidateIds: [args.candidate_id],
+            };
+          }),
+      );
+
+      // Attribute names are bare, like job titles; their descriptions are member-written prose and fenced.
+      const attributeOut = (a: clientTools.ScorecardAttribute) => ({
+        attribute_id: a.attributeId, name: a.name, description: fence("description", a.description), position: a.position,
+        archived: a.archived,
+      });
+
+      server.registerTool(
+        "get_scorecard",
+        {
+          title: "Get a job's scorecard",
+          description:
+            "The attributes interviewers rate candidates on for one job (job_id), in order, each with an " +
+            "attribute_id for submit_feedback's ratings. Anyone who can see the job can read it, an " +
+            "interviewer included. include_archived adds attributes taken off the scorecard, which old " +
+            "ratings still name.",
+          inputSchema: z.object({ job_id: uuid("job_id"), include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_scorecard", "read", args, async () => {
+            const s = await clientTools.getScorecard(db, ctx, { jobId: args.job_id, includeArchived: args.include_archived });
+            return {
+              summary: s.attributes.length
+                ? `${s.attributes.length} attribute${s.attributes.length === 1 ? "" : "s"} on the ${s.jobTitle} scorecard.`
+                : `The ${s.jobTitle} job has no scorecard yet.`,
+              data: { job_id: s.jobId, job: s.jobTitle, attributes: s.attributes.map(attributeOut) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "set_scorecard",
+        {
+          title: "Set a job's scorecard",
+          description:
+            "Sets the attributes interviewers rate on one job to exactly this list, in this order. An " +
+            "entry is matched to an existing attribute by name (any case), which also brings back one " +
+            "taken off earlier; give attribute_id to rename one; anything new is added. An attribute left " +
+            "out is archived, never deleted, so ratings already filed keep it. The same list twice changes " +
+            "nothing. Only for the people who manage the job. Tell the user what will change and wait for " +
+            "a yes.",
+          inputSchema: z.object({
+            job_id: uuid("job_id"),
+            attributes: z.array(z.object({
+              attribute_id: uuid("attribute_id").optional(),
+              name: z.string().min(1).max(120),
+              description: z.string().max(1000).nullable().optional(),
+            })).max(25),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("set_scorecard", "write", { job_id: args.job_id, attributes: args.attributes.length }, async () => {
+            const r = await clientTools.setScorecard(db, ctx, {
+              jobId: args.job_id,
+              attributes: args.attributes.map((a) => ({ attributeId: a.attribute_id, name: a.name, description: a.description })),
+            });
+            const parts = [
+              r.added.length && `added ${r.added.join(", ")}`,
+              r.renamed.length && `renamed ${r.renamed.map((x) => `${x.from} to ${x.to}`).join(", ")}`,
+              r.restored.length && `brought back ${r.restored.join(", ")}`,
+              r.archived.length && `archived ${r.archived.join(", ")}`,
+              r.reordered && "reordered",
+            ].filter(Boolean);
+            return {
+              summary: r.outcome === "updated" ? `Scorecard updated: ${parts.join("; ") || "descriptions changed"}.` : "Nothing to change.",
+              data: {
+                outcome: r.outcome, job_id: args.job_id, added: r.added, renamed: r.renamed, restored: r.restored,
+                archived: r.archived, reordered: r.reordered, attributes: r.attributes.map(attributeOut),
+              },
+              candidateIds: [],
             };
           }),
       );

@@ -143,9 +143,69 @@ describe("submitFeedback", () => {
   test("the notes are saved and kept out of the audit row", async () => {
     const fake = new FakeSupabase([{ data: interview() }, { data: null }, { data: "audit-1" }, { data: { id: "fb-1" } }, { data: null }]);
     expect(await submitFeedback(fake.asDb(), ctx("limited"), { interviewId: "int-1", recommendation: "strong_yes", rating: 4, notes: "SECRET-NOTES" }, NOW))
-      .toEqual({ feedbackId: "fb-1", replaced: false });
+      .toEqual({ feedbackId: "fb-1", replaced: false, ratings: 0 });
     expect(fake.calls.find((c) => c.op === "upsert")?.args).toMatchObject({ notes: "SECRET-NOTES", interviewer_actor_id: "actor-1" });
     expect(JSON.stringify(fake.calls.at(-1)?.args)).not.toContain("SECRET-NOTES");
+  });
+
+  test("bad scorecard ratings are refused before any read", async () => {
+    const fake = new FakeSupabase();
+    const base = { interviewId: "int-1", recommendation: "yes" as const, notes: "x" };
+    for (const ratings of [
+      [{ attributeId: "attr-1", rating: 0 }],
+      [{ attributeId: "attr-1", rating: 2.5 }],
+      [{ attributeId: "attr-1", rating: 3 }, { attributeId: "attr-1", rating: 4 }],
+      [{ attributeId: "attr-1", rating: 3, note: "x".repeat(501) }],
+    ]) {
+      expect((await refusal(submitFeedback(fake.asDb(), ctx(), { ...base, ratings }, NOW))).code).toBe("invalid");
+    }
+    expect(fake.calls).toEqual([]);
+  });
+
+  test("a rating on an attribute that is not on the job's live scorecard is refused before anything is claimed", async () => {
+    const offJob = new FakeSupabase([{ data: interview() }, { data: "role-1" }, { data: [] }]);
+    const err = await refusal(submitFeedback(offJob.asDb(), ctx("limited"), {
+      interviewId: "int-1", recommendation: "yes", notes: "ok", ratings: [{ attributeId: "attr-9", rating: 3 }],
+    }, NOW));
+    expect(err.message).toMatch(/get_scorecard/);
+    expect(offJob.calls[1]).toMatchObject({ table: "application_role", args: { p_application: "app-1" } });
+    expect(offJob.calls[2].filters).toEqual([
+      { method: "eq", column: "role_id", value: "role-1" }, { method: "in", column: "id", value: ["attr-9"] },
+    ]);
+
+    const archived = new FakeSupabase([{ data: interview() }, { data: "role-1" }, { data: [{ id: "attr-1", name: "Taste", archived_at: "2026-10-01" }] }]);
+    expect((await refusal(submitFeedback(archived.asDb(), ctx("limited"), {
+      interviewId: "int-1", recommendation: "yes", notes: "ok", ratings: [{ attributeId: "attr-1", rating: 3 }],
+    }, NOW))).message).toMatch(/"Taste" was taken off/);
+    for (const fake of [offJob, archived]) expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
+  });
+
+  test("filing again replaces the ratings, each inserted under an id made here, their notes kept out of the audit row", async () => {
+    const fake = new FakeSupabase([
+      { data: interview() }, { data: "role-1" },
+      { data: [{ id: "attr-1", name: "Systems design", archived_at: null }, { id: "attr-2", name: "Communication", archived_at: null }] },
+      { data: { id: "fb-1", recommendation: "yes", rating: 3 } }, { data: [{ attribute_id: "attr-1", rating: 2 }] },
+      { data: "audit-1" }, { data: { id: "fb-1" } }, { data: null }, { data: null }, { data: null },
+    ]);
+    expect(await submitFeedback(fake.asDb(), ctx("limited"), {
+      interviewId: "int-1", recommendation: "strong_yes", notes: "SECRET-NOTES",
+      ratings: [{ attributeId: "attr-1", rating: 4, note: "  RATING-NOTE  " }, { attributeId: "attr-2", rating: 3 }],
+    }, NOW)).toEqual({ feedbackId: "fb-1", replaced: true, ratings: 2 });
+
+    const clear = fake.calls.find((c) => c.op === "delete");
+    expect(clear).toMatchObject({ table: "interview_feedback_ratings", filters: [{ method: "eq", column: "feedback_id", value: "fb-1" }] });
+    const insert = fake.calls.find((c) => c.op === "insert")!;
+    expect(insert.args).toEqual([
+      { id: expect.any(String), feedback_id: "fb-1", attribute_id: "attr-1", rating: 4, note: "RATING-NOTE" },
+      { id: expect.any(String), feedback_id: "fb-1", attribute_id: "attr-2", rating: 3, note: null },
+    ]);
+    expect(insert.terminal).toBe("await");
+    const finish = fake.calls.at(-1)!;
+    expect(finish.args).toMatchObject({
+      p_before: { ratings: [{ attribute_id: "attr-1", rating: 2 }] },
+      p_after: { ratings: [{ attribute_id: "attr-1", rating: 4 }, { attribute_id: "attr-2", rating: 3 }] },
+    });
+    expect(JSON.stringify(finish.args)).not.toMatch(/SECRET-NOTES|RATING-NOTE/);
   });
 
   test("a rating outside 1 to 4 is refused before any read", async () => {
@@ -170,5 +230,24 @@ describe("getFeedback", () => {
     const out = await getFeedback(fake.asDb(), ctx("elevated"), { applicationId: "app-1" });
     expect(out.yoursOutstanding).toBe(true);
     expect(out.interviews[0].interviewers.map((i) => i.name)).toEqual(["Ada", "Ivan"]);
+  });
+
+  test("each feedback carries its ratings with the attribute's name, in the scorecard's order", async () => {
+    const fake = new FakeSupabase([
+      { data: [{ id: "int-1", application_id: "app-1", starts_at: "x", ends_at: "y", status: "done", step: null, interviewer_actor_ids: ["actor-2"] }] },
+      { data: [{ id: "fb-1", interview_id: "int-1", interviewer_actor_id: "actor-2", recommendation: "yes", rating: null, notes: "n", submitted_at: "z" }] },
+      { data: [{ id: "actor-2", display_name: "Ivan" }] },
+      { data: [
+        { feedback_id: "fb-1", attribute_id: "attr-2", rating: 3, note: null },
+        { feedback_id: "fb-1", attribute_id: "attr-1", rating: 4, note: "clear" },
+      ] },
+      { data: [{ id: "attr-1", name: "Systems design", position: 10 }, { id: "attr-2", name: "Communication", position: 20 }] },
+    ]);
+    const out = await getFeedback(fake.asDb(), ctx(), { interviewId: "int-1" });
+    expect(out.feedback[0].ratings).toEqual([
+      { attributeId: "attr-1", attribute: "Systems design", rating: 4, note: "clear" },
+      { attributeId: "attr-2", attribute: "Communication", rating: 3, note: null },
+    ]);
+    expect(fake.calls[3].filters).toEqual([{ method: "in", column: "feedback_id", value: ["fb-1"] }]);
   });
 });

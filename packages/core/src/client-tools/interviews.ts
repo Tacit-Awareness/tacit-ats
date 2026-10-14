@@ -10,10 +10,12 @@ import { STEP_NAME_MAX, planStep, stepsOf } from "./plans.js";
  * (20261013120000): an interview is written by whoever may schedule on its
  * job, feedback only by its own interviewer, and another interviewer's
  * feedback is read per the org's feedback_visibility. A step is checked
- * against the job's interview plan when it has one (plans.ts).
+ * against the job's interview plan when it has one (plans.ts). A feedback's
+ * scorecard ratings (20261015140000) follow it: written by its interviewer
+ * against the job's attributes, read whenever the feedback is.
  *
  * Feedback is private to the company's hiring team: nothing here sends it
- * anywhere, and its notes are kept out of the audit row.
+ * anywhere, and its notes and the ratings' notes are kept out of the audit row.
  */
 
 export const RECOMMENDATIONS = ["strong_yes", "yes", "no", "strong_no"] as const;
@@ -22,6 +24,8 @@ export const INTERVIEW_STATUSES = ["scheduled", "done", "cancelled"] as const;
 export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
 
 const FEEDBACK_MAX = 10_000;
+const RATING_NOTE_MAX = 500;
+const RATINGS_MAX = 25;
 const LOCATION_MAX = 500;
 const MAX_INTERVIEWERS = 10;
 const MAX_LENGTH_MS = 8 * 60 * 60 * 1000;
@@ -108,6 +112,14 @@ export async function listMyInterviews(
     .sort((a, b) => (when === "past" ? Date.parse(b.startsAt) - Date.parse(a.startsAt) : Date.parse(a.startsAt) - Date.parse(b.startsAt)));
 }
 
+export type FeedbackRating = {
+  attributeId: string;
+  /** Null when the caller cannot see the job the attribute is on. */
+  attribute: string | null;
+  rating: number;
+  note: string | null;
+};
+
 export type FeedbackEntry = {
   feedbackId: string;
   interviewId: string;
@@ -116,6 +128,8 @@ export type FeedbackEntry = {
   recommendation: Recommendation;
   rating: number | null;
   notes: string;
+  /** Per scorecard attribute, in the scorecard's order. */
+  ratings: FeedbackRating[];
   submittedAt: string;
   mine: boolean;
 };
@@ -171,6 +185,7 @@ export async function getFeedback(
     for (const m of members ?? []) if (m.id) names.set(m.id, m.display_name);
   }
 
+  const ratings = await feedbackRatings(db, (filed ?? []).map((f) => f.id));
   const feedback = (filed ?? []).map((f) => ({
     feedbackId: f.id,
     interviewId: f.interview_id,
@@ -179,6 +194,7 @@ export async function getFeedback(
     recommendation: f.recommendation as Recommendation,
     rating: f.rating,
     notes: f.notes,
+    ratings: ratings.get(f.id) ?? [],
     submittedAt: f.submitted_at,
     mine: f.interviewer_actor_id === ctx.actorId,
   }));
@@ -198,6 +214,45 @@ export async function getFeedback(
     feedback,
     yoursOutstanding: minePending,
   };
+}
+
+/** Each feedback's ratings with their attribute's name, in the scorecard's order. Read under the caller's own policies. */
+async function feedbackRatings(db: Db, feedbackIds: string[]): Promise<Map<string, FeedbackRating[]>> {
+  const out = new Map<string, FeedbackRating[]>();
+  if (!feedbackIds.length) return out;
+  const { data: rows, error } = await db
+    .from("interview_feedback_ratings").select("feedback_id, attribute_id, rating, note").in("feedback_id", feedbackIds);
+  if (error) throw new Error(error.message);
+  if (!rows?.length) return out;
+  const { data: attrs, error: attrError } = await db
+    .from("scorecard_attributes").select("id, name, position").in("id", [...new Set(rows.map((r) => r.attribute_id))]);
+  if (attrError) throw new Error(attrError.message);
+  const byId = new Map((attrs ?? []).map((a) => [a.id, a]));
+  const order = (id: string) => byId.get(id)?.position ?? Number.MAX_SAFE_INTEGER;
+  for (const r of [...rows].sort((a, b) => order(a.attribute_id) - order(b.attribute_id))) {
+    const list = out.get(r.feedback_id) ?? [];
+    list.push({ attributeId: r.attribute_id, attribute: byId.get(r.attribute_id)?.name ?? null, rating: r.rating, note: r.note });
+    out.set(r.feedback_id, list);
+  }
+  return out;
+}
+
+export type RatingInput = { attributeId: string; rating: number; note?: string | null };
+
+/** Checked ratings, before any read: whole 1-4, each attribute once, short notes. */
+function checkRatings(ratings: RatingInput[]): Array<{ attributeId: string; rating: number; note: string | null }> {
+  if (ratings.length > RATINGS_MAX) throw new ClientToolError("invalid", `At most ${RATINGS_MAX} ratings.`);
+  const seen = new Set<string>();
+  return ratings.map((r) => {
+    if (seen.has(r.attributeId)) throw new ClientToolError("invalid", "Each scorecard attribute is rated once.");
+    seen.add(r.attributeId);
+    if (!Number.isInteger(r.rating) || r.rating < 1 || r.rating > 4) {
+      throw new ClientToolError("invalid", "A scorecard rating is a whole number from 1 to 4.");
+    }
+    const note = r.note?.trim() || null;
+    if (note && note.length > RATING_NOTE_MAX) throw new ClientToolError("invalid", `A rating's note is at most ${RATING_NOTE_MAX} characters.`);
+    return { attributeId: r.attributeId, rating: r.rating, note };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -320,9 +375,9 @@ export async function updateInterview(
 export async function submitFeedback(
   db: Db,
   ctx: ClientToolCtx,
-  input: { interviewId: string; recommendation: Recommendation; rating?: number | null; notes: string },
+  input: { interviewId: string; recommendation: Recommendation; rating?: number | null; notes: string; ratings?: RatingInput[] },
   now: Date = new Date(),
-): Promise<{ feedbackId: string; replaced: boolean }> {
+): Promise<{ feedbackId: string; replaced: boolean; ratings: number }> {
   if (!RECOMMENDATIONS.includes(input.recommendation)) {
     throw new ClientToolError("invalid", `A recommendation is one of ${RECOMMENDATIONS.join(", ")}.`);
   }
@@ -332,6 +387,7 @@ export async function submitFeedback(
   const notes = input.notes.trim();
   if (!notes) throw new ClientToolError("invalid", "Feedback needs notes.");
   if (notes.length > FEEDBACK_MAX) throw new ClientToolError("invalid", `Feedback notes are at most ${FEEDBACK_MAX} characters.`);
+  const ratings = checkRatings(input.ratings ?? []);
 
   const { data, error } = await db
     .from("interviews").select(INTERVIEW_COLUMNS).eq("id", input.interviewId).maybeSingle();
@@ -342,11 +398,19 @@ export async function submitFeedback(
   }
   if (interview.status === "cancelled") throw new ClientToolError("invalid", "That interview was cancelled. Nothing was saved.");
   if (Date.parse(interview.starts_at) > now.getTime()) throw new ClientToolError("invalid", "That interview has not happened yet. Nothing was saved.");
+  if (ratings.length) await checkScorecard(db, interview.application_id, ratings.map((r) => r.attributeId));
 
   const { data: existing, error: existingError } = await db
     .from("interview_feedback").select("id, recommendation, rating")
     .eq("interview_id", interview.id).eq("interviewer_actor_id", ctx.actorId).maybeSingle();
   if (existingError) throw new Error(existingError.message);
+  let previous: Array<{ attribute_id: string; rating: number }> = [];
+  if (existing) {
+    const { data, error: previousError } = await db
+      .from("interview_feedback_ratings").select("attribute_id, rating").eq("feedback_id", existing.id);
+    if (previousError) throw new Error(previousError.message);
+    previous = data ?? [];
+  }
 
   return withAudit(db, ctx, { action: "feedback.submit", entity: "interview_feedback" }, async () => {
     const { data: saved, error: saveError } = await db
@@ -361,13 +425,53 @@ export async function submitFeedback(
       .select("id")
       .single();
     if (saveError) throw new Error(saveError.message);
+    // Filing again replaces the ratings too: the old ones go, the new ones (if any) take their place.
+    if (existing) {
+      const { error: clearError } = await db.from("interview_feedback_ratings").delete().eq("feedback_id", saved.id);
+      if (clearError) throw new Error(clearError.message);
+    }
+    if (ratings.length) {
+      // Not read back: each id is made here.
+      const { error: ratingsError } = await db.from("interview_feedback_ratings").insert(
+        ratings.map((r) => ({
+          id: globalThis.crypto.randomUUID(), feedback_id: saved.id, attribute_id: r.attributeId, rating: r.rating, note: r.note,
+        })),
+      );
+      // A plain error even for the trigger's 22023 (an attribute archived since the check above): the
+      // feedback row has already changed, so the claim must stay open rather than be given back.
+      if (ratingsError) throw new Error(ratingsError.message);
+    }
+    const scored = (rows: Array<{ attribute_id: string; rating: number }>) => rows.map((r) => ({ attribute_id: r.attribute_id, rating: r.rating }));
     return {
-      result: { feedbackId: saved.id, replaced: !!existing },
+      result: { feedbackId: saved.id, replaced: !!existing, ratings: ratings.length },
       entityId: saved.id,
-      // The notes stay out of the audit row: admins read audit_log, and feedback is the interviewer's.
-      before: existing ? { recommendation: existing.recommendation, rating: existing.rating } : null,
-      after: { interview_id: interview.id, recommendation: input.recommendation, rating: input.rating ?? null },
+      // The notes, the feedback's and the ratings', stay out of the audit row: admins read audit_log, and feedback is the interviewer's.
+      before: existing ? { recommendation: existing.recommendation, rating: existing.rating, ratings: scored(previous) } : null,
+      after: {
+        interview_id: interview.id, recommendation: input.recommendation, rating: input.rating ?? null,
+        ratings: scored(ratings.map((r) => ({ attribute_id: r.attributeId, rating: r.rating }))),
+      },
       changed: true,
     };
   });
+}
+
+/** Every rated attribute is live on the interview's job, said before anything is written; the database checks it again. */
+async function checkScorecard(db: Db, applicationId: string, attributeIds: string[]): Promise<void> {
+  // An interviewer cannot read the application; application_role answers the job inside their org.
+  const { data: roleId, error } = await db.rpc("application_role", { p_application: applicationId });
+  if (error) throw new Error(error.message);
+  const missing = new ClientToolError(
+    "not_found", "Every rating must be for an attribute on this job's scorecard. get_scorecard lists them. Nothing was saved.",
+  );
+  if (!roleId) throw missing;
+  const { data, error: attrError } = await db
+    .from("scorecard_attributes").select("id, name, archived_at").eq("role_id", roleId as string).in("id", attributeIds);
+  if (attrError) throw new Error(attrError.message);
+  const found = new Map((data ?? []).map((a) => [a.id, a]));
+  if (attributeIds.some((id) => !found.has(id))) throw missing;
+  const archived = (data ?? []).find((a) => a.archived_at);
+  if (archived) {
+    throw new ClientToolError("invalid", `"${archived.name}" was taken off this job's scorecard. Rate its current attributes. Nothing was saved.`);
+  }
 }
