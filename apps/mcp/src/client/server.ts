@@ -658,8 +658,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             "Records an interview on one application (application_id) with your company's interviewers " +
             "(user_ids from list_team). Times are ISO 8601 with their offset. This only records it in " +
-            "Tacit: no calendar invite is sent to anyone, the candidate included. Needs the right to " +
-            "schedule on that job. Confirm the time and interviewers with the user first.",
+            "Tacit: no calendar invite is sent to anyone, the candidate included. When the job has an " +
+            "interview plan, step must be one of its steps (get_interview_plan); without one, any step " +
+            "name goes. Needs the right to schedule on that job. Confirm the time and interviewers with " +
+            "the user first.",
           inputSchema: z.object({
             application_id: uuid("application_id"),
             starts_at: z.string().max(40),
@@ -900,6 +902,106 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             return { summary, data: { outcome: r.outcome, offer_id: args.offer_id, status: r.status, changed: r.changed }, candidateIds: [] };
           }),
       );
+
+      // Step names are the company's own labels for its process, passed back verbatim to
+      // schedule_interview: bare, like job titles.
+      const planInterviewOut = (i: clientTools.PlanInterview) => ({
+        interview_id: i.interviewId, step: i.step, starts_at: i.startsAt, ends_at: i.endsAt, status: i.status,
+        interviewers: i.interviewers.map((p) => ({ user_id: p.userId, name: p.name, feedback: p.feedback })),
+      });
+
+      server.registerTool(
+        "get_interview_plan",
+        {
+          title: "Get a job's interview plan",
+          description:
+            "A job's interview plan (job_id): its interview steps in order, e.g. Recruiter screen, " +
+            "Technical, Onsite. With application_id, that candidate's progress on each step: its " +
+            "interviews and their status (scheduled, done, cancelled), and for each interviewer whether " +
+            "their feedback is filed, not filed, or hidden by your company's feedback setting; plus " +
+            "interviews on no step or on a step since removed from the plan, and the next step to " +
+            "schedule. An interviewer sees only their own interviews. Feedback itself is in get_feedback.",
+          inputSchema: z.object({ job_id: uuid("job_id"), application_id: uuid("application_id").optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_interview_plan", "read", args, async () => {
+            const plan = await clientTools.getInterviewPlan(db, ctx, { jobId: args.job_id, applicationId: args.application_id });
+            const c = plan.candidate;
+            const done = c ? c.steps.filter((s) => s.state === "done").length : 0;
+            const summary =
+              (plan.steps.length
+                ? `${plan.title} has ${plan.steps.length} interview step${plan.steps.length === 1 ? "" : "s"}.`
+                : `${plan.title} has no interview plan yet: any step name is accepted.`) +
+              (c && plan.steps.length && c.seesAllInterviews
+                ? ` The candidate has done ${done} of them${c.nextStep ? `; next is ${c.nextStep}` : ""}.`
+                : "") +
+              (c && !c.seesAllInterviews ? " You see only your own interviews with this candidate." : "") +
+              (c?.offPlan.length ? ` ${c.offPlan.length} interview${c.offPlan.length === 1 ? " is" : "s are"} off the plan.` : "");
+            return {
+              summary,
+              data: {
+                job_id: plan.jobId,
+                job: plan.title,
+                steps: plan.steps.map((step, n) => ({ position: n + 1, step })),
+                ...(c
+                  ? {
+                      candidate: {
+                        application_id: c.applicationId,
+                        sees_all_interviews: c.seesAllInterviews,
+                        steps: c.steps.map((s) => ({ position: s.position, step: s.step, state: s.state, interviews: s.interviews.map(planInterviewOut) })),
+                        off_plan: c.offPlan.map(planInterviewOut),
+                        next_step: c.nextStep,
+                      },
+                    }
+                  : {}),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "set_interview_plan",
+        {
+          title: "Set a job's interview plan",
+          description:
+            `Replaces a job's whole interview plan with the steps you pass, in order (at most ` +
+            `${clientTools.PLAN_STEPS_MAX}, each a distinct name of up to ${clientTools.STEP_NAME_MAX} characters). ` +
+            "[] clears it. Once a job has a plan, schedule_interview takes only its steps. Interviews " +
+            "already on a step you remove keep that step's name and show as off the plan; the result " +
+            "says how many. Needs the right to manage the job. Tell the user the new steps and wait for a yes.",
+          inputSchema: z.object({
+            job_id: uuid("job_id"),
+            steps: z.array(z.string().max(clientTools.STEP_NAME_MAX)).max(clientTools.PLAN_STEPS_MAX),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("set_interview_plan", "write", args, async () => {
+            const r = await clientTools.setInterviewPlan(db, ctx, { jobId: args.job_id, steps: args.steps });
+            const kept = r.keptOnInterviews.reduce((n, k) => n + k.interviews, 0);
+            const summary =
+              (r.outcome === "updated"
+                ? r.steps.length ? `The plan is now: ${r.steps.join(", ")}.` : "The plan is cleared: any step name is accepted."
+                : "That is already the plan. Nothing changed.") +
+              (kept
+                ? ` ${kept} interview${kept === 1 ? "" : "s"} still name${kept === 1 ? "s" : ""} a removed step ` +
+                  `(${r.keptOnInterviews.map((k) => k.step).join(", ")}) and keep${kept === 1 ? "s" : ""} it, shown off the plan.`
+                : "");
+            return {
+              summary,
+              data: {
+                outcome: r.outcome,
+                job_id: args.job_id,
+                steps: r.steps,
+                removed: r.removed,
+                interviews_keeping_removed_steps: r.keptOnInterviews.map((k) => ({ step: k.step, interviews: k.interviews, scheduled: k.scheduled })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -908,7 +1010,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
-        "create_offer, update_offer or removing someone " +
+        "create_offer, update_offer, set_interview_plan or removing someone " +
         "from a hiring team, tell the user exactly what will change and wait for a yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
         "in a message to a candidate. Offer terms are confidential: share them only with the user.\n\n" +

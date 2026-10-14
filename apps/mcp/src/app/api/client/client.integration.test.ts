@@ -561,3 +561,109 @@ describe("rejection reasons and offers against real Postgres", () => {
     expect((await ok(IVAN, "get_candidate", { candidate_id: PAT })).jobs).toEqual([]);
   });
 });
+
+describe("interview plans against real Postgres", () => {
+  const PLAN = ["Recruiter screen", "Technical", "Onsite"];
+  const at = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
+  const schedule = (step: string, days = 2) =>
+    tool(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(days), ends_at: at(days + 0.04), interviewer_user_ids: [ADMIN], step,
+    });
+
+  test("an admin sets a plan, which is the job's interview_steps, audited", async () => {
+    const out = await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: [" Recruiter screen", "Technical", "Onsite"] });
+    expect(out).toMatchObject({ outcome: "updated", steps: PLAN, removed: [], interviews_keeping_removed_steps: [] });
+    // The same jsonb list of names the staff connector reads.
+    const { data: job } = await db().from("roles").select("interview_steps").eq("id", ENGINEER).single();
+    expect(job!.interview_steps).toEqual(PLAN);
+    const { data: audit } = await db().from("audit_log").select("action, entity, entity_id, before, after")
+      .eq("actor_id", ADMIN).eq("action", "role.interview_plan").single();
+    expect(audit).toEqual({ action: "role.interview_plan", entity: "role", entity_id: ENGINEER, before: { interview_steps: [] }, after: { interview_steps: PLAN } });
+
+    expect((await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: PLAN })).outcome).toBe("unchanged");
+    expect((await tool(ADA, "set_interview_plan", { job_id: ENGINEER, steps: ["Onsite", "onsite"] })).content[0].text).toMatch(/twice/);
+    const { count } = await db().from("audit_log").select("*", { count: "exact", head: true }).eq("action", "role.interview_plan");
+    expect(count).toBe(1);
+  });
+
+  test("scheduling keeps to the plan once there is one, in the plan's spelling", async () => {
+    // No plan: any step.
+    expect((await schedule("Coffee chat")).isError).toBeFalsy();
+    await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: PLAN });
+
+    expect((await schedule("Take-home")).content[0].text).toMatch(/The steps are: Recruiter screen, Technical, Onsite/);
+    const scheduled = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(3), ends_at: at(3.04), interviewer_user_ids: [ADMIN], step: "technical",
+    });
+    const { data: row } = await db().from("interviews").select("step").eq("id", scheduled.interview_id).single();
+    expect(row!.step).toBe("Technical");
+    expect((await schedule("Technical", 4)).content[0].text).toMatch(/already has a scheduled "Technical" interview/);
+    const { count } = await db().from("interviews").select("*", { count: "exact", head: true }).eq("application_id", PAT_APP);
+    expect(count).toBe(3);
+  });
+
+  test("a candidate's progress per step, and what is off the plan", async () => {
+    await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: PLAN });
+    await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(3), ends_at: at(3.04), interviewer_user_ids: [ADMIN], step: "Technical",
+    });
+    const plan = await ok(ADA, "get_interview_plan", { job_id: ENGINEER, application_id: PAT_APP });
+    expect(plan.steps).toEqual(PLAN.map((step, n) => ({ position: n + 1, step })));
+    const c = plan.candidate;
+    expect(c.sees_all_interviews).toBe(true);
+    expect(c.steps.map((s: { state: string }) => s.state)).toEqual(["not_scheduled", "scheduled", "not_scheduled"]);
+    expect(c.steps[1].interviews[0].interviewers).toEqual([{ user_id: ADMIN, name: "Ada Admin", feedback: "not_filed" }]);
+    // The fixture's interview has no step.
+    expect(c.off_plan.map((i: { interview_id: string }) => i.interview_id)).toEqual([UPCOMING]);
+    expect(c.next_step).toBe("Recruiter screen");
+
+    // Without an application, only the steps.
+    expect((await ok(ADA, "get_interview_plan", { job_id: ENGINEER })).candidate).toBeUndefined();
+    expect((await tool(ADA, "get_interview_plan", { job_id: DESIGNER, application_id: PAT_APP })).content[0].text).toMatch(/another job/);
+  });
+
+  test("removing a step leaves the interviews on it alone, and says so", async () => {
+    await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: PLAN });
+    const onsite = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(5), ends_at: at(5.04), interviewer_user_ids: [ADMIN], step: "Onsite",
+    });
+    const out = await tool(ADA, "set_interview_plan", { job_id: ENGINEER, steps: ["Recruiter screen", "Technical", "Final round"] });
+    expect(out.structuredContent).toMatchObject({
+      outcome: "updated", removed: ["Onsite"], interviews_keeping_removed_steps: [{ step: "Onsite", interviews: 1, scheduled: 1 }],
+    });
+    expect(out.content[0].text).toMatch(/1 interview still names a removed step \(Onsite\)/);
+    const { data: row } = await db().from("interviews").select("step, status").eq("id", onsite.interview_id).single();
+    expect(row).toEqual({ step: "Onsite", status: "scheduled" });
+    const plan = await ok(ADA, "get_interview_plan", { job_id: ENGINEER, application_id: PAT_APP });
+    expect(plan.candidate.off_plan.map((i: { interview_id: string }) => i.interview_id).sort())
+      .toEqual([UPCOMING, onsite.interview_id].sort());
+  });
+
+  test("an interviewer reads the plan and only their own interview, and cannot change it", async () => {
+    await ok(ADA, "set_interview_plan", { job_id: ENGINEER, steps: PLAN });
+    await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(3), ends_at: at(3.04), interviewer_user_ids: [ADMIN], step: "Technical",
+    });
+    const plan = await ok(IVAN, "get_interview_plan", { job_id: ENGINEER, application_id: PAT_APP });
+    expect(plan.steps.map((s: { step: string }) => s.step)).toEqual(PLAN);
+    expect(plan.candidate.sees_all_interviews).toBe(false);
+    // Ada's Technical interview is not his to see.
+    expect(plan.candidate.steps.map((s: { state: string }) => s.state)).toEqual(["not_visible", "not_visible", "not_visible"]);
+    expect(plan.candidate.off_plan).toEqual([
+      expect.objectContaining({ interview_id: UPCOMING, interviewers: [{ user_id: INTERVIEWER, name: "Ivan Interviewer", feedback: "not_filed" }] }),
+    ]);
+    expect(plan.candidate.next_step).toBeNull();
+
+    expect((await tool(IVAN, "set_interview_plan", { job_id: ENGINEER, steps: ["Vibes"] })).isError).toBe(true);
+    expect((await tool(IVAN, "get_interview_plan", { job_id: DESIGNER })).content[0].text).toMatch(/No job with that id/);
+    const { data: job } = await db().from("roles").select("interview_steps").eq("id", ENGINEER).single();
+    expect(job!.interview_steps).toEqual(PLAN);
+  });
+
+  test("another company's job reads as not found and is not changed", async () => {
+    expect((await tool(ADA, "get_interview_plan", { job_id: GLOBEX_ROLE })).content[0].text).toMatch(/No job with that id/);
+    expect((await tool(ADA, "set_interview_plan", { job_id: GLOBEX_ROLE, steps: ["Screen"] })).isError).toBe(true);
+    const { data: job } = await db().from("roles").select("interview_steps").eq("id", GLOBEX_ROLE).single();
+    expect(job!.interview_steps).toEqual([]);
+  });
+});

@@ -73,6 +73,40 @@ describe("scheduleInterview", () => {
     });
     expect(insert.terminal).toBe("await");
   });
+
+  test("a step outside the job's plan is refused with the plan's steps, before any claim", async () => {
+    const fake = new FakeSupabase([
+      { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: { interview_steps: ["Recruiter screen", "Onsite"] } },
+    ]);
+    const err = await refusal(scheduleInterview(fake.asDb(), ctx(), { ...base, step: "Take-home" }));
+    expect(err.message).toMatch(/The steps are: Recruiter screen, Onsite/);
+    expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
+  });
+
+  test("a step in the plan is written as the plan spells it; with no plan, any step goes", async () => {
+    const planned = new FakeSupabase([
+      { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: { interview_steps: ["Recruiter screen", "Onsite"] } },
+      { data: [{ id: "actor-2" }] }, { data: "audit-1" }, { data: null }, { data: null },
+    ]);
+    await scheduleInterview(planned.asDb(), ctx(), { ...base, step: " onsite " });
+    expect(planned.calls.find((c) => c.op === "insert")?.args).toMatchObject({ step: "Onsite" });
+
+    const open = new FakeSupabase([
+      { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: { interview_steps: [] } },
+      { data: [{ id: "actor-2" }] }, { data: "audit-1" }, { data: null }, { data: null },
+    ]);
+    await scheduleInterview(open.asDb(), ctx(), { ...base, step: "Coffee chat" });
+    expect(open.calls.find((c) => c.op === "insert")?.args).toMatchObject({ step: "Coffee chat" });
+  });
+
+  test("a second scheduled interview on one step is a sentence, and the claim is given back", async () => {
+    const fake = new FakeSupabase([
+      { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: { interview_steps: [] } },
+      { data: [{ id: "actor-2" }] }, { data: "audit-1" }, { error: { code: "23505", message: "duplicate key" } }, { data: null },
+    ]);
+    expect((await refusal(scheduleInterview(fake.asDb(), ctx(), { ...base, step: "Onsite" }))).message).toMatch(/already has a scheduled "Onsite"/);
+    expect(fake.calls.at(-1)?.args).toMatchObject({ p_keep: false });
+  });
 });
 
 describe("updateInterview", () => {

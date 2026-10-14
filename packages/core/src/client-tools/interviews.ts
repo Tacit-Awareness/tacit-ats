@@ -2,13 +2,15 @@ import type { Db } from "@tacit/db";
 
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
+import { STEP_NAME_MAX, planStep, stepsOf } from "./plans.js";
 
 /**
  * Interviews and interview feedback for the client connector. Same rules as
  * the rest of client-tools: the member's own client, and the policies decide
  * (20261013120000): an interview is written by whoever may schedule on its
  * job, feedback only by its own interviewer, and another interviewer's
- * feedback is read per the org's feedback_visibility.
+ * feedback is read per the org's feedback_visibility. A step is checked
+ * against the job's interview plan when it has one (plans.ts).
  *
  * Feedback is private to the company's hiring team: nothing here sends it
  * anywhere, and its notes are kept out of the audit row.
@@ -21,7 +23,6 @@ export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
 
 const FEEDBACK_MAX = 10_000;
 const LOCATION_MAX = 500;
-const STEP_MAX = 120;
 const MAX_INTERVIEWERS = 10;
 const MAX_LENGTH_MS = 8 * 60 * 60 * 1000;
 
@@ -220,14 +221,20 @@ export async function scheduleInterview(
   span(startsAt, endsAt);
   const location = input.locationOrLink?.trim() || null;
   if (location && location.length > LOCATION_MAX) throw new ClientToolError("invalid", `A location or link is at most ${LOCATION_MAX} characters.`);
-  const step = input.step?.trim() || null;
-  if (step && step.length > STEP_MAX) throw new ClientToolError("invalid", `A step name is at most ${STEP_MAX} characters.`);
+  let step = input.step?.trim() || null;
+  if (step && step.length > STEP_NAME_MAX) throw new ClientToolError("invalid", `A step name is at most ${STEP_NAME_MAX} characters.`);
 
   const { data: app, error } = await db.from("applications").select("id, role_id").eq("id", input.applicationId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!app) throw new ClientToolError("not_found", "No application with that id that you can see. get_pipeline and get_candidate list them.");
   if (!(await can(db, app.role_id, "can_schedule"))) {
     throw new ClientToolError("forbidden", "You can see that candidate but not schedule interviews on this job.");
+  }
+  if (step) {
+    // A job with an interview plan takes only its steps, spelled as the plan spells them.
+    const { data: job, error: jobError } = await db.from("roles").select("interview_steps").eq("id", app.role_id).maybeSingle();
+    if (jobError) throw new Error(jobError.message);
+    step = planStep(stepsOf(job?.interview_steps), step);
   }
   const ids = await interviewers(db, input.interviewerIds);
 
@@ -238,6 +245,10 @@ export async function scheduleInterview(
       interviewer_actor_ids: ids, location_or_link: location, step,
     };
     const { error: insertError } = await db.from("interviews").insert(row);
+    // interviews_one_active_per_step: one scheduled interview per step of an application.
+    if (insertError?.code === "23505") {
+      throw new ClientToolError("invalid", `This candidate already has a scheduled "${step}" interview. Move or cancel it with update_interview.`);
+    }
     if (insertError) throw new Error(insertError.message);
     return { result: { interviewId }, entityId: interviewId, after: row, changed: true };
   });
