@@ -62,10 +62,12 @@ describe("verifyAccessToken", () => {
   });
 
   test("accepts a token signed by the issuer for this server", async () => {
-    expect(await verifyAccessToken(await sign({ sub: "user_1" }), config, keys)).toEqual({ subject: "user_1", email: null });
+    expect(await verifyAccessToken(await sign({ sub: "user_1" }), config, keys)).toEqual({ subject: "user_1", email: null, orgId: null });
     expect(await verifyAccessToken(await sign({ sub: "user_1", email: "a@b.co" }), config, keys)).toEqual({
-      subject: "user_1", email: "a@b.co",
+      subject: "user_1", email: "a@b.co", orgId: null,
     });
+    // The organization the sign-in was for, when AuthKit puts one in the token.
+    expect((await verifyAccessToken(await sign({ sub: "user_1", org_id: "org_1" }), config, keys)).orgId).toBe("org_1");
     // An email the provider says is unverified is not an email.
     expect(
       (await verifyAccessToken(await sign({ sub: "user_1", email: "a@b.co", email_verified: false }), config, keys)).email,

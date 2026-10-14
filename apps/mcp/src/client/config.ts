@@ -1,0 +1,49 @@
+import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
+
+/**
+ * The client connector's settings (/api/client). Separate from the staff
+ * connector's (connector/auth.ts) on purpose: clients sign in through the
+ * WorkOS environment that holds their organizations (the same one the /client
+ * portal uses), teammates through another, and the two must never share a
+ * token audience.
+ */
+export type ClientMcpConfig = {
+  /** The AuthKit domain of the clients' WorkOS environment: the token issuer. */
+  issuer: string;
+  /** This server's public URL, e.g. https://mcp.tacitawareness.com/api/client: the token audience. */
+  resource: string;
+  /**
+   * That environment's API key. Looks up a verified email on a first sign-in
+   * whose token has none, and the user's organization when the token names
+   * none. Null = both are taken from the token alone.
+   */
+  workosApiKey: string | null;
+  supabaseUrl: string;
+  publishableKey: string;
+  /** Signs the per-request database token (@tacit/db's mintClientMemberToken). */
+  signer: MemberTokenSigner;
+};
+
+const trimSlash = (s: string) => s.replace(/\/+$/, "");
+
+/**
+ * Null when anything required is missing: the route then answers 503. There is
+ * no fallback to another database client, since every tool must run as the
+ * member and nothing else.
+ */
+export function clientMcpConfig(env: Record<string, string | undefined> = process.env): ClientMcpConfig | null {
+  const issuer = env.CLIENT_MCP_AUTHKIT_DOMAIN?.trim();
+  const resource = env.CLIENT_MCP_RESOURCE_URL?.trim();
+  const supabaseUrl = env.SUPABASE_URL?.trim();
+  const publishableKey = env.SUPABASE_PUBLISHABLE_KEY?.trim();
+  const rawKey = env.SUPABASE_TACIT_SIGNING_KEY?.trim();
+  if (!issuer || !resource || !supabaseUrl || !publishableKey || !rawKey) return null;
+  return {
+    issuer: trimSlash(issuer.startsWith("http") ? issuer : `https://${issuer}`),
+    resource: trimSlash(resource),
+    workosApiKey: env.CLIENT_WORKOS_API_KEY?.trim() || null,
+    supabaseUrl,
+    publishableKey,
+    signer: parseTacitSigningKey(rawKey, env.SUPABASE_TACIT_SIGNING_KEY_ID?.trim() || undefined),
+  };
+}

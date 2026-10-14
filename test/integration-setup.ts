@@ -46,4 +46,8 @@ export default function setup(): void {
   process.env.SUPABASE_SECRET_KEY = serviceKey;
   process.env.SUPABASE_ANON_KEY = anonKey;
   process.env.SUPABASE_DB_URL = dbUrl;
+  // The local stack's shared JWT secret: lets a test sign a member token the
+  // way production signs one with the project key (apps/mcp's client connector).
+  const jwtSecret = vars.get("JWT_SECRET");
+  if (jwtSecret) process.env.SUPABASE_JWT_SECRET = jwtSecret;
 }

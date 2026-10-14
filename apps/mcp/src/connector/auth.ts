@@ -61,7 +61,7 @@ export function resourceMetadataUrl(resource: string): string {
   return `${url.origin}/.well-known/oauth-protected-resource${path}`;
 }
 
-export function resourceMetadata(config: ConnectorConfig) {
+export function resourceMetadata(config: Pick<ConnectorConfig, "issuer" | "resource">) {
   return {
     resource: config.resource,
     authorization_servers: [config.issuer],
@@ -73,7 +73,7 @@ export function resourceMetadata(config: ConnectorConfig) {
  * The 401 that starts a client's OAuth flow: the header points it at the
  * resource metadata, which names the authorization server.
  */
-export function challenge(config: ConnectorConfig, error?: { code: string; description: string }): Response {
+export function challenge(config: Pick<ConnectorConfig, "resource">, error?: { code: string; description: string }): Response {
   const params = [
     ...(error ? [`error="${error.code}"`, `error_description="${error.description}"`] : []),
     `resource_metadata="${resourceMetadataUrl(config.resource)}"`,
@@ -81,7 +81,12 @@ export function challenge(config: ConnectorConfig, error?: { code: string; descr
   return new Response(null, { status: 401, headers: { "www-authenticate": `Bearer ${params.join(", ")}` } });
 }
 
-export type AccessClaims = { subject: string; email: string | null };
+export type AccessClaims = {
+  subject: string;
+  email: string | null;
+  /** The WorkOS organization the sign-in was for, when AuthKit put one in the token. */
+  orgId: string | null;
+};
 
 const jwksByIssuer = new Map<string, JWTVerifyGetKey>();
 
@@ -110,7 +115,8 @@ export async function verifyAccessToken(
   });
   // An email claim is only present when the AuthKit JWT template adds it.
   const email = typeof payload.email === "string" && payload.email_verified !== false ? payload.email : null;
-  return { subject: payload.sub as string, email };
+  const orgId = typeof payload.org_id === "string" && payload.org_id ? payload.org_id : null;
+  return { subject: payload.sub as string, email, orgId };
 }
 
 /** A WorkOS user's email, only if WorkOS has verified it. */
