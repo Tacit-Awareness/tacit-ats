@@ -39,6 +39,8 @@ let issuer: string;
 let privateKey: CryptoKey;
 let handleClientRequest: typeof import("../../../client/handler.js").handleClientRequest;
 let deps: Parameters<typeof handleClientRequest>[1];
+/** What the stand-in for WorkOS was asked to do. */
+const workos = { sent: [] as Array<{ email: string; organizationId: string; inviterUserId?: string }>, revoked: [] as string[] };
 
 async function clear() {
   const ids = [ACME, GLOBEX];
@@ -83,6 +85,18 @@ beforeAll(async () => {
     bind: bindMember,
     audit: auditClientCall,
     breadth: clientBreadthExceeded,
+    invitations: {
+      createOrganization: async () => {
+        throw new Error("not here");
+      },
+      sendInvitation: async (input) => {
+        workos.sent.push(input);
+        return { id: `inv_${workos.sent.length}` };
+      },
+      revokeInvitations: async ({ email }) => {
+        workos.revoked.push(email);
+      },
+    },
   };
 });
 
@@ -94,6 +108,8 @@ afterAll(async () => {
 vi.spyOn(console, "warn").mockImplementation(() => {});
 
 beforeEach(async () => {
+  workos.sent.length = 0;
+  workos.revoked.length = 0;
   await clear();
   must(await db().from("orgs").insert([
     { id: ACME, name: "Acme", slug: "itest-client-acme", kind: "client", workos_org_id: "org_itest_acme" },
@@ -310,5 +326,81 @@ describe("the pipeline tools against real Postgres", () => {
     expect(out.content[0].text).toMatch(/300 changes in the last hour/);
     const { data } = await db().from("applications").select("next_action").eq("id", PAT_APP).single();
     expect(data!.next_action).toBeNull();
+  });
+});
+
+describe("the admin tools against real Postgres", () => {
+  test("an admin creates a job in their company, audited; an interviewer cannot", async () => {
+    const job = await ok(ADA, "create_job", { title: "Data Engineer", location: "Remote" });
+    const { data: role } = await db().from("roles").select("org_id, title, status, location, company_id").eq("id", job.job_id).single();
+    expect(role).toMatchObject({ org_id: ACME, title: "Data Engineer", status: "open", location: "Remote" });
+    const { data: company } = await db().from("companies").select("org_id").eq("id", role!.company_id).single();
+    expect(company!.org_id).toBe(ACME);
+    const { data: audit } = await db().from("audit_log").select("action, entity_id").eq("actor_id", ADMIN);
+    expect(audit).toEqual([{ action: "role.create", entity_id: job.job_id }]);
+
+    const refused = await tool(IVAN, "create_job", { title: "Shadow job" });
+    expect(refused.content[0].text).toMatch(/Only an admin/);
+    const { count } = await db().from("roles").select("*", { count: "exact", head: true }).eq("title", "Shadow job");
+    expect(count).toBe(0);
+  });
+
+  test("closing a job changes only its status", async () => {
+    expect(await ok(ADA, "update_job", { job_id: DESIGNER, status: "closed", title: "Designer" }))
+      .toEqual({ outcome: "updated", job_id: DESIGNER, changed: ["status"] });
+    const { data } = await db().from("roles").select("status, title").eq("id", DESIGNER).single();
+    expect(data).toEqual({ status: "closed", title: "Designer" });
+  });
+
+  test("a hiring manager added to a job gets access to it, and loses it when removed", async () => {
+    expect((await ok(IVAN, "list_jobs")).jobs.map((j: { title: string }) => j.title)).toEqual(["Founding Engineer"]);
+
+    await ok(ADA, "add_to_hiring_team", { job_id: DESIGNER, user_id: INTERVIEWER, team_role: "hiring_manager" });
+    const team = await ok(ADA, "get_hiring_team", { job_id: DESIGNER });
+    expect(team.team).toEqual([
+      { user_id: INTERVIEWER, name: "Ivan Interviewer", team_roles: ["hiring_manager"], job_access: "Hiring Manager", set_by_hand: false },
+    ]);
+    const { data: ivan } = await db().from("actors").select("access_level").eq("id", INTERVIEWER).single();
+    expect(ivan!.access_level).toBe("elevated");
+    expect((await ok(IVAN, "list_jobs")).jobs.map((j: { title: string }) => j.title).sort()).toEqual(["Designer", "Founding Engineer"]);
+    expect((await ok(ADA, "add_to_hiring_team", { job_id: DESIGNER, user_id: INTERVIEWER, team_role: "hiring_manager" })).outcome)
+      .toBe("already_on_team");
+
+    expect(await ok(ADA, "remove_from_hiring_team", { job_id: DESIGNER, user_id: INTERVIEWER }))
+      .toMatchObject({ outcome: "removed", removed: ["hiring_manager"] });
+    const { count } = await db().from("job_access").select("*", { count: "exact", head: true }).eq("actor_id", INTERVIEWER);
+    expect(count).toBe(0);
+  });
+
+  test("someone from another company cannot be put on a team", async () => {
+    const out = await tool(ADA, "add_to_hiring_team", { job_id: DESIGNER, user_id: "c2a00000-0000-4000-8000-000000000009", team_role: "recruiter" });
+    expect(out.content[0].text).toMatch(/No one at your company/);
+  });
+
+  test("access changes keep at least one admin", async () => {
+    const lone = await tool(ADA, "set_member_access", { user_id: ADMIN, access: "hiring team" });
+    expect(lone.content[0].text).toMatch(/no admin left/);
+
+    expect(await ok(ADA, "set_member_access", { user_id: INTERVIEWER, access: "admin" }))
+      .toMatchObject({ outcome: "changed", previous: "interviewer", access: "admin" });
+    expect((await ok(ADA, "set_member_access", { user_id: ADMIN, access: "hiring team" })).outcome).toBe("changed");
+    // Ada is no longer an admin: her token resolves to hiring team on the very next call.
+    expect((await tool(ADA, "set_member_access", { user_id: INTERVIEWER, access: "interviewer" })).content[0].text)
+      .toMatch(/Only an admin/);
+  });
+
+  test("an invitation is the actor plus WorkOS's email, and withdrawing it takes both back", async () => {
+    const invite = await ok(ADA, "invite_member", { email: "Zed@Acme.test", name: "Zed", access: "hiring team" });
+    expect(invite).toMatchObject({ outcome: "invited", email: "zed@acme.test" });
+    expect(workos.sent).toEqual([{ email: "zed@acme.test", organizationId: "org_itest_acme", inviterUserId: "user_ada" }]);
+
+    const { invites } = await ok(ADA, "list_invites");
+    expect(invites.map((i: { email: string; access: string }) => [i.email, i.access]).sort())
+      .toEqual([["nia@acme.test", "hiring team"], ["zed@acme.test", "hiring team"]]);
+
+    expect((await ok(ADA, "withdraw_invite", { user_id: invite.user_id })).outcome).toBe("withdrawn");
+    expect(workos.revoked).toEqual(["zed@acme.test"]);
+    const { count } = await db().from("actors").select("*", { count: "exact", head: true }).eq("id", invite.user_id);
+    expect(count).toBe(0);
   });
 });

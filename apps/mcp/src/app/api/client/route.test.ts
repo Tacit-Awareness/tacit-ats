@@ -230,11 +230,15 @@ describe("the tools", () => {
     expect(Object.keys(byName)).toEqual([
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team",
       "add_candidate", "update_stage", "set_next_action", "add_note",
+      "create_job", "update_job", "get_hiring_team", "add_to_hiring_team", "remove_from_hiring_team",
+      "set_member_access", "invite_member", "list_invites", "withdraw_invite",
     ]);
-    for (const read of ["whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team"]) {
+    for (const read of ["whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites"]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     }
-    expect(byName.update_stage).toMatchObject({ destructiveHint: true });
+    for (const change of ["update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite"]) {
+      expect(byName[change], change).toMatchObject({ destructiveHint: true });
+    }
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {
@@ -246,6 +250,20 @@ describe("the tools", () => {
     expect(out.isError).toBe(true);
     expect(out.content[0].text).toMatch(/Interviewers do not see a job's pipeline/);
     expect(audits).toEqual([{ tool: "get_pipeline", ok: false, actorId: ACTOR }]);
+  });
+
+  test("the admin tools refuse anyone but an admin, before touching the database", async () => {
+    fakeDb.level = "elevated";
+    for (const [name, args] of [
+      ["create_job", { title: "Staff Engineer" }],
+      ["invite_member", { email: "new@acme.test", name: "New", access: "admin" }],
+      ["set_member_access", { user_id: ACTOR, access: "admin" }],
+    ] as const) {
+      const out = await result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps()));
+      expect(out.isError, name).toBe(true);
+      expect(out.content[0].text, name).toMatch(/Only an admin at your company/);
+    }
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([["create_job", false], ["invite_member", false], ["set_member_access", false]]);
   });
 
   test("candidate text comes back fenced and the ids bare; past the breadth ceiling nothing comes back", async () => {

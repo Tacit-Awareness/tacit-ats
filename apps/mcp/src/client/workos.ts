@@ -1,7 +1,10 @@
+import type { IdentityProvider, InvitationRevoker } from "@tacit/core";
+
 /**
- * The two things the client connector may ask WorkOS when the access token
- * does not say: a user's verified email (first sign-in only) and which
- * organization they belong to. `doFetch` is injectable for tests.
+ * WorkOS for the client connector: a user's verified email (first sign-in
+ * only) and which organization they belong to, when the access token does not
+ * say; and, for invite_member / withdraw_invite, sending and revoking an
+ * invitation. `doFetch` is injectable for tests.
  */
 
 const API = "https://api.workos.com/user_management";
@@ -34,3 +37,43 @@ export async function soleOrganization(
 }
 
 export { fetchVerifiedEmail } from "../connector/auth";
+
+async function workosError(res: Response): Promise<Error> {
+  const body = (await res.json().catch(() => null)) as { message?: unknown } | null;
+  return new Error(`WorkOS ${res.status}${typeof body?.message === "string" ? `: ${body.message}` : ""}`);
+}
+
+/**
+ * Invitations into the member's own WorkOS organization, the same ones the
+ * /client portal sends (apps/internal's lib/client/workos.ts, over the SDK).
+ * Creating an organization is staff-only and refused here.
+ */
+export function clientInvitations(apiKey: string, doFetch: typeof fetch = fetch): IdentityProvider & InvitationRevoker {
+  const headers = { authorization: `Bearer ${apiKey}`, "content-type": "application/json" };
+  return {
+    createOrganization: async () => {
+      throw new Error("a client member cannot create an organization");
+    },
+    sendInvitation: async ({ email, organizationId, inviterUserId }) => {
+      const res = await doFetch(`${API}/invitations`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ email, organization_id: organizationId, ...(inviterUserId ? { inviter_user_id: inviterUserId } : {}) }),
+      });
+      if (!res.ok) throw await workosError(res);
+      const body = (await res.json()) as { id: string };
+      return { id: body.id };
+    },
+    revokeInvitations: async ({ email, organizationId }) => {
+      const url = `${API}/invitations?email=${encodeURIComponent(email)}&organization_id=${encodeURIComponent(organizationId)}&limit=20`;
+      const res = await doFetch(url, { headers });
+      if (!res.ok) throw await workosError(res);
+      const body = (await res.json()) as { data?: Array<{ id: string; state: string }> };
+      for (const invitation of body.data ?? []) {
+        if (invitation.state !== "pending") continue;
+        const revoked = await doFetch(`${API}/invitations/${encodeURIComponent(invitation.id)}/revoke`, { method: "POST", headers });
+        if (!revoked.ok) throw await workosError(revoked);
+      }
+    },
+  };
+}
