@@ -2,6 +2,7 @@ import type { Db } from "@tacit/db";
 
 import { getRolePipeline, type PipelineCard } from "../pipeline/pipeline.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
+import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
 
 export type JobView = {
@@ -89,12 +90,13 @@ type PersonRow = {
 export async function searchCandidates(
   db: Db,
   ctx: ClientToolCtx,
-  input: { query?: string; jobId?: string; limit?: number },
+  input: { query?: string; jobId?: string; tag?: string; limit?: number },
 ): Promise<CandidateHit[]> {
   const limit = Math.min(Math.max(input.limit ?? 20, 1), LIST_MAX);
   const query = input.query ? cleanQuery(input.query) : "";
 
   if (ctx.accessLevel === "limited") {
+    if (input.tag) throw new ClientToolError("forbidden", "Interviewers do not see or use your company's tags.");
     // What an interviewer may know: the five fields of the people they interview.
     const { data, error } = await db.rpc("my_interview_candidates");
     if (error) throw new Error(error.message);
@@ -110,6 +112,12 @@ export async function searchCandidates(
     const { data, error } = await db.from("applications").select("person_id").eq("role_id", input.jobId).limit(500);
     if (error) throw new Error(error.message);
     personIds = [...new Set((data ?? []).map((a) => a.person_id))];
+    if (personIds.length === 0) return [];
+  }
+  if (input.tag?.trim()) {
+    const tagged = await peopleTagged(db, input.tag);
+    if (!tagged) throw new ClientToolError("not_found", "No tag by that name or id. list_tags has them.");
+    personIds = personIds ? personIds.filter((id) => tagged.includes(id)) : tagged;
     if (personIds.length === 0) return [];
   }
   let q = db
@@ -149,11 +157,16 @@ export type CandidateDetail = {
   location: string | null;
   linkedinUrl: string | null;
   summary: string | null;
+  /** Its tags' names, oldest first; empty for an interviewer. */
+  tags: string[];
   applications: Array<{
     applicationId: string;
     jobId: string;
     jobTitle: string | null;
     stage: string;
+    /** How they came in (one of CANDIDATE_SOURCES), and which referrer, board or event. */
+    source: string;
+    sourceDetail: string | null;
     nextAction: string | null;
     nextActionDue: string | null;
     lastTouchAt: string;
@@ -211,6 +224,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       location: null,
       linkedinUrl: card.linkedin_url,
       summary: null,
+      tags: [],
       applications: [],
       notes: await notesFor(db, ctx, candidateId),
       files: await filesFor(db, candidateId),
@@ -226,12 +240,15 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
   if (!person) throw notFound();
   const { data: apps, error: appsError } = await db
     .from("applications")
-    .select("id, role_id, stage, next_action, next_action_due, last_touch_at, rejection_note, roles(title), rejection_reasons(name)")
+    .select(
+      "id, role_id, stage, source, source_detail, next_action, next_action_due, last_touch_at, rejection_note, roles(title), rejection_reasons(name)",
+    )
     .eq("person_id", candidateId)
     .order("last_touch_at", { ascending: false })
     .overrideTypes<
       Array<{
-        id: string; role_id: string; stage: string; next_action: string | null; next_action_due: string | null; last_touch_at: string;
+        id: string; role_id: string; stage: string; source: string; source_detail: string | null;
+        next_action: string | null; next_action_due: string | null; last_touch_at: string;
         rejection_note: string | null; roles: { title: string } | null; rejection_reasons: { name: string } | null;
       }>,
       { merge: false }
@@ -255,11 +272,14 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
     location: person.location,
     linkedinUrl: person.linkedin_url,
     summary: person.summary,
+    tags: (await tagsFor(db, [candidateId])).get(candidateId) ?? [],
     applications: (apps ?? []).map((a) => ({
       applicationId: a.id,
       jobId: a.role_id,
       jobTitle: a.roles?.title ?? null,
       stage: a.stage,
+      source: a.source,
+      sourceDetail: a.source_detail,
       nextAction: a.next_action,
       nextActionDue: a.next_action_due,
       lastTouchAt: a.last_touch_at,

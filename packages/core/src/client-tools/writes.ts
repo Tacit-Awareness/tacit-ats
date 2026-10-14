@@ -2,7 +2,8 @@ import type { Db } from "@tacit/db";
 
 import { addCandidateToRole, type AddCandidateResult as CandidateOutcome } from "../pipeline/candidate.js";
 import {
-  NEXT_ACTION_MAX, isApplicationStage, moveStage, parseDueDate, setNextAction, type ApplicationStage,
+  CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, isApplicationStage, isCandidateSource, moveStage, parseDueDate,
+  setNextAction, type ApplicationStage, type CandidateSource,
 } from "../pipeline/pipeline.js";
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
@@ -32,11 +33,28 @@ export type AddCandidateResult = {
   stage: string;
 };
 
+/**
+ * Adds someone to a job. `source` is how they came in (sourced when not
+ * said) and `sourceDetail` which referrer, board or event; both are kept only
+ * on a new application: someone already in the job keeps the source they came
+ * in with.
+ */
 export async function addCandidate(
   db: Db,
   ctx: ClientToolCtx,
-  input: { jobId: string; name: string; email?: string | null; linkedinUrl?: string | null },
+  input: {
+    jobId: string; name: string; email?: string | null; linkedinUrl?: string | null;
+    source?: string; sourceDetail?: string | null;
+  },
 ): Promise<AddCandidateResult> {
+  if (input.source !== undefined && !isCandidateSource(input.source)) {
+    throw new ClientToolError("invalid", `A source is one of ${CANDIDATE_SOURCES.join(", ")}.`);
+  }
+  const source: CandidateSource = input.source ?? "sourced";
+  const sourceDetail = input.sourceDetail?.trim() || null;
+  if (sourceDetail && sourceDetail.length > SOURCE_DETAIL_MAX) {
+    throw new ClientToolError("invalid", `A source detail is at most ${SOURCE_DETAIL_MAX} characters.`);
+  }
   // Adding someone new makes their person row first, which needs both.
   if (!(await can(db, "can_on_role", { p_role: input.jobId, perm: "can_edit_pipeline" })) || !(await can(db, "can_add_people"))) {
     throw new ClientToolError("forbidden", "You can't add candidates to that job. Ask an admin at your company for hiring-team access to it.");
@@ -44,13 +62,14 @@ export async function addCandidate(
   const result = await withAudit<CandidateOutcome>(db, ctx, { action: "application.add", entity: "application" }, async () => {
     const r = await addCandidateToRole(db, {
       orgId: ctx.orgId, roleId: input.jobId, actorId: ctx.actorId,
-      name: input.name, email: input.email, linkedinUrl: input.linkedinUrl,
+      name: input.name, email: input.email, linkedinUrl: input.linkedinUrl, source, sourceDetail,
     });
     if (r.status === "invalid") return { result: r, entityId: null, changed: false };
     return {
       result: r,
       entityId: r.applicationId,
-      after: { job_id: input.jobId, candidate_id: r.personId, new_candidate: r.personCreated },
+      // The source is the record; its detail can name a person and stays with the application.
+      after: { job_id: input.jobId, candidate_id: r.personId, new_candidate: r.personCreated, source },
       changed: r.status === "added",
     };
   });

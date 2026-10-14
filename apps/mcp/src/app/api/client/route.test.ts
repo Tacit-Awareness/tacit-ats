@@ -241,16 +241,18 @@ describe("the tools", () => {
       "get_interview_plan", "set_interview_plan",
       "list_files", "get_file_link", "add_file",
       "get_scorecard", "set_scorecard",
+      "get_activity", "list_tags", "create_tag", "tag_candidate", "untag_candidate", "archive_tag",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
       "list_my_interviews", "get_feedback", "list_rejection_reasons", "get_offers", "get_interview_plan",
+      "get_activity", "list_tags",
     ]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     }
     for (const change of [
       "update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite", "update_interview", "update_offer",
-      "set_interview_plan",
+      "set_interview_plan", "untag_candidate", "archive_tag",
     ]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }

@@ -139,6 +139,32 @@ describe("addCandidate", () => {
     expect(rpcs(noPeople)).toEqual(["can_on_role", "can_add_people"]);
   });
 
+  test("an unknown source or an oversized detail is refused before any read", async () => {
+    const fake = new FakeSupabase();
+    expect((await refusal(addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", source: "linkedin" }))).message)
+      .toMatch(/agency, job_board, event, other/);
+    expect((await refusal(addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", sourceDetail: "x".repeat(201) }))).code)
+      .toBe("invalid");
+    expect(fake.calls).toEqual([]);
+  });
+
+  test("the source and its detail go on the new application; the audit row keeps the source only", async () => {
+    const fake = new FakeSupabase([
+      { data: true }, { data: true }, { data: "audit-1" },
+      // A new person (no email to look up), the application, its event, the funnel's org check.
+      { data: null }, { data: { id: "app-1" } }, { data: null }, { data: null },
+      { data: null },
+    ]);
+    const r = await addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", source: "agency", sourceDetail: "  Hunt & Co  " });
+    expect(r).toMatchObject({ outcome: "added", applicationId: "app-1" });
+    expect(fake.calls.find((c) => c.table === "applications" && c.op === "insert")?.args)
+      .toMatchObject({ source: "agency", source_detail: "Hunt & Co" });
+    expect(fake.calls.find((c) => c.table === "application_events")?.args).toMatchObject({ kind: "added", detail: "agency" });
+    const finish = fake.calls.find((c) => c.table === "client_finish_write");
+    expect(finish?.args).toMatchObject({ p_after: { source: "agency" } });
+    expect(JSON.stringify(finish?.args)).not.toContain("Hunt");
+  });
+
   test("an invalid email is a sentence, and its claim is given back", async () => {
     const fake = new FakeSupabase([{ data: true }, { data: true }, { data: "audit-1" }, { data: null }]);
     const err = await refusal(addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", email: "not an email" }));

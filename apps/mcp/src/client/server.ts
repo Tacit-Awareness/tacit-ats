@@ -1,7 +1,8 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import {
-  APPLICATION_STAGES, UNTRUSTED_PREAMBLE, clientTools, wrapUntrusted, type IdentityProvider, type InvitationRevoker,
+  APPLICATION_STAGES, CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, UNTRUSTED_PREAMBLE, clientTools, wrapUntrusted,
+  type IdentityProvider, type InvitationRevoker,
 } from "@tacit/core";
 
 // Relative and without ".js": see the note in app/api/mcp/route.ts.
@@ -48,6 +49,7 @@ const named = (name: string | null): string => fence("name", name) || "(no name 
 
 const uuid = (what: string) => z.string().uuid(`${what} is an id from an earlier result`);
 const STAGE_LIST = APPLICATION_STAGES.join(", ");
+const SOURCE_LIST = CANDIDATE_SOURCES.join(", ");
 const ACCESS = { interviewer: "limited", "hiring team": "elevated", admin: "admin" } as const;
 const ACCESS_HELP =
   "Access is interviewer (their own interviews and a short card on each candidate), hiring team " +
@@ -106,6 +108,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     candidate: named(c.personName),
     headline: fence("headline", c.headline),
     stage: c.stage,
+    source: c.source,
+    source_detail: fence("source", c.sourceDetail),
     owner: c.ownerName,
     last_touch_at: c.lastTouchAt,
     next_action: c.nextAction,
@@ -208,18 +212,20 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Search candidates",
           description:
             "Find candidates you can see by name, email, company or title (query), optionally only those " +
-            "in one job (job_id). Returns candidate_id and the jobs each is in, with application_id and " +
-            "stage. An interviewer finds only the people they interview.",
+            "in one job (job_id) or carrying one tag (tag: its name or tag_id, from list_tags). Returns " +
+            "candidate_id and the jobs each is in, with application_id and stage. An interviewer finds only " +
+            "the people they interview.",
           inputSchema: z.object({
             query: z.string().max(200).optional(),
             job_id: uuid("job_id").optional(),
+            tag: z.string().min(1).max(100).optional(),
             limit: z.number().int().min(1).max(clientTools.LIST_MAX).optional(),
           }),
           annotations: { readOnlyHint: true },
         },
         (args) =>
           run("search_candidates", "read", args, async () => {
-            const hits = await clientTools.searchCandidates(db, ctx, { query: args.query, jobId: args.job_id, limit: args.limit });
+            const hits = await clientTools.searchCandidates(db, ctx, { query: args.query, jobId: args.job_id, tag: args.tag, limit: args.limit });
             return {
               summary: `${hits.length} candidate${hits.length === 1 ? "" : "s"}.`,
               data: {
@@ -240,10 +246,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         {
           title: "Get a candidate",
           description:
-            "One candidate by candidate_id: their profile, the jobs they are in (application_id, stage, " +
-            "next action, why they closed, and the latest offer if you manage the job), the team's notes and " +
-            "their files (file_id for get_file_link). An interviewer gets the name, headline and LinkedIn of " +
-            "someone they interview, their resume, and their own notes.",
+            "One candidate by candidate_id: their profile, their tags, the jobs they are in (application_id, " +
+            "stage, how they came in, next action, why they closed, and the latest offer if you manage the " +
+            "job), the team's notes and their files (file_id for get_file_link). get_activity has their " +
+            "history. An interviewer gets the name, headline and LinkedIn of someone they interview, their " +
+            "resume, and their own notes.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
           annotations: { readOnlyHint: true },
         },
@@ -261,8 +268,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 linkedin_url: c.linkedinUrl,
                 summary: fence("summary", c.summary),
                 full_profile: c.full,
+                tags: c.tags.map((t) => fence("tag", t)),
                 jobs: c.applications.map((a) => ({
                   application_id: a.applicationId, job_id: a.jobId, job: a.jobTitle, stage: a.stage,
+                  source: a.source, source_detail: fence("source", a.sourceDetail),
                   next_action: a.nextAction, next_action_due: a.nextActionDue, last_touch_at: a.lastTouchAt,
                   rejection_reason: a.rejectionReason, rejection_note: fence("note", a.rejectionNote),
                   offer: a.offer ? { offer_id: a.offer.offerId, status: a.offer.status } : null,
@@ -306,18 +315,22 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             "Adds someone to a job's pipeline at sourced. With an email, someone already in your " +
             "company's records under it is reused rather than duplicated; someone already in the job is " +
-            "left where they are. Needs hiring-team access to the job.",
+            `left where they are. source is how they came in (${SOURCE_LIST}; sourced if not said) and ` +
+            "source_detail which referrer, agency, board or event. Needs hiring-team access to the job.",
           inputSchema: z.object({
             job_id: uuid("job_id"),
             name: z.string().min(1).max(200),
             email: z.string().max(320).optional(),
             linkedin_url: z.string().max(500).optional(),
+            source: z.enum(CANDIDATE_SOURCES).optional(),
+            source_detail: z.string().max(SOURCE_DETAIL_MAX).optional(),
           }),
         },
         (args) =>
-          run("add_candidate", "write", args, async () => {
+          run("add_candidate", "write", { ...args, source_detail: undefined }, async () => {
             const r = await clientTools.addCandidate(db, ctx, {
               jobId: args.job_id, name: args.name, email: args.email, linkedinUrl: args.linkedin_url,
+              source: args.source, sourceDetail: args.source_detail,
             });
             return {
               summary: r.outcome === "added"
@@ -1189,6 +1202,144 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "get_activity",
+        {
+          title: "Get a candidate's activity",
+          description:
+            "One candidate's history, newest first (limit, default 30): when they were added to each job " +
+            "and how they came in, stage moves with the reason they closed, owner and next-action changes, " +
+            "the team's notes, interviews scheduled, done or cancelled, offers drafted, extended and closed " +
+            "(status only; get_offers has the terms), and tags put on them, each with who did it. Only what " +
+            "you can read appears. An interviewer gets their own notes and the interviews they are on.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            limit: z.number().int().min(1).max(clientTools.LIST_MAX).optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_activity", "read", args, async () => {
+            const a = await clientTools.getActivity(db, ctx, { candidateId: args.candidate_id, limit: args.limit });
+            return {
+              summary: `${a.entries.length} entr${a.entries.length === 1 ? "y" : "ies"}${a.full ? "" : " (your own notes and interviews)"}.`,
+              data: {
+                candidate_id: a.candidateId,
+                full_history: a.full,
+                // Nulls and empty lists left out: a timeline is long, and most fields belong to one kind.
+                activity: a.entries.map((e) => Object.fromEntries(Object.entries({
+                  at: e.at, kind: e.kind, by: e.actor, application_id: e.applicationId, job: e.jobTitle,
+                  from_stage: e.fromStage, to_stage: e.toStage, source: e.source,
+                  people: e.people.length ? e.people : null, text: fence("activity", e.text),
+                  starts_at: e.startsAt, ref_id: e.refId,
+                }).filter(([, v]) => v !== null))),
+              },
+              candidateIds: [a.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_tags",
+        {
+          title: "List tags",
+          description:
+            "Your company's tags, each with a tag_id and how many of the candidates you can see carry it. " +
+            "include_archived adds the archived ones. Not available to interviewers.",
+          inputSchema: z.object({ include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_tags", "read", args, async () => {
+            const tags = await clientTools.listTags(db, ctx, { includeArchived: args.include_archived });
+            return {
+              summary: `${tags.length} tag${tags.length === 1 ? "" : "s"}.`,
+              data: { tags: tags.map((t) => ({ tag_id: t.tagId, name: fence("tag", t.name), archived: t.archived, candidates: t.candidates })) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_tag",
+        {
+          title: "Create a tag",
+          description:
+            `Makes a tag your team can put on candidates (at most ${clientTools.TAG_NAME_MAX} characters). A tag ` +
+            "already there under that name, ignoring case, is returned rather than duplicated; an admin " +
+            "naming an archived one brings it back. For admins and anyone who can add candidates.",
+          inputSchema: z.object({ name: z.string().min(1).max(clientTools.TAG_NAME_MAX) }),
+        },
+        (args) =>
+          run("create_tag", "write", args, async () => {
+            const r = await clientTools.createTag(db, ctx, { name: args.name });
+            const summary = { created: "Tag created.", exists: "That tag already exists.", restored: "The archived tag is back." }[r.outcome];
+            return { summary, data: { outcome: r.outcome, tag_id: r.tagId, name: fence("tag", r.name) }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "tag_candidate",
+        {
+          title: "Tag a candidate",
+          description:
+            "Puts a tag (its name or tag_id, from list_tags) on a candidate (candidate_id). Tagging someone " +
+            "already tagged changes nothing. Needs the right to change that candidate; archived tags go on no one.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id"), tag: z.string().min(1).max(100) }),
+        },
+        (args) =>
+          run("tag_candidate", "write", args, async () => {
+            const r = await clientTools.tagCandidate(db, ctx, { candidateId: args.candidate_id, tag: args.tag });
+            return {
+              summary: r.outcome === "tagged" ? "Tagged." : "Already tagged. Nothing changed.",
+              data: { outcome: r.outcome, candidate_id: args.candidate_id, tag_id: r.tagId, tag: fence("tag", r.tag) },
+              candidateIds: [args.candidate_id],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "untag_candidate",
+        {
+          title: "Take a tag off a candidate",
+          description:
+            "Takes a tag (its name or tag_id) off a candidate (candidate_id). Needs the right to change that " +
+            "candidate. Confirm with the user first.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id"), tag: z.string().min(1).max(100) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("untag_candidate", "write", args, async () => {
+            const r = await clientTools.untagCandidate(db, ctx, { candidateId: args.candidate_id, tag: args.tag });
+            return {
+              summary: r.outcome === "untagged" ? "Tag removed." : "They did not have that tag. Nothing changed.",
+              data: { outcome: r.outcome, candidate_id: args.candidate_id, tag_id: r.tagId, tag: fence("tag", r.tag) },
+              candidateIds: [args.candidate_id],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "archive_tag",
+        {
+          title: "Archive a tag",
+          description:
+            "Archives a tag (its name or tag_id): it stays on the candidates who have it and goes on no one " +
+            "new; create_tag with its name brings it back. Admins only. Confirm with the user first.",
+          inputSchema: z.object({ tag: z.string().min(1).max(100) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("archive_tag", "write", args, async () => {
+            const r = await clientTools.archiveTag(db, ctx, { tag: args.tag });
+            return {
+              summary: r.outcome === "archived" ? "Tag archived." : "Already archived. Nothing changed.",
+              data: { outcome: r.outcome, tag_id: r.tagId, name: fence("tag", r.name) },
+              candidateIds: [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -1197,7 +1348,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
-        "create_offer, update_offer, set_interview_plan or removing someone " +
+        "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag or removing someone " +
         "from a hiring team, tell the user exactly what will change and wait for a yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
         "in a message to a candidate. Offer terms are confidential: share them only with the user.\n\n" +

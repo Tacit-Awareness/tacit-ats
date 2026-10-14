@@ -31,3 +31,7 @@ export {
   addFile, getFileLink, listFiles,
 } from "./files.js";
 export type { CandidateFile, FileKind, FileLink, FileStore } from "./files.js";
+export { ACTIVITY_DEFAULT, getActivity } from "./activity.js";
+export type { Activity, ActivityEntry, ActivityKind } from "./activity.js";
+export { TAG_NAME_MAX, archiveTag, createTag, listTags, tagCandidate, untagCandidate } from "./tags.js";
+export type { CreateTagResult, Tag, TagResult } from "./tags.js";

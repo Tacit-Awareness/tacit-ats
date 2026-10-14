@@ -50,7 +50,7 @@ async function clear() {
   // org_id references orgs without a cascade: every row in these orgs goes first.
   for (const table of [
     "audit_log", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
-    "scorecard_attributes", "person_notes", "people", "companies",
+    "scorecard_attributes", "person_notes", "person_tags", "tags", "people", "companies",
   ] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
@@ -875,5 +875,93 @@ describe("scorecards against real Postgres", () => {
     expect((await tool(ADA, "set_scorecard", { job_id: GLOBEX_ROLE, attributes: [{ name: "Planted" }] })).isError).toBe(true);
     const { count } = await db().from("scorecard_attributes").select("*", { count: "exact", head: true }).eq("role_id", GLOBEX_ROLE);
     expect(count).toBe(0);
+  });
+});
+
+describe("sources, tags and activity against real Postgres", () => {
+  test("a candidate added from an agency carries the source and who sent them", async () => {
+    const added = await ok(ADA, "add_candidate", {
+      job_id: DESIGNER, name: "Sam Source", email: "sam@cand.test", source: "agency", source_detail: "Hunt & Co",
+    });
+    const { data: app } = await db().from("applications").select("source, source_detail").eq("id", added.application_id).single();
+    expect(app).toEqual({ source: "agency", source_detail: "Hunt & Co" });
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: added.candidate_id });
+    expect(card.jobs[0].source).toBe("agency");
+    expect(card.jobs[0].source_detail).toContain("<<<UNTRUSTED_DATA>>>");
+    expect(card.jobs[0].source_detail).toContain("Hunt & Co");
+    const pipeline = await ok(ADA, "get_pipeline", { job_id: DESIGNER });
+    expect(pipeline.candidates[0].source).toBe("agency");
+    // The detail can name a person: it stays with the application, out of the audit row.
+    const { data: audit } = await db().from("audit_log").select("after").eq("actor_id", ADMIN).eq("action", "application.add").single();
+    expect(audit!.after).toMatchObject({ source: "agency" });
+    expect(JSON.stringify(audit)).not.toContain("Hunt");
+  });
+
+  test("a tag is made once, put on a candidate as the member, searched by, archived and taken off", async () => {
+    const made = await ok(ADA, "create_tag", { name: "Strong" });
+    expect(made.outcome).toBe("created");
+    expect((await ok(ADA, "create_tag", { name: "  strong " })).tag_id).toBe(made.tag_id);
+
+    expect((await ok(ADA, "tag_candidate", { candidate_id: PAT, tag: "STRONG" })).outcome).toBe("tagged");
+    expect((await ok(ADA, "tag_candidate", { candidate_id: PAT, tag: made.tag_id })).outcome).toBe("already_tagged");
+    const { data: row } = await db().from("person_tags").select("org_id, added_by_actor_id").eq("person_id", PAT).single();
+    expect(row).toEqual({ org_id: ACME, added_by_actor_id: ADMIN });
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    expect(card.tags).toHaveLength(1);
+    expect(card.tags[0]).toContain("Strong");
+    const { candidates } = await ok(ADA, "search_candidates", { tag: "strong" });
+    expect(candidates.map((c: { candidate_id: string }) => c.candidate_id)).toEqual([PAT]);
+    const { tags } = await ok(ADA, "list_tags");
+    expect(tags).toMatchObject([{ tag_id: made.tag_id, archived: false, candidates: 1 }]);
+
+    // An interviewer neither sees nor uses tags; another company's candidate cannot be tagged from Acme.
+    expect((await tool(IVAN, "list_tags")).content[0].text).toMatch(/Interviewers do not/);
+    expect((await tool(IVAN, "tag_candidate", { candidate_id: PAT, tag: "Strong" })).isError).toBe(true);
+    expect((await tool(ADA, "tag_candidate", { candidate_id: SECRET_PERSON, tag: "Strong" })).content[0].text).toMatch(/No candidate with that id/);
+
+    expect((await ok(ADA, "archive_tag", { tag: "Strong" })).outcome).toBe("archived");
+    expect((await ok(ADA, "list_tags")).tags).toEqual([]);
+    const second = await ok(ADA, "add_candidate", { job_id: ENGINEER, name: "Lee Later" });
+    expect((await tool(ADA, "tag_candidate", { candidate_id: second.candidate_id, tag: "Strong" })).content[0].text).toMatch(/archived/);
+    // An archived tag stays on the people who have it, and can still come off.
+    expect((await ok(ADA, "untag_candidate", { candidate_id: PAT, tag: "Strong" })).outcome).toBe("untagged");
+    expect((await ok(ADA, "untag_candidate", { candidate_id: PAT, tag: "Strong" })).outcome).toBe("not_tagged");
+    expect((await ok(ADA, "create_tag", { name: "strong" })).outcome).toBe("restored");
+
+    const { data: audit } = await db().from("audit_log").select("action").eq("actor_id", ADMIN).like("action", "tag.%");
+    expect(audit!.map((a) => a.action).sort()).toEqual(["tag.add", "tag.archive", "tag.create", "tag.remove", "tag.restore"]);
+  });
+
+  test("the activity feed is what each member's token reads, newest first", async () => {
+    await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "interviewing", expected_stage: "screening" });
+    await ok(ADA, "add_note", { candidate_id: PAT, text: "Admin-only thought" });
+    await ok(IVAN, "add_note", { candidate_id: PAT, text: "Interviewer thought" });
+    await ok(ADA, "create_tag", { name: "Fast mover" });
+    await ok(ADA, "tag_candidate", { candidate_id: PAT, tag: "Fast mover" });
+
+    const full = await ok(ADA, "get_activity", { candidate_id: PAT });
+    expect(full.full_history).toBe(true);
+    const kinds = full.activity.map((e: { kind: string }) => e.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["application.stage_changed", "note", "interview.scheduled", "tag.added"]));
+    expect(kinds.filter((k: string) => k === "note")).toHaveLength(2);
+    const moved = full.activity.find((e: { kind: string }) => e.kind === "application.stage_changed");
+    expect(moved).toMatchObject({ by: "Ada Admin", from_stage: "screening", to_stage: "interviewing", job: "Founding Engineer" });
+    const times = full.activity.map((e: { at: string }) => Date.parse(e.at));
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    const note = full.activity.find((e: { kind: string; by?: string }) => e.kind === "note" && e.by === "Ivan Interviewer");
+    expect(note.text).toContain("<<<UNTRUSTED_DATA>>>");
+
+    // The interviewer: their own note and the interview they are on, nothing of the pipeline.
+    const narrow = await ok(IVAN, "get_activity", { candidate_id: PAT });
+    expect(narrow.full_history).toBe(false);
+    expect(narrow.activity.map((e: { kind: string }) => e.kind).sort()).toEqual(["interview.scheduled", "note"]);
+    expect(JSON.stringify(narrow)).not.toContain("Admin-only thought");
+    expect(narrow.activity.find((e: { kind: string }) => e.kind === "interview.scheduled")).toMatchObject({
+      ref_id: UPCOMING, job: "Founding Engineer", people: ["Ivan Interviewer"],
+    });
+
+    expect((await tool(ADA, "get_activity", { candidate_id: SECRET_PERSON })).content[0].text).toMatch(/No candidate with that id/);
   });
 });
