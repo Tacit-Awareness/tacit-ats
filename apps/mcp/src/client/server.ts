@@ -30,6 +30,11 @@ export type ClientHandlerDeps = {
   breadth: (actorId: string, candidateIds: string[]) => Promise<boolean>;
   /** WorkOS invitations into the member's organization. Null = invite_member refuses. */
   invitations: (IdentityProvider & InvitationRevoker) | null;
+  /**
+   * Candidates' files in Storage (client/files.ts): core calls it only after the
+   * member's own client has read or inserted the row. Null = the file tools refuse.
+   */
+  files: clientTools.FileStore | null;
 };
 
 /**
@@ -106,6 +111,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     next_action: c.nextAction,
     next_action_due: c.nextActionDue,
     needs_attention: c.stalled,
+  });
+  // A filename is the uploader's text: fenced.
+  const fileOut = (f: clientTools.CandidateFile) => ({
+    file_id: f.fileId, kind: f.kind, filename: fence("filename", f.filename), content_type: f.contentType,
+    size_bytes: f.sizeBytes, uploaded_by: f.uploadedBy, uploaded_at: f.uploadedAt,
   });
 
   return createMcpHandler(
@@ -231,8 +241,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Get a candidate",
           description:
             "One candidate by candidate_id: their profile, the jobs they are in (application_id, stage, " +
-            "next action, why they closed, and the latest offer if you manage the job) and the team's notes. An interviewer gets the name, headline and LinkedIn of " +
-            "someone they interview, and their own notes.",
+            "next action, why they closed, and the latest offer if you manage the job), the team's notes and " +
+            "their files (file_id for get_file_link). An interviewer gets the name, headline and LinkedIn of " +
+            "someone they interview, their resume, and their own notes.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
           annotations: { readOnlyHint: true },
         },
@@ -257,6 +268,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                   offer: a.offer ? { offer_id: a.offer.offerId, status: a.offer.status } : null,
                 })),
                 notes: c.notes.map((n) => ({ note_id: n.noteId, text: fence("note", n.text), author: n.author, created_at: n.createdAt, yours: n.mine })),
+                files: c.files.map(fileOut),
               },
               candidateIds: [c.candidateId],
             };
@@ -999,6 +1011,91 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 interviews_keeping_removed_steps: r.keptOnInterviews.map((k) => ({ step: k.step, interviews: k.interviews, scheduled: k.scheduled })),
               },
               candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_files",
+        {
+          title: "List a candidate's files",
+          description:
+            "A candidate's resumes and attachments (candidate_id), newest first, each with a file_id for " +
+            "get_file_link, its kind, filename, type, size, who added it and when. An interviewer sees only " +
+            "the resume of someone they interview.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_files", "read", args, async () => {
+            const files = await clientTools.listFiles(db, ctx, { candidateId: args.candidate_id });
+            return {
+              summary: `${files.length} file${files.length === 1 ? "" : "s"}.`,
+              data: { candidate_id: args.candidate_id, files: files.map(fileOut) },
+              candidateIds: [args.candidate_id],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "get_file_link",
+        {
+          title: "Get a link to a file",
+          description:
+            `A download link for one file (file_id, from list_files or get_candidate). The link expires ` +
+            `${clientTools.FILE_LINK_SECONDS / 60} minutes after this call: give it to the user to open now, ` +
+            "and call this again for a fresh one rather than saving it. Anyone holding the link can download " +
+            "the file until then, so share it only with the user.",
+          inputSchema: z.object({ file_id: uuid("file_id") }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_file_link", "read", args, async () => {
+            const f = await clientTools.getFileLink(db, ctx, deps.files, { fileId: args.file_id });
+            return {
+              summary: `A link to the ${f.kind}, valid until ${f.expiresAt}.`,
+              data: {
+                file_id: f.fileId, candidate_id: f.candidateId, kind: f.kind, filename: fence("filename", f.filename),
+                url: f.url, expires_at: f.expiresAt,
+              },
+              candidateIds: [f.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "add_file",
+        {
+          title: "Add a resume or attachment",
+          description:
+            "Attaches a file to a candidate (candidate_id): kind resume or attachment, the filename (letters, " +
+            "digits, spaces and . _ - ( ) & , + ' with the type's extension), content_type (application/pdf, " +
+            "application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, " +
+            `text/plain, image/png or image/jpeg) and the bytes as standard base64 (content_base64), at most ` +
+            `${clientTools.FILE_MAX_BYTES / (1024 * 1024)} MB. For whoever can edit the candidate (their hiring ` +
+            "team or an admin), not interviewers. Files cannot be replaced or deleted here.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            kind: z.enum(clientTools.FILE_KINDS),
+            filename: z.string().min(1).max(200),
+            content_type: z.string().min(1).max(100),
+            content_base64: z.string().min(1).max(clientTools.FILE_BASE64_MAX),
+          }),
+        },
+        (args) =>
+          // The bytes and the filename stay out of the call log.
+          run("add_file", "write", { candidate_id: args.candidate_id, kind: args.kind, content_type: args.content_type }, async () => {
+            const r = await clientTools.addFile(db, ctx, deps.files, {
+              candidateId: args.candidate_id, kind: args.kind, filename: args.filename,
+              contentType: args.content_type, contentBase64: args.content_base64,
+            });
+            return {
+              summary: `Added the ${r.kind} (${Math.max(1, Math.round(r.sizeBytes / 1024))} KB).`,
+              data: {
+                file_id: r.fileId, candidate_id: args.candidate_id, kind: r.kind,
+                filename: fence("filename", r.filename), size_bytes: r.sizeBytes,
+              },
+              candidateIds: [args.candidate_id],
             };
           }),
       );

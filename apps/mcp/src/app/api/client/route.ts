@@ -2,6 +2,7 @@
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
 import { clientMcpConfig } from "../../../client/config";
+import { putFile, signFileUrl } from "../../../client/files";
 import { handleClientRequest } from "../../../client/handler";
 
 /**
@@ -17,6 +18,8 @@ async function handle(request: Request): Promise<Response> {
     bind: bindMember,
     audit: auditClientCall,
     breadth: clientBreadthExceeded,
+    // Set where the private org-files bucket does not exist yet: the file tools then refuse.
+    files: process.env.CLIENT_FILES_DISABLED ? null : { put: putFile, signedUrl: signFileUrl },
   });
 }
 

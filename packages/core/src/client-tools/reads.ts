@@ -2,6 +2,7 @@ import type { Db } from "@tacit/db";
 
 import { getRolePipeline, type PipelineCard } from "../pipeline/pipeline.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
+import { filesFor, type CandidateFile } from "./files.js";
 
 export type JobView = {
   jobId: string;
@@ -163,6 +164,8 @@ export type CandidateDetail = {
     offer: { offerId: string; status: string } | null;
   }>;
   notes: CandidateNote[];
+  /** The files the member can read: an interviewer, only the resume. */
+  files: CandidateFile[];
 };
 
 async function notesFor(db: Db, ctx: ClientToolCtx, personId: string): Promise<CandidateNote[]> {
@@ -210,6 +213,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       summary: null,
       applications: [],
       notes: await notesFor(db, ctx, candidateId),
+      files: await filesFor(db, candidateId),
     };
   }
 
@@ -264,6 +268,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       offer: offers.get(a.id) ?? null,
     })),
     notes: await notesFor(db, ctx, candidateId),
+    files: await filesFor(db, candidateId),
   };
 }
 

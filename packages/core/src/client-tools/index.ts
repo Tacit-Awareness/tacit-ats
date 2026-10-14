@@ -22,3 +22,8 @@ export {
 export type { Offer, OfferStatus, OfferTerms, RejectionKind, RejectionReason } from "./offers.js";
 export { PLAN_STEPS_MAX, STEP_NAME_MAX, getInterviewPlan, setInterviewPlan } from "./plans.js";
 export type { FeedbackState, InterviewPlan, PlanChange, PlanInterview, PlanProgress, StepState } from "./plans.js";
+export {
+  FILE_BASE64_MAX, FILE_KINDS, FILE_LINK_SECONDS, FILE_MAX_BYTES, FILE_TYPES,
+  addFile, getFileLink, listFiles,
+} from "./files.js";
+export type { CandidateFile, FileKind, FileLink, FileStore } from "./files.js";

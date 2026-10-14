@@ -42,6 +42,8 @@ let handleClientRequest: typeof import("../../../client/handler.js").handleClien
 let deps: Parameters<typeof handleClientRequest>[1];
 /** What the stand-in for WorkOS was asked to do. */
 const workos = { sent: [] as Array<{ email: string; organizationId: string; inviterUserId?: string }>, revoked: [] as string[] };
+/** The stand-in for Storage (CI's stack has no storage service): what was stored, and what was signed. */
+const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: string }>(), signed: [] as string[], failPut: false };
 
 async function clear() {
   const ids = [ACME, GLOBEX];
@@ -98,6 +100,17 @@ beforeAll(async () => {
         workos.revoked.push(email);
       },
     },
+    files: {
+      put: async (path, bytes, contentType) => {
+        if (storage.failPut) throw new Error("storage is down");
+        storage.objects.set(path, { bytes, contentType });
+      },
+      signedUrl: async (path, seconds) => {
+        if (!storage.objects.has(path)) return null;
+        storage.signed.push(path);
+        return `https://storage.test/object/sign/org-files/${path}?expires=${seconds}`;
+      },
+    },
   };
 });
 
@@ -111,6 +124,9 @@ vi.spyOn(console, "warn").mockImplementation(() => {});
 beforeEach(async () => {
   workos.sent.length = 0;
   workos.revoked.length = 0;
+  storage.objects.clear();
+  storage.signed.length = 0;
+  storage.failPut = false;
   await clear();
   must(await db().from("orgs").insert([
     { id: ACME, name: "Acme", slug: "itest-client-acme", kind: "client", workos_org_id: "org_itest_acme" },
@@ -665,5 +681,104 @@ describe("interview plans against real Postgres", () => {
     expect((await tool(ADA, "set_interview_plan", { job_id: GLOBEX_ROLE, steps: ["Screen"] })).isError).toBe(true);
     const { data: job } = await db().from("roles").select("interview_steps").eq("id", GLOBEX_ROLE).single();
     expect(job!.interview_steps).toEqual([]);
+  });
+});
+
+describe("files against real Postgres, with Storage stood in for", () => {
+  const PDF_TEXT = "%PDF-1.7\n1 0 obj << >> endobj\n%%EOF\n";
+  const pdf = (filename: string, kind = "resume", candidate = PAT) => ({
+    candidate_id: candidate, kind, filename, content_type: "application/pdf", content_base64: Buffer.from(PDF_TEXT).toString("base64"),
+  });
+
+  test("an admin's upload is a row in the candidate's org first, then the bytes at that row's own path", async () => {
+    const added = await ok(ADA, "add_file", pdf("Pat Candidate CV.pdf"));
+    expect(added).toMatchObject({ candidate_id: PAT, kind: "resume", size_bytes: PDF_TEXT.length });
+    const { data: row } = await db().from("person_files")
+      .select("org_id, person_id, kind, filename, content_type, size_bytes, uploaded_by_actor_id, storage_path").eq("id", added.file_id).single();
+    expect(row).toEqual({
+      org_id: ACME, person_id: PAT, kind: "resume", filename: "Pat Candidate CV.pdf", content_type: "application/pdf",
+      size_bytes: PDF_TEXT.length, uploaded_by_actor_id: ADMIN, storage_path: `${ACME}/${PAT}/${added.file_id}`,
+    });
+    expect([...storage.objects.keys()]).toEqual([`${ACME}/${PAT}/${added.file_id}`]);
+    expect(Buffer.from(storage.objects.get(row!.storage_path)!.bytes).toString()).toBe(PDF_TEXT);
+
+    const { data: audit } = await db().from("audit_log").select("action, entity_id, after").eq("actor_id", ADMIN);
+    expect(audit).toEqual([{
+      action: "file.add", entity_id: added.file_id,
+      after: { candidate_id: PAT, kind: "resume", content_type: "application/pdf", size_bytes: PDF_TEXT.length },
+    }]);
+
+    const { files } = await ok(ADA, "list_files", { candidate_id: PAT });
+    expect(files).toHaveLength(1);
+    expect(files[0]).toMatchObject({ file_id: added.file_id, kind: "resume", uploaded_by: "Ada Admin" });
+    expect(files[0].filename).toContain("<<<UNTRUSTED_DATA>>>");
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).files.map((f: { file_id: string }) => f.file_id)).toEqual([added.file_id]);
+
+    const link = await ok(ADA, "get_file_link", { file_id: added.file_id });
+    expect(link.url).toBe(`https://storage.test/object/sign/org-files/${ACME}/${PAT}/${added.file_id}?expires=300`);
+    expect(storage.signed).toEqual([`${ACME}/${PAT}/${added.file_id}`]);
+  });
+
+  test("an interviewer reads the resume of someone they interview, nothing else, and adds nothing", async () => {
+    const resume = await ok(ADA, "add_file", pdf("resume.pdf"));
+    const portfolio = await ok(ADA, "add_file", pdf("portfolio.pdf", "attachment"));
+
+    const { files } = await ok(IVAN, "list_files", { candidate_id: PAT });
+    expect(files.map((f: { file_id: string }) => f.file_id)).toEqual([resume.file_id]);
+    expect((await ok(IVAN, "get_candidate", { candidate_id: PAT })).files.map((f: { kind: string }) => f.kind)).toEqual(["resume"]);
+    expect((await ok(IVAN, "get_file_link", { file_id: resume.file_id })).url).toContain(resume.file_id);
+    expect((await tool(IVAN, "get_file_link", { file_id: portfolio.file_id })).content[0].text).toMatch(/No file with that id/);
+
+    const refused = await tool(IVAN, "add_file", pdf("mine.pdf"));
+    expect(refused.content[0].text).toMatch(/do not add files/);
+    expect(storage.objects.size).toBe(2);
+  });
+
+  test("another company's candidate and files are not found, and nothing is stored or signed", async () => {
+    expect((await tool(ADA, "add_file", pdf("x.pdf", "resume", SECRET_PERSON))).content[0].text).toMatch(/No candidate with that id/);
+    expect((await tool(ADA, "list_files", { candidate_id: SECRET_PERSON })).content[0].text).toMatch(/No candidate with that id/);
+
+    const globexFile = "c2f00000-0000-4000-8000-000000000001";
+    const path = `${GLOBEX}/${SECRET_PERSON}/${globexFile}`;
+    must(await db().from("person_files").insert({
+      id: globexFile, org_id: GLOBEX, person_id: SECRET_PERSON, kind: "resume", storage_path: path, filename: "secret.pdf",
+    }));
+    storage.objects.set(path, { bytes: new Uint8Array([1]), contentType: "application/pdf" });
+    expect((await tool(ADA, "get_file_link", { file_id: globexFile })).content[0].text).toMatch(/No file with that id/);
+    expect(storage.signed).toEqual([]);
+    expect([...storage.objects.keys()]).toEqual([path]);
+  });
+
+  test("bytes that do not land leave no row behind, and the audit claim is given back", async () => {
+    storage.failPut = true;
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+    const out = await tool(ADA, "add_file", pdf("cv.pdf"));
+    expect(out.content[0].text).toMatch(/could not be stored, so nothing was saved/);
+    const { count } = await db().from("person_files").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(count).toBe(0);
+    const { count: audits } = await db().from("audit_log").select("*", { count: "exact", head: true }).eq("actor_id", ADMIN);
+    expect(audits).toBe(0);
+  });
+
+  test("what is not an allowed file is refused before anything is written", async () => {
+    const html = { ...pdf("cv.pdf"), content_base64: Buffer.from("<html><script>x</script></html>").toString("base64") };
+    expect((await tool(ADA, "add_file", html)).content[0].text).toMatch(/not a PDF file/);
+    expect((await tool(ADA, "add_file", { ...pdf("cv.html"), content_type: "text/html" })).content[0].text).toMatch(/takes PDF/);
+    expect((await tool(ADA, "add_file", pdf("../../../other-org/cv.pdf"))).content[0].text).toMatch(/letters, digits/);
+    const { count } = await db().from("person_files").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(count).toBe(0);
+    expect(storage.objects.size).toBe(0);
+  });
+
+  test("without Storage on the deployment, the file tools say so", async () => {
+    const files = deps.files;
+    deps.files = null;
+    try {
+      expect((await tool(ADA, "add_file", pdf("cv.pdf"))).content[0].text).toMatch(/not available on this Tacit deployment/);
+    } finally {
+      deps.files = files;
+    }
+    const { count } = await db().from("person_files").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(count).toBe(0);
   });
 });
