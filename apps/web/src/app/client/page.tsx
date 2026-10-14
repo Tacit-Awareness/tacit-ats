@@ -83,7 +83,12 @@ export default async function ClientHome() {
       ) : null}
 
       <section>
-        <h2 className="text-sm font-medium text-muted-foreground">Team</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">Team</h2>
+          <Link href="/client/team" className="text-sm text-muted-foreground hover:text-foreground">
+            {accessLevel === "admin" ? "Manage team" : "Team"}
+          </Link>
+        </div>
         <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
           {team.data.map((member) => (
             <li key={member.id} className="flex items-center justify-between px-4 py-3">

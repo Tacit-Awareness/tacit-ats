@@ -15,8 +15,8 @@ export type ClientContext = {
   db: Db;
   actorId: string;
   accessLevel: AccessLevel;
-  org: { id: string; name: string };
-  user: { email: string; name: string };
+  org: { id: string; name: string; workosOrgId: string };
+  user: { email: string; name: string; workosUserId: string };
 };
 
 export type ClientGate =
@@ -37,6 +37,7 @@ const isAccessLevel = (v: unknown): v is AccessLevel => v === "limited" || v ===
 export async function resolveClient(): Promise<ClientGate> {
   const auth = await withAuth();
   if (!auth.user || !auth.accessToken) return { status: "forbidden", reason: "signed_out" };
+  const workosOrgId = auth.organizationId;
 
   const token = auth.accessToken;
   const db = createUserClient(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_PUBLISHABLE_KEY ?? "", () => token);
@@ -67,7 +68,9 @@ export async function resolveClient(): Promise<ClientGate> {
     db.rpc("current_access_level"),
     db.from("orgs").select("id, name").maybeSingle(),
   ]);
-  if (level.error || org.error || !org.data || !isAccessLevel(level.data)) {
+  // The database matched the token's org claim to get this far, so it is set;
+  // checked anyway, since an invitation is sent into it.
+  if (level.error || org.error || !org.data || !isAccessLevel(level.data) || !workosOrgId) {
     return { status: "forbidden", reason: "token_rejected" };
   }
 
@@ -78,8 +81,8 @@ export async function resolveClient(): Promise<ClientGate> {
       db,
       actorId: who.data,
       accessLevel: level.data,
-      org: { id: org.data.id, name: org.data.name },
-      user: { email: auth.user.email, name },
+      org: { id: org.data.id, name: org.data.name, workosOrgId },
+      user: { email: auth.user.email, name, workosUserId: auth.user.id },
     },
   };
 }
