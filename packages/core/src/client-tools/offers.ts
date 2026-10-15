@@ -4,6 +4,7 @@ import { parseDueDate } from "../pipeline/pipeline.js";
 import { memberNames, offerApprovals, type OfferApproval } from "./approvals.js";
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
+import { customFieldValuesFor, type CustomFieldValue } from "./custom-fields.js";
 
 /**
  * Offers and rejection reasons for the client connector
@@ -97,6 +98,8 @@ export type Offer = {
    * offer approval flow and the offer was never sent for approval.
    */
   approval: OfferApproval | null;
+  /** The offer's custom field values (only managers read offers at all). */
+  customFields: CustomFieldValue[];
 };
 
 const OFFER_COLUMNS =
@@ -108,7 +111,7 @@ type OfferRow = {
   created_by_actor_id: string | null; created_at: string; extended_at: string | null; resolved_at: string | null;
 };
 
-const toOffer = (r: OfferRow, names: Map<string, string | null>): Omit<Offer, "approval"> => ({
+const toOffer = (r: OfferRow, names: Map<string, string | null>, fields?: Map<string, CustomFieldValue[]>): Omit<Offer, "approval"> => ({
   offerId: r.id,
   applicationId: r.application_id,
   status: r.status as OfferStatus,
@@ -123,6 +126,7 @@ const toOffer = (r: OfferRow, names: Map<string, string | null>): Omit<Offer, "a
   createdAt: r.created_at,
   extendedAt: r.extended_at,
   resolvedAt: r.resolved_at,
+  customFields: fields?.get(r.id) ?? [],
 });
 
 /** The application, if the member can read it and may handle offers on its job. */
@@ -149,7 +153,8 @@ export async function getOffers(db: Db, ctx: ClientToolCtx, input: { application
   const rows = (data ?? []) as OfferRow[];
   const approvals = rows.length ? await offerApprovals(db, app.role_id, rows.map((r) => r.id)) : null;
   const names = await memberNames(db, [...rows.map((r) => r.created_by_actor_id), ...(approvals?.actorIds ?? [])]);
-  return rows.map((r) => ({ ...toOffer(r, names), approval: approvals?.forOffer(r.id, names) ?? null }));
+  const fields = await customFieldValuesFor(db, "offer", rows.map((r) => r.id));
+  return rows.map((r) => ({ ...toOffer(r, names, fields), approval: approvals?.forOffer(r.id, names) ?? null }));
 }
 
 export type OfferTerms = {

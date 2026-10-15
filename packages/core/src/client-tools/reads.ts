@@ -5,6 +5,7 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
 import { emailsFor, type CandidateEmail } from "./email.js";
+import { customFieldValuesFor, type CustomFieldValue } from "./custom-fields.js";
 
 export type JobView = {
   jobId: string;
@@ -14,6 +15,8 @@ export type JobView = {
   seniority: string | null;
   /** How many candidates the member can see in it; null for an interviewer. */
   inPipeline: number | null;
+  /** The job's custom field values the member can read; empty for an interviewer. */
+  customFields: CustomFieldValue[];
 };
 
 export async function listJobs(db: Db, ctx: ClientToolCtx, input: { status?: string } = {}): Promise<JobView[]> {
@@ -29,6 +32,7 @@ export async function listJobs(db: Db, ctx: ClientToolCtx, input: { status?: str
     { merge: false }
   >();
   if (error) throw new Error(error.message);
+  const fields = withCounts ? await customFieldValuesFor(db, "job", (data ?? []).map((r) => r.id)) : new Map<string, CustomFieldValue[]>();
   return (data ?? []).map((r) => ({
     jobId: r.id,
     title: r.title,
@@ -36,6 +40,7 @@ export async function listJobs(db: Db, ctx: ClientToolCtx, input: { status?: str
     location: r.location,
     seniority: r.seniority,
     inPipeline: withCounts ? (r.applications?.[0]?.count ?? 0) : null,
+    customFields: fields.get(r.id) ?? [],
   }));
 }
 
@@ -45,6 +50,7 @@ export type JobPipeline = {
   status: string;
   cards: PipelineCard[];
   stalledCount: number;
+  customFields: CustomFieldValue[];
 };
 
 /** One job's pipeline: the applications the member can read in it. */
@@ -63,6 +69,7 @@ export async function getJobPipeline(db: Db, ctx: ClientToolCtx, jobId: string):
     status: pipeline.roleStatus,
     cards: pipeline.cards,
     stalledCount: pipeline.stalledCount,
+    customFields: (await customFieldValuesFor(db, "job", [pipeline.roleId])).get(pipeline.roleId) ?? [],
   };
 }
 
@@ -182,6 +189,8 @@ export type CandidateDetail = {
   files: CandidateFile[];
   /** Emails to them the member can read (sent ones, and their own drafts); empty for an interviewer. */
   emails: CandidateEmail[];
+  /** The custom field values the member can read; empty for an interviewer. */
+  customFields: CustomFieldValue[];
 };
 
 async function notesFor(db: Db, ctx: ClientToolCtx, personId: string): Promise<CandidateNote[]> {
@@ -232,6 +241,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       notes: await notesFor(db, ctx, candidateId),
       files: await filesFor(db, candidateId),
       emails: [],
+      customFields: [],
     };
   }
 
@@ -294,6 +304,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
     notes: await notesFor(db, ctx, candidateId),
     files: await filesFor(db, candidateId),
     emails: await emailsFor(db, ctx, candidateId),
+    customFields: (await customFieldValuesFor(db, "candidate", [candidateId])).get(candidateId) ?? [],
   };
 }
 

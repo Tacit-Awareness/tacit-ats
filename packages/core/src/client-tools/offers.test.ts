@@ -61,6 +61,8 @@ describe("getOffers", () => {
       // approval_flows, approval_requests
       { data: null }, { data: [] },
       { data: [{ id: "actor-1", display_name: "Ryan" }] },
+      // custom_field_values
+      { data: [] },
     ]);
     const [o] = await getOffers(fake.asDb(), ctx(), { applicationId: "app-1" });
     expect(o).toMatchObject({ offerId: "offer-1", status: "draft", salary: 180000, equity: "0.5%", createdBy: "Ryan", approval: null });
@@ -76,6 +78,8 @@ describe("getOffers", () => {
         approval_decisions: [{ step: 1, decision: "approved", actor_id: "actor-2", reason: null, created_at: "2026-10-15T01:00:00Z" }],
       }] },
       { data: [{ id: "actor-1", display_name: "Ryan" }, { id: "actor-2", display_name: "Fin" }] },
+      // custom_field_values
+      { data: [] },
     ]);
     const [o] = await getOffers(fake.asDb(), ctx(), { applicationId: "app-1" });
     expect(o.approval).toEqual({

@@ -131,6 +131,15 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     file_id: f.fileId, kind: f.kind, filename: fence("filename", f.filename), content_type: f.contentType,
     size_bytes: f.sizeBytes, uploaded_by: f.uploadedBy, uploaded_at: f.uploadedAt,
   });
+  // Field and option names are the company admins' own vocabulary, passed back verbatim:
+  // bare, like job titles. Typed text and links are a member's words about a candidate: fenced.
+  const customValueOut = (type: string, value: clientTools.CustomFieldValue["value"] | null) =>
+    typeof value === "string" && (type === "short_text" || type === "long_text" || type === "url")
+      ? fence("custom field", value)
+      : value;
+  const customFieldOut = (v: clientTools.CustomFieldValue) => ({
+    field_id: v.fieldId, field: v.name, type: v.type, private: v.private, value: customValueOut(v.type, v.value),
+  });
 
   const PLACEHOLDER_HELP =
     "Placeholders Tacit fills in: " +
@@ -195,6 +204,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
               data: {
                 jobs: jobs.map((j) => ({
                   job_id: j.jobId, title: j.title, status: j.status, location: j.location, level: j.seniority, candidates: j.inPipeline,
+                  custom_fields: j.customFields.map(customFieldOut),
                 })),
               },
               candidateIds: [],
@@ -218,7 +228,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const p = await clientTools.getJobPipeline(db, ctx, args.job_id);
             return {
               summary: `${p.title}: ${p.cards.length} candidate${p.cards.length === 1 ? "" : "s"}, ${p.stalledCount} needing attention.`,
-              data: { job_id: p.jobId, title: p.title, status: p.status, candidates: p.cards.map(cardOut) },
+              data: {
+                job_id: p.jobId, title: p.title, status: p.status, custom_fields: p.customFields.map(customFieldOut),
+                candidates: p.cards.map(cardOut),
+              },
               candidateIds: p.cards.map((c) => c.personId),
             };
           }),
@@ -297,6 +310,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 })),
                 notes: c.notes.map((n) => ({ note_id: n.noteId, text: fence("note", n.text), author: n.author, created_at: n.createdAt, yours: n.mine })),
                 files: c.files.map(fileOut),
+                custom_fields: c.customFields.map(customFieldOut),
                 emails: c.emails.map(emailOut),
               },
               candidateIds: [c.candidateId],
@@ -881,6 +895,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
               requested_at: o.approval.requestedAt, decisions: o.approval.decisions.map(decisionOut),
             }
           : null,
+        custom_fields: o.customFields.map(customFieldOut),
       });
       const OFFER_TERMS = {
         salary: z.number().int().min(0).max(100_000_000).nullable().optional(),
@@ -1748,6 +1763,164 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             return { summary: decided(r), data: decisionData(r, args.request_id), candidateIds: [] };
           }),
       );
+
+      const FIELD_OBJECT_HELP =
+        "A field is on a candidate, a job or an offer. Types: short_text, long_text, number, date (YYYY-MM-DD), " +
+        "yes_no, single_select and multi_select (from the field's options), url. A private field is read and " +
+        "set only by admins and the people who manage the job.";
+      const fieldOut = (f: clientTools.CustomField) => ({
+        field_id: f.fieldId, object: f.object, name: f.name, type: f.type, private: f.private, archived: f.archived,
+        ...(f.options.length ? { options: f.options.map((o) => ({ option_id: o.optionId, name: o.name, archived: o.archived })) } : {}),
+      });
+
+      server.registerTool(
+        "list_custom_fields",
+        {
+          title: "List custom fields",
+          description:
+            "Your company's custom fields, each with a field_id, its object, type, whether it is private, and " +
+            "for a select field its options (option_id and name). object narrows to candidate, job or offer; " +
+            `include_archived adds archived fields and options. ${FIELD_OBJECT_HELP} Values show in ` +
+            "get_candidate, list_jobs, get_pipeline and get_offers. Not available to interviewers.",
+          inputSchema: z.object({
+            object: z.enum(clientTools.CUSTOM_FIELD_OBJECTS).optional(),
+            include_archived: z.boolean().optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_custom_fields", "read", args, async () => {
+            const fields = await clientTools.listCustomFields(db, ctx, { object: args.object, includeArchived: args.include_archived });
+            return {
+              summary: `${fields.length} custom field${fields.length === 1 ? "" : "s"}.`,
+              data: { fields: fields.map(fieldOut) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_custom_field",
+        {
+          title: "Create a custom field",
+          description:
+            `Defines a custom field for your company (admins). ${FIELD_OBJECT_HELP} A select field needs its ` +
+            `options, in order (at most ${clientTools.CUSTOM_FIELD_OPTIONS_MAX}). A field already there under that ` +
+            "name on that object, ignoring case, is returned rather than duplicated. The object and type never " +
+            "change afterwards.",
+          inputSchema: z.object({
+            object: z.enum(clientTools.CUSTOM_FIELD_OBJECTS),
+            name: z.string().min(1).max(clientTools.CUSTOM_FIELD_NAME_MAX),
+            type: z.enum(clientTools.CUSTOM_FIELD_TYPES),
+            private: z.boolean().optional(),
+            options: z.array(z.string().min(1).max(clientTools.CUSTOM_FIELD_OPTION_MAX)).max(clientTools.CUSTOM_FIELD_OPTIONS_MAX).optional(),
+          }),
+        },
+        (args) =>
+          run("create_custom_field", "write", args, async () => {
+            const r = await clientTools.createCustomField(db, ctx, {
+              object: args.object, name: args.name, type: args.type, private: args.private, options: args.options,
+            });
+            return {
+              summary: r.outcome === "created" ? "Custom field created." : "That field already exists. Nothing changed.",
+              data: { outcome: r.outcome, field_id: r.fieldId, name: r.name },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "update_custom_field",
+        {
+          title: "Change a custom field",
+          description:
+            "Renames a custom field (field: its field_id, or its name with object), makes it private or not, " +
+            "archives it (archived: true; its values stay on record and it takes no new ones) or brings it " +
+            "back, and for a select field sets its options: the list given becomes the live options in that " +
+            "order, an entry with an option_id renaming that option, one without matched by name or added, " +
+            "and live options left out archived (never deleted: a candidate who has one keeps it). Admins " +
+            "only. Tell the user what will change and wait for a yes.",
+          inputSchema: z.object({
+            field: z.string().min(1).max(200),
+            object: z.enum(clientTools.CUSTOM_FIELD_OBJECTS).optional(),
+            name: z.string().min(1).max(clientTools.CUSTOM_FIELD_NAME_MAX).optional(),
+            private: z.boolean().optional(),
+            archived: z.boolean().optional(),
+            options: z.array(z.object({
+              option_id: uuid("option_id").optional(),
+              name: z.string().min(1).max(clientTools.CUSTOM_FIELD_OPTION_MAX),
+            })).max(clientTools.CUSTOM_FIELD_OPTIONS_MAX).optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_custom_field", "write", args, async () => {
+            const r = await clientTools.updateCustomField(db, ctx, {
+              field: args.field, object: args.object, name: args.name, private: args.private, archived: args.archived,
+              options: args.options?.map((o) => ({ optionId: o.option_id, name: o.name })),
+            });
+            const parts = [
+              r.changed.filter((c) => c !== "options").join(", "),
+              r.added.length && `added ${r.added.join(", ")}`,
+              r.renamed.length && `renamed ${r.renamed.map((x) => `${x.from} to ${x.to}`).join(", ")}`,
+              r.restored.length && `brought back ${r.restored.join(", ")}`,
+              r.archivedOptions.length && `archived ${r.archivedOptions.join(", ")}`,
+            ].filter(Boolean);
+            return {
+              summary: r.outcome === "updated" ? `Field updated: ${parts.join("; ")}.` : "Nothing to change.",
+              data: {
+                outcome: r.outcome, field_id: r.fieldId, name: r.name, changed: r.changed, options_added: r.added,
+                options_renamed: r.renamed, options_restored: r.restored, options_archived: r.archivedOptions,
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "set_custom_field",
+        {
+          title: "Set a custom field",
+          description:
+            "Sets one custom field (field: its field_id or name) on one candidate, job or offer (object, and " +
+            "object_id: a candidate_id, job_id or offer_id). value is text, a number, true or false, a date " +
+            "YYYY-MM-DD, an http(s) link, an option's name or option_id, or a list of them for multi_select; " +
+            "null clears it. A candidate's fields are set by whoever can change the candidate, a job's by " +
+            "whoever manages it, an offer's by whoever manages its job and only while it is a draft. Not " +
+            "available to interviewers.",
+          inputSchema: z.object({
+            object: z.enum(clientTools.CUSTOM_FIELD_OBJECTS),
+            object_id: uuid("object_id"),
+            field: z.string().min(1).max(200),
+            value: z.union([
+              z.string().max(clientTools.LONG_TEXT_MAX),
+              z.number(),
+              z.boolean(),
+              z.array(z.string().max(200)).max(clientTools.CUSTOM_FIELD_OPTIONS_MAX),
+            ]).nullable(),
+          }),
+        },
+        (args) =>
+          // The value can be free text about a candidate: it stays out of the call log.
+          run("set_custom_field", "write", { ...args, value: undefined }, async () => {
+            const r = await clientTools.setCustomField(db, ctx, {
+              object: args.object, objectId: args.object_id, field: args.field, value: args.value,
+            });
+            const summary = {
+              set: `${r.field} set.`,
+              cleared: `${r.field} cleared.`,
+              unchanged: `${r.field} is already that. Nothing changed.`,
+            }[r.outcome];
+            return {
+              summary,
+              data: {
+                outcome: r.outcome, object: args.object, object_id: args.object_id, field_id: r.fieldId, field: r.field,
+                type: r.type, value: customValueOut(r.type, r.value),
+              },
+              candidateIds: args.object === "candidate" ? [args.object_id] : [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -1757,7 +1930,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
         "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, " +
-        "update_email_template or removing someone from a hiring team, tell the user exactly what will " +
+        "update_email_template, update_custom_field or removing someone from a hiring team, tell the user exactly what will " +
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
         "the whole draft, then send_email only after their explicit yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +

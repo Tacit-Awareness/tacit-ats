@@ -458,6 +458,26 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`create_offer\` | Draft an offer | Job managers | Confirms terms |
 | \`update_offer\` | Change terms or record the outcome | Job managers | Yes |
 
+## Approvals
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`get_approval_flow\` | A job's approval chain for offers or for opening it | Job managers, its approvers | |
+| \`set_approval_flow\` | Set or remove a job's approval chain | Job managers | Yes |
+| \`request_approval\` | Ask for approval of a draft offer or of opening a job | Job managers | |
+| \`list_my_approvals\` | What is waiting on your approval | Everyone | |
+| \`approve\` | Approve the step waiting on you | That step's approvers | Yes |
+| \`reject\` | Reject it, with a reason | That step's approvers | Yes |
+
+## Custom fields
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`list_custom_fields\` | Your company's fields on candidates, jobs and offers | Hiring team, admins | |
+| \`create_custom_field\` | Define a field, with its type and options | Admins | |
+| \`update_custom_field\` | Rename, make private, archive, or change a field's options | Admins | Yes |
+| \`set_custom_field\` | Set or clear a field on a candidate, job or offer | Whoever can edit it (private fields: admins and job managers) | |
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |

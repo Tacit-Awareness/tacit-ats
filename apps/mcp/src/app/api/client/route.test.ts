@@ -248,6 +248,7 @@ describe("the tools", () => {
       "get_activity", "list_tags", "create_tag", "tag_candidate", "untag_candidate", "archive_tag",
       "list_email_templates", "create_email_template", "update_email_template", "draft_email", "send_email", "list_emails",
       "get_approval_flow", "set_approval_flow", "request_approval", "list_my_approvals", "approve", "reject",
+      "list_custom_fields", "create_custom_field", "update_custom_field", "set_custom_field",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -267,6 +268,8 @@ describe("the tools", () => {
     for (const read of ["get_approval_flow", "list_my_approvals"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     for (const change of ["set_approval_flow", "approve", "reject"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
     expect(byName.request_approval).not.toMatchObject({ readOnlyHint: true });
+    expect(byName.list_custom_fields).toMatchObject({ readOnlyHint: true });
+    expect(byName.update_custom_field).toMatchObject({ destructiveHint: true });
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {

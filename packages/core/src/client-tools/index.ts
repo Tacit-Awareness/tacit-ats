@@ -51,3 +51,12 @@ export type {
   ApprovalApprover, ApprovalDecision, ApprovalFlow, ApprovalKind, ApprovalStatus, ApprovalStep, DecisionResult,
   JobApproval, MyApproval, OfferApproval, RequestApprovalResult,
 } from "./approvals.js";
+export {
+  CUSTOM_FIELD_NAME_MAX, CUSTOM_FIELD_OBJECTS, CUSTOM_FIELD_OPTIONS_MAX, CUSTOM_FIELD_OPTION_MAX, CUSTOM_FIELD_TYPES,
+  LONG_TEXT_MAX, SHORT_TEXT_MAX,
+  createCustomField, listCustomFields, setCustomField, updateCustomField,
+} from "./custom-fields.js";
+export type {
+  CreateCustomFieldResult, CustomField, CustomFieldChange, CustomFieldInput, CustomFieldObject, CustomFieldOption,
+  CustomFieldType, CustomFieldValue, SetCustomFieldResult,
+} from "./custom-fields.js";

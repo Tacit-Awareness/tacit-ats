@@ -1173,3 +1173,126 @@ describe("approvals against real Postgres", () => {
     expect(data).toEqual([]);
   });
 });
+
+describe("custom fields against real Postgres", () => {
+  type FieldValue = { field_id: string; field: string; type: string; private: boolean; value: unknown };
+  const NIA = { sub: "user_nia", org_id: "org_itest_acme", email: "nia@acme.test" };
+
+  test("an admin defines fields on all three objects, and the reads show what was set", async () => {
+    const work = await ok(ADA, "create_custom_field", { object: "candidate", name: "Work style", type: "single_select", options: ["Remote", "Onsite"] });
+    expect(work.outcome).toBe("created");
+    expect((await ok(ADA, "create_custom_field", { object: "candidate", name: "work STYLE", type: "single_select", options: ["x"] })).field_id)
+      .toBe(work.field_id);
+    await ok(ADA, "create_custom_field", { object: "candidate", name: "Background", type: "long_text" });
+    await ok(ADA, "create_custom_field", { object: "candidate", name: "Languages", type: "multi_select", options: ["Go", "Rust", "Python"] });
+    await ok(ADA, "create_custom_field", { object: "job", name: "Team", type: "short_text" });
+    const bonus = await ok(ADA, "create_custom_field", { object: "offer", name: "Signing bonus", type: "number" });
+    const { fields } = await ok(ADA, "list_custom_fields", { object: "candidate" });
+    expect(fields.map((f: { name: string }) => f.name)).toEqual(["Work style", "Background", "Languages"]);
+    expect(fields[0].options.map((o: { name: string }) => o.name)).toEqual(["Remote", "Onsite"]);
+
+    expect((await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "work style", value: "remote" })).value).toBe("Remote");
+    await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Languages", value: ["rust", "Go"] });
+    await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Background", value: "Ran payments at Initech" });
+    await ok(ADA, "set_custom_field", { object: "job", object_id: ENGINEER, field: "Team", value: "Platform" });
+    expect((await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Work style", value: "Remote" })).outcome)
+      .toBe("unchanged");
+    expect((await tool(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Languages", value: ["Cobol"] })).content[0].text)
+      .toMatch(/not one of this field's options/);
+
+    // The column holds the option's id, in the candidate's org, stamped with who set it.
+    const { data: row } = await db().from("custom_field_values").select("org_id, value, updated_by_actor_id")
+      .eq("person_id", PAT).eq("field_id", work.field_id).single();
+    expect(row).toEqual({ org_id: ACME, value: fields[0].options[0].option_id, updated_by_actor_id: ADMIN });
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    const byField = Object.fromEntries(card.custom_fields.map((f: FieldValue) => [f.field, f.value]));
+    expect(byField["Work style"]).toBe("Remote");
+    expect(byField.Languages).toEqual(["Rust", "Go"]);
+    expect(byField.Background).toContain("<<<UNTRUSTED_DATA>>>");
+    expect(byField.Background).toContain("Ran payments at Initech");
+    const { jobs } = await ok(ADA, "list_jobs");
+    const engineer = jobs.find((j: { job_id: string }) => j.job_id === ENGINEER);
+    expect(engineer.custom_fields).toHaveLength(1);
+    expect(engineer.custom_fields[0].value).toContain("Platform");
+    expect((await ok(ADA, "get_pipeline", { job_id: ENGINEER })).custom_fields[0].field).toBe("Team");
+
+    // An offer's fields: only while it is a draft.
+    const offer = await ok(ADA, "create_offer", { application_id: PAT_APP, salary: 180000 });
+    await ok(ADA, "set_custom_field", { object: "offer", object_id: offer.offer_id, field: "Signing bonus", value: 20000 });
+    const { offers } = await ok(ADA, "get_offers", { application_id: PAT_APP });
+    expect(offers[0].custom_fields).toEqual([{ field_id: bonus.field_id, field: "Signing bonus", type: "number", private: false, value: 20000 }]);
+    await ok(ADA, "update_offer", { offer_id: offer.offer_id, status: "extended" });
+    expect((await tool(ADA, "set_custom_field", { object: "offer", object_id: offer.offer_id, field: "Signing bonus", value: 25000 })).content[0].text)
+      .toMatch(/only a draft offer's fields change/);
+
+    expect((await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Background", value: null })).outcome).toBe("cleared");
+    const { data: audit } = await db().from("audit_log").select("action, after, before").eq("actor_id", ADMIN).like("action", "custom_field.%");
+    expect(audit!.map((a) => a.action).sort()).toEqual([
+      // The second create found the first; the unchanged and refused sets claimed nothing.
+      "custom_field.clear", ...Array(5).fill("custom_field.create"), ...Array(5).fill("custom_field.set"),
+    ].sort());
+    // A long_text value stays out of the audit row, set or cleared.
+    expect(JSON.stringify(audit)).not.toContain("Ran payments");
+  });
+
+  test("options and fields are archived, never deleted, and a candidate keeps what they had", async () => {
+    const work = await ok(ADA, "create_custom_field", { object: "candidate", name: "Work style", type: "single_select", options: ["Remote", "Onsite"] });
+    await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: work.field_id, value: "Onsite" });
+    const changed = await ok(ADA, "update_custom_field", { field: "Work style", object: "candidate", options: [{ name: "Remote" }, { name: "Hybrid" }] });
+    expect(changed).toMatchObject({ outcome: "updated", options_added: ["Hybrid"], options_archived: ["Onsite"] });
+    const later = await ok(ADA, "add_candidate", { job_id: ENGINEER, name: "Lee Later" });
+    expect((await tool(ADA, "set_custom_field", { object: "candidate", object_id: later.candidate_id, field: "Work style", value: "Onsite" })).content[0].text)
+      .toMatch(/archived/);
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).custom_fields[0].value).toBe("Onsite");
+
+    expect((await ok(ADA, "update_custom_field", { field: work.field_id, archived: true })).changed).toEqual(["archived"]);
+    expect((await tool(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Work style", value: "Remote" })).content[0].text)
+      .toMatch(/archived/);
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).custom_fields).toEqual([]);
+    expect((await ok(ADA, "list_custom_fields")).fields).toEqual([]);
+    expect((await ok(ADA, "list_custom_fields", { include_archived: true })).fields[0]).toMatchObject({ name: "Work style", archived: true });
+    const { count } = await db().from("custom_field_values").select("*", { count: "exact", head: true }).eq("field_id", work.field_id);
+    expect(count).toBe(1);
+  });
+
+  test("a private field is the admins' and the job's managers'; an interviewer sees no fields at all", async () => {
+    await ok(ADA, "create_custom_field", { object: "candidate", name: "Expected comp", type: "number", private: true });
+    await ok(ADA, "create_custom_field", { object: "candidate", name: "Portfolio", type: "url" });
+    await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Expected comp", value: 210000 });
+    await ok(ADA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Portfolio", value: "https://pat.example.com" });
+
+    // A coordinator reads the candidate, but not the private field, and changes nothing.
+    await whoami(NIA);
+    await ok(ADA, "add_to_hiring_team", { job_id: ENGINEER, user_id: INVITED, team_role: "coordinator" });
+    expect((await ok(NIA, "get_candidate", { candidate_id: PAT })).custom_fields.map((f: FieldValue) => f.field)).toEqual(["Portfolio"]);
+    expect((await tool(NIA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Portfolio", value: "https://x.test" })).content[0].text)
+      .toMatch(/not change their record/);
+
+    // As the job's hiring manager they read and set it.
+    await ok(ADA, "remove_from_hiring_team", { job_id: ENGINEER, user_id: INVITED });
+    await ok(ADA, "add_to_hiring_team", { job_id: ENGINEER, user_id: INVITED, team_role: "hiring_manager" });
+    expect((await ok(NIA, "get_candidate", { candidate_id: PAT })).custom_fields.map((f: FieldValue) => f.field).sort())
+      .toEqual(["Expected comp", "Portfolio"]);
+    expect((await ok(NIA, "set_custom_field", { object: "candidate", object_id: PAT, field: "Expected comp", value: "220000" })).value).toBe(220000);
+    expect((await tool(NIA, "create_custom_field", { object: "job", name: "Budget", type: "short_text" })).content[0].text).toMatch(/Only an admin/);
+
+    // An interviewer: no fields, and their card on the candidate carries none.
+    expect((await tool(IVAN, "list_custom_fields")).content[0].text).toMatch(/Interviewers do not/);
+    expect((await ok(IVAN, "get_candidate", { candidate_id: PAT })).custom_fields).toEqual([]);
+    expect((await tool(IVAN, "set_custom_field", { object: "candidate", object_id: PAT, field: "Portfolio", value: "https://x.test" })).isError).toBe(true);
+    const { data } = await db().from("custom_field_values").select("value").eq("person_id", PAT);
+    expect(data!.map((r) => r.value).sort()).toEqual([220000, "https://pat.example.com"].sort());
+  });
+
+  test("another company's candidate and job are not found, and nothing is written", async () => {
+    await ok(ADA, "create_custom_field", { object: "candidate", name: "Portfolio", type: "url" });
+    await ok(ADA, "create_custom_field", { object: "job", name: "Team", type: "short_text" });
+    expect((await tool(ADA, "set_custom_field", { object: "candidate", object_id: SECRET_PERSON, field: "Portfolio", value: "https://x.test" })).content[0].text)
+      .toMatch(/No candidate with that id/);
+    expect((await tool(ADA, "set_custom_field", { object: "job", object_id: GLOBEX_ROLE, field: "Team", value: "Ops" })).content[0].text)
+      .toMatch(/No job with that id/);
+    const { count } = await db().from("custom_field_values").select("*", { count: "exact", head: true }).in("org_id", [ACME, GLOBEX]);
+    expect(count).toBe(0);
+  });
+});
