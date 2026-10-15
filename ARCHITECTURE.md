@@ -6,7 +6,7 @@ Tacit ATS is the client-facing applicant tracking system: the place a client com
 
 This repo was split out of [Tacit-Awareness](https://github.com/Tacit-Awareness/Tacit-Awareness) on 2026-10-14. It is one product with that repo, on one database: Tacit-Awareness owns the schema, the access policies and the shared pipeline logic, and this repo consumes them.
 
-Status: the web area, the public job posts and the connector's 91 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). WorkOS and Supabase are configured for `/client`, but **no client has completed a sign-in yet**, the connector's production env is not set, and the private `org-files` bucket does not exist in production. Open items are listed at the end.
+Status: the web area, the public job posts and the connector's 93 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). WorkOS and Supabase are configured for `/client`, but **no client has completed a sign-in yet**, the connector's production env is not set, and the private `org-files` bucket does not exist in production. Open items are listed at the end.
 
 Each folder's `CLAUDE.md` has the detail behind every section here.
 
@@ -15,7 +15,7 @@ Each folder's `CLAUDE.md` has the detail behind every section here.
 | Component | Choice | Purpose |
 |---|---|---|
 | Member web area (`apps/web`) | Next.js App Router, WorkOS AuthKit, Vercel | `/client`: jobs, the pipeline board, the team and invitations, the connector's docs. Public `/jobs/[slug]` posts and their application form. |
-| Client connector (`apps/mcp`) | Next.js, one MCP route `/api/client`, AuthKit OAuth, Vercel | The MCP server a member adds to Claude: 91 tools over their company's hiring data. |
+| Client connector (`apps/mcp`) | Next.js, one MCP route `/api/client`, AuthKit OAuth, Vercel | The MCP server a member adds to Claude: 93 tools over their company's hiring data. |
 | Domain logic (`packages/core`, `@tacit-ats/core`) | TypeScript, dependencies injected | First sign-in binding, a client admin's invitations, and every connector tool (`clientTools`). Never reads `process.env` or builds a client at module load. |
 | Shared Tacit code (`vendor/`) | Built tarballs of `@tacit/core` and `@tacit/db` | The pipeline (the only writer of `applications` / `application_events`), generated types, token minting, email pieces. Pinned in `vendor/SOURCE`, refreshed with `pnpm sync:tacit`. |
 | Database and identity | Supabase Postgres (project `tacit`), RLS | One org per client company (Tacit is org #1). Every member query runs as `authenticated` on their own token. |
@@ -30,7 +30,7 @@ flowchart TD
     claude["Member, Claude<br/>OAuth + MCP"]
 
     web["<b>apps/web</b><br/>/client pages, /jobs/[slug]"]
-    mcp["<b>apps/mcp</b><br/>/api/client, 91 tools"]
+    mcp["<b>apps/mcp</b><br/>/api/client, 93 tools"]
     core["<b>@tacit-ats/core</b><br/>client-auth, clientTools"]
 
     subgraph ta["Owned by Tacit-Awareness"]

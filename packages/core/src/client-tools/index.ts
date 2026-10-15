@@ -1,5 +1,8 @@
 export { ClientToolError, LIST_MAX, NOTE_MAX } from "./context.js";
 export type { AccessLevel, ClientToolCtx, ClientToolErrorCode } from "./context.js";
+export { READ_ONLY_REFUSAL } from "./audit.js";
+export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./connector.js";
+export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";
 export type { CandidateDetail, CandidateHit, CandidateNote, JobPipeline, JobView, TeamMember } from "./reads.js";
 export { addCandidate, addNote, setApplicationNextAction, updateStage } from "./writes.js";

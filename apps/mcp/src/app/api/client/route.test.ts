@@ -23,6 +23,8 @@ const fakeDb = {
   file: null as Record<string, string> | null,
   /** What my_approvals() returns. */
   approvals: [] as Array<Record<string, unknown>>,
+  /** The org's admin made the connector read-only: client_claim_write refuses. */
+  readOnly: false,
 };
 
 vi.mock("@tacit/db", async (importOriginal) => ({
@@ -39,7 +41,9 @@ vi.mock("@tacit/db", async (importOriginal) => ({
     };
     return {
       rpc: (fn: string) =>
-        withToken({
+        fn === "client_claim_write" && fakeDb.readOnly
+          ? withToken({ data: null, error: { code: "42501", message: "the client connector is read-only for this org" } })
+          : withToken({
           data: fn === "current_actor_id" ? fakeDb.actorId : fn === "my_interview_candidates" ? fakeDb.interviewing
             : fn === "my_approvals" ? fakeDb.approvals : fakeDb.level,
           error: null,
@@ -141,6 +145,7 @@ beforeEach(() => {
   fakeDb.interviewing = [];
   fakeDb.file = null;
   fakeDb.approvals = [];
+  fakeDb.readOnly = false;
   overBreadth = false;
   bound = { status: "ok", actorId: ACTOR, orgId: ORG, firstSignIn: false };
 });
@@ -239,7 +244,7 @@ describe("the tools", () => {
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team",
       "add_candidate", "update_stage", "set_next_action", "add_note",
       "create_job", "update_job", "get_hiring_team", "add_to_hiring_team", "remove_from_hiring_team",
-      "set_member_access", "invite_member", "list_invites", "withdraw_invite",
+      "set_member_access", "get_connector_settings", "set_connector_access", "invite_member", "list_invites", "withdraw_invite",
       "list_my_interviews", "find_interview_times", "schedule_interview", "update_interview", "submit_feedback", "get_feedback",
       "list_rejection_reasons", "get_offers", "create_offer", "update_offer",
       "get_interview_plan", "set_interview_plan",
@@ -260,13 +265,13 @@ describe("the tools", () => {
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
       "list_my_interviews", "find_interview_times", "get_feedback", "list_rejection_reasons", "get_offers", "get_interview_plan",
-      "get_activity", "list_tags", "list_email_templates", "list_emails",
+      "get_activity", "list_tags", "list_email_templates", "list_emails", "get_connector_settings",
     ]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     }
     for (const change of [
       "update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite", "update_interview", "update_offer",
-      "set_interview_plan", "untag_candidate", "archive_tag", "update_email_template", "send_email",
+      "set_interview_plan", "untag_candidate", "archive_tag", "update_email_template", "send_email", "set_connector_access",
     ]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }
@@ -312,12 +317,15 @@ describe("the tools", () => {
       ["create_job", { title: "Staff Engineer" }],
       ["invite_member", { email: "new@acme.test", name: "New", access: "admin" }],
       ["set_member_access", { user_id: ACTOR, access: "admin" }],
+      ["set_connector_access", { access: "read_only" }],
     ] as const) {
       const out = await result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps()));
       expect(out.isError, name).toBe(true);
       expect(out.content[0].text, name).toMatch(/Only an admin at your company/);
     }
-    expect(audits.map((a) => [a.tool, a.ok])).toEqual([["create_job", false], ["invite_member", false], ["set_member_access", false]]);
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([
+      ["create_job", false], ["invite_member", false], ["set_member_access", false], ["set_connector_access", false],
+    ]);
   });
 
   test("candidate text comes back fenced and the ids bare; past the breadth ceiling nothing comes back", async () => {
@@ -538,6 +546,40 @@ describe("approvals", () => {
     const out = await result(res);
     expect(out.isError).toBe(true);
     expect(audits).toEqual([]);
+  });
+});
+
+describe("a read-only connector", () => {
+  const call = async (name: string, args: Record<string, unknown>) =>
+    result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps()));
+
+  test("switching it is confirm-first, in its description and in the server's instructions", async () => {
+    const init = await result(await handleClientRequest(
+      await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } }),
+      deps(),
+    ));
+    expect(init.instructions).toMatch(/Before [^.]*set_connector_access[^.]*wait for a yes/);
+    const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
+    const set = tools.find((t: { name: string }) => t.name === "set_connector_access");
+    expect(set.description).toMatch(/wait for a yes/);
+    expect(set.inputSchema.properties.access.enum).toEqual(["read_write", "read_only"]);
+  });
+
+  test("a write is refused with a sentence naming the setting and who can change it; write tools stay listed", async () => {
+    fakeDb.readOnly = true;
+    const out = await call("create_job", { title: "Staff Engineer" });
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toMatch(/read-only/);
+    expect(out.content[0].text).toMatch(/admin can turn changes back on with set_connector_access/);
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([["create_job", false]]);
+    const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
+    expect(tools.map((t: { name: string }) => t.name)).toContain("create_job");
+  });
+
+  test("reads still work", async () => {
+    fakeDb.readOnly = true;
+    const out = await call("whoami", {});
+    expect(out.isError).toBeUndefined();
   });
 });
 

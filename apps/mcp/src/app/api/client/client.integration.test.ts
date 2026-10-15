@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { SignJWT, exportJWK, generateKeyPair, type JWTPayload } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import { createUserClient, getSupabaseServiceClient } from "@tacit/db";
+import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 /**
  * The client connector end to end against the local stack. Only WorkOS is
@@ -439,6 +439,58 @@ describe("the admin tools against real Postgres", () => {
     expect(workos.revoked).toEqual(["zed@acme.test"]);
     const { count } = await db().from("actors").select("*", { count: "exact", head: true }).eq("id", invite.user_id);
     expect(count).toBe(0);
+  });
+});
+
+describe("a read-only connector against real Postgres", () => {
+  test("an admin makes it read-only: writes are refused in the database, reads still work, and the admin switches it back", async () => {
+    expect(await ok(IVAN, "get_connector_settings")).toMatchObject({ access: "read_write", set_by: null, you_can_change: false });
+    expect((await tool(IVAN, "set_connector_access", { access: "read_only" })).content[0].text).toMatch(/Only an admin/);
+
+    expect(await ok(ADA, "set_connector_access", { access: "read_only" }))
+      .toEqual({ outcome: "changed", previous: "read_write", access: "read_only" });
+    const { data: org } = await db().from("orgs").select("connector_access, connector_access_set_by_actor_id").eq("id", ACME).single();
+    expect(org).toEqual({ connector_access: "read_only", connector_access_set_by_actor_id: ADMIN });
+    expect(await ok(IVAN, "get_connector_settings")).toMatchObject({ access: "read_only", set_by: "Ada Admin" });
+
+    // A write, for an admin and an interviewer alike, is refused with the sentence, and nothing lands.
+    const refused = await tool(ADA, "add_note", { candidate_id: PAT, text: "Strong systems answers." });
+    expect(refused.isError).toBe(true);
+    expect(refused.content[0].text).toMatch(/read-only/);
+    expect(refused.content[0].text).toMatch(/admin can turn changes back on with set_connector_access/);
+    expect((await tool(IVAN, "add_note", { candidate_id: PAT, text: "Mine." })).content[0].text).toMatch(/read-only/);
+    const upload = await tool(ADA, "add_file", {
+      candidate_id: PAT, kind: "attachment", filename: "notes.txt", content_type: "text/plain",
+      content_base64: Buffer.from("hello").toString("base64"),
+    });
+    expect(upload.content[0].text).toMatch(/read-only/);
+    expect(storage.objects.size).toBe(0);
+    const { count: notes } = await db().from("person_notes").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(notes).toBe(0);
+    const { count: files } = await db().from("person_files").select("*", { count: "exact", head: true }).eq("person_id", PAT);
+    expect(files).toBe(0);
+
+    // The database refuses, not just the tool: the member's own token cannot claim a write.
+    const signer = { alg: "HS256" as const, secret: process.env.SUPABASE_JWT_SECRET! };
+    const member = createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () =>
+      mintClientMemberToken(signer, { subject: "user_ada", workosOrgId: "org_itest_acme" }));
+    const claim = await member.rpc("client_claim_write", { p_source: "claude", p_action: "note.add", p_entity: "person" });
+    expect(claim.error).toMatchObject({ code: "42501" });
+
+    // Reads still work.
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).candidate_id).toBe(PAT);
+    expect((await ok(IVAN, "list_my_interviews")).interviews).toHaveLength(1);
+
+    // The admin switches it back through the connector itself, and writes land again.
+    expect(await ok(ADA, "set_connector_access", { access: "read_write" }))
+      .toEqual({ outcome: "changed", previous: "read_only", access: "read_write" });
+    await ok(ADA, "add_note", { candidate_id: PAT, text: "Strong systems answers." });
+    const { data: audit } = await db().from("audit_log").select("action, before, after").eq("actor_id", ADMIN).order("created_at");
+    expect(audit).toEqual([
+      { action: "org.connector_access", before: { connector_access: "read_write" }, after: { connector_access: "read_only" } },
+      { action: "org.connector_access", before: { connector_access: "read_only" }, after: { connector_access: "read_write" } },
+      expect.objectContaining({ action: "note.add" }),
+    ]);
   });
 });
 

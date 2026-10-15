@@ -694,6 +694,56 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
       );
 
       server.registerTool(
+        "get_connector_settings",
+        {
+          title: "Connector settings",
+          description:
+            "Whether this connector can make changes at your company: read_write (the default) or read_only, which an " +
+            "admin sets with set_connector_access, with who last changed it and when. Read-only refuses every change " +
+            "made through this connector, for everyone at the company; the Tacit workspace on the web is unaffected.",
+          inputSchema: z.object({}),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_connector_settings", "read", args, async () => {
+            const s = await clientTools.getConnectorSettings(db, ctx);
+            return {
+              summary:
+                (s.access === "read_only" ? "The connector is read-only: it cannot make changes." : "The connector can read and make changes.") +
+                (ctx.accessLevel === "admin" ? " You can change this with set_connector_access." : " An admin can change this."),
+              data: { access: s.access, set_by: s.setBy, set_at: s.setAt, you_can_change: ctx.accessLevel === "admin" },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "set_connector_access",
+        {
+          title: "Make the connector read-only or read-write",
+          description:
+            "Sets whether this connector can make changes at your company, for every member: read_only refuses every " +
+            "change made through it (reads still work), read_write turns changes back on. Admins only, and it works " +
+            "while the connector is read-only, so an admin can always switch it back. The Tacit workspace on the web " +
+            "is unaffected. Tell the user exactly what will change and wait for a yes.",
+          inputSchema: z.object({ access: z.enum(clientTools.CONNECTOR_ACCESS) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("set_connector_access", "write", args, async () => {
+            const r = await clientTools.setConnectorAccess(db, ctx, { access: args.access });
+            const said = { read_only: "read-only", read_write: "read-write" } as const;
+            return {
+              summary: r.outcome === "changed"
+                ? `The connector is now ${said[r.access]} for everyone at your company.`
+                : `Already ${said[r.access]}. Nothing changed.`,
+              data: { outcome: r.outcome, previous: r.previous, access: r.access },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
         "invite_member",
         {
           title: "Invite someone to your company's workspace",
@@ -3118,7 +3168,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "Your company's hiring workspace in Tacit: its jobs, the candidates in each job's pipeline, and " +
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
-        "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
+        "returns. Before update_stage, update_job, set_member_access, set_connector_access, invite_member, update_interview, " +
         "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, convert_prospect, " +
         "archive_pool, remove_from_pool, " +
         "update_email_template, update_custom_field, update_department, update_office, close_opening, set_job_post_status or removing someone from a hiring team, tell the user exactly what will " +
