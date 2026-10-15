@@ -7,7 +7,7 @@ export function Label({ className, ...props }: React.ComponentProps<"label">) {
     <label
       data-slot="label"
       className={cn(
-        "flex items-center gap-2 text-[13px] leading-none font-medium text-foreground/80 select-none",
+        "flex items-center gap-2 text-[13px] leading-[1.3] font-medium text-text select-none",
         className,
       )}
       {...props}

@@ -19,5 +19,5 @@ Where members of a client org sign in and work: Phase 1 of Tacit-Awareness's `do
 
 ## Shared pieces
 
-- `components/pipeline-board.tsx`, `components/submit-button.tsx`, `components/copy-button.tsx`, `components/docs/*`, `components/ui/*`, `lib/utils.ts` and `app/globals.css` are copies of Tacit-Awareness's `apps/internal` ones (same look, the testbench type pair). They are not synced; change them here freely.
+- `components/pipeline-board.tsx`, `components/submit-button.tsx`, `components/copy-button.tsx`, `components/docs/*`, `components/ui/*`, `lib/utils.ts` and `app/globals.css` started as copies of Tacit-Awareness's `apps/internal` ones and since 2026-10-15 follow Tacit Testbench's skin instead (its `apps/web` `app/skin.css` `.tb-skin`: Neco / Recoleta / Geist Mono, frosted `glass` cards, pill buttons, a near-black primary and one link blue; the fonts are self-hosted from `public/fonts`). `globals.css` holds the tokens and the `glass`, `field`, `notice` and `inline-link` utilities the pages use. They are not synced; change them here freely.
 - Everything the pages read or write goes through `@tacit/core`'s pipeline functions (vendored, `vendor/`) or `@tacit-ats/core`, always on the member's own client.

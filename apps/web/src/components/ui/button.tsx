@@ -4,20 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent text-sm font-medium whitespace-nowrap transition-all duration-150 outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex shrink-0 items-center justify-center gap-[7px] rounded-full border-0 font-medium whitespace-nowrap transition-[box-shadow,background-color,color,opacity] duration-150 outline-none select-none focus-visible:shadow-[var(--focus)] disabled:cursor-not-allowed disabled:opacity-45",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-[#283d8a]",
-        outline:
-          "border-[color:var(--line)] bg-card hover:border-[color:var(--hairline)] hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-[#ebebe4]",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        // Dark pill for the one primary action.
+        default: "bg-dark text-[#fafafa] shadow-[0_0_0_1px_var(--dark)] hover:bg-[color:var(--dark-hover)]",
+        // A white bubble for the rest.
+        outline: "bg-card text-[#27272a] shadow-[var(--bubble)] hover:shadow-[var(--bubble-hover)]",
+        secondary: "bg-card text-[#27272a] shadow-[var(--bubble)] hover:shadow-[var(--bubble-hover)]",
+        ghost: "text-primary hover:bg-[rgb(29_111_165/0.07)]",
+        danger: "bg-card text-negative shadow-[0_0_0_1px_rgb(180_35_24/0.25),inset_0_1px_0_#fff] hover:shadow-[0_0_0_1px_rgb(180_35_24/0.4),0_4px_12px_-4px_rgb(180_35_24/0.25)]",
       },
       size: {
-        default: "h-9 px-3.5",
-        sm: "h-8 px-3 text-[13px]",
-        lg: "h-10 px-4",
+        default: "px-[15px] py-2 text-sm leading-5",
+        sm: "px-3 py-1.5 text-[13px] leading-[18px]",
+        lg: "px-5 py-2.5 text-[15px] leading-5",
       },
     },
     defaultVariants: {

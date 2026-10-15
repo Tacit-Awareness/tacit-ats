@@ -34,9 +34,14 @@ export function callbackErrorResponse({ error, request }: { error?: unknown; req
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · Tacit</title>
-<style>body{font-family:system-ui,sans-serif;max-width:28rem;margin:18vh auto;padding:0 1.5rem;color:#20201e;background:#f6f6f2}
-h1{font-size:1.4rem;font-weight:550}p{color:#555;line-height:1.5}a{display:inline-block;margin-top:.5rem;padding:.6rem 1rem;border-radius:.4rem;background:#3049a4;color:#fff;text-decoration:none}</style>
-</head><body><h1>${title}</h1><p>${body}</p><a href="${next}">${action}</a></body></html>`;
+<style>@font-face{font-family:Neco;src:url(/fonts/Neco-Medium.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:Recoleta;src:url(/fonts/Recoleta-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:Recoleta;src:url(/fonts/Recoleta-Medium.woff2) format("woff2");font-weight:500;font-display:swap}
+body{font-family:Recoleta,Georgia,serif;margin:0;padding:18vh 1.25rem;color:#18181b;-webkit-font-smoothing:antialiased;background:radial-gradient(620px 420px at 12% 4%,rgb(147 197 253/.24),transparent 70%),radial-gradient(640px 460px at 94% 20%,rgb(199 210 254/.3),transparent 70%),#fafaf9;background-attachment:fixed}
+main{max-width:28rem;margin:0 auto;padding:2.25rem 2rem;border-radius:18px;background:rgb(255 255 255/.82);box-shadow:0 0 0 1px rgb(24 24 27/.07),0 1px 2px rgb(24 24 27/.03)}
+h1{margin:0;font:500 28px/1.15 Neco,Georgia,serif;letter-spacing:-.01em}p{margin:.75rem 0 1.5rem;color:#6b6b70;font-size:15.5px;line-height:1.6}
+a{display:inline-block;padding:8px 15px;border-radius:999px;background:#18181b;color:#fafafa;font-size:14px;font-weight:500;line-height:20px;text-decoration:none;box-shadow:0 0 0 1px #18181b}a:hover{background:#2e2e33}</style>
+</head><body><main><h1>${title}</h1><p>${body}</p><a href="${next}">${action}</a></main></body></html>`;
   return new Response(html, {
     status: startedElsewhere ? 200 : 400,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },

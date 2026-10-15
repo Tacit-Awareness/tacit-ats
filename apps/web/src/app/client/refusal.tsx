@@ -35,9 +35,9 @@ const REFUSALS: Record<RefusalReason, { title: string; body: string }> = {
 export function Refusal({ reason }: { reason: RefusalReason }) {
   const refusal = REFUSALS[reason];
   return (
-    <main>
-      <h1 className="text-2xl font-medium">{refusal.title}</h1>
-      <p className="mt-3 text-[15px] text-muted-foreground">{refusal.body}</p>
+    <main className="glass mx-auto mt-[8vh] max-w-lg px-8 py-9">
+      <h1 className="text-[28px] leading-[1.15] tracking-[-0.01em]">{refusal.title}</h1>
+      <p className="mt-3 text-[15.5px] leading-[1.6] text-muted-foreground">{refusal.body}</p>
     </main>
   );
 }
