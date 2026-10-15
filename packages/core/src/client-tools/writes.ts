@@ -8,6 +8,7 @@ import {
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
 import { reasonForStage } from "./offers.js";
+import { openingFilledBy, type HireOpening } from "./openings.js";
 
 const REJECTION_NOTE_MAX = 2000;
 
@@ -107,6 +108,8 @@ export type StageResult = {
   stage: string;
   /** The rejection reason's name, when the application closed with one. */
   reason: string | null;
+  /** On a move to hired: the opening it filled, or null when it filled none the member can see. */
+  opening?: HireOpening | null;
 };
 
 const CLOSING = ["rejected", "withdrawn"] as const;
@@ -157,7 +160,7 @@ export async function updateStage(
     });
   }
   if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
-  return withAudit(db, ctx, { action: "application.stage_change", entity: "application" }, async () => {
+  const result = await withAudit<StageResult>(db, ctx, { action: "application.stage_change", entity: "application" }, async () => {
     const r = await moveStage(db, {
       applicationId: app.id, stage, actorId: ctx.actorId, expectedStage: app.stage,
       closeReason: reason ? { reasonId: reason.reasonId, reasonName: reason.name, note } : undefined,
@@ -174,6 +177,14 @@ export async function updateStage(
       changed: moved,
     };
   });
+  if (result.outcome !== "moved" || stage !== "hired") return result;
+  // The database filled an opening with the hire (20261016130000); say which.
+  // The move has committed: a failed read here is no reason to report it failed.
+  const opening = await openingFilledBy(db, app.id, app.role_id).catch((err: unknown) => {
+    console.error("[client-tools] could not read the opening a hire filled:", err);
+    return null;
+  });
+  return { ...result, opening };
 }
 
 export type NextActionResult = { outcome: "set" | "cleared" | "unchanged"; nextAction: string | null; due: string | null };

@@ -478,6 +478,22 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`update_custom_field\` | Rename, make private, archive, or change a field's options | Admins | Yes |
 | \`set_custom_field\` | Set or clear a field on a candidate, job or offer | Whoever can edit it (private fields: admins and job managers) | |
 
+## Departments, offices and openings
+
+Jobs sit in a department (departments can nest) and in one or more offices. A job's openings are how many people it hires: moving someone to hired fills the oldest open one, and when none is left the job is marked filled.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`list_departments\` | Your company's departments and how many jobs are in each | Hiring team, admins | |
+| \`create_department\` | Add a department, optionally inside another | Admins | |
+| \`update_department\` | Rename, move, archive or bring back a department | Admins | Yes |
+| \`list_offices\` | Your company's offices and how many jobs are in each | Hiring team, admins | |
+| \`create_office\` | Add an office, with its location | Admins | |
+| \`update_office\` | Rename, relocate, archive or bring back an office | Admins | Yes |
+| \`list_openings\` | A job's openings: open, filled (and by whom) or closed | Hiring team, admins | |
+| \`add_openings\` | Add openings to a job, with your own codes and a target start date | Job managers | Confirms count |
+| \`close_opening\` | Close an open opening without a hire, with a reason | Job managers | Yes |
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |

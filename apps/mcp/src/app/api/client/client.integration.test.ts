@@ -53,6 +53,7 @@ async function clear() {
   for (const table of [
     "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
     "scorecard_attributes", "person_notes", "person_tags", "tags", "people", "companies",
+    "openings", "job_offices", "departments", "offices",
   ] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
@@ -1294,5 +1295,82 @@ describe("custom fields against real Postgres", () => {
       .toMatch(/No job with that id/);
     const { count } = await db().from("custom_field_values").select("*", { count: "exact", head: true }).in("org_id", [ACME, GLOBEX]);
     expect(count).toBe(0);
+  });
+});
+
+describe("departments, offices and openings against real Postgres", () => {
+  type Job = { job_id: string; department: string | null; offices: string[]; openings: unknown };
+
+  test("an admin builds the structure, puts a job in it, and list_jobs narrows by it", async () => {
+    await ok(ADA, "create_department", { name: "Engineering" });
+    const platform = await ok(ADA, "create_department", { name: "Platform", parent: "engineering" });
+    expect(platform).toMatchObject({ outcome: "created", parent: "Engineering" });
+    expect((await ok(ADA, "create_department", { name: "PLATFORM" })).outcome).toBe("exists");
+    expect((await tool(ADA, "update_department", { department: "Engineering", parent: "Platform" })).content[0].text)
+      .toMatch(/inside itself/);
+    const nyc = await ok(ADA, "create_office", { name: "New York", location: "New York, NY" });
+    await ok(ADA, "create_office", { name: "Remote" });
+
+    const job = await ok(ADA, "create_job", { title: "SRE", department: "Platform", offices: ["New York", "remote"], openings: 2 });
+    expect(job).toMatchObject({ department: "Platform", offices: ["New York", "Remote"], openings: 2 });
+    const { data: role } = await db().from("roles").select("org_id, department_id").eq("id", job.job_id).single();
+    expect(role).toEqual({ org_id: ACME, department_id: platform.department_id });
+    const { data: seats } = await db().from("openings").select("org_id, number, status").eq("role_id", job.job_id).order("number");
+    expect(seats).toEqual([{ org_id: ACME, number: 1, status: "open" }, { org_id: ACME, number: 2, status: "open" }]);
+
+    // A department takes in the ones inside it.
+    const { jobs } = await ok(ADA, "list_jobs", { department: "Engineering" });
+    expect(jobs).toEqual([expect.objectContaining({
+      job_id: job.job_id, department: "Platform", offices: ["New York", "Remote"], openings: { open: 2, filled: 0, closed: 0 },
+    })]);
+    expect((await ok(ADA, "list_jobs", { office: nyc.office_id })).jobs.map((j: Job) => j.job_id)).toEqual([job.job_id]);
+
+    expect(await ok(ADA, "update_job", { job_id: job.job_id, department: null, offices: ["Remote"] }))
+      .toMatchObject({ outcome: "updated", changed: ["department", "offices"] });
+    const { data: after } = await db().from("job_offices").select("office_id").eq("role_id", job.job_id);
+    expect(after).toHaveLength(1);
+    expect((await ok(ADA, "update_office", { office: "Remote", archived: true })).changed).toEqual(["archived"]);
+    expect((await tool(ADA, "update_job", { job_id: ENGINEER, offices: ["Remote"] })).content[0].text).toMatch(/archived/);
+    const { departments } = await ok(ADA, "list_departments");
+    expect(departments.map((d: { path: string }) => d.path)).toEqual(["Engineering", "Engineering > Platform"]);
+
+    // An interviewer sees and changes none of it; Globex sees none of Acme's.
+    expect((await tool(IVAN, "list_departments")).content[0].text).toMatch(/Interviewers do not/);
+    expect((await tool(IVAN, "create_office", { name: "Shadow" })).content[0].text).toMatch(/Only an admin/);
+    const { count } = await db().from("departments").select("*", { count: "exact", head: true }).eq("org_id", GLOBEX);
+    expect(count).toBe(0);
+
+    const { data: audit } = await db().from("audit_log").select("action").eq("actor_id", ADMIN);
+    expect(audit!.map((a) => a.action).filter((a) => /^(department|office)\./.test(a)).sort())
+      .toEqual(["department.create", "department.create", "office.create", "office.create", "office.update"]);
+  });
+
+  test("a hire fills the oldest open opening, the last one fills the job, and un-hiring gives it back", async () => {
+    const added = await ok(ADA, "add_openings", { job_id: ENGINEER, count: 2, codes: ["ENG-1", "ENG-2"] });
+    expect(added.added.map((o: { number: number; code: string }) => [o.number, o.code])).toEqual([[1, "ENG-1"], [2, "ENG-2"]]);
+    expect((await tool(ADA, "add_openings", { job_id: DESIGNER, codes: ["eng-1"] })).content[0].text).toMatch(/already used/);
+    const closed = await ok(ADA, "close_opening", { opening_id: added.added[1].opening_id, reason: "Budget moved" });
+    expect(closed).toMatchObject({ outcome: "closed", number: 2, counts: { open: 1, filled: 0, closed: 1 } });
+
+    const hired = await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "hired" });
+    expect(hired.opening).toMatchObject({ number: 1, code: "ENG-1", open_left: 0, job_status: "filled" });
+    const list = await ok(ADA, "list_openings", { job_id: ENGINEER });
+    expect(list.job_status).toBe("filled");
+    expect(list.openings[0]).toMatchObject({ status: "filled", filled_by_application_id: PAT_APP, filled_by_candidate_id: PAT });
+    expect(list.openings[0].filled_by).toContain("Pat Candidate");
+    expect(list.openings[1].close_reason).toContain("Budget moved");
+    const { data: audit } = await db().from("audit_log").select("action, after").eq("actor_id", ADMIN);
+    expect(audit!.map((a) => a.action).sort()).toEqual(["application.stage_change", "opening.add", "opening.close"]);
+    expect(JSON.stringify(audit)).not.toContain("Budget moved");
+
+    await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "offer" });
+    const { data: role } = await db().from("roles").select("status").eq("id", ENGINEER).single();
+    expect(role!.status).toBe("open");
+    const { data: seat } = await db().from("openings").select("status, filled_by_application_id").eq("opening_code", "ENG-1").single();
+    expect(seat).toEqual({ status: "open", filled_by_application_id: null });
+
+    expect((await tool(IVAN, "list_openings", { job_id: ENGINEER })).content[0].text).toMatch(/Interviewers do not/);
+    expect((await tool(IVAN, "close_opening", { opening_id: added.added[0].opening_id, reason: "x" })).isError).toBe(true);
+    expect((await tool(ADA, "list_openings", { job_id: GLOBEX_ROLE })).content[0].text).toMatch(/No job with that id/);
   });
 });

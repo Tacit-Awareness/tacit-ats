@@ -22,7 +22,7 @@ export const STAFF_OVERVIEW: DocPage = {
 | Server | Who uses it | Sign-in | Tools |
 | --- | --- | --- | --- |
 | **Tacit connector** \`/api/connector\` | Tacit teammates, in Claude | Tacit account (WorkOS OAuth) | 35 tools over Tacit's org: candidates, client roles, pipeline, nudges, email, interviews, Testbench, who-knows |
-| **Client connector** \`/api/client\` | A client company's members, in Claude | Their company account (WorkOS OAuth) | 57 tools over their own company only: jobs, pipeline, email, interviews, feedback, offers, files, tags, team |
+| **Client connector** \`/api/client\` | A client company's members, in Claude | Their company account (WorkOS OAuth) | 66 tools over their own company only: jobs, pipeline, email, interviews, feedback, offers, files, tags, team, departments and openings |
 | **iMessage MCP** \`/api/mcp\` | The iMessage bot (tacit-bot) | A static \`tk_\` key per teammate | 24 tools; the bot calls \`tacit_ask\` |
 
 ## Which page to read

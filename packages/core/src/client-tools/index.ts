@@ -9,7 +9,7 @@ export {
   addToHiringTeam, createJob, getHiringTeam, inviteMember, listInvites, removeFromHiringTeam, setMemberAccess,
   updateJob, withdrawInvite,
 } from "./admin.js";
-export type { HiringTeamMember, InviteDeps, JobChange, JobInput, JobStatus, TeamRole } from "./admin.js";
+export type { CreatedJob, HiringTeamMember, InviteDeps, JobChange, JobInput, JobStatus, TeamRole } from "./admin.js";
 export {
   INTERVIEW_STATUSES, RECOMMENDATIONS,
   getFeedback, listMyInterviews, scheduleInterview, submitFeedback, updateInterview,
@@ -60,3 +60,13 @@ export type {
   CreateCustomFieldResult, CustomField, CustomFieldChange, CustomFieldInput, CustomFieldObject, CustomFieldOption,
   CustomFieldType, CustomFieldValue, SetCustomFieldResult,
 } from "./custom-fields.js";
+export {
+  DEPARTMENT_NAME_MAX, OFFICE_LOCATION_MAX, OFFICE_NAME_MAX,
+  createDepartment, createOffice, listDepartments, listOffices, updateDepartment, updateOffice,
+} from "./structure.js";
+export type { Department, Office, StructureResult } from "./structure.js";
+export {
+  CLOSE_REASON_MAX, OPENINGS_ADD_MAX, OPENING_CODE_MAX, OPENING_STATUSES,
+  addOpenings, closeOpening, listOpenings,
+} from "./openings.js";
+export type { HireOpening, JobOpenings, Opening, OpeningCounts, OpeningStatus } from "./openings.js";

@@ -6,6 +6,8 @@ import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
 import { emailsFor, type CandidateEmail } from "./email.js";
 import { customFieldValuesFor, type CustomFieldValue } from "./custom-fields.js";
+import { countOpenings, type OpeningCounts } from "./openings.js";
+import { departmentAndBelow, pickByRef, readDepartments, readOffices } from "./structure.js";
 
 export type JobView = {
   jobId: string;
@@ -17,30 +19,79 @@ export type JobView = {
   inPipeline: number | null;
   /** The job's custom field values the member can read; empty for an interviewer. */
   customFields: CustomFieldValue[];
+  /** Its department's name, and its offices' (20261016130000); null and [] for an interviewer. */
+  department: string | null;
+  offices: string[];
+  /** Its openings by status; null for an interviewer, or someone who cannot read them. */
+  openings: OpeningCounts | null;
 };
 
-export async function listJobs(db: Db, ctx: ClientToolCtx, input: { status?: string } = {}): Promise<JobView[]> {
-  const withCounts = ctx.accessLevel !== "limited";
+type JobListRow = {
+  id: string; title: string; status: string; location: string | null; seniority: string | null;
+  applications?: Array<{ count: number }>;
+  departments?: { name: string } | null;
+  job_offices?: Array<{ offices: { name: string } | null }>;
+  openings?: Array<{ status: string }>;
+};
+
+/**
+ * The jobs the member can see, newest first. `department` (an id or name;
+ * the jobs in it and in the departments inside it) and `office` (an id or
+ * name) narrow it, for anyone above interviewer.
+ */
+export async function listJobs(
+  db: Db,
+  ctx: ClientToolCtx,
+  input: { status?: string; department?: string; office?: string } = {},
+): Promise<JobView[]> {
+  const full = ctx.accessLevel !== "limited";
+  if (!full && (input.department || input.office)) {
+    throw new ClientToolError("forbidden", "Interviewers do not see your company's departments or offices.");
+  }
+  // Archived ones too: their jobs are still there.
+  let departmentIds: string[] | null = null;
+  if (input.department?.trim()) {
+    const rows = await readDepartments(db);
+    const department = pickByRef(rows, input.department);
+    if (!department) throw new ClientToolError("not_found", "No department by that name or id. list_departments has them.");
+    departmentIds = departmentAndBelow(rows, department.id);
+  }
+  let officeJobs: string[] | null = null;
+  if (input.office?.trim()) {
+    const office = pickByRef(await readOffices(db), input.office);
+    if (!office) throw new ClientToolError("not_found", "No office by that name or id. list_offices has them.");
+    const { data, error } = await db.from("job_offices").select("role_id").eq("office_id", office.id).limit(1000);
+    if (error) throw new Error(error.message);
+    officeJobs = [...new Set((data ?? []).map((r) => r.role_id))];
+    if (!officeJobs.length) return [];
+  }
   let q = db
     .from("roles")
-    .select(withCounts ? "id, title, status, location, seniority, applications(count)" : "id, title, status, location, seniority")
+    .select(
+      full
+        ? "id, title, status, location, seniority, applications(count), departments(name), job_offices(offices(name)), openings(status)"
+        : "id, title, status, location, seniority",
+    )
     .order("created_at", { ascending: false })
     .limit(LIST_MAX);
   if (input.status) q = q.eq("status", input.status);
-  const { data, error } = await q.overrideTypes<
-    Array<{ id: string; title: string; status: string; location: string | null; seniority: string | null; applications?: Array<{ count: number }> }>,
-    { merge: false }
-  >();
+  if (departmentIds) q = q.in("department_id", departmentIds);
+  if (officeJobs) q = q.in("id", officeJobs);
+  const { data, error } = await q.overrideTypes<JobListRow[], { merge: false }>();
   if (error) throw new Error(error.message);
-  const fields = withCounts ? await customFieldValuesFor(db, "job", (data ?? []).map((r) => r.id)) : new Map<string, CustomFieldValue[]>();
+  const fields = full ? await customFieldValuesFor(db, "job", (data ?? []).map((r) => r.id)) : new Map<string, CustomFieldValue[]>();
   return (data ?? []).map((r) => ({
     jobId: r.id,
     title: r.title,
     status: r.status,
     location: r.location,
     seniority: r.seniority,
-    inPipeline: withCounts ? (r.applications?.[0]?.count ?? 0) : null,
+    inPipeline: full ? (r.applications?.[0]?.count ?? 0) : null,
     customFields: fields.get(r.id) ?? [],
+    department: r.departments?.name ?? null,
+    offices: (r.job_offices ?? []).map((o) => o.offices?.name).filter((n): n is string => !!n).sort(),
+    // Empty for a member who cannot read them as for a job with none: say "none we can see".
+    openings: full && r.openings?.length ? countOpenings(r.openings.map((o) => o.status)) : null,
   }));
 }
 

@@ -7,6 +7,8 @@ import {
 import type { IdentityProvider } from "../client-auth/orgs.js";
 import { withAudit } from "./audit.js";
 import { ClientToolError, type AccessLevel, type ClientToolCtx } from "./context.js";
+import { OPENINGS_ADD_MAX, insertOpenings } from "./openings.js";
+import { liveDepartment, liveOffices } from "./structure.js";
 
 /**
  * The client connector's admin tools: jobs, each job's hiring team, and the
@@ -51,6 +53,10 @@ export type JobInput = {
   location?: string | null;
   seniority?: string | null;
   description?: string | null;
+  /** A department's id or name (list_departments); null clears it on update. */
+  department?: string | null;
+  /** Offices' ids or names (list_offices): on update, the job's whole set. */
+  offices?: string[];
 };
 
 /** The company a client's jobs hang off: its oldest companies row, made from the org's name the first time. */
@@ -66,7 +72,21 @@ async function ownCompany(db: Db, ctx: ClientToolCtx): Promise<string> {
   return id;
 }
 
-export async function createJob(db: Db, ctx: ClientToolCtx, input: JobInput): Promise<{ jobId: string; title: string; status: JobStatus }> {
+export type CreatedJob = {
+  jobId: string;
+  title: string;
+  status: JobStatus;
+  department: string | null;
+  offices: string[];
+  /** How many openings it was made with. */
+  openings: number;
+};
+
+/**
+ * Makes a job, in a department and offices when given, with `openings` open
+ * seats: 1 unless said, none for a job made filled or closed.
+ */
+export async function createJob(db: Db, ctx: ClientToolCtx, input: JobInput & { openings?: number }): Promise<CreatedJob> {
   if (ctx.accessLevel !== "admin") throw notAdmin("create a job");
   const title = clean(input.title, TITLE_MAX, "A title");
   if (!title) throw new ClientToolError("invalid", "A job needs a title.");
@@ -77,21 +97,48 @@ export async function createJob(db: Db, ctx: ClientToolCtx, input: JobInput): Pr
     seniority: clean(input.seniority, FIELD_MAX, "A level") ?? null,
     description: clean(input.description, DESCRIPTION_MAX, "A description") ?? null,
   };
+  const openings = input.openings ?? (status === "open" || status === "paused" ? 1 : 0);
+  if (!Number.isInteger(openings) || openings < 0 || openings > OPENINGS_ADD_MAX) {
+    throw new ClientToolError("invalid", `A new job has between 0 and ${OPENINGS_ADD_MAX} openings.`);
+  }
+  const department = input.department?.trim() ? await liveDepartment(db, input.department) : null;
+  const offices = await liveOffices(db, input.offices ?? []);
 
-  return withAudit(db, ctx, { action: "role.create", entity: "role" }, async () => {
+  return withAudit<CreatedJob>(db, ctx, { action: "role.create", entity: "role" }, async () => {
     const companyId = await ownCompany(db, ctx);
     const jobId = globalThis.crypto.randomUUID();
-    const { error } = await db.from("roles").insert({ id: jobId, company_id: companyId, title, status, ...fields });
+    const { error } = await db.from("roles").insert({
+      id: jobId, company_id: companyId, title, status, ...fields, ...(department ? { department_id: department.id } : {}),
+    });
     if (error) throw new Error(error.message);
-    return { result: { jobId, title, status }, entityId: jobId, after: { title, status, ...fields }, changed: true };
+    if (offices.length) {
+      const { error: officeError } = await db
+        .from("job_offices").insert(offices.map((o) => ({ id: globalThis.crypto.randomUUID(), role_id: jobId, office_id: o.id })));
+      if (officeError) throw new Error(officeError.message);
+    }
+    if (openings) await insertOpenings(db, jobId, openings);
+    return {
+      result: { jobId, title, status, department: department?.name ?? null, offices: offices.map((o) => o.name), openings },
+      entityId: jobId,
+      after: {
+        title, status, ...fields,
+        ...(department ? { department_id: department.id } : {}),
+        ...(offices.length ? { office_ids: offices.map((o) => o.id) } : {}),
+        openings,
+      },
+      changed: true,
+    };
   });
 }
 
-type JobRow = { id: string; title: string; status: string; location: string | null; seniority: string | null; description: string | null };
+type JobRow = {
+  id: string; title: string; status: string; location: string | null; seniority: string | null; description: string | null;
+  department_id: string | null;
+};
 
 async function visibleJob(db: Db, jobId: string): Promise<JobRow> {
   const { data, error } = await db
-    .from("roles").select("id, title, status, location, seniority, description").eq("id", jobId).maybeSingle();
+    .from("roles").select("id, title, status, location, seniority, description, department_id").eq("id", jobId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new ClientToolError("not_found", "No job with that id that you can see. Call list_jobs for the ids.");
   return data;
@@ -105,12 +152,17 @@ async function canManage(db: Db, jobId: string): Promise<boolean> {
 
 export type JobChange = Partial<Omit<JobInput, "title">> & { title?: string };
 
+/**
+ * Changes what is given. `department` is an id or name, or null to clear;
+ * `offices` is the job's whole set of offices, [] for none. `changed` names
+ * the columns, plus "department" and "offices".
+ */
 export async function updateJob(
   db: Db,
   ctx: ClientToolCtx,
   input: { jobId: string } & JobChange,
 ): Promise<{ outcome: "updated" | "unchanged"; changed: string[] }> {
-  const next: Partial<Record<keyof JobRow, string | null>> = {};
+  const next: Partial<Record<Exclude<keyof JobRow, "id" | "department_id">, string | null>> = {};
   if (input.title !== undefined) {
     const title = clean(input.title, TITLE_MAX, "A title");
     if (!title) throw new ClientToolError("invalid", "A job needs a title.");
@@ -127,24 +179,68 @@ export async function updateJob(
 
   const job = await visibleJob(db, input.jobId);
   if (!(await canManage(db, job.id))) throw new ClientToolError("forbidden", "You can see that job but not change it. Ask an admin at your company.");
-  const changed = (Object.keys(next) as Array<keyof JobRow>).filter((k) => next[k] !== job[k]);
+  const columns = (Object.keys(next) as Array<keyof typeof next>).filter((k) => next[k] !== job[k]);
+  const patch: Record<string, string | null> = Object.fromEntries(columns.map((k) => [k, next[k] ?? null]));
+  const before: Record<string, unknown> = Object.fromEntries(columns.map((k) => [k, job[k]]));
+  const changed: string[] = [...columns];
+
+  if (input.department !== undefined) {
+    const department = input.department?.trim() ? await liveDepartment(db, input.department, job.department_id) : null;
+    if ((department?.id ?? null) !== job.department_id) {
+      patch.department_id = department?.id ?? null;
+      before.department_id = job.department_id;
+      changed.push("department");
+    }
+  }
+  let officesAdd: string[] = [];
+  let officesRemove: string[] = [];
+  if (input.offices !== undefined) {
+    const { data: current, error } = await db.from("job_offices").select("office_id").eq("role_id", job.id);
+    if (error) throw new Error(error.message);
+    const had = (current ?? []).map((o) => o.office_id);
+    const want = (await liveOffices(db, input.offices, had)).map((o) => o.id);
+    officesAdd = want.filter((id) => !had.includes(id));
+    officesRemove = had.filter((id) => !want.includes(id));
+    if (officesAdd.length || officesRemove.length) {
+      before.office_ids = had;
+      changed.push("offices");
+    }
+  }
   if (!changed.length) return { outcome: "unchanged", changed: [] };
 
-  const patch = Object.fromEntries(changed.map((k) => [k, next[k]]));
   return withAudit(db, ctx, { action: "role.update", entity: "role" }, async () => {
-    const { data, error } = await db
-      .from("roles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", job.id).select("id");
-    // 22023: the job_open approval gate (20261016110000_client_approvals) refused opening it.
-    if (error?.code === "22023") {
-      throw new ClientToolError("invalid", `Not saved: ${error.message}. request_approval with the job_id asks for it.`);
+    let ok = false;
+    if (Object.keys(patch).length) {
+      const { data, error } = await db
+        .from("roles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", job.id).select("id");
+      // 22023: the job_open approval gate (20261016110000_client_approvals) refused opening it.
+      if (error?.code === "22023") {
+        throw new ClientToolError("invalid", `Not saved: ${error.message}. request_approval with the job_id asks for it.`);
+      }
+      if (error) throw new Error(error.message);
+      ok = !!data?.length;
     }
-    if (error) throw new Error(error.message);
-    const ok = !!data?.length;
+    if (officesRemove.length) {
+      const { data, error } = await db
+        .from("job_offices").delete().eq("role_id", job.id).in("office_id", officesRemove).select("id");
+      if (error) throw new Error(error.message);
+      ok = ok || !!data?.length;
+    }
+    if (officesAdd.length) {
+      const { error } = await db
+        .from("job_offices").insert(officesAdd.map((id) => ({ id: globalThis.crypto.randomUUID(), role_id: job.id, office_id: id })));
+      // Someone added it first: the job is in that office either way.
+      if (error && error.code !== "23505") throw new Error(error.message);
+      ok = true;
+    }
     return {
       result: ok ? { outcome: "updated" as const, changed } : { outcome: "unchanged" as const, changed: [] },
       entityId: job.id,
-      before: Object.fromEntries(changed.map((k) => [k, job[k]])),
-      after: patch,
+      before,
+      after: {
+        ...patch,
+        ...(changed.includes("offices") ? { office_ids_added: officesAdd, office_ids_removed: officesRemove } : {}),
+      },
       changed: ok,
     };
   });

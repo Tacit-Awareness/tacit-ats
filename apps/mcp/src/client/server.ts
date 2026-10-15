@@ -192,19 +192,26 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "List jobs",
           description:
             "Your company's jobs that you can see, newest first, each with a job_id and (for the hiring " +
-            "team and admins) how many candidates are in it. status narrows to one status, e.g. open.",
-          inputSchema: z.object({ status: z.string().max(40).optional() }),
+            "team and admins) how many candidates are in it, its department, its offices and its openings " +
+            "(open, filled, closed). status narrows to one status, e.g. open; department (a name or id, " +
+            "including the departments inside it) and office (a name or id) narrow it further.",
+          inputSchema: z.object({
+            status: z.string().max(40).optional(),
+            department: z.string().min(1).max(100).optional(),
+            office: z.string().min(1).max(100).optional(),
+          }),
           annotations: { readOnlyHint: true },
         },
         (args) =>
           run("list_jobs", "read", args, async () => {
-            const jobs = await clientTools.listJobs(db, ctx, { status: args.status });
+            const jobs = await clientTools.listJobs(db, ctx, { status: args.status, department: args.department, office: args.office });
             return {
               summary: `${jobs.length} job${jobs.length === 1 ? "" : "s"}.`,
               data: {
                 jobs: jobs.map((j) => ({
                   job_id: j.jobId, title: j.title, status: j.status, location: j.location, level: j.seniority, candidates: j.inPipeline,
                   custom_fields: j.customFields.map(customFieldOut),
+                  department: j.department, offices: j.offices, openings: j.openings,
                 })),
               },
               candidateIds: [],
@@ -408,9 +415,19 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
               changed_since: `Not moved: someone changed it since; it is at ${r.stage} now. Ask the user again.`,
               reason_set: `Still ${r.stage}; the reason is now ${r.reason}.`,
             }[r.outcome];
+            const o = r.opening;
+            const hire = !o ? "" : ` That filled opening ${o.code ?? `#${o.number}`}; ` + (o.openLeft
+              ? `${o.openLeft} still open.`
+              : `none is left open${o.jobStatus === "filled" ? ", so the job is now filled" : ""}.`);
             return {
-              summary,
-              data: { outcome: r.outcome, application_id: args.application_id, stage: r.stage, rejection_reason: r.reason },
+              summary: summary + hire,
+              data: {
+                outcome: r.outcome, application_id: args.application_id, stage: r.stage, rejection_reason: r.reason,
+                // Only on a move to hired.
+                ...(r.opening !== undefined
+                  ? { opening: o ? { opening_id: o.openingId, number: o.number, code: o.code, open_left: o.openLeft, job_status: o.jobStatus } : null }
+                  : {}),
+              },
               candidateIds: [],
             };
           }),
@@ -465,21 +482,33 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Create a job",
           description:
             "Creates a job at your company (admins only), open unless status says otherwise. Returns its " +
-            "job_id; add the people who work it with add_to_hiring_team. Confirm the details with the user first.",
+            "job_id; add the people who work it with add_to_hiring_team. department is a name or id from " +
+            "list_departments, offices names or ids from list_offices. openings is how many people it hires " +
+            "(1 unless said; add_openings adds more later). Confirm the details with the user first.",
           inputSchema: z.object({
             title: z.string().min(1).max(200),
             status: z.enum(clientTools.JOB_STATUSES).optional(),
             location: z.string().max(200).optional(),
             level: z.string().max(200).optional(),
             description: z.string().max(20_000).optional(),
+            department: z.string().min(1).max(100).optional(),
+            offices: z.array(z.string().min(1).max(100)).max(20).optional(),
+            openings: z.number().int().min(0).max(clientTools.OPENINGS_ADD_MAX).optional(),
           }),
         },
         (args) =>
-          run("create_job", "write", { title: args.title, status: args.status }, async () => {
+          run("create_job", "write", { title: args.title, status: args.status, openings: args.openings }, async () => {
             const r = await clientTools.createJob(db, ctx, {
               title: args.title, status: args.status, location: args.location, seniority: args.level, description: args.description,
+              department: args.department, offices: args.offices, openings: args.openings,
             });
-            return { summary: `Created "${r.title}", ${r.status}.`, data: { job_id: r.jobId, title: r.title, status: r.status }, candidateIds: [] };
+            return {
+              summary: `Created "${r.title}", ${r.status}, with ${r.openings} opening${r.openings === 1 ? "" : "s"}.`,
+              data: {
+                job_id: r.jobId, title: r.title, status: r.status, department: r.department, offices: r.offices, openings: r.openings,
+              },
+              candidateIds: [],
+            };
           }),
       );
 
@@ -488,8 +517,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         {
           title: "Update a job",
           description:
-            `Changes a job's title, status (${clientTools.JOB_STATUSES.join(", ")}), location, level or ` +
-            "description. Only what you pass changes. Needs the right to manage that job. When the job has " +
+            `Changes a job's title, status (${clientTools.JOB_STATUSES.join(", ")}), location, level, ` +
+            "description, department (a name or id, null for none) or offices (names or ids: the job's " +
+            "whole set, [] for none). Only what you pass changes. Needs the right to manage that job. When the job has " +
             "a job_open approval flow, it opens only once its opening is approved (request_approval with " +
             "job_id). Tell the user what will change and wait for a yes.",
           inputSchema: z.object({
@@ -499,6 +529,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             location: z.string().max(200).nullable().optional(),
             level: z.string().max(200).nullable().optional(),
             description: z.string().max(20_000).nullable().optional(),
+            department: z.string().min(1).max(100).nullable().optional(),
+            offices: z.array(z.string().min(1).max(100)).max(20).optional(),
           }),
           annotations: { destructiveHint: true },
         },
@@ -507,6 +539,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const r = await clientTools.updateJob(db, ctx, {
               jobId: args.job_id, title: args.title, status: args.status,
               location: args.location, seniority: args.level, description: args.description,
+              department: args.department, offices: args.offices,
             });
             const changed = r.changed.map((c) => (c === "seniority" ? "level" : c));
             return {
@@ -1921,6 +1954,250 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+      // Departments, offices and openings (20261016130000_client_org_structure).
+      // Department and office names and opening codes are bare like job
+      // titles: an admin's own labels, passed back verbatim. A close reason
+      // is free text and fenced; so is the name of whoever filled an opening.
+      server.registerTool(
+        "list_departments",
+        {
+          title: "List departments",
+          description:
+            "Your company's departments, each with a department_id, its place (\"Engineering > Platform\") " +
+            "and how many of the jobs you can see are in it. include_archived adds the archived ones. Not " +
+            "available to interviewers.",
+          inputSchema: z.object({ include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_departments", "read", args, async () => {
+            const list = await clientTools.listDepartments(db, ctx, { includeArchived: args.include_archived });
+            return {
+              summary: `${list.length} department${list.length === 1 ? "" : "s"}.`,
+              data: {
+                departments: list.map((d) => ({
+                  department_id: d.departmentId, name: d.name, path: d.path, parent_id: d.parentId, archived: d.archived, jobs: d.jobs,
+                })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_department",
+        {
+          title: "Create a department",
+          description:
+            `Makes a department (at most ${clientTools.DEPARTMENT_NAME_MAX} characters), optionally inside ` +
+            "another (parent: a name or department_id). One already there under that name, ignoring case, " +
+            "is returned rather than duplicated, and an archived one is brought back. Admins only.",
+          inputSchema: z.object({
+            name: z.string().min(1).max(clientTools.DEPARTMENT_NAME_MAX),
+            parent: z.string().min(1).max(100).optional(),
+          }),
+        },
+        (args) =>
+          run("create_department", "write", args, async () => {
+            const r = await clientTools.createDepartment(db, ctx, { name: args.name, parent: args.parent });
+            const summary = {
+              created: "Department created.", exists: "That department already exists.", restored: "The archived department is back.",
+            }[r.outcome];
+            return { summary, data: { outcome: r.outcome, department_id: r.id, name: r.name, parent: r.parent }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "update_department",
+        {
+          title: "Update a department",
+          description:
+            "Renames a department (department: its name or department_id), moves it inside another (parent, " +
+            "null for the top level), or archives it (archived: true; its jobs keep it, and it goes on no new " +
+            "job) or brings it back (archived: false). Nothing deletes a department. Admins only. Tell the " +
+            "user what will change and wait for a yes.",
+          inputSchema: z.object({
+            department: z.string().min(1).max(100),
+            name: z.string().min(1).max(clientTools.DEPARTMENT_NAME_MAX).optional(),
+            parent: z.string().min(1).max(100).nullable().optional(),
+            archived: z.boolean().optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_department", "write", args, async () => {
+            const r = await clientTools.updateDepartment(db, ctx, {
+              department: args.department, name: args.name, parent: args.parent, archived: args.archived,
+            });
+            return {
+              summary: r.outcome === "updated" ? `Updated ${r.changed.join(", ")}.` : "Nothing to change.",
+              data: { outcome: r.outcome, department_id: r.departmentId, changed: r.changed },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_offices",
+        {
+          title: "List offices",
+          description:
+            "Your company's offices, each with an office_id, its location and how many of the jobs you can " +
+            "see are in it. include_archived adds the archived ones. Not available to interviewers.",
+          inputSchema: z.object({ include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_offices", "read", args, async () => {
+            const list = await clientTools.listOffices(db, ctx, { includeArchived: args.include_archived });
+            return {
+              summary: `${list.length} office${list.length === 1 ? "" : "s"}.`,
+              data: {
+                offices: list.map((o) => ({ office_id: o.officeId, name: o.name, location: o.location, archived: o.archived, jobs: o.jobs })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_office",
+        {
+          title: "Create an office",
+          description:
+            `Makes an office (a name of at most ${clientTools.OFFICE_NAME_MAX} characters, and an optional ` +
+            "location such as \"New York, NY\"). One already there under that name, ignoring case, is " +
+            "returned rather than duplicated, and an archived one is brought back. Admins only.",
+          inputSchema: z.object({
+            name: z.string().min(1).max(clientTools.OFFICE_NAME_MAX),
+            location: z.string().min(1).max(clientTools.OFFICE_LOCATION_MAX).optional(),
+          }),
+        },
+        (args) =>
+          run("create_office", "write", args, async () => {
+            const r = await clientTools.createOffice(db, ctx, { name: args.name, location: args.location });
+            const summary = {
+              created: "Office created.", exists: "That office already exists.", restored: "The archived office is back.",
+            }[r.outcome];
+            return { summary, data: { outcome: r.outcome, office_id: r.id, name: r.name }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "update_office",
+        {
+          title: "Update an office",
+          description:
+            "Renames an office (office: its name or office_id), changes its location (null clears it), or " +
+            "archives it (archived: true; its jobs keep it, and it goes on no new job) or brings it back. " +
+            "Nothing deletes an office. Admins only. Tell the user what will change and wait for a yes.",
+          inputSchema: z.object({
+            office: z.string().min(1).max(100),
+            name: z.string().min(1).max(clientTools.OFFICE_NAME_MAX).optional(),
+            location: z.string().max(clientTools.OFFICE_LOCATION_MAX).nullable().optional(),
+            archived: z.boolean().optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_office", "write", args, async () => {
+            const r = await clientTools.updateOffice(db, ctx, {
+              office: args.office, name: args.name, location: args.location, archived: args.archived,
+            });
+            return {
+              summary: r.outcome === "updated" ? `Updated ${r.changed.join(", ")}.` : "Nothing to change.",
+              data: { outcome: r.outcome, office_id: r.officeId, changed: r.changed },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      const openingOut = (o: clientTools.Opening) => ({
+        opening_id: o.openingId, number: o.number, code: o.code, status: o.status, target_start_date: o.targetStartDate,
+        close_reason: fence("close reason", o.closeReason), filled_by_application_id: o.filledByApplicationId,
+        filled_by_candidate_id: o.filledByCandidateId, filled_by: fence("name", o.filledByName),
+        filled_at: o.filledAt, closed_at: o.closedAt,
+      });
+
+      server.registerTool(
+        "list_openings",
+        {
+          title: "List a job's openings",
+          description:
+            "A job's openings, the people it is hiring (Greenhouse's headcount): each with an opening_id, " +
+            "its number on the job, your opening code if it has one, status (open, filled, closed), target " +
+            "start date, why it closed, and who filled it. Moving someone to hired fills the oldest open " +
+            "opening by itself, and the job becomes filled when none is left open. status narrows the list. " +
+            "For the hiring team and admins; not interviewers or external recruiters.",
+          inputSchema: z.object({ job_id: uuid("job_id"), status: z.enum(clientTools.OPENING_STATUSES).optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_openings", "read", args, async () => {
+            const j = await clientTools.listOpenings(db, ctx, { jobId: args.job_id, status: args.status });
+            const ids = j.openings.map((o) => o.filledByCandidateId).filter((id): id is string => !!id);
+            return {
+              summary: `${j.title}: ${j.counts.open} open, ${j.counts.filled} filled, ${j.counts.closed} closed.`,
+              data: { job_id: j.jobId, title: j.title, job_status: j.jobStatus, counts: j.counts, openings: j.openings.map(openingOut) },
+              candidateIds: [...new Set(ids)],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "add_openings",
+        {
+          title: "Add openings to a job",
+          description:
+            `Adds count openings to a job (1 to ${clientTools.OPENINGS_ADD_MAX}, 1 if not said), each with ` +
+            "your opening code if you give codes (one per opening, unique at your company) and an optional " +
+            "target_start_date (YYYY-MM-DD). It does not reopen a filled or closed job: update_job does. " +
+            "For admins and whoever manages the job. Confirm the count with the user first.",
+          inputSchema: z.object({
+            job_id: uuid("job_id"),
+            count: z.number().int().min(1).max(clientTools.OPENINGS_ADD_MAX).optional(),
+            codes: z.array(z.string().min(1).max(clientTools.OPENING_CODE_MAX)).max(clientTools.OPENINGS_ADD_MAX).optional(),
+            target_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "YYYY-MM-DD").optional(),
+          }),
+        },
+        (args) =>
+          run("add_openings", "write", args, async () => {
+            const r = await clientTools.addOpenings(db, ctx, {
+              jobId: args.job_id, count: args.count, codes: args.codes, targetStartDate: args.target_start_date,
+            });
+            const n = r.added.length;
+            const jobNote = r.jobStatus === "open" ? "" : ` The job is ${r.jobStatus}; update_job opens it again.`;
+            return {
+              summary: `Added ${n} opening${n === 1 ? "" : "s"}; ${r.counts.open} open now.${jobNote}`,
+              data: { job_id: r.jobId, job_status: r.jobStatus, counts: r.counts, added: r.added.map(openingOut) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "close_opening",
+        {
+          title: "Close an opening",
+          description:
+            "Closes one open opening (opening_id from list_openings) without a hire, with a reason (e.g. " +
+            "\"Budget moved to next year\"). A filled opening is not closed: moving its hire out of hired " +
+            "opens it again. Closing the last open opening does not change the job's status. For admins and " +
+            "whoever manages the job. Tell the user what will change and wait for a yes.",
+          inputSchema: z.object({ opening_id: uuid("opening_id"), reason: z.string().min(1).max(clientTools.CLOSE_REASON_MAX) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("close_opening", "write", { opening_id: args.opening_id }, async () => {
+            const r = await clientTools.closeOpening(db, ctx, { openingId: args.opening_id, reason: args.reason });
+            return {
+              summary: (r.outcome === "closed" ? `Closed opening #${r.number}.` : `Opening #${r.number} was already closed. Nothing changed.`) +
+                ` ${r.counts.open} still open on the job.`,
+              data: { outcome: r.outcome, opening_id: r.openingId, job_id: r.jobId, number: r.number, counts: r.counts },
+              candidateIds: [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -1930,7 +2207,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
         "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, " +
-        "update_email_template, update_custom_field or removing someone from a hiring team, tell the user exactly what will " +
+        "update_email_template, update_custom_field, update_department, update_office, close_opening or removing someone from a hiring team, tell the user exactly what will " +
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
         "the whole draft, then send_email only after their explicit yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +

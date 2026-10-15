@@ -15,6 +15,10 @@ async function refusal(promise: Promise<unknown>): Promise<ClientToolError> {
 }
 
 const lastFinish = (fake: FakeSupabase) => fake.calls.filter((c) => c.table === "client_finish_write").at(-1);
+const DEPT = "d0000000-0000-4000-8000-000000000001";
+const DEPT_2 = "d0000000-0000-4000-8000-000000000002";
+const OFFICE = "0f000000-0000-4000-8000-000000000001";
+const OFFICE_2 = "0f000000-0000-4000-8000-000000000002";
 
 describe("createJob", () => {
   test("only an admin, and nothing is read or claimed first", async () => {
@@ -29,9 +33,10 @@ describe("createJob", () => {
       { data: [] }, { data: { name: "Acme" } }, { data: null },
       { data: null },
       { data: null },
+      { data: null },
     ]);
     const job = await createJob(fake.asDb(), ctx(), { title: "  Founding Engineer ", location: "NYC" });
-    expect(job).toMatchObject({ title: "Founding Engineer", status: "open" });
+    expect(job).toMatchObject({ title: "Founding Engineer", status: "open", openings: 1, department: null, offices: [] });
 
     const company = fake.calls.find((c) => c.table === "companies" && c.op === "insert")!;
     const role = fake.calls.find((c) => c.table === "roles" && c.op === "insert")!;
@@ -43,6 +48,43 @@ describe("createJob", () => {
     expect(company.terminal).toBe("await");
     expect(role.terminal).toBe("await");
     expect(lastFinish(fake)?.args).toMatchObject({ p_entity_id: job.jobId, p_keep: true });
+    // One opening by default, its id made here and not read back.
+    const opening = fake.calls.find((c) => c.table === "openings" && c.op === "insert")!;
+    expect(opening.args).toEqual([{ id: expect.any(String), role_id: job.jobId }]);
+    expect(opening.terminal).toBe("await");
+  });
+
+  test("a department and offices by name, and several openings, in the one audited write", async () => {
+    const fake = new FakeSupabase([
+      { data: [{ id: DEPT, name: "Engineering", parent_id: null, archived_at: null }] },
+      { data: [{ id: OFFICE, name: "New York", location: "New York, NY", archived_at: null }] },
+      { data: "audit-1" },
+      { data: [{ id: "company-1" }] },
+      { data: null }, { data: null }, { data: null },
+      { data: null },
+    ]);
+    const job = await createJob(fake.asDb(), ctx(), { title: "SRE", department: "engineering", offices: ["new york", OFFICE], openings: 3 });
+    expect(job).toMatchObject({ department: "Engineering", offices: ["New York"], openings: 3 });
+    expect(fake.calls.find((c) => c.table === "roles" && c.op === "insert")?.args).toMatchObject({ department_id: DEPT });
+    expect(fake.calls.find((c) => c.table === "job_offices")?.args).toEqual([{ id: expect.any(String), role_id: job.jobId, office_id: OFFICE }]);
+    expect(fake.calls.find((c) => c.table === "openings")?.args).toHaveLength(3);
+    expect(lastFinish(fake)?.args).toMatchObject({ p_after: { department_id: DEPT, office_ids: [OFFICE], openings: 3 } });
+  });
+
+  test("an archived department, an unknown office or a bad count is refused before the claim", async () => {
+    const archived = new FakeSupabase([{ data: [{ id: DEPT, name: "Engineering", parent_id: null, archived_at: "2026-10-01T00:00:00Z" }] }]);
+    expect((await refusal(createJob(archived.asDb(), ctx(), { title: "SRE", department: "Engineering" }))).message).toMatch(/archived/);
+    const unknown = new FakeSupabase([{ data: [] }]);
+    expect((await refusal(createJob(unknown.asDb(), ctx(), { title: "SRE", offices: ["Mars"] }))).code).toBe("not_found");
+    const count = new FakeSupabase();
+    expect((await refusal(createJob(count.asDb(), ctx(), { title: "SRE", openings: 51 }))).code).toBe("invalid");
+    for (const f of [archived, unknown, count]) expect(f.calls.map((c) => c.table)).not.toContain("client_claim_write");
+  });
+
+  test("a job made closed gets no opening unless asked", async () => {
+    const fake = new FakeSupabase([{ data: "audit-1" }, { data: [{ id: "company-1" }] }, { data: null }, { data: null }]);
+    expect((await createJob(fake.asDb(), ctx(), { title: "Old role", status: "closed" })).openings).toBe(0);
+    expect(fake.calls.map((c) => c.table)).not.toContain("openings");
   });
 
   test("an empty title or an unknown status is refused before the claim", async () => {
@@ -68,6 +110,48 @@ describe("updateJob", () => {
     const fake = new FakeSupabase([{ data: JOB }, { data: true }]);
     expect(await updateJob(fake.asDb(), ctx(), { jobId: "role-1", status: "open" })).toEqual({ outcome: "unchanged", changed: [] });
     expect(fake.calls.map((c) => c.table)).toEqual(["roles", "can_on_role"]);
+  });
+
+  test("a department and the office set: only the difference is written, in one audited change", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...JOB, department_id: DEPT } }, { data: true },
+      { data: [{ id: DEPT, name: "Engineering", parent_id: null, archived_at: null }, { id: DEPT_2, name: "Platform", parent_id: DEPT, archived_at: null }] },
+      { data: [{ office_id: OFFICE }] },
+      { data: [
+        { id: OFFICE, name: "New York", location: null, archived_at: null },
+        { id: OFFICE_2, name: "Remote", location: null, archived_at: null },
+      ] },
+      { data: "audit-1" },
+      { data: [{ id: "role-1" }] },
+      { data: [{ id: "jo-1" }] },
+      { data: null },
+      { data: null },
+    ]);
+    const r = await updateJob(fake.asDb(), ctx(), { jobId: "role-1", department: "platform", offices: ["Remote"] });
+    expect(r).toEqual({ outcome: "updated", changed: ["department", "offices"] });
+    expect(fake.calls.find((c) => c.table === "roles" && c.op === "update")?.args).toMatchObject({ department_id: DEPT_2 });
+    const removed = fake.calls.find((c) => c.table === "job_offices" && c.op === "delete")!;
+    expect(removed.filters).toEqual([
+      { method: "eq", column: "role_id", value: "role-1" }, { method: "in", column: "office_id", value: [OFFICE] },
+    ]);
+    expect(fake.calls.find((c) => c.table === "job_offices" && c.op === "insert")?.args)
+      .toEqual([{ id: expect.any(String), role_id: "role-1", office_id: OFFICE_2 }]);
+    expect(lastFinish(fake)?.args).toMatchObject({
+      p_before: { department_id: DEPT, office_ids: [OFFICE] },
+      p_after: { department_id: DEPT_2, office_ids_added: [OFFICE_2], office_ids_removed: [OFFICE] },
+    });
+  });
+
+  test("the department it already has, even archived, and the same offices change nothing", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...JOB, department_id: DEPT } }, { data: true },
+      { data: [{ id: DEPT, name: "Engineering", parent_id: null, archived_at: "2026-10-01T00:00:00Z" }] },
+      { data: [{ office_id: OFFICE }] },
+      { data: [{ id: OFFICE, name: "New York", location: null, archived_at: "2026-10-01T00:00:00Z" }] },
+    ]);
+    expect(await updateJob(fake.asDb(), ctx(), { jobId: "role-1", department: DEPT, offices: ["New York"] }))
+      .toEqual({ outcome: "unchanged", changed: [] });
+    expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
   });
 
   test("seeing a job is not managing it", async () => {

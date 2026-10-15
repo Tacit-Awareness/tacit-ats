@@ -249,6 +249,8 @@ describe("the tools", () => {
       "list_email_templates", "create_email_template", "update_email_template", "draft_email", "send_email", "list_emails",
       "get_approval_flow", "set_approval_flow", "request_approval", "list_my_approvals", "approve", "reject",
       "list_custom_fields", "create_custom_field", "update_custom_field", "set_custom_field",
+      "list_departments", "create_department", "update_department", "list_offices", "create_office", "update_office",
+      "list_openings", "add_openings", "close_opening",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -270,6 +272,12 @@ describe("the tools", () => {
     expect(byName.request_approval).not.toMatchObject({ readOnlyHint: true });
     expect(byName.list_custom_fields).toMatchObject({ readOnlyHint: true });
     expect(byName.update_custom_field).toMatchObject({ destructiveHint: true });
+    for (const read of ["list_departments", "list_offices", "list_openings"]) {
+      expect(byName[read], read).toMatchObject({ readOnlyHint: true });
+    }
+    for (const change of ["update_department", "update_office", "close_opening"]) {
+      expect(byName[change], change).toMatchObject({ destructiveHint: true });
+    }
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {
