@@ -52,7 +52,7 @@ async function clear() {
   // org_id references orgs without a cascade: every row in these orgs goes first.
   for (const table of [
     "job_post_attempts", "application_answers", "job_posts",
-    "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
+    "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "eeoc_responses", "applications",
     "scorecard_attributes", "person_notes", "person_tags", "tags", "pool_memberships", "talent_pools", "people", "companies",
     "openings", "job_offices", "departments", "offices",
   ] as const) {
@@ -1636,5 +1636,160 @@ describe("duplicates, merging and erasure against real Postgres", () => {
 
     expect((await tool(ADA, "anonymize_candidate", { candidate_id: PAT, confirm: "ANONYMIZE Anonymized candidate" })).content[0].text)
       .toMatch(/already anonymized/);
+  });
+});
+
+describe("reports and EEO against real Postgres", () => {
+  const hoursFromNow = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+
+  test("the pipeline, source and time-to-hire reports count this company's candidates as the member's token reads them", async () => {
+    await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "interviewing", expected_stage: "screening" });
+    const hal = await ok(ADA, "add_candidate", { job_id: DESIGNER, name: "Hal Hire", source: "referral" });
+    await ok(ADA, "update_stage", { application_id: hal.application_id, stage: "hired" });
+
+    const pipeline = await ok(ADA, "pipeline_report", { job_id: ENGINEER });
+    expect(pipeline).toMatchObject({ job_id: ENGINEER, applications: 1, truncated: false });
+    const stage = (s: string) => pipeline.stages.find((x: { stage: string }) => x.stage === s);
+    expect(stage("interviewing")).toMatchObject({ now: 1, reached: 1 });
+    expect(stage("screening")).toMatchObject({ now: 0, reached: 1, conversion_to_next: 1, stays: 1 });
+
+    // Globex's application is not Acme's to count.
+    const sources = await ok(ADA, "source_report");
+    expect(sources).toMatchObject({ applications: 2, hired: 1 });
+    expect(sources.sources).toEqual(expect.arrayContaining([
+      { source: "referral", applications: 1, active: 0, hired: 1, rejected: 0, withdrawn: 0, hire_rate: 1 },
+    ]));
+
+    const hires = await ok(ADA, "time_to_hire", {});
+    expect(hires.hires).toBe(1);
+    expect(hires.jobs.map((j: { job_id: string; title: string }) => [j.job_id, j.title])).toEqual([[DESIGNER, "Designer"]]);
+    expect((await ok(ADA, "time_to_hire", { job_id: ENGINEER })).hires).toBe(0);
+    expect((await tool(ADA, "pipeline_report", { job_id: GLOBEX_ROLE })).content[0].text).toMatch(/No job with that id/);
+
+    expect((await tool(IVAN, "pipeline_report", {})).content[0].text).toMatch(/Reports are for the hiring team and admins/);
+  });
+
+  test("rejections are counted per reason, and offers by status", async () => {
+    const { reasons } = await ok(ADA, "list_rejection_reasons");
+    const skills = reasons.find((r: { name: string; kind: string }) => r.kind === "rejected" && r.name === "Skills or experience");
+    const offer = await ok(ADA, "create_offer", { application_id: PAT_APP, salary: 150000 });
+    await ok(ADA, "update_offer", { offer_id: offer.offer_id, status: "extended" });
+    await ok(ADA, "update_offer", { offer_id: offer.offer_id, status: "declined" });
+    await ok(ADA, "update_stage", { application_id: PAT_APP, stage: "rejected", rejection_reason_id: skills.rejection_reason_id });
+
+    const rejections = await ok(ADA, "rejection_report", {});
+    expect(rejections).toMatchObject({ rejected: 1, withdrawn: 0, reasons: [{ kind: "rejected", reason: "Skills or experience", applications: 1 }] });
+
+    const offers = await ok(ADA, "offer_report", {});
+    expect(offers).toMatchObject({ offers: 1, acceptance_rate: 0, by_status: { declined: 1 } });
+    expect(offers.days_to_answer.count).toBe(1);
+  });
+
+  test("interviewer activity: filed on time, for an admin, and not for an interviewer", async () => {
+    const past = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: hoursFromNow(-3), ends_at: hoursFromNow(-2), interviewer_user_ids: [INTERVIEWER],
+    });
+    await ok(IVAN, "submit_feedback", { interview_id: past.interview_id, recommendation: "yes", notes: "fine" });
+
+    const activity = await ok(ADA, "interviewer_activity", {});
+    // The upcoming interview has not ended, so it is not counted.
+    expect(activity.interviewers).toEqual([{
+      user_id: INTERVIEWER, name: "Ivan Interviewer", interviews: 1, feedback_filed: 1, on_time: 1, late: 0,
+      not_filed: 0, not_visible: 0, median_hours_to_feedback: expect.any(Number),
+    }]);
+    expect((await tool(IVAN, "interviewer_activity", {})).content[0].text).toMatch(/for admins and the people who manage a job/);
+  });
+
+  test("a paper EEO form is recorded by a manager on the job, never read back, and shows only in an admin's totals", async () => {
+    expect((await ok(ADA, "record_eeoc", { application_id: PAT_APP, gender: "female", race_ethnicity: "asian" })).outcome).toBe("recorded");
+    expect((await ok(ADA, "record_eeoc", { application_id: PAT_APP, gender: "female", veteran_status: "not_a_protected_veteran" })).outcome)
+      .toBe("replaced");
+    const { data: row } = await db().from("eeoc_responses")
+      .select("org_id, source, recorded_by_actor_id, gender, race_ethnicity, veteran_status").eq("application_id", PAT_APP).single();
+    expect(row).toEqual({
+      org_id: ACME, source: "paper", recorded_by_actor_id: ADMIN, gender: "female", race_ethnicity: null, veteran_status: "not_a_protected_veteran",
+    });
+    const { data: audit } = await db().from("audit_log").select("action, entity_id, after").eq("action", "eeoc.record");
+    expect(audit!.map((a) => [a.action, a.entity_id])).toEqual([["eeoc.record", PAT_APP], ["eeoc.record", PAT_APP]]);
+    expect(JSON.stringify(audit)).not.toMatch(/female|asian|veteran/);
+
+    // An interviewer records nothing; another company's application is not found.
+    expect((await tool(IVAN, "record_eeoc", { application_id: PAT_APP, gender: "male" })).content[0].text).toMatch(/Interviewers do not record/);
+    expect((await tool(ADA, "record_eeoc", { application_id: "c2d00000-0000-4000-8000-000000000001", gender: "male" })).content[0].text)
+      .toMatch(/No application with that id/);
+
+    // One response is too few to report.
+    expect(await ok(ADA, "eeoc_report", {})).toMatchObject({ applications: 1, responses: "<5", questions: [] });
+
+    // Five more candidates who answered online, as the apply path writes them.
+    const people = Array.from({ length: 5 }, (_, i) => `c1c00000-0000-4000-8000-0000000000e${i}`);
+    must(await db().from("people").insert(people.map((id, i) => ({
+      id, org_id: ACME, display_name: `EEO ${i}`, email: `eeo${i}@cand.test`, current_title: null, current_company: null,
+    }))));
+    const apps = people.map((_, i) => `c1d00000-0000-4000-8000-0000000000e${i}`);
+    must(await db().from("applications").insert(apps.map((id, i) => ({ id, org_id: ACME, person_id: people[i], role_id: ENGINEER, stage: "screening" }))));
+    must(await db().from("eeoc_responses").insert(apps.map((application_id) => ({ application_id, gender: "female" }))));
+    // The paper form can't overwrite a candidate's own answers.
+    expect((await tool(ADA, "record_eeoc", { application_id: apps[0], gender: "male" })).content[0].text).toMatch(/answered these questions themselves/);
+
+    const report = await ok(ADA, "eeoc_report", { job_id: ENGINEER });
+    expect(report).toMatchObject({ applications: 6, responses: 6, hired: "<5", min_cell: 5 });
+    const gender = report.questions.find((q: { question: string }) => q.question === "gender");
+    expect(gender.rows).toEqual([
+      { answer: "male", applicants: "<5", hired: "<5" },
+      { answer: "female", applicants: 6, hired: "<5" },
+      { answer: "decline_to_self_identify", applicants: "<5", hired: "<5" },
+      { answer: "not_answered", applicants: "<5", hired: "<5" },
+    ]);
+    const race = report.questions.find((q: { question: string }) => q.question === "race_ethnicity");
+    expect(race.rows.find((r: { answer: string }) => r.answer === "not_answered").applicants).toBe(6);
+
+    // Two of them are one person: after the merge the application that lost (and its answers) is not counted twice.
+    await ok(ADA, "merge_candidates", { keep_id: people[0], merge_id: people[1] });
+    expect(await ok(ADA, "eeoc_report", { job_id: ENGINEER })).toMatchObject({ applications: 5, responses: 5 });
+    expect((await ok(ADA, "pipeline_report", { job_id: ENGINEER })).applications).toBe(5);
+    expect((await db().from("eeoc_responses").select("id").eq("application_id", apps[1])).data).toHaveLength(1);
+
+    // A hiring manager on the job records forms but gets no report; nothing about a candidate carries EEO.
+    await ok(ADA, "add_to_hiring_team", { job_id: ENGINEER, user_id: INTERVIEWER, team_role: "hiring_manager" });
+    expect((await tool(IVAN, "eeoc_report", {})).content[0].text).toMatch(/EEO data is for admins at your company only/);
+    expect((await ok(IVAN, "record_eeoc", { application_id: PAT_APP, disability_status: "decline_to_self_identify" })).outcome).toBe("replaced");
+    for (const claims of [ADA, IVAN]) {
+      const card = await ok(claims, "get_candidate", { candidate_id: PAT });
+      expect(JSON.stringify(card)).not.toMatch(/eeo|gender|veteran|disability|decline_to_self_identify/i);
+    }
+  });
+
+  test("the public form's voluntary answers are the candidate's own, and erasing them takes them away", async () => {
+    const made = await ok(ADA, "create_job_post", { job_id: ENGINEER, location: "Remote" });
+    await ok(ADA, "set_job_post_status", { post_id: made.post_id, status: "live" });
+    const { data: post } = await db().from("job_posts").select("slug").eq("id", made.post_id).single();
+    const anon = createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () => null);
+    const apply = (name: string, email: string, eeoc?: Record<string, string>) =>
+      anon.rpc("submit_job_application", { p_slug: post!.slug, p_answers: { name, email }, ...(eeoc ? { p_eeoc: eeoc } : {}) });
+
+    expect((await apply("Bad", "bad@eeoc.test", { gender: "robot" })).error?.message).toBe("eeoc: invalid");
+    expect((await apply("Eda Eeoc", "eda@eeoc.test", { gender: "female", race_ethnicity: "asian", veteran_status: "decline_to_self_identify" })).data)
+      .toBe(true);
+    expect((await apply("Noe", "noe@eeoc.test")).data).toBe(true);
+    // The public key reads none of it.
+    expect((await anon.from("eeoc_responses").select("id")).error?.code).toBe("42501");
+
+    const { data: eda } = await db().from("people").select("id").eq("email", "eda@eeoc.test").single();
+    const { data: rows } = await db().from("eeoc_responses")
+      .select("source, recorded_by_actor_id, gender, race_ethnicity, veteran_status, disability_status, applications!inner(person_id)")
+      .eq("applications.person_id", eda!.id);
+    expect(rows).toEqual([{
+      source: "candidate", recorded_by_actor_id: null, gender: "female", race_ethnicity: "asian",
+      veteran_status: "decline_to_self_identify", disability_status: null, applications: { person_id: eda!.id },
+    }]);
+    expect((await db().from("people").select("id").eq("email", "bad@eeoc.test")).data).toEqual([]);
+    // A paper form never overwrites it.
+    const { data: app } = await db().from("applications").select("id").eq("person_id", eda!.id).single();
+    expect((await tool(ADA, "record_eeoc", { application_id: app!.id, gender: "male" })).content[0].text).toMatch(/answered these questions themselves/);
+
+    await ok(ADA, "anonymize_candidate", { candidate_id: eda!.id, confirm: "ANONYMIZE Eda Eeoc" });
+    expect((await db().from("eeoc_responses").select("id").eq("application_id", app!.id)).data).toEqual([]);
+    expect((await db().from("applications").select("id").eq("id", app!.id)).data).toHaveLength(1);
   });
 });

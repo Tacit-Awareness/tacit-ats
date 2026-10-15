@@ -18,6 +18,56 @@ export const HONEYPOT_FIELD = "website";
 export const ANSWER_PREFIX = "a_";
 export const FORM_MAX_BYTES = 200_000;
 
+/**
+ * Voluntary self-identification (US EEO-1, VEVRAA, Section 503), apart from
+ * the post's questions: fields eeoc_<question>, each defaulting to "decline
+ * to self-identify" on the page. submit_job_application writes them on the
+ * new application with source 'candidate' (packages/db,
+ * 20261016170000_client_reports_eeoc); no one at the company reads one
+ * person's answers, only an admin's totals.
+ */
+export const EEOC_PREFIX = "eeoc_";
+export const DECLINE = "decline_to_self_identify";
+export const EEOC_QUESTIONS: ReadonlyArray<{ key: string; label: string; options: ReadonlyArray<readonly [string, string]> }> = [
+  {
+    key: "gender",
+    label: "Gender",
+    options: [["female", "Female"], ["male", "Male"], [DECLINE, "I decline to self-identify"]],
+  },
+  {
+    key: "race_ethnicity",
+    label: "Race / ethnicity",
+    options: [
+      ["hispanic_or_latino", "Hispanic or Latino"],
+      ["white", "White (not Hispanic or Latino)"],
+      ["black_or_african_american", "Black or African American (not Hispanic or Latino)"],
+      ["native_hawaiian_or_other_pacific_islander", "Native Hawaiian or Other Pacific Islander (not Hispanic or Latino)"],
+      ["asian", "Asian (not Hispanic or Latino)"],
+      ["american_indian_or_alaska_native", "American Indian or Alaska Native (not Hispanic or Latino)"],
+      ["two_or_more_races", "Two or more races (not Hispanic or Latino)"],
+      [DECLINE, "I decline to self-identify"],
+    ],
+  },
+  {
+    key: "veteran_status",
+    label: "Veteran status",
+    options: [
+      ["protected_veteran", "I identify as one or more of the classifications of protected veteran"],
+      ["not_a_protected_veteran", "I am not a protected veteran"],
+      [DECLINE, "I decline to self-identify"],
+    ],
+  },
+  {
+    key: "disability_status",
+    label: "Disability status",
+    options: [
+      ["has_disability", "Yes, I have a disability (or previously had one)"],
+      ["no_disability", "No, I do not have a disability"],
+      [DECLINE, "I decline to self-identify"],
+    ],
+  },
+];
+
 export type PublicQuestion = {
   id: string;
   type: "name" | "email" | "phone" | "linkedin" | "resume" | "short_text" | "long_text" | "yes_no" | "select";
@@ -78,20 +128,40 @@ export function applyOutcome(error: { code?: string; message?: string } | null):
   return { status: "failed" };
 }
 
-/** The answers object submit_job_application takes, from the posted form: only a_<id> fields, as text. */
-export function answersFromForm(form: FormData): { answers: Record<string, string>; honeypot: string } {
+/**
+ * The answers object submit_job_application takes, from the posted form: only
+ * a_<id> fields, as text; the honeypot; and the EEO answers apart (only the
+ * four eeoc_ fields, as text; the database checks the values).
+ */
+export function answersFromForm(form: FormData): {
+  answers: Record<string, string>;
+  honeypot: string;
+  eeoc: Record<string, string>;
+} {
   const answers: Record<string, string> = {};
   for (const [key, value] of form.entries()) {
     if (typeof value !== "string" || !key.startsWith(ANSWER_PREFIX)) continue;
     answers[key.slice(ANSWER_PREFIX.length)] = value;
   }
+  const eeoc: Record<string, string> = {};
+  for (const q of EEOC_QUESTIONS) {
+    const value = form.get(`${EEOC_PREFIX}${q.key}`);
+    if (typeof value === "string" && value !== "") eeoc[q.key] = value;
+  }
   const honeypot = form.get(HONEYPOT_FIELD);
-  return { answers, honeypot: typeof honeypot === "string" ? honeypot : "" };
+  return { answers, honeypot: typeof honeypot === "string" ? honeypot : "", eeoc };
 }
 
-export async function submitApplication(slug: string, answers: Record<string, string>, honeypot: string): Promise<ApplyOutcome> {
+export async function submitApplication(
+  slug: string,
+  answers: Record<string, string>,
+  honeypot: string,
+  eeoc: Record<string, string> = {},
+): Promise<ApplyOutcome> {
   if (!SLUG.test(slug)) return { status: "not_found" };
-  const { error } = await anonDb().rpc("submit_job_application", { p_slug: slug, p_answers: answers, p_honeypot: honeypot });
+  const { error } = await anonDb().rpc("submit_job_application", {
+    p_slug: slug, p_answers: answers, p_honeypot: honeypot, ...(Object.keys(eeoc).length ? { p_eeoc: eeoc } : {}),
+  });
   const outcome = applyOutcome(error);
   if (outcome.status === "failed") console.error("[jobs] an application failed:", error?.code, error?.message);
   return outcome;

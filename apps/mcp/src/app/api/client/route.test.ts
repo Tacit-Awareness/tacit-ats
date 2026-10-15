@@ -254,6 +254,8 @@ describe("the tools", () => {
       "add_prospect", "convert_prospect", "list_pools", "create_pool", "archive_pool", "add_to_pool", "remove_from_pool", "list_pool",
       "list_job_posts", "create_job_post", "update_job_post", "set_job_post_status", "list_applications_inbox",
       "find_duplicates", "merge_candidates", "anonymize_candidate",
+      "pipeline_report", "source_report", "time_to_hire", "rejection_report", "interviewer_activity", "offer_report",
+      "eeoc_report", "record_eeoc",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -287,6 +289,10 @@ describe("the tools", () => {
     for (const change of ["archive_pool", "remove_from_pool"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
     for (const read of ["list_job_posts", "list_applications_inbox"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     expect(byName.set_job_post_status).toMatchObject({ destructiveHint: true });
+    for (const read of [
+      "pipeline_report", "source_report", "time_to_hire", "rejection_report", "interviewer_activity", "offer_report", "eeoc_report",
+    ]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
+    expect(byName.record_eeoc).toMatchObject({ destructiveHint: true });
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {
@@ -563,5 +569,47 @@ describe("duplicates, merging and erasure", () => {
     expect(byName.anonymize_candidate).toMatch(/cannot be undone/);
     expect(byName.anonymize_candidate).toMatch(/"ANONYMIZE "/);
     expect(byName.merge_candidates).toMatch(/wait for their yes/);
+  });
+});
+
+describe("reports and EEO", () => {
+  const APP = "55555555-5555-4555-8555-555555555555";
+  const call = async (name: string, args: Record<string, unknown>, over: Partial<Deps> = {}) =>
+    result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps(over)));
+
+  test("an interviewer gets no reports, before the database is asked", async () => {
+    fakeDb.level = "limited";
+    for (const name of ["pipeline_report", "source_report", "time_to_hire", "rejection_report", "offer_report"]) {
+      const out = await call(name, {});
+      expect(out.isError, name).toBe(true);
+      expect(out.content[0].text, name).toMatch(/Reports are for the hiring team and admins/);
+    }
+    expect((await call("interviewer_activity", {})).content[0].text).toMatch(/for admins and the people who manage a job/);
+  });
+
+  test("the EEO report is for admins only", async () => {
+    fakeDb.level = "elevated";
+    const out = await call("eeoc_report", {});
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toMatch(/EEO data is for admins at your company only/);
+    expect(audits).toEqual([{ tool: "eeoc_report", ok: false, actorId: ACTOR }]);
+  });
+
+  test("record_eeoc keeps the answers out of the call log, and an interviewer cannot record", async () => {
+    fakeDb.level = "limited";
+    const logged: unknown[] = [];
+    const out = await call(
+      "record_eeoc",
+      { application_id: APP, gender: "female", race_ethnicity: "asian" },
+      { audit: async (e) => void logged.push(e.args) },
+    );
+    expect(out.content[0].text).toMatch(/Interviewers do not record EEO forms/);
+    expect(logged).toEqual([{ application_id: APP }]);
+  });
+
+  test("an answer outside the EEO-1 categories never reaches a handler", async () => {
+    const out = await call("record_eeoc", { application_id: APP, gender: "robot" });
+    expect(out.isError).toBe(true);
+    expect(audits).toEqual([]);
   });
 });

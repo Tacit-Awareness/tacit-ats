@@ -24,8 +24,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   } catch {
     return back({ error: "invalid" });
   }
-  const { answers, honeypot } = answersFromForm(form);
-  const outcome = await submitApplication(slug, answers, honeypot);
+  const { answers, honeypot, eeoc } = answersFromForm(form);
+  const outcome = await submitApplication(slug, answers, honeypot, eeoc);
   switch (outcome.status) {
     case "ok":
       return back({ applied: "1" });

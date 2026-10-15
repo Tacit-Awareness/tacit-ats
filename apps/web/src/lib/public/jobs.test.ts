@@ -10,6 +10,7 @@ describe("applyOutcome", () => {
     expect(applyOutcome({ code: "22023", message: "email: invalid" })).toEqual({ status: "invalid", reason: "invalid", questionId: "email" });
     expect(applyOutcome({ code: "22023", message: "answers: unknown" })).toEqual({ status: "invalid", reason: "invalid", questionId: null });
     expect(applyOutcome({ code: "42501", message: "permission denied" })).toEqual({ status: "failed" });
+    expect(applyOutcome({ code: "22023", message: "eeoc: invalid" })).toEqual({ status: "invalid", reason: "invalid", questionId: null });
   });
 });
 
@@ -21,6 +22,18 @@ describe("answersFromForm", () => {
     form.set("website", "");
     form.set("other", "ignored");
     form.set("a_resume", new Blob(["x"]));
-    expect(answersFromForm(form)).toEqual({ answers: { name: "Nia", q_why12: "Hard problems." }, honeypot: "" });
+    expect(answersFromForm(form)).toEqual({ answers: { name: "Nia", q_why12: "Hard problems." }, honeypot: "", eeoc: {} });
+  });
+
+  test("keeps the voluntary EEO answers apart from the post's questions, and only the four known fields", () => {
+    const form = new FormData();
+    form.set("a_name", "Nia");
+    form.set("eeoc_gender", "female");
+    form.set("eeoc_race_ethnicity", "decline_to_self_identify");
+    form.set("eeoc_veteran_status", "");
+    form.set("eeoc_shoe_size", "9");
+    expect(answersFromForm(form)).toEqual({
+      answers: { name: "Nia" }, honeypot: "", eeoc: { gender: "female", race_ethnicity: "decline_to_self_identify" },
+    });
   });
 });

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ANSWER_PREFIX, HONEYPOT_FIELD, readJobPost, type PublicQuestion } from "@/lib/public/jobs";
+import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, readJobPost, type PublicQuestion } from "@/lib/public/jobs";
 
 // A client's public job post and its application form (packages/db,
 // 20261016150000_client_job_posts). Public on purpose: proxy.ts exempts
@@ -126,6 +126,28 @@ export default async function JobPostPage({
           {post.questions.map((question) => (
             <Question key={question.id} q={question} />
           ))}
+          {/* Voluntary EEO self-identification, apart from the application's questions. */}
+          <fieldset className="space-y-4 rounded-md border border-border p-4">
+            <legend className="px-1 text-sm font-medium">Voluntary self-identification</legend>
+            <p className="text-sm text-muted-foreground">
+              {post.company} invites applicants to self-identify for equal employment opportunity reporting.
+              Answering is optional and does not affect your application: the hiring team never sees your
+              answers, which are only counted in anonymous totals. Leave any question at &ldquo;I decline to
+              self-identify&rdquo;.
+            </p>
+            {EEOC_QUESTIONS.map((q) => (
+              <label key={q.key} className="block space-y-1.5">
+                <span className="text-sm font-medium">{q.label}</span>
+                <select name={`${EEOC_PREFIX}${q.key}`} defaultValue={DECLINE} className={`${field} h-9 py-1`}>
+                  {q.options.map(([value, text]) => (
+                    <option key={value} value={value}>
+                      {text}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </fieldset>
           {/* For bots only: hidden from people and from assistive tech. */}
           <div aria-hidden className="absolute -left-[10000px] h-px w-px overflow-hidden">
             <label>

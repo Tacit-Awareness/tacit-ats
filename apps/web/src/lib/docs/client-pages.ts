@@ -535,6 +535,28 @@ For admins only. A merge folds one candidate record into another: notes, files, 
 | \`merge_candidates\` | Fold a duplicate into the record you keep | Admins | Yes, naming both |
 | \`anonymize_candidate\` | Permanently erase a candidate's personal data | Admins | Yes, naming them |
 
+## Reports
+
+Each report counts only what you can see: an admin the whole company, the hiring team the jobs they are on. Give \`since\` as a date (YYYY-MM-DD) to narrow it. Merged duplicates are not counted twice, and erased candidates still count, without names.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`pipeline_report\` | Per stage: how many are there now, how many got that far, conversion to the next stage, average days in it | Hiring team, admins | |
+| \`source_report\` | Per source: applications, still active, hired, rejected, withdrawn, hire rate | Hiring team, admins | |
+| \`time_to_hire\` | Median and average days from added to hired, and from a job's creation to its first hire | Hiring team, admins | |
+| \`rejection_report\` | Closed applications per rejection or withdrawal reason | Hiring team, admins | |
+| \`interviewer_activity\` | Per interviewer: interviews done, feedback filed on time (within 24 hours), late or missing | Admins, job managers | |
+| \`offer_report\` | Offers by status, acceptance rate, days to an answer | Job managers | |
+
+## EEOC
+
+Candidates can answer the voluntary US equal-opportunity questions (gender, race / ethnicity, veteran status, disability status) when they apply through a job post, with "I decline to self-identify" on each. **Nobody at your company can see one person's answers**, admins included: they exist only as totals, and any count under five shows as "<5". Erasing a candidate deletes their answers.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`eeoc_report\` | Totals per answer, for applicants and hires, small counts hidden | Admins | |
+| \`record_eeoc\` | Type in a paper form a candidate filled in; you cannot read it back | Job managers | Yes |
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |

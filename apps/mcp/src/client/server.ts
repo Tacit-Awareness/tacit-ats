@@ -2703,6 +2703,267 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      // Reports: counts over what the member's own token reads, so each one
+      // covers exactly the jobs and candidates that member can see.
+      const since = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "since is a date, YYYY-MM-DD").optional();
+      const reportScope = (r: { jobId: string | null; since: string | null; truncated: boolean }) => ({
+        job_id: r.jobId, since: r.since ? r.since.slice(0, 10) : null, truncated: r.truncated,
+      });
+      const dayStatsOut = (s: clientTools.DayStats) => ({ count: s.count, median_days: s.medianDays, avg_days: s.avgDays });
+      const SCOPE_HELP =
+        "It counts only what you can see: an admin the whole company, a hiring-team member their jobs. " +
+        "since (YYYY-MM-DD) narrows it; truncated: true means the company is past what one report reads " +
+        `(${clientTools.REPORT_SCAN_MAX} rows), so narrow it with since or a job.`;
+
+      server.registerTool(
+        "pipeline_report",
+        {
+          title: "Pipeline report",
+          description:
+            "Per stage: how many candidates are there now, how many got at least that far, the conversion " +
+            "to the next stage (0 to 1; a skipped stage counts as passed), and the average days spent in the " +
+            "stage. For one job (job_id) or every job you can see; since counts candidates added since that " +
+            `day. ${SCOPE_HELP} Not available to interviewers.`,
+          inputSchema: z.object({ job_id: uuid("job_id").optional(), since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("pipeline_report", "read", args, async () => {
+            const r = await clientTools.pipelineReport(db, ctx, { jobId: args.job_id, since: args.since });
+            return {
+              summary: `${r.applications} application${r.applications === 1 ? "" : "s"}${r.truncated ? " (truncated)" : ""}.`,
+              data: {
+                ...reportScope(r),
+                applications: r.applications,
+                stages: r.stages.map((s) => ({
+                  stage: s.stage, now: s.now, reached: s.reached, conversion_to_next: s.conversionToNext,
+                  avg_days_in_stage: s.avgDaysInStage, stays: s.stays,
+                })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "source_report",
+        {
+          title: "Source report",
+          description:
+            "Per source (how candidates came in: sourced, referral, agency, job_board, ...): applications, " +
+            "how many are still active, hired, rejected and withdrawn, and the hire rate (0 to 1). since " +
+            `counts candidates added since that day. ${SCOPE_HELP} Not available to interviewers.`,
+          inputSchema: z.object({ since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("source_report", "read", args, async () => {
+            const r = await clientTools.sourceReport(db, ctx, { since: args.since });
+            return {
+              summary: `${r.applications} application${r.applications === 1 ? "" : "s"}, ${r.hired} hired${r.truncated ? " (truncated)" : ""}.`,
+              data: {
+                ...reportScope(r),
+                applications: r.applications,
+                hired: r.hired,
+                sources: r.sources.map((s) => ({
+                  source: s.source, applications: s.applications, active: s.active, hired: s.hired,
+                  rejected: s.rejected, withdrawn: s.withdrawn, hire_rate: s.hireRate,
+                })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "time_to_hire",
+        {
+          title: "Time to hire",
+          description:
+            "Median and average days from a candidate being added to being hired, and from a job being " +
+            "created to its first hire (with each job listed). A hire is a candidate at hired now, dated by " +
+            "when they were moved there. For one job (job_id) or every job you can see; since counts hires " +
+            `made since that day. ${SCOPE_HELP} Not available to interviewers.`,
+          inputSchema: z.object({ job_id: uuid("job_id").optional(), since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("time_to_hire", "read", args, async () => {
+            const r = await clientTools.timeToHire(db, ctx, { jobId: args.job_id, since: args.since });
+            return {
+              summary: r.hires
+                ? `${r.hires} hire${r.hires === 1 ? "" : "s"}; median ${r.applicationToHire.medianDays} days from added to hired.`
+                : "No hires in range.",
+              data: {
+                ...reportScope(r),
+                hires: r.hires,
+                application_to_hire: dayStatsOut(r.applicationToHire),
+                job_open_to_first_hire: dayStatsOut(r.jobOpenToFirstHire),
+                jobs: r.jobs.map((j) => ({ job_id: j.jobId, title: j.title, opened_at: j.openedAt, first_hire_at: j.firstHireAt, days: j.days })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "rejection_report",
+        {
+          title: "Rejection report",
+          description:
+            "Candidates closed now as rejected (the company passed) or withdrawn (they did), counted per " +
+            "reason; reason null means closed without one. since counts those closed since that day. " +
+            `${SCOPE_HELP} Not available to interviewers.`,
+          inputSchema: z.object({ since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("rejection_report", "read", args, async () => {
+            const r = await clientTools.rejectionReport(db, ctx, { since: args.since });
+            return {
+              summary: `${r.rejected} rejected, ${r.withdrawn} withdrawn${r.truncated ? " (truncated)" : ""}.`,
+              data: {
+                ...reportScope(r),
+                rejected: r.rejected,
+                withdrawn: r.withdrawn,
+                // Reason names are the org's own vocabulary, like job titles: bare.
+                reasons: r.reasons.map((x) => ({ kind: x.kind, reason: x.reason, applications: x.applications })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "interviewer_activity",
+        {
+          title: "Interviewer activity",
+          description:
+            "Per interviewer: interviews that have ended (not cancelled) since the date given, feedback filed, " +
+            `on time (within ${clientTools.FEEDBACK_ON_TIME_HOURS} hours of the interview's end) or late, not filed, ` +
+            "and the median hours to file. not_visible counts filings your company's feedback setting hides " +
+            "from you. For admins (every job) and a job's hiring manager or recruiter (the jobs they manage).",
+          inputSchema: z.object({ since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("interviewer_activity", "read", args, async () => {
+            const r = await clientTools.interviewerActivity(db, ctx, { since: args.since });
+            return {
+              summary: `${r.interviewers.length} interviewer${r.interviewers.length === 1 ? "" : "s"}${r.truncated ? " (truncated)" : ""}.`,
+              data: {
+                ...reportScope(r),
+                on_time_hours: r.onTimeHours,
+                interviewers: r.interviewers.map((i) => ({
+                  user_id: i.userId, name: i.name, interviews: i.interviews, feedback_filed: i.feedbackFiled,
+                  on_time: i.onTime, late: i.late, not_filed: i.notFiled, not_visible: i.notVisible,
+                  median_hours_to_feedback: i.medianHoursToFeedback,
+                })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "offer_report",
+        {
+          title: "Offer report",
+          description:
+            "Offers by status (draft, extended, accepted, declined, withdrawn), the acceptance rate " +
+            "(accepted / (accepted + declined)) and the days from extending an offer to its answer. Only " +
+            "offers on jobs you manage count. since counts offers drafted since that day. Not available to interviewers.",
+          inputSchema: z.object({ since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("offer_report", "read", args, async () => {
+            const r = await clientTools.offerReport(db, ctx, { since: args.since });
+            return {
+              summary: `${r.offers} offer${r.offers === 1 ? "" : "s"}${r.acceptanceRate === null ? "" : `, ${Math.round(r.acceptanceRate * 100)}% accepted`}.`,
+              data: {
+                ...reportScope(r),
+                offers: r.offers,
+                by_status: r.byStatus,
+                acceptance_rate: r.acceptanceRate,
+                days_to_answer: dayStatsOut(r.daysToAnswer),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "eeoc_report",
+        {
+          title: "EEO report",
+          description:
+            "Totals of candidates' voluntary EEO self-identification (gender, race / ethnicity, veteran " +
+            "status, disability status), per answer, for applicants and hires. Admins only. Never an " +
+            `individual's answers: any count under ${clientTools.EEOC_MIN_CELL} shows as "<5", and a count ` +
+            "that would give one away shows as \"hidden\"; with fewer than five responses there is no " +
+            "breakdown at all. For one job (job_id) or all; since counts candidates added since that day.",
+          inputSchema: z.object({ job_id: uuid("job_id").optional(), since }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("eeoc_report", "read", args, async () => {
+            const r = await clientTools.eeocReport(db, ctx, { jobId: args.job_id, since: args.since });
+            return {
+              summary: r.questions.length
+                ? `${r.responses} of ${r.applications} applications answered.`
+                : "Too few responses to report without identifying anyone.",
+              data: {
+                ...reportScope(r),
+                applications: r.applications,
+                responses: r.responses,
+                hired: r.hired,
+                min_cell: r.minCell,
+                questions: r.questions,
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "record_eeoc",
+        {
+          title: "Record a paper EEO form",
+          description:
+            "Types in the voluntary EEO form a candidate filled in on paper, for one application " +
+            "(application_id). Every answer is optional, with decline_to_self_identify on each; a later " +
+            "paper form replaces the earlier one whole, and a candidate who answered online keeps their own " +
+            "answers. Nobody can read the answers back, you included: they only appear in eeoc_report's " +
+            "totals. For the people who manage the job (an admin, its hiring manager or recruiter). Only " +
+            "enter what the candidate wrote; never guess or infer an answer. Confirm with the user first.",
+          inputSchema: z.object({
+            application_id: uuid("application_id"),
+            gender: z.enum(clientTools.EEOC_GENDERS).optional(),
+            race_ethnicity: z.enum(clientTools.EEOC_RACES).optional(),
+            veteran_status: z.enum(clientTools.EEOC_VETERAN).optional(),
+            disability_status: z.enum(clientTools.EEOC_DISABILITY).optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          // The answers stay out of the call log.
+          run("record_eeoc", "write", { application_id: args.application_id }, async () => {
+            const r = await clientTools.recordEeoc(db, ctx, {
+              applicationId: args.application_id,
+              gender: args.gender,
+              raceEthnicity: args.race_ethnicity,
+              veteranStatus: args.veteran_status,
+              disabilityStatus: args.disability_status,
+            });
+            return {
+              summary: r.outcome === "replaced" ? "Paper EEO form recorded, replacing the earlier one." : "Paper EEO form recorded.",
+              data: { outcome: r.outcome, application_id: r.applicationId },
+              candidateIds: [],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -2722,7 +2983,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "candidate's personal data and keeps only their applications' stages and dates. Interview feedback is private to the hiring team: never put it " +
         "in a message to a candidate. Offer terms are confidential: share them only with the user. " +
         "Approvals: before set_approval_flow, approve or reject, tell the user exactly what they are " +
-        "setting, approving or rejecting and wait for their yes; never approve or reject on your own.\n\n" +
+        "setting, approving or rejecting and wait for their yes; never approve or reject on your own. " +
+        "EEO answers are voluntary and confidential: they exist here only as eeoc_report's totals; never " +
+        "guess or infer anyone's, and confirm before record_eeoc.\n\n" +
         UNTRUSTED_PREAMBLE,
     },
   );

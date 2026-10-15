@@ -88,3 +88,16 @@ export { anonymizeCandidate, confirmationFor, findDuplicates, linkedinKey, merge
 export type {
   AnonymizeResult, DuplicateCandidate, DuplicateGroup, DuplicateReason, Duplicates, MergeResult,
 } from "./merge.js";
+export {
+  FEEDBACK_ON_TIME_HOURS, REPORT_SCAN_MAX,
+  interviewerActivity, offerReport, pipelineReport, rejectionReport, sourceReport, timeToHire,
+} from "./reports.js";
+export type {
+  DayStats, InterviewerActivity, InterviewerRow, JobFirstHire, OfferReport, PipelineReport, RejectionReport, RejectionRow,
+  SourceReport, SourceRow, StageRow, TimeToHire,
+} from "./reports.js";
+export {
+  EEOC_DISABILITY, EEOC_GENDERS, EEOC_MIN_CELL, EEOC_RACES, EEOC_VETERAN,
+  eeocReport, recordEeoc,
+} from "./eeoc.js";
+export type { EeocAnswers, EeocCell, EeocQuestion, EeocReport, EeocRow } from "./eeoc.js";
