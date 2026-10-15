@@ -1,3 +1,4 @@
+import { connector, type clientTools } from "@tacit/core";
 import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
 
 /**
@@ -46,4 +47,28 @@ export function clientMcpConfig(env: Record<string, string | undefined> = proces
     publishableKey,
     signer: parseTacitSigningKey(rawKey, env.SUPABASE_TACIT_SIGNING_KEY_ID?.trim() || undefined),
   };
+}
+
+/** The address client email goes out From when CLIENT_EMAIL_FROM is unset: Tacit's own domain, verified in Resend. */
+export const DEFAULT_CLIENT_EMAIL_FROM = "hiring@tacitawareness.com";
+const PLAIN_EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
+
+/**
+ * How the client connector's candidate email is delivered. Null turns it off
+ * (CLIENT_EMAIL_DISABLED set, or a CLIENT_EMAIL_FROM that is not an address):
+ * draft_email and send_email then refuse in a sentence, and templates still
+ * work. Without RESEND_API_KEY drafts are written and send_email says sending
+ * is not set up. Every email is From CLIENT_EMAIL_FROM (a Tacit-controlled
+ * address, since a client's own domain is not one Tacit can send from) under
+ * the member's name, with Reply-To the member's own address.
+ */
+export function clientMailer(env: Record<string, string | undefined> = process.env): clientTools.ClientMailer | null {
+  if (env.CLIENT_EMAIL_DISABLED?.trim()) return null;
+  const fromAddress = env.CLIENT_EMAIL_FROM?.trim() || DEFAULT_CLIENT_EMAIL_FROM;
+  if (!PLAIN_EMAIL.test(fromAddress)) {
+    console.error("[client-mcp] CLIENT_EMAIL_FROM is not an email address; candidate email is off");
+    return null;
+  }
+  const apiKey = env.RESEND_API_KEY?.trim();
+  return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress };
 }

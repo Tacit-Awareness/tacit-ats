@@ -4,6 +4,7 @@ import { getRolePipeline, type PipelineCard } from "../pipeline/pipeline.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
+import { emailsFor, type CandidateEmail } from "./email.js";
 
 export type JobView = {
   jobId: string;
@@ -179,6 +180,8 @@ export type CandidateDetail = {
   notes: CandidateNote[];
   /** The files the member can read: an interviewer, only the resume. */
   files: CandidateFile[];
+  /** Emails to them the member can read (sent ones, and their own drafts); empty for an interviewer. */
+  emails: CandidateEmail[];
 };
 
 async function notesFor(db: Db, ctx: ClientToolCtx, personId: string): Promise<CandidateNote[]> {
@@ -228,6 +231,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       applications: [],
       notes: await notesFor(db, ctx, candidateId),
       files: await filesFor(db, candidateId),
+      emails: [],
     };
   }
 
@@ -289,6 +293,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
     })),
     notes: await notesFor(db, ctx, candidateId),
     files: await filesFor(db, candidateId),
+    emails: await emailsFor(db, ctx, candidateId),
   };
 }
 

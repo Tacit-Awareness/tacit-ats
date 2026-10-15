@@ -44,12 +44,14 @@ let deps: Parameters<typeof handleClientRequest>[1];
 const workos = { sent: [] as Array<{ email: string; organizationId: string; inviterUserId?: string }>, revoked: [] as string[] };
 /** The stand-in for Storage (CI's stack has no storage service): what was stored, and what was signed. */
 const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: string }>(), signed: [] as string[], failPut: false };
+/** The stand-in for Resend: every email handed to it. */
+const mail = { sent: [] as Array<{ from: string; replyTo: string; to: string; subject: string; text: string; idempotencyKey: string }> };
 
 async function clear() {
   const ids = [ACME, GLOBEX];
   // org_id references orgs without a cascade: every row in these orgs goes first.
   for (const table of [
-    "audit_log", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
+    "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
     "scorecard_attributes", "person_notes", "person_tags", "tags", "people", "companies",
   ] as const) {
     must(await db().from(table).delete().in("org_id", ids));
@@ -114,6 +116,13 @@ beforeAll(async () => {
         return `https://storage.test/object/sign/org-files/${path}?expires=${seconds}`;
       },
     },
+    email: {
+      fromAddress: "hiring@tacitawareness.test",
+      send: async (email) => {
+        mail.sent.push(email);
+        return { id: `re_${mail.sent.length}` };
+      },
+    },
   };
 });
 
@@ -130,6 +139,7 @@ beforeEach(async () => {
   storage.objects.clear();
   storage.signed.length = 0;
   storage.failPut = false;
+  mail.sent.length = 0;
   await clear();
   must(await db().from("orgs").insert([
     { id: ACME, name: "Acme", slug: "itest-client-acme", kind: "client", workos_org_id: "org_itest_acme" },
@@ -963,5 +973,91 @@ describe("sources, tags and activity against real Postgres", () => {
     });
 
     expect((await tool(ADA, "get_activity", { candidate_id: SECRET_PERSON })).content[0].text).toMatch(/No candidate with that id/);
+  });
+});
+
+describe("candidate email against real Postgres", () => {
+  const SCREEN = {
+    name: "Screen invite",
+    subject: "{{job_title}} at {{company_name}}",
+    body: "Hi {{candidate_first_name}},\n\nCould we talk this week?\n\n{{sender_first_name}}",
+  };
+
+  test("a template, a draft from it for one job, one send, and the email on the candidate's record", async () => {
+    const made = await ok(ADA, "create_email_template", SCREEN);
+    expect((await ok(ADA, "list_email_templates")).templates).toHaveLength(1);
+    expect((await tool(ADA, "create_email_template", { ...SCREEN, name: "screen INVITE" })).content[0].text).toMatch(/already exists/);
+
+    const draft = await ok(ADA, "draft_email", { candidate_id: PAT, application_id: PAT_APP, template: "screen invite" });
+    expect(draft).toMatchObject({
+      candidate_id: PAT, application_id: PAT_APP, template_id: made.template_id, to: "pat@cand.test",
+      from: '"Ada Admin at Acme" <hiring@tacitawareness.test>', reply_to: "ada@acme.test",
+    });
+    expect(draft.subject).toContain("Founding Engineer at Acme");
+    expect(draft.body).toContain("Hi Pat,");
+    expect(mail.sent).toEqual([]);
+    const { data: row } = await db().from("candidate_emails").select("org_id, author_actor_id, status, body").eq("id", draft.draft_id).single();
+    expect(row).toEqual({ org_id: ACME, author_actor_id: ADMIN, status: "draft", body: "Hi Pat,\n\nCould we talk this week?\n\nAda" });
+
+    const sent = await ok(ADA, "send_email", { draft_id: draft.draft_id });
+    expect(sent).toMatchObject({ email_id: draft.draft_id, status: "sent", to: "pat@cand.test" });
+    expect(mail.sent).toEqual([{
+      from: '"Ada Admin at Acme" <hiring@tacitawareness.test>', replyTo: "ada@acme.test", to: "pat@cand.test",
+      subject: "Founding Engineer at Acme", text: row!.body, idempotencyKey: draft.draft_id,
+    }]);
+    // Twice is still once.
+    expect((await tool(ADA, "send_email", { draft_id: draft.draft_id })).content[0].text).toMatch(/already sent/);
+    expect(mail.sent).toHaveLength(1);
+    const { data: after } = await db().from("candidate_emails").select("status, provider_id, sent_at").eq("id", draft.draft_id).single();
+    expect(after).toMatchObject({ status: "sent", provider_id: "re_1" });
+    expect(after!.sent_at).toBeTruthy();
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    expect(card.emails).toMatchObject([{ email_id: draft.draft_id, status: "sent", by: "Ada Admin", yours: true }]);
+    const { emails } = await ok(ADA, "list_emails", { candidate_id: PAT });
+    expect(emails[0].body).toContain("Could we talk");
+    const { activity } = await ok(ADA, "get_activity", { candidate_id: PAT });
+    expect(activity.find((e: { kind: string }) => e.kind === "email")).toMatchObject({ ref_id: draft.draft_id, by: "Ada Admin", job: "Founding Engineer" });
+    const { data: touched } = await db().from("application_events").select("kind").eq("application_id", PAT_APP).eq("kind", "touched");
+    expect(touched).toHaveLength(1);
+
+    // The audit rows say who, to whom and from which template; never what it said.
+    const { data: audit } = await db().from("audit_log").select("action, after").eq("actor_id", ADMIN).like("action", "email%");
+    expect(audit!.map((a) => a.action).sort()).toEqual(["email.draft", "email.send", "email_template.create"]);
+    expect(JSON.stringify(audit)).not.toMatch(/Could we talk|Founding Engineer at/);
+  });
+
+  test("an archived template drafts nothing, and is kept", async () => {
+    await ok(ADA, "create_email_template", SCREEN);
+    expect((await ok(ADA, "update_email_template", { template: "Screen invite", archived: true })).archived).toBe(true);
+    expect((await ok(ADA, "list_email_templates")).templates).toEqual([]);
+    expect((await ok(ADA, "list_email_templates", { include_archived: true })).templates).toHaveLength(1);
+    expect((await tool(ADA, "draft_email", { candidate_id: PAT, application_id: PAT_APP, template: "Screen invite" })).content[0].text)
+      .toMatch(/archived/);
+  });
+
+  test("an interviewer emails no one; another company's candidate and a stranger's address are refused", async () => {
+    expect((await tool(IVAN, "draft_email", { candidate_id: PAT, subject: "Hi", body: "Hello" })).content[0].text).toMatch(/Interviewers do not email/);
+    expect((await tool(IVAN, "list_email_templates")).isError).toBe(true);
+    expect((await tool(ADA, "draft_email", { candidate_id: SECRET_PERSON, subject: "Hi", body: "Hello" })).content[0].text)
+      .toMatch(/No candidate with that id/);
+    expect((await tool(ADA, "draft_email", { candidate_id: PAT, subject: "Hi", body: "Hello", to_email: "boss@evil.test" })).content[0].text)
+      .toMatch(/not on file/);
+    const { count } = await db().from("candidate_emails").select("*", { count: "exact", head: true }).in("org_id", [ACME, GLOBEX]);
+    expect(count).toBe(0);
+    expect(mail.sent).toEqual([]);
+  });
+
+  test("a member's 31st send in an hour is refused by the database, and nothing goes out", async () => {
+    must(await db().from("candidate_emails").insert(Array.from({ length: 30 }, (_, i) => ({
+      person_id: PAT, author_actor_id: ADMIN, to_email: "pat@cand.test", subject: `Earlier ${i}`, body: "x",
+    }))));
+    must(await db().from("candidate_emails").update({ status: "sending" }).eq("author_actor_id", ADMIN));
+    const draft = await ok(ADA, "draft_email", { candidate_id: PAT, subject: "One more", body: "Hello" });
+    const refused = await tool(ADA, "send_email", { draft_id: draft.draft_id });
+    expect(refused.content[0].text).toMatch(/30 emails in the last hour/);
+    expect(mail.sent).toEqual([]);
+    const { data } = await db().from("candidate_emails").select("status").eq("id", draft.draft_id).single();
+    expect(data!.status).toBe("draft");
   });
 });

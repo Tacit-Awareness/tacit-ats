@@ -36,6 +36,11 @@ export type ClientHandlerDeps = {
    * member's own client has read or inserted the row. Null = the file tools refuse.
    */
   files: clientTools.FileStore | null;
+  /**
+   * Candidate email's delivery (config.ts clientMailer: Resend, From a Tacit
+   * address under the member's name). Null = draft_email and send_email refuse.
+   */
+  email: clientTools.ClientMailer | null;
 };
 
 /**
@@ -116,10 +121,23 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     next_action_due: c.nextActionDue,
     needs_attention: c.stalled,
   });
+  // A subject is the member's or a template's text, with the candidate's name filled in: fenced.
+  const emailOut = (e: clientTools.CandidateEmail) => ({
+    email_id: e.emailId, status: e.status, to: e.to, subject: fence("subject", e.subject), by: e.author, yours: e.mine,
+    application_id: e.applicationId, template_id: e.templateId, created_at: e.createdAt, sent_at: e.sentAt,
+  });
   // A filename is the uploader's text: fenced.
   const fileOut = (f: clientTools.CandidateFile) => ({
     file_id: f.fileId, kind: f.kind, filename: fence("filename", f.filename), content_type: f.contentType,
     size_bytes: f.sizeBytes, uploaded_by: f.uploadedBy, uploaded_at: f.uploadedAt,
+  });
+
+  const PLACEHOLDER_HELP =
+    "Placeholders Tacit fills in: " +
+    Object.entries(clientTools.EMAIL_PLACEHOLDERS).map(([k, v]) => `{{${k}}} (${v})`).join(", ") + ".";
+  const templateOut = (t: clientTools.EmailTemplate) => ({
+    template_id: t.templateId, name: fence("template", t.name), subject: fence("subject", t.subject),
+    body: fence("body", t.body), archived: t.archived, updated_at: t.updatedAt,
   });
 
   return createMcpHandler(
@@ -248,7 +266,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             "One candidate by candidate_id: their profile, their tags, the jobs they are in (application_id, " +
             "stage, how they came in, next action, why they closed, and the latest offer if you manage the " +
-            "job), the team's notes and their files (file_id for get_file_link). get_activity has their " +
+            "job), the team's notes, their files (file_id for get_file_link) and the emails sent to them " +
+            "(list_emails has the bodies). get_activity has their " +
             "history. An interviewer gets the name, headline and LinkedIn of someone they interview, their " +
             "resume, and their own notes.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
@@ -278,6 +297,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 })),
                 notes: c.notes.map((n) => ({ note_id: n.noteId, text: fence("note", n.text), author: n.author, created_at: n.createdAt, yours: n.mine })),
                 files: c.files.map(fileOut),
+                emails: c.emails.map(emailOut),
               },
               candidateIds: [c.candidateId],
             };
@@ -1211,7 +1231,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             "One candidate's history, newest first (limit, default 30): when they were added to each job " +
             "and how they came in, stage moves with the reason they closed, owner and next-action changes, " +
             "the team's notes, interviews scheduled, done or cancelled, offers drafted, extended and closed " +
-            "(status only; get_offers has the terms), and tags put on them, each with who did it. Only what " +
+            "(status only; get_offers has the terms), tags put on them and emails sent to them (kind email, " +
+            "the subject as text), each with who did it. Only what " +
             "you can read appears. An interviewer gets their own notes and the interviews they are on.",
           inputSchema: z.object({
             candidate_id: uuid("candidate_id"),
@@ -1340,6 +1361,176 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "list_email_templates",
+        {
+          title: "List email templates",
+          description:
+            "Your company's email templates, each with a template_id, its subject and body. include_archived " +
+            "adds the archived ones. Use one with draft_email. Not available to interviewers. " + PLACEHOLDER_HELP,
+          inputSchema: z.object({ include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_email_templates", "read", args, async () => {
+            const templates = await clientTools.listEmailTemplates(db, ctx, { includeArchived: args.include_archived });
+            return {
+              summary: `${templates.length} template${templates.length === 1 ? "" : "s"}.`,
+              data: { templates: templates.map(templateOut), placeholders: clientTools.EMAIL_PLACEHOLDERS },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_email_template",
+        {
+          title: "Create an email template",
+          description:
+            "Makes an email template your team can use with draft_email: a name (unique, ignoring case), a " +
+            "one-line subject and a body. Admins only. " + PLACEHOLDER_HELP,
+          inputSchema: z.object({
+            name: z.string().min(1).max(clientTools.TEMPLATE_NAME_MAX),
+            subject: z.string().min(1).max(clientTools.EMAIL_SUBJECT_MAX),
+            body: z.string().min(1).max(clientTools.EMAIL_BODY_MAX),
+          }),
+        },
+        (args) =>
+          // The subject and body stay out of the call log, like a note's text.
+          run("create_email_template", "write", { name: args.name }, async () => {
+            const r = await clientTools.createEmailTemplate(db, ctx, { name: args.name, subject: args.subject, body: args.body });
+            return {
+              summary: "Template made.",
+              data: { template_id: r.templateId, name: fence("template", r.name) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "update_email_template",
+        {
+          title: "Change or archive an email template",
+          description:
+            "Changes an email template (its name or template_id): a new name, subject or body, or archived: " +
+            "true to retire it (it is kept, and drafts already written from it are untouched) or false to " +
+            "bring it back. Templates are never deleted. Admins only. Tell the user what will change and wait " +
+            "for a yes first. " + PLACEHOLDER_HELP,
+          inputSchema: z.object({
+            template: z.string().min(1).max(clientTools.TEMPLATE_NAME_MAX),
+            name: z.string().min(1).max(clientTools.TEMPLATE_NAME_MAX).optional(),
+            subject: z.string().min(1).max(clientTools.EMAIL_SUBJECT_MAX).optional(),
+            body: z.string().min(1).max(clientTools.EMAIL_BODY_MAX).optional(),
+            archived: z.boolean().optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("update_email_template", "write", { ...args, subject: undefined, body: undefined }, async () => {
+            const r = await clientTools.updateEmailTemplate(db, ctx, {
+              template: args.template, name: args.name, subject: args.subject, body: args.body, archived: args.archived,
+            });
+            return {
+              summary: r.outcome === "updated" ? `Template changed: ${r.changed.join(", ")}.` : "Nothing to change.",
+              data: { outcome: r.outcome, template_id: r.templateId, name: fence("template", r.name), archived: r.archived, changed: r.changed },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "draft_email",
+        {
+          title: "Draft an email to a candidate",
+          description:
+            "Writes a draft email to a candidate (candidate_id) and sends nothing: from a template (its name " +
+            "or template_id, from list_email_templates) or from a subject and body you write from what the " +
+            "user asked for (given with a template, they replace its subject or body). application_id ties it " +
+            "to one of their jobs and fills {{job_title}}. It goes to their email on file, or to_email when " +
+            "that is another address on file for them. It is From your name at a Tacit address, and replies " +
+            "come to your own email. Never put interview feedback, scorecards, offer terms or private notes " +
+            "in it. Show the user the returned to, subject and full body exactly, then send it with " +
+            "send_email only once they say yes; to change it, draft again. Needs the right to change the " +
+            "candidate; interviewers cannot email candidates. " + PLACEHOLDER_HELP,
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            application_id: uuid("application_id").optional(),
+            template: z.string().min(1).max(clientTools.TEMPLATE_NAME_MAX).optional(),
+            subject: z.string().min(1).max(clientTools.EMAIL_SUBJECT_MAX).optional(),
+            body: z.string().min(1).max(clientTools.EMAIL_BODY_MAX).optional(),
+            to_email: z.string().max(320).optional(),
+          }),
+        },
+        (args) =>
+          run("draft_email", "write", { ...args, subject: undefined, body: undefined }, async () => {
+            const r = await clientTools.draftEmail(db, ctx, deps.email, {
+              candidateId: args.candidate_id, applicationId: args.application_id, template: args.template,
+              subject: args.subject, body: args.body, toEmail: args.to_email,
+            });
+            return {
+              summary:
+                "Draft written; nothing has been sent. Show the user the whole email below and call send_email " +
+                "with this draft_id only after they say to send it.",
+              data: {
+                draft_id: r.draftId, candidate_id: r.candidateId, application_id: r.applicationId, template_id: r.templateId,
+                from: r.from, reply_to: r.replyTo, to: r.to, subject: fence("subject", r.subject), body: fence("body", r.body),
+              },
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "send_email",
+        {
+          title: "Send a drafted email",
+          description:
+            "Sends one draft from draft_email (draft_id) to the candidate, exactly as drafted. Only its author " +
+            "can send it, once; it is then on the candidate's record (get_candidate, list_emails, " +
+            "get_activity). Call this only after showing the user the draft and hearing an explicit yes. " +
+            `At most ${clientTools.CLIENT_SENDS_PER_HOUR} sends an hour.`,
+          inputSchema: z.object({ draft_id: uuid("draft_id") }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("send_email", "write", args, async () => {
+            const r = await clientTools.sendEmail(db, ctx, deps.email, { draftId: args.draft_id });
+            return {
+              summary: `Sent to ${r.to}.`,
+              data: {
+                email_id: r.emailId, candidate_id: r.candidateId, application_id: r.applicationId, to: r.to,
+                subject: fence("subject", r.subject), status: r.status, sent_at: r.sentAt,
+              },
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_emails",
+        {
+          title: "List a candidate's emails",
+          description:
+            "The emails to one candidate (candidate_id) that you can read, newest first, with their bodies: " +
+            "every one sent or being sent, and your own drafts. Each has its status (draft, sending, sent, " +
+            "failed), who wrote it and when it went. Not available to interviewers.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_emails", "read", args, async () => {
+            const emails = await clientTools.listEmails(db, ctx, { candidateId: args.candidate_id });
+            return {
+              summary: `${emails.length} email${emails.length === 1 ? "" : "s"}.`,
+              data: {
+                candidate_id: args.candidate_id,
+                emails: emails.map((e) => ({ ...emailOut(e), body: fence("body", e.body) })),
+              },
+              candidateIds: [args.candidate_id],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -1348,8 +1539,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
-        "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag or removing someone " +
-        "from a hiring team, tell the user exactly what will change and wait for a yes. Nothing here " +
+        "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, " +
+        "update_email_template or removing someone from a hiring team, tell the user exactly what will " +
+        "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
+        "the whole draft, then send_email only after their explicit yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
         "in a message to a candidate. Offer terms are confidential: share them only with the user.\n\n" +
         UNTRUSTED_PREAMBLE,

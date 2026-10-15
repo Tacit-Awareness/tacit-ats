@@ -35,3 +35,11 @@ export { ACTIVITY_DEFAULT, getActivity } from "./activity.js";
 export type { Activity, ActivityEntry, ActivityKind } from "./activity.js";
 export { TAG_NAME_MAX, archiveTag, createTag, listTags, tagCandidate, untagCandidate } from "./tags.js";
 export type { CreateTagResult, Tag, TagResult } from "./tags.js";
+export {
+  CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, TEMPLATE_NAME_MAX,
+  createEmailTemplate, draftEmail, listEmailTemplates, listEmails, sendEmail, updateEmailTemplate,
+} from "./email.js";
+export type {
+  CandidateEmail, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
+  TemplateChange,
+} from "./email.js";

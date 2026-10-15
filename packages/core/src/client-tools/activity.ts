@@ -5,7 +5,7 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 /**
  * One candidate's activity, newest first, for the client connector: their
  * pipeline history (application_events), the team's notes, their interviews,
- * their offers and the tags put on them. Each is read with the member's own
+ * their offers, the tags put on them and the emails sent to them. Each is read with the member's own
  * client, so what the member's token cannot read simply does not appear: a
  * private note they may not see, a job they have no access to, an offer on a
  * job they do not manage. Nothing here filters by org or level beyond
@@ -30,7 +30,8 @@ export type ActivityKind =
   | "note"
   | "interview.scheduled" | "interview.done" | "interview.cancelled"
   | "offer.drafted" | "offer.extended" | "offer.accepted" | "offer.declined" | "offer.withdrawn"
-  | "tag.added";
+  | "tag.added"
+  | "email";
 
 export type ActivityEntry = {
   at: string;
@@ -48,12 +49,12 @@ export type ActivityEntry = {
   people: string[];
   /**
    * Member-written or candidate-derived text: a note, a next action, a
-   * rejection reason, a source detail, an interview step, a tag.
+   * rejection reason, a source detail, an interview step, a tag, an email's subject.
    */
   text: string | null;
   /** When an interview is (interview entries). */
   startsAt: string | null;
-  /** The note, interview, offer or tag the entry is about. */
+  /** The note, interview, offer, tag or email the entry is about. */
   refId: string | null;
 };
 
@@ -170,7 +171,7 @@ export async function getActivity(
   const detailOf = (applicationId: string) => (apps ?? []).find((a) => a.id === applicationId)?.source_detail ?? null;
 
   const none = Promise.resolve({ data: [], error: null });
-  const [events, interviews, offers, tags, noteRows] = await Promise.all([
+  const [events, interviews, offers, tags, noteRows, emails] = await Promise.all([
     appIds.length
       ? db.from("application_events").select("id, application_id, actor_id, kind, from_stage, to_stage, detail, created_at")
         .in("application_id", appIds).order("created_at", { ascending: false }).limit(limit)
@@ -186,8 +187,11 @@ export async function getActivity(
     db.from("person_tags").select("id, added_by_actor_id, created_at, tags(name)").eq("person_id", input.candidateId)
       .order("created_at", { ascending: false }).limit(limit),
     notesQuery(db, input.candidateId, limit),
+    // Sent emails only: a draft is its author's, and not something that happened.
+    db.from("candidate_emails").select("id, application_id, author_actor_id, subject, sent_at").eq("person_id", input.candidateId)
+      .eq("status", "sent").order("sent_at", { ascending: false }).limit(limit),
   ]);
-  for (const r of [events, interviews, offers, tags, noteRows]) if (r.error) throw new Error(r.error.message);
+  for (const r of [events, interviews, offers, tags, noteRows, emails]) if (r.error) throw new Error(r.error.message);
   const notes: NoteRow[] = noteRows.data ?? [];
 
   type EventRow = {
@@ -203,6 +207,8 @@ export async function getActivity(
   const interviewRows = (interviews.data ?? []) as InterviewRow[];
   const offerRows = (offers.data ?? []) as OfferRow[];
   const tagRows = (tags.data ?? []) as unknown as TagRow[];
+  type EmailRow = { id: string; application_id: string | null; author_actor_id: string | null; subject: string; sent_at: string | null };
+  const emailRows = ((emails.data ?? []) as EmailRow[]).filter((e) => e.sent_at);
 
   const names = await memberNames(db, [
     ...eventRows.map((e) => e.actor_id),
@@ -210,6 +216,7 @@ export async function getActivity(
     ...offerRows.map((o) => o.created_by_actor_id),
     ...tagRows.map((t) => t.added_by_actor_id),
     ...notes.map((n) => n.actor_id),
+    ...emailRows.map((e) => e.author_actor_id),
   ]);
   const nameOf = (id: string | null) => (id ? (names.get(id) ?? null) : null);
 
@@ -238,6 +245,10 @@ export async function getActivity(
     }),
     ...tagRows.map((t) => entry({ at: t.created_at, kind: "tag.added", actor: nameOf(t.added_by_actor_id), text: t.tags?.name ?? null, refId: t.id })),
     ...noteEntries(notes, names),
+    ...emailRows.map((e) => entry({
+      at: e.sent_at!, kind: "email", actor: nameOf(e.author_actor_id), applicationId: e.application_id,
+      jobTitle: e.application_id ? jobOf(e.application_id) : null, text: e.subject, refId: e.id,
+    })),
   ];
   return { candidateId: input.candidateId, full: true, entries: newestFirst(entries, limit) };
 }

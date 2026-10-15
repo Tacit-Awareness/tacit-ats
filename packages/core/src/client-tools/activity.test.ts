@@ -5,7 +5,7 @@ import { getActivity } from "./activity.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 
 /**
- * The activity feed's own logic with the database scripted: how the five
+ * The activity feed's own logic with the database scripted: how the six
  * reads are merged, ordered, cut to the limit and named. What each read
  * returns is the policies' call, pinned against real Postgres in apps/mcp's
  * client.integration.test.ts.
@@ -49,6 +49,8 @@ describe("getActivity", () => {
       { data: [{ id: "of-1", application_id: "app-1", status: "withdrawn", created_by_actor_id: "actor-1", created_at: "2026-10-08T00:00:00Z", extended_at: "2026-10-09T00:00:00Z", resolved_at: "2026-10-12T12:00:00Z" }] },
       { data: [{ id: "pt-1", added_by_actor_id: "actor-2", created_at: "2026-10-02T00:00:00Z", tags: { name: "Strong" } }] },
       { data: [{ id: "n-1", text: "Great call", actor_id: "actor-2", created_at: "2026-10-06T00:00:00Z" }] },
+      // candidate_emails: sent ones only, the subject as text
+      { data: [{ id: "em-1", application_id: "app-1", author_actor_id: "actor-1", subject: "Next steps", sent_at: "2026-10-07T00:00:00Z" }] },
       { data: [{ id: "actor-1", display_name: "Ada Admin" }, { id: "actor-2", display_name: "Ivan Interviewer" }] },
     ]);
     const a = await getActivity(fake.asDb(), ctx(), { candidateId: "p-1" });
@@ -59,6 +61,7 @@ describe("getActivity", () => {
       ["interview.cancelled", null],
       ["offer.extended", null],
       ["offer.drafted", "Ada Admin"],
+      ["email", "Ada Admin"],
       ["note", "Ivan Interviewer"],
       ["interview.scheduled", null],
       ["application.owner_changed", "Ada Admin"],
@@ -71,8 +74,10 @@ describe("getActivity", () => {
     expect(a.entries.find((e) => e.kind === "application.owner_changed")).toMatchObject({ people: ["Ivan"], text: null });
     expect(a.entries.find((e) => e.kind === "interview.scheduled")).toMatchObject({ people: ["Ivan Interviewer"], text: "Onsite", startsAt: INTERVIEW.starts_at });
     expect(a.entries.find((e) => e.kind === "tag.added")).toMatchObject({ text: "Strong", refId: "pt-1" });
+    expect(a.entries.find((e) => e.kind === "email")).toMatchObject({ text: "Next steps", refId: "em-1", jobTitle: "Founding Engineer" });
+    expect(fake.calls[7]).toMatchObject({ table: "candidate_emails", filters: expect.arrayContaining([{ method: "eq", column: "status", value: "sent" }]) });
     // Each source asks for at most the limit, newest first.
-    for (const call of fake.calls.slice(2, 7)) expect(call.modifiers).toContainEqual({ method: "limit", value: 30 });
+    for (const call of fake.calls.slice(2, 8)) expect(call.modifiers).toContainEqual({ method: "limit", value: 30 });
   });
 
   test("cut to the limit after merging; no applications means no pipeline reads", async () => {
@@ -84,10 +89,11 @@ describe("getActivity", () => {
         { id: "n-2", text: "second", actor_id: null, created_at: "2026-10-02T00:00:00Z" },
         { id: "n-1", text: "first", actor_id: null, created_at: "2026-10-01T00:00:00Z" },
       ] },
+      { data: [] },
     ]);
     const a = await getActivity(fake.asDb(), ctx("elevated"), { candidateId: "p-1", limit: 1 });
     expect(a.entries.map((e) => e.refId)).toEqual(["n-2"]);
-    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes"]);
+    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes", "candidate_emails"]);
   });
 
   test("an interviewer gets their own interviews with this candidate and their notes, through my_interviews", async () => {

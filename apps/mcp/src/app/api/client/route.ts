@@ -1,7 +1,7 @@
 // Relative and without ".js": see the note in api/mcp/route.ts.
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
-import { clientMcpConfig } from "../../../client/config";
+import { clientMailer, clientMcpConfig } from "../../../client/config";
 import { putFile, signFileUrl } from "../../../client/files";
 import { handleClientRequest } from "../../../client/handler";
 
@@ -20,6 +20,8 @@ async function handle(request: Request): Promise<Response> {
     breadth: clientBreadthExceeded,
     // Set where the private org-files bucket does not exist yet: the file tools then refuse.
     files: process.env.CLIENT_FILES_DISABLED ? null : { put: putFile, signedUrl: signFileUrl },
+    // CLIENT_EMAIL_DISABLED set: draft_email and send_email refuse. No RESEND_API_KEY: drafts only.
+    email: clientMailer(),
   });
 }
 

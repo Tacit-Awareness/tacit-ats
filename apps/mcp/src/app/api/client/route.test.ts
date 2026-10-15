@@ -242,17 +242,18 @@ describe("the tools", () => {
       "list_files", "get_file_link", "add_file",
       "get_scorecard", "set_scorecard",
       "get_activity", "list_tags", "create_tag", "tag_candidate", "untag_candidate", "archive_tag",
+      "list_email_templates", "create_email_template", "update_email_template", "draft_email", "send_email", "list_emails",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
       "list_my_interviews", "get_feedback", "list_rejection_reasons", "get_offers", "get_interview_plan",
-      "get_activity", "list_tags",
+      "get_activity", "list_tags", "list_email_templates", "list_emails",
     ]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     }
     for (const change of [
       "update_stage", "update_job", "remove_from_hiring_team", "set_member_access", "withdraw_invite", "update_interview", "update_offer",
-      "set_interview_plan", "untag_candidate", "archive_tag",
+      "set_interview_plan", "untag_candidate", "archive_tag", "update_email_template", "send_email",
     ]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }
@@ -378,5 +379,60 @@ describe("files", () => {
     const out = await call("add_file", PDF, { files: { put, signedUrl: async () => null } });
     expect(out.content[0].text).toMatch(/Interviewers read a candidate's resume but do not add files/);
     expect(put).not.toHaveBeenCalled();
+  });
+});
+
+describe("candidate email", () => {
+  const PERSON = "44444444-4444-4444-8444-444444444444";
+  const DRAFT = "55555555-5555-4555-8555-555555555555";
+  const call = async (name: string, args: Record<string, unknown>, over: Partial<Deps> = {}) =>
+    result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps(over)));
+  const send = vi.fn(async () => ({ id: "re_1" }));
+
+  test("drafting never sends, sending needs the user's yes, and the server says so", async () => {
+    const init = await result(await handleClientRequest(
+      await rpc("initialize", { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } }),
+      deps(),
+    ));
+    expect(init.instructions).toMatch(/draft_email, show the user the whole draft, then send_email only after their explicit yes/);
+    const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
+    const byName = Object.fromEntries(tools.map((t: { name: string; description: string; annotations?: object }) => [t.name, t]));
+    expect(byName.draft_email.annotations ?? {}).not.toMatchObject({ readOnlyHint: true });
+    expect(byName.draft_email.description).toMatch(/sends nothing/);
+    expect(byName.send_email.description).toMatch(/explicit yes/);
+    expect(byName.draft_email.description).toContain("{{candidate_first_name}}");
+  });
+
+  test("with email turned off, drafting and sending refuse in a sentence", async () => {
+    for (const [name, args] of [["draft_email", { candidate_id: PERSON, subject: "Hi", body: "Hello" }], ["send_email", { draft_id: DRAFT }]] as const) {
+      const out = await call(name, args);
+      expect(out.isError, name).toBe(true);
+      expect(out.content[0].text, name).toMatch(/Candidate email is turned off on this Tacit deployment/);
+    }
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([["draft_email", false], ["send_email", false]]);
+  });
+
+  test("without a provider key, send_email says sending is not set up, and sends nothing", async () => {
+    const out = await call("send_email", { draft_id: DRAFT }, { email: { send: null, fromAddress: "hiring@tacitawareness.com" } });
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toMatch(/Email sending is not set up on this Tacit deployment yet/);
+  });
+
+  test("an interviewer can neither draft nor send, and nothing is sent", async () => {
+    fakeDb.level = "limited";
+    send.mockClear();
+    for (const [name, args] of [["draft_email", { candidate_id: PERSON, template: "Screen invite" }], ["send_email", { draft_id: DRAFT }]] as const) {
+      const out = await call(name, args, { email: { send, fromAddress: "hiring@tacitawareness.com" } });
+      expect(out.content[0].text, name).toMatch(/Interviewers do not email candidates/);
+    }
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  test("templates are made and changed by admins only", async () => {
+    fakeDb.level = "elevated";
+    const made = await call("create_email_template", { name: "Screen invite", subject: "Hi", body: "Hello {{candidate_first_name}}" });
+    expect(made.content[0].text).toMatch(/Only an admin at your company makes or changes email templates/);
+    const archived = await call("update_email_template", { template: "Screen invite", archived: true });
+    expect(archived.content[0].text).toMatch(/Only an admin/);
   });
 });
