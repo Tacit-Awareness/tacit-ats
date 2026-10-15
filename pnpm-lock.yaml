@@ -526,11 +526,11 @@ packages:
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
   '@tacit/core@file:vendor/tacit-core.tgz':
-    resolution: {integrity: sha512-hxvFJuOcuswYRJ3q8BiIPAe+N2SkjXlmouYz2YSBn22tWfJgqMRXIMaPO9QgYZsrPutnezbF00JALm6EuR7R3g==, tarball: file:vendor/tacit-core.tgz}
+    resolution: {integrity: sha512-DFl6YvEta4Oa64INyA6cUfMeYYj4NdEL/uZyA+gwn2RNBFSFx+iSB52xq1NRJJQnUWuT58Mliq2CJyF/x2GqZA==, tarball: file:vendor/tacit-core.tgz}
     version: 0.0.0
 
   '@tacit/db@file:vendor/tacit-db.tgz':
-    resolution: {integrity: sha512-6fRqHaMi3i/n4H5wJoHLQXguseC5HAubVe9SeCepBs9G3NjNVHGNAmFkPxm+kyUfdinSc0xyNCcvQIWAOnmXjg==, tarball: file:vendor/tacit-db.tgz}
+    resolution: {integrity: sha512-MDr7UdXenKGb0PriGgy3w785Q81pQcuYvXXzVSsAIYeNR/BDEmmvyZr2UbEOlHcXx6yoRctJtPC+OGEP8C+WgQ==, tarball: file:vendor/tacit-db.tgz}
     version: 0.0.0
 
   '@tailwindcss/node@4.3.3':

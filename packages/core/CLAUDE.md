@@ -418,6 +418,19 @@ src/
                         admin, and eeoc.test.ts fails if any other file
                         here names eeoc_responses, so get_candidate and
                         get_activity cannot start showing EEO answers
+                        connector.ts (2026-10-15, 20261017110000): the
+                        connector's own read-only switch, org-wide.
+                        getConnectorSettings (any member: orgs.
+                        connector_access, who set it, when) and
+                        setConnectorAccess (admins; set_connector_access,
+                        claimed as CONNECTOR_ACCESS_ACTION =
+                        org.connector_access, the one claim the database
+                        still takes in a read-only org, from an admin). In
+                        a read-only org every other claim raises 42501 and
+                        withAudit throws ClientToolError(forbidden,
+                        READ_ONLY_REFUSAL), so every write here is refused
+                        before it starts; a new write must go through
+                        withAudit or it escapes the switch
   test-helpers/         fake Supabase client for unit tests (excluded from the
                         build; a copy of Tacit-Awareness's)
 ```
