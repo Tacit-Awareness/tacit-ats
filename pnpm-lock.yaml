@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@tacit/db': file:vendor/tacit-db-df02634.tgz
+  '@tacit/db': file:vendor/tacit-db-07d919c.tgz
 
 importers:
 
@@ -33,11 +33,11 @@ importers:
         specifier: workspace:^
         version: link:../../packages/core
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-df02634.tgz
-        version: file:vendor/tacit-core-df02634.tgz
+        specifier: file:../../vendor/tacit-core-07d919c.tgz
+        version: file:vendor/tacit-core-07d919c.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-df02634.tgz
-        version: file:vendor/tacit-db-df02634.tgz
+        specifier: file:../../vendor/tacit-db-07d919c.tgz
+        version: file:vendor/tacit-db-07d919c.tgz
       jose:
         specifier: ^6.2.10
         version: 6.2.12
@@ -73,11 +73,11 @@ importers:
         specifier: workspace:^
         version: link:../../packages/core
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-df02634.tgz
-        version: file:vendor/tacit-core-df02634.tgz
+        specifier: file:../../vendor/tacit-core-07d919c.tgz
+        version: file:vendor/tacit-core-07d919c.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-df02634.tgz
-        version: file:vendor/tacit-db-df02634.tgz
+        specifier: file:../../vendor/tacit-db-07d919c.tgz
+        version: file:vendor/tacit-db-07d919c.tgz
       '@workos-inc/authkit-nextjs':
         specifier: 4.4.0
         version: 4.4.0(@workos-inc/node@10.14.0)(next@16.3.0(@types/node@26.6.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
@@ -125,11 +125,11 @@ importers:
   packages/core:
     dependencies:
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-df02634.tgz
-        version: file:vendor/tacit-core-df02634.tgz
+        specifier: file:../../vendor/tacit-core-07d919c.tgz
+        version: file:vendor/tacit-core-07d919c.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-df02634.tgz
-        version: file:vendor/tacit-db-df02634.tgz
+        specifier: file:../../vendor/tacit-db-07d919c.tgz
+        version: file:vendor/tacit-db-07d919c.tgz
     devDependencies:
       '@types/node':
         specifier: ^26.1.2
@@ -525,12 +525,12 @@ packages:
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
 
-  '@tacit/core@file:vendor/tacit-core-df02634.tgz':
-    resolution: {integrity: sha512-DFl6YvEta4Oa64INyA6cUfMeYYj4NdEL/uZyA+gwn2RNBFSFx+iSB52xq1NRJJQnUWuT58Mliq2CJyF/x2GqZA==, tarball: file:vendor/tacit-core-df02634.tgz}
+  '@tacit/core@file:vendor/tacit-core-07d919c.tgz':
+    resolution: {integrity: sha512-tOxqZy5HxCVQhOULuyhjXzXtBDoZUXVsodQKgqBgd6ciQKiSbo/HDa7Dx/2EE4sBqSl7107sPMcqrtsrWaFY7g==, tarball: file:vendor/tacit-core-07d919c.tgz}
     version: 0.0.0
 
-  '@tacit/db@file:vendor/tacit-db-df02634.tgz':
-    resolution: {integrity: sha512-MDr7UdXenKGb0PriGgy3w785Q81pQcuYvXXzVSsAIYeNR/BDEmmvyZr2UbEOlHcXx6yoRctJtPC+OGEP8C+WgQ==, tarball: file:vendor/tacit-db-df02634.tgz}
+  '@tacit/db@file:vendor/tacit-db-07d919c.tgz':
+    resolution: {integrity: sha512-y0aRs5M5dujFLfSiJb4ar+o0DprtuqqpoxkBcRXux0g1QohFo77HbF1R7oIETn35pOWOuiUyQCMo3ILVObxfxA==, tarball: file:vendor/tacit-db-07d919c.tgz}
     version: 0.0.0
 
   '@tailwindcss/node@4.3.3':
@@ -1807,16 +1807,16 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
-  '@tacit/core@file:vendor/tacit-core-df02634.tgz':
+  '@tacit/core@file:vendor/tacit-core-07d919c.tgz':
     dependencies:
       '@ai-sdk/anthropic': 4.0.80(zod@4.6.7)
-      '@tacit/db': file:vendor/tacit-db-df02634.tgz
+      '@tacit/db': file:vendor/tacit-db-07d919c.tgz
       ai: 7.0.141(zod@4.6.7)
       zod: 4.6.7
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@tacit/db@file:vendor/tacit-db-df02634.tgz':
+  '@tacit/db@file:vendor/tacit-db-07d919c.tgz':
     dependencies:
       '@supabase/supabase-js': 2.117.3
     transitivePeerDependencies:
