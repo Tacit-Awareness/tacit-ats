@@ -61,24 +61,24 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
             e.currentTarget.blur();
           }
         }}
-        className="h-8 w-full rounded-md border border-input bg-card px-2.5 text-[13px] outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-[38px] w-full rounded-full bg-[color:var(--soft)] px-[13px] text-[14.5px] shadow-[inset_0_0_0_1px_rgb(24_24_27/0.05)] outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint focus:bg-card focus:shadow-[inset_0_0_0_1px_rgb(29_111_165/0.45),0_0_0_3px_rgb(29_111_165/0.15)]"
       />
       {query.trim() ? (
-        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 rounded-md border border-[color:var(--line)] bg-card p-1 shadow-md">
+        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-[46px] z-20 rounded-2xl bg-card/95 p-1.5 shadow-[var(--glass-shadow),0_24px_48px_-20px_rgb(24_24_27/0.25)] backdrop-blur-xl">
           {results.length ? (
             results.map((p) => (
               <Link
                 key={p.slug}
                 href={`${basePath}/${p.slug}`}
                 onClick={() => setQuery("")}
-                className="block rounded px-2 py-1.5 hover:bg-accent"
+                className="block rounded-[11px] px-3 py-2 transition-colors hover:bg-[color:var(--soft)]"
               >
-                <span className="block text-[13px] font-medium">{p.title}</span>
+                <span className="block text-[14px] font-medium text-foreground">{p.title}</span>
                 <span className="block text-xs leading-snug text-muted-foreground">{p.description}</span>
               </Link>
             ))
           ) : (
-            <p className="px-2 py-1.5 text-[13px] text-muted-foreground">No matching pages.</p>
+            <p className="px-3 py-2 text-[14px] text-muted-foreground">No matching pages.</p>
           )}
         </div>
       ) : null}

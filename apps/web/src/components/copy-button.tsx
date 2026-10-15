@@ -18,7 +18,7 @@ export function CopyButton({ value, label, className }: { value: string; label: 
         });
       }}
       className={cn(
-        "relative z-10 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        "relative z-10 inline-flex size-7 items-center justify-center rounded-full text-muted-foreground transition-[color,box-shadow] duration-150 hover:bg-card hover:text-foreground hover:shadow-[var(--bubble)]",
         className,
       )}
     >

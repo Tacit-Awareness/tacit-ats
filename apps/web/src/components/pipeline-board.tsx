@@ -42,8 +42,7 @@ const STALLED_COPY: Record<string, string> = {
   overdue: "next action overdue",
 };
 
-const selectClass =
-  "h-8 w-full rounded-md border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+const selectClass = "field h-[34px] w-full rounded-[10px] bg-[position:right_9px_center] pr-6 pl-2.5 text-[13px]";
 
 /** "today", "3d ago", "5w ago". `now` comes from the server render so the
  * first paint and hydration agree. */
@@ -91,8 +90,10 @@ function CardView({
         onDragStart(card.applicationId);
       }}
       className={cn(
-        "rounded-lg border bg-card p-3 text-sm shadow-[0_1px_2px_rgba(32,32,30,0.04)]",
-        stalled ? "border-negative/40" : "border-[color:var(--card-border)]",
+        "rounded-[14px] bg-card p-3.5 text-sm transition-shadow duration-150",
+        stalled
+          ? "shadow-[0_0_0_1px_rgb(180_35_24/0.22),0_1px_2px_rgb(24_24_27/0.04)]"
+          : "shadow-[var(--glass-shadow)] hover:shadow-[var(--glass-lift)]",
         editable && !open && "cursor-grab active:cursor-grabbing",
       )}
     >
@@ -108,24 +109,24 @@ function CardView({
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+            className="-mr-1.5 -mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[13px] text-primary transition-colors hover:bg-[rgb(29_111_165/0.07)]"
             aria-expanded={open}
           >
             {open ? "Close" : "Edit"}
           </button>
         )}
       </div>
-      {card.headline && <p className="mt-0.5 text-xs text-muted-foreground">{card.headline}</p>}
+      {card.headline && <p className="mt-0.5 text-[13px] text-muted-foreground">{card.headline}</p>}
       {showRole &&
         (links.role ? (
           <Link
             href={`${links.role}/${roleId}`}
-            className="mt-1.5 inline-block rounded-md bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="mt-1.5 inline-block rounded-full bg-[rgb(24_24_27/0.05)] px-2 py-0.5 text-xs text-text hover:text-foreground"
           >
             {card.roleTitle}
           </Link>
         ) : (
-          <span className="mt-1.5 inline-block rounded-md bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="mt-1.5 inline-block rounded-full bg-[rgb(24_24_27/0.05)] px-2 py-0.5 text-xs text-text">
             {card.roleTitle}
           </span>
         ))}
@@ -141,7 +142,7 @@ function CardView({
       )}
 
       {card.nextAction && (
-        <p className="mt-2 text-[13px]">
+        <p className="mt-2 text-[13px] text-text">
           <span className="text-muted-foreground">Next: </span>
           {card.nextAction}
           {card.nextActionDue && (
@@ -150,17 +151,17 @@ function CardView({
         </p>
       )}
 
-      <p className="mt-2 font-mono text-[11px] text-muted-foreground/80">
+      <p className="mt-2.5 font-mono text-[11px] text-faint">
         {card.ownerName ?? "unowned"} · touched {ago(card.lastTouchAt, now)}
       </p>
 
       {actions && open && (
-        <div className="mt-3 space-y-3 border-t border-[color:var(--line)] pt-3">
+        <div className="mt-3 space-y-3.5 border-t border-border pt-3.5">
           <form action={actions.update} className="space-y-2">
             <input type="hidden" name="applicationId" value={card.applicationId} />
             <input type="hidden" name="roleId" value={roleId} />
             <div className="grid grid-cols-2 gap-2">
-              <label className="space-y-1 text-xs text-muted-foreground">
+              <label className="space-y-1 text-xs font-medium text-text">
                 Stage
                 <select name="stage" defaultValue={card.stage} className={cn(selectClass, "capitalize")}>
                   {stages.map((s) => (
@@ -170,7 +171,7 @@ function CardView({
                   ))}
                 </select>
               </label>
-              <label className="space-y-1 text-xs text-muted-foreground">
+              <label className="space-y-1 text-xs font-medium text-text">
                 Owner
                 <select name="ownerActorId" defaultValue={card.ownerActorId ?? ""} className={selectClass}>
                   <option value="">unowned</option>
@@ -182,11 +183,11 @@ function CardView({
                 </select>
               </label>
             </div>
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1 text-xs font-medium text-text">
               Next action
               <Input name="nextAction" defaultValue={card.nextAction ?? ""} placeholder="e.g. send take-home" />
             </label>
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1 text-xs font-medium text-text">
               Due
               <Input type="date" name="due" defaultValue={card.nextActionDue ?? ""} />
             </label>
@@ -198,7 +199,7 @@ function CardView({
           <form action={actions.logTouch} className="space-y-2">
             <input type="hidden" name="applicationId" value={card.applicationId} />
             <input type="hidden" name="roleId" value={roleId} />
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1 text-xs font-medium text-text">
               Log a touch
               <Input name="note" placeholder="optional note: what happened" />
             </label>
@@ -210,7 +211,7 @@ function CardView({
           <form action={actions.remove}>
             <input type="hidden" name="applicationId" value={card.applicationId} />
             <input type="hidden" name="roleId" value={roleId} />
-            <button type="submit" className="text-xs text-muted-foreground underline-offset-4 hover:text-negative hover:underline">
+            <button type="submit" className="text-xs text-muted-foreground underline-offset-[3px] transition-colors hover:text-negative hover:underline">
               Remove from pipeline (added by mistake)
             </button>
           </form>
@@ -270,17 +271,15 @@ export function PipelineBoard({
   }
 
   return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-2">
+    <div className="-mx-1 overflow-x-auto px-1 pt-1 pb-3">
       <div className="flex min-w-max gap-3">
         {columns.map((col) => {
           const inColumn = optimistic.filter((c) => col.targets.includes(c.stage));
           return (
             <div key={col.key} className="w-64 shrink-0">
               <div className="mb-2 flex items-baseline justify-between px-1">
-                <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                  {col.label}
-                </h3>
-                <span className="font-mono text-xs text-muted-foreground/70">{inColumn.length}</span>
+                <h3 className="text-[15px] capitalize text-foreground">{col.label}</h3>
+                <span className="font-mono text-xs text-faint">{inColumn.length}</span>
               </div>
               <div className="space-y-2">
                 {col.targets.map((stage) => {
@@ -300,13 +299,15 @@ export function PipelineBoard({
                         drop(stage);
                       }}
                       className={cn(
-                        "space-y-2 rounded-lg border border-dashed p-2 transition-colors",
+                        "space-y-2 rounded-[18px] p-2 transition-[background-color,box-shadow] duration-150",
                         col.targets.length === 1 ? "min-h-32" : "min-h-12",
-                        isOver ? "border-primary bg-primary-soft" : "border-[color:var(--line)] bg-[color:var(--soft)]",
+                        isOver
+                          ? "bg-primary-soft shadow-[inset_0_0_0_1px_rgb(29_111_165/0.45)]"
+                          : "bg-[rgb(24_24_27/0.035)] shadow-[inset_0_0_0_1px_rgb(24_24_27/0.04)]",
                       )}
                     >
                       {col.targets.length > 1 && (
-                        <p className="px-1 text-[11px] capitalize text-muted-foreground">
+                        <p className="px-1.5 pt-0.5 text-xs capitalize text-muted-foreground">
                           {stage} · {here.length}
                         </p>
                       )}

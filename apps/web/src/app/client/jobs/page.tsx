@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
 
@@ -19,32 +20,34 @@ export default async function ClientJobs() {
   if (error) throw new Error(error.message);
 
   return (
-    <main className="max-w-3xl space-y-6">
+    <main className="max-w-3xl space-y-7">
       <div>
-        <Link href="/client" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/client" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
           ← Home
         </Link>
-        <h1 className="mt-3 text-2xl font-medium">Jobs</h1>
+        <h1 className="mt-3 text-[34px] leading-[1.12] tracking-[-0.01em]">Jobs</h1>
       </div>
       {roles.length === 0 ? (
-        <p className="text-[15px] text-muted-foreground">
+        <p className="glass px-5 py-4 text-[15px] text-muted-foreground">
           {accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="glass divide-y divide-border overflow-hidden">
           {roles.map((role) => (
             <li key={role.id}>
               <Link
                 href={`/client/jobs/${role.id}`}
-                className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-[color:var(--soft)]"
+                className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-[rgb(24_24_27/0.02)]"
               >
                 <span>
-                  <span className="text-[15px]">{role.title}</span>
+                  <span className="text-[15px] font-medium">{role.title}</span>
                   {role.location ? <span className="ml-2 text-sm text-muted-foreground">{role.location}</span> : null}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {showCounts ? `${role.applications[0]?.count ?? 0} in pipeline · ` : ""}
-                  {role.status}
+                <span className="flex shrink-0 items-center gap-3">
+                  {showCounts ? (
+                    <span className="font-mono text-xs text-muted-foreground">{role.applications[0]?.count ?? 0} in pipeline</span>
+                  ) : null}
+                  <Badge variant={role.status === "open" ? "accent" : "outline"}>{role.status}</Badge>
                 </span>
               </Link>
             </li>

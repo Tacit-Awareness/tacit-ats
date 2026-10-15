@@ -53,37 +53,39 @@ export default async function ClientJob({
   const details = [role.data?.seniority, role.data?.location].filter(Boolean).join(" · ");
 
   return (
-    <main className="space-y-8">
+    <main className="space-y-9">
       <div>
-        <Link href="/client/jobs" className="text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/client/jobs" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
           ← Jobs
         </Link>
-        <div className="mt-3 flex items-baseline gap-3">
-          <h1 className="text-2xl font-medium">{pipeline.roleTitle}</h1>
-          <span className="text-xs text-muted-foreground">{pipeline.roleStatus}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <h1 className="text-[34px] leading-[1.12] tracking-[-0.01em]">{pipeline.roleTitle}</h1>
+          <Badge variant={pipeline.roleStatus === "open" ? "accent" : "outline"}>{pipeline.roleStatus}</Badge>
         </div>
-        {details ? <p className="mt-1 text-sm text-muted-foreground">{details}</p> : null}
+        {details ? <p className="mt-2 text-[15.5px] text-muted-foreground">{details}</p> : null}
       </div>
 
-      {isJobNotice(notice) ? <p className="text-sm text-positive">{JOB_NOTICES[notice]}</p> : null}
-      {isJobError(error) ? <p className="text-sm text-negative">{JOB_ERRORS[error]}</p> : null}
+      {isJobNotice(notice) ? <p className="notice notice-success max-w-xl">{JOB_NOTICES[notice]}</p> : null}
+      {isJobError(error) ? <p className="notice notice-error max-w-xl">{JOB_ERRORS[error]}</p> : null}
 
       {accessLevel === "limited" ? (
-        <p className="text-[15px] text-muted-foreground">
+        <p className="notice max-w-xl">
           You&apos;re an interviewer on this job. The people you interview are on your{" "}
-          <Link href="/client" className="underline underline-offset-4">
+          <Link href="/client" className="inline-link">
             home page
           </Link>
           .
         </p>
       ) : (
         <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline gap-3">
-            <h2 className="text-sm font-medium text-muted-foreground">Pipeline ({cards.length})</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-[21px] leading-[1.3]">
+              Pipeline <span className="font-mono text-sm text-faint">{cards.length}</span>
+            </h2>
             {pipeline.stalledCount > 0 && <Badge variant="negative">{pipeline.stalledCount} need attention</Badge>}
           </div>
           {cards.length === 0 ? (
-            <p className="text-[15px] text-muted-foreground">Nobody is in this job&apos;s pipeline yet.</p>
+            <p className="glass max-w-xl px-5 py-4 text-[15px] text-muted-foreground">Nobody is in this job&apos;s pipeline yet.</p>
           ) : (
             <PipelineBoard
               cards={cards}
@@ -100,22 +102,22 @@ export default async function ClientJob({
 
       {canAdd ? (
         <section className="max-w-xl space-y-3">
-          <h2 className="text-sm font-medium text-muted-foreground">Add a candidate</h2>
-          <form action={addCandidateAction} className="space-y-3 rounded-lg border border-border p-4">
+          <h2 className="text-[21px] leading-[1.3]">Add a candidate</h2>
+          <form action={addCandidateAction} className="glass space-y-4 p-5">
             <input type="hidden" name="roleId" value={pipeline.roleId} />
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1.5 text-[13px] font-medium text-text">
               Name
               <Input name="name" required maxLength={200} autoComplete="off" />
             </label>
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1.5 text-[13px] font-medium text-text">
               Email (optional; someone already in your records with this address is reused)
               <Input name="email" type="email" maxLength={320} autoComplete="off" />
             </label>
-            <label className="block space-y-1 text-xs text-muted-foreground">
+            <label className="block space-y-1.5 text-[13px] font-medium text-text">
               LinkedIn (optional)
               <Input name="linkedinUrl" placeholder="linkedin.com/in/…" maxLength={500} autoComplete="off" />
             </label>
-            <SubmitButton variant="outline" size="sm" pendingLabel="Adding…">
+            <SubmitButton pendingLabel="Adding…">
               Add to pipeline
             </SubmitButton>
           </form>
