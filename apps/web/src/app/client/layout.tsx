@@ -16,7 +16,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
             <Link href="/client/docs" className="rounded-full px-2 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground">
-              Use with Claude
+              Documentation
             </Link>
             <form action="/client/signout" method="post">
               <button
