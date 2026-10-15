@@ -1,6 +1,6 @@
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from "jose";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import type { BindClientResult, ClientIdentity } from "@tacit/core";
+import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
 
 /**
  * The client connector's request handling with the database faked at

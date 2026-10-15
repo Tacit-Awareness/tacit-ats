@@ -1,4 +1,5 @@
-import type { IdentityProvider, InvitationRevoker } from "@tacit/core";
+import type { IdentityProvider } from "@tacit/core";
+import type { InvitationRevoker } from "@tacit-ats/core";
 
 /**
  * WorkOS for the client connector: a user's verified email (first sign-in
@@ -36,7 +37,7 @@ export async function soleOrganization(
   return ids.length === 0 ? { status: "none" } : { status: "ambiguous" };
 }
 
-export { fetchVerifiedEmail } from "../connector/auth";
+export { fetchVerifiedEmail } from "./oauth";
 
 async function workosError(res: Response): Promise<Error> {
   const body = (await res.json().catch(() => null)) as { message?: unknown } | null;
@@ -45,8 +46,9 @@ async function workosError(res: Response): Promise<Error> {
 
 /**
  * Invitations into the member's own WorkOS organization, the same ones the
- * /client portal sends (apps/internal's lib/client/workos.ts, over the SDK).
- * Creating an organization is staff-only and refused here.
+ * /client portal sends (apps/web's lib/client/workos.ts, over the SDK).
+ * Creating an organization is Tacit staff's (Tacit-Awareness's /orgs) and
+ * refused here.
  */
 export function clientInvitations(apiKey: string, doFetch: typeof fetch = fetch): IdentityProvider & InvitationRevoker {
   const headers = { authorization: `Bearer ${apiKey}`, "content-type": "application/json" };

@@ -1,9 +1,6 @@
 import type { Db } from "@tacit/db";
 
-import { isPlainEmail } from "../connector/context.js";
-import { fromHeader, type EmailSender } from "../connector/email.js";
-import { renderTemplate } from "../outreach/template.js";
-import { logTouch } from "../pipeline/pipeline.js";
+import { connector, logTouch, renderTemplate } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 
@@ -50,7 +47,7 @@ const PLACEHOLDER = /\{\{\s*([\w.]+)\s*\}\}/g;
  * work and nothing can be sent (no provider key).
  */
 export type ClientMailer = {
-  send: EmailSender | null;
+  send: connector.EmailSender | null;
   /** The Tacit-controlled address every client email is From, e.g. hiring@tacitawareness.com. */
   fromAddress: string;
 };
@@ -232,7 +229,7 @@ async function addressesOnFile(db: Db, personId: string, primary: string | null)
   const { data, error } = await db.from("person_identifiers").select("value").eq("person_id", personId).eq("kind", "email");
   if (error) throw new Error(error.message);
   const all = [primary, ...(data ?? []).map((r) => r.value)].map((e) => e?.trim().toLowerCase());
-  return [...new Set(all.filter((e): e is string => isPlainEmail(e)))];
+  return [...new Set(all.filter((e): e is string => connector.isPlainEmail(e)))];
 }
 
 /** Who the email is from: the member's name at the company, and their own address for replies. */
@@ -243,13 +240,13 @@ async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
   ]);
   for (const r of [me, org]) if (r.error) throw new Error(r.error.message);
   const replyTo = me.data?.email?.trim().toLowerCase();
-  if (!isPlainEmail(replyTo)) {
+  if (!connector.isPlainEmail(replyTo)) {
     throw new ClientToolError("invalid", "Your email address is not on file in Tacit, so a candidate's reply would have nowhere to go. Nothing was written or sent.");
   }
   const name = me.data?.display_name?.trim() || null;
   const company = org.data?.name?.trim() || null;
   const display = name && company ? `${name} at ${company}` : (name ?? company ?? "");
-  return { name, company, replyTo, from: fromHeader(display, mailer.fromAddress) };
+  return { name, company, replyTo, from: connector.fromHeader(display, mailer.fromAddress) };
 }
 
 const firstName = (name: string | null) => name?.trim().split(/\s+/)[0] ?? "";

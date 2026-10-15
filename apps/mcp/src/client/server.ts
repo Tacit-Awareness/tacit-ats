@@ -1,11 +1,11 @@
 import { createMcpHandler } from "mcp-handler";
 import { z } from "zod";
 import {
-  APPLICATION_STAGES, CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, UNTRUSTED_PREAMBLE, clientTools, wrapUntrusted,
-  type IdentityProvider, type InvitationRevoker,
+  APPLICATION_STAGES, CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, UNTRUSTED_PREAMBLE, wrapUntrusted, type IdentityProvider,
 } from "@tacit/core";
+import { clientTools, type InvitationRevoker } from "@tacit-ats/core";
 
-// Relative and without ".js": see the note in app/api/mcp/route.ts.
+// Relative and without ".js": see apps/mcp/CLAUDE.md.
 import type { ClientMember } from "./session";
 
 /**

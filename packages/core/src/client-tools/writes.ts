@@ -1,10 +1,9 @@
 import type { Db } from "@tacit/db";
 
-import { addCandidateToRole, type AddCandidateResult as CandidateOutcome } from "../pipeline/candidate.js";
 import {
-  CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, isApplicationStage, isCandidateSource, moveStage, parseDueDate,
-  setNextAction, type ApplicationStage, type CandidateSource,
-} from "../pipeline/pipeline.js";
+  CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, addCandidateToRole, isApplicationStage, isCandidateSource, moveStage,
+  parseDueDate, setNextAction, type AddCandidateResult as CandidateOutcome, type ApplicationStage, type CandidateSource,
+} from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
 import { reasonForStage } from "./offers.js";

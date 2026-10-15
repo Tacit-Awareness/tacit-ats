@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-// Relative and without ".js": see the note in app/api/mcp/route.ts.
+// Relative and without ".js": see apps/mcp/CLAUDE.md.
 import { DEFAULT_CLIENT_EMAIL_FROM, clientMailer } from "./config";
 
 describe("clientMailer", () => {

@@ -2,10 +2,9 @@
 // next/* imports) so proxy.ts and the unit tests can both use it.
 //
 // Everything a client can reach lives under one path prefix, in its own
-// folders (app/client, lib/client). That is the whole default-deny rule:
-// a client session is honoured only under this prefix, a staff session only
-// outside it, and nothing under these folders may import the staff database
-// client (src/client-area.test.ts walks the imports).
+// folders (app/client, lib/client). The proxy runs only under this prefix,
+// and nothing under these folders may import a privileged database client
+// (src/client-area.test.ts walks the imports).
 
 export const CLIENT_PREFIX = "/client";
 export const CLIENT_CALLBACK_PATH = "/client/callback";

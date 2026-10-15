@@ -1,14 +1,20 @@
 import { execFileSync } from "node:child_process";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
  * Points the integration suite at the local Supabase stack by reading
- * `supabase status` from packages/db and exporting the URL/service key as
+ * `supabase status` from the Tacit-Awareness checkout's packages/db (the
+ * schema and migrations live there, not here; TACIT_REPO overrides the
+ * default ../Tacit-Awareness) and exporting the URL/service key as
  * the same env vars production code reads. Env set here is inherited by
  * vitest's worker processes.
  */
 export default function setup(): void {
-  const dbDir = fileURLToPath(new URL("../packages/db", import.meta.url));
+  const tacitRepo = process.env.TACIT_REPO
+    ? resolve(process.env.TACIT_REPO)
+    : fileURLToPath(new URL("../../Tacit-Awareness", import.meta.url));
+  const dbDir = join(tacitRepo, "packages/db");
 
   let output: string;
   try {
@@ -19,7 +25,7 @@ export default function setup(): void {
     });
   } catch {
     throw new Error(
-      "Local Supabase stack is not running. Run `supabase start` in packages/db first " +
+      `Local Supabase stack is not running. Run \`supabase start\` in ${dbDir} first ` +
         "(requires Docker), then `supabase db reset` to apply migrations.",
     );
   }

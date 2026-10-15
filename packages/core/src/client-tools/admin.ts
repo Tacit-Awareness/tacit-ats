@@ -4,7 +4,7 @@ import {
   inviteClientMember, listPendingInvites, withdrawClientInvite, ClientInviteError,
   type InvitationRevoker, type PendingInvite,
 } from "../client-auth/invite.js";
-import type { IdentityProvider } from "../client-auth/orgs.js";
+import type { IdentityProvider } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, type AccessLevel, type ClientToolCtx } from "./context.js";
 import { OPENINGS_ADD_MAX, insertOpenings } from "./openings.js";

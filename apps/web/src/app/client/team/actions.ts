@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ClientInviteError, inviteClientMember, withdrawClientInvite } from "@tacit/core";
+import { ClientInviteError, inviteClientMember, withdrawClientInvite } from "@tacit-ats/core";
 import { requireClient } from "@/lib/client/session";
 import { clientInvitations } from "@/lib/client/workos";
 import type { TeamError, TeamNotice } from "./messages";

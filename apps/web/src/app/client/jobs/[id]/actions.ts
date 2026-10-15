@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
-  addCandidateToRole, isApplicationStage, logTouch, moveStage, removeFromPipeline, setNextAction, setOwner,
-  type AddCandidateResult,
+  addCandidateToRole, isApplicationStage, logTouch, moveStage, removeFromPipeline, setNextAction, setOwner, type AddCandidateResult,
 } from "@tacit/core";
 import { requireClient } from "@/lib/client/session";
 import type { JobError, JobNotice } from "../messages";

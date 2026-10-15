@@ -1,8 +1,9 @@
 import type { JWTVerifyGetKey } from "jose";
-import { clientTools, connector, type BindClientResult, type ClientIdentity, type IdentityProvider, type InvitationRevoker } from "@tacit/core";
+import { connector, type IdentityProvider } from "@tacit/core";
+import { clientTools, type BindClientResult, type ClientIdentity, type InvitationRevoker } from "@tacit-ats/core";
 
-// Relative and without ".js": see the note in app/api/mcp/route.ts.
-import { challenge, verifyAccessToken } from "../connector/auth";
+// Relative and without ".js": see apps/mcp/CLAUDE.md.
+import { challenge, verifyAccessToken } from "./oauth";
 import type { ClientMcpConfig } from "./config";
 import { buildClientHandler, type ClientHandlerDeps } from "./server";
 import { REFUSAL_TEXT, resolveMember } from "./session";

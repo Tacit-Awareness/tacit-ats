@@ -1,5 +1,5 @@
 {
-  "name": "@tacit/core",
+  "name": "@tacit-ats/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,29 +9,13 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "rm -rf dist",
-    "start": "node --env-file=../../.env dist/run.js",
-    "mint-key": "node --env-file=../../.env dist/scripts/mint-key.js",
-    "backfill-funnel": "node --env-file=../../.env dist/scripts/backfill-funnel.js",
-    "backfill-lookups": "node --env-file=../../.env dist/scripts/backfill-lookups.js",
-    "import-follow-edges": "node --env-file=../../.env dist/scripts/import-follow-edges.js",
-    "backfill-mentions": "node --env-file=../../.env dist/scripts/backfill-mentions.js",
-    "build:edge": "node scripts/build-edge.mjs",
-    "import-linkedin-connections": "node --env-file=../../.env dist/scripts/import-linkedin-connections.js",
-    "import-instagram-connections": "node --env-file=../../.env dist/scripts/import-instagram-connections.js",
-    "network": "node --env-file=../../.env dist/scripts/network.js",
-    "seed-neolabs": "node --env-file=../../.env dist/scripts/seed-neolabs.js",
-    "post-test-card": "node --env-file=../../.env dist/scripts/post-test-card.js",
-    "notify-subscribe": "node --env-file=../../.env dist/scripts/notify-subscribe.js"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.33",
-    "@tacit/db": "workspace:^",
-    "ai": "^7.0.55",
-    "zod": "^4.4.3"
+    "@tacit/core": "file:../../vendor/tacit-core.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db.tgz"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
-    "esbuild": "^0.28.2"
+    "@types/node": "^26.1.2"
   }
 }

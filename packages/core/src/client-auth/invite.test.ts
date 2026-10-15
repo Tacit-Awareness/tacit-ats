@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import { FakeSupabase } from "../test-helpers/fake-supabase.js";
-import type { IdentityProvider } from "./orgs.js";
+import type { IdentityProvider } from "@tacit/core";
 import { ClientInviteError, inviteClientMember, listPendingInvites, withdrawClientInvite, type InvitationRevoker } from "./invite.js";
 
 const idp = (over: Partial<IdentityProvider> = {}): IdentityProvider => ({

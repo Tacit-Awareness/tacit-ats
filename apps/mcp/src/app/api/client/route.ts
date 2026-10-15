@@ -1,4 +1,4 @@
-// Relative and without ".js": see the note in api/mcp/route.ts.
+// Relative and without ".js": see apps/mcp/CLAUDE.md.
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
 import { clientMailer, clientMcpConfig } from "../../../client/config";

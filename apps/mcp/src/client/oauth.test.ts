@@ -2,28 +2,12 @@ import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair } from "jose";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 
 import {
-  challenge, connectorConfig, fetchVerifiedEmail, resourceMetadata, resourceMetadataUrl, verifyAccessToken,
-} from "./auth.js";
+  challenge, fetchVerifiedEmail, resourceMetadata, resourceMetadataUrl, verifyAccessToken,
+} from "./oauth";
 
-const env = {
-  WORKOS_AUTHKIT_DOMAIN: "tacit.authkit.app/",
-  CONNECTOR_RESOURCE_URL: "https://mcp.tacitawareness.com/api/connector/",
-};
-const config = connectorConfig(env)!;
+const config = { issuer: "https://tacit.authkit.app", resource: "https://mcp.tacitawareness.com/api/connector" };
 
-describe("config and metadata", () => {
-  test("normalizes the issuer and resource, and is null until both are set", () => {
-    expect(config).toMatchObject({
-      issuer: "https://tacit.authkit.app",
-      resource: "https://mcp.tacitawareness.com/api/connector",
-      emailDomain: "tacitawareness.com",
-      workosApiKey: null,
-      resendApiKey: null,
-    });
-    expect(connectorConfig({ WORKOS_AUTHKIT_DOMAIN: "x.authkit.app" })).toBeNull();
-    expect(connectorConfig({})).toBeNull();
-  });
-
+describe("metadata", () => {
   test("the metadata names WorkOS as the authorization server, and the challenge points at it", () => {
     expect(resourceMetadata(config)).toEqual({
       resource: "https://mcp.tacitawareness.com/api/connector",

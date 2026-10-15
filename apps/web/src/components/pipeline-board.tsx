@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * file imports core for types only, so its server code stays out of the
  * browser bundle.
  *
- * Shared by the staff pages and the client area (/client/jobs/[id]), so it
+ * A copy of Tacit-Awareness's staff board, used by /client/jobs/[id]. It
  * imports no server actions and no links of its own: each page passes the
  * actions that act as its user, and where a person or a role links to.
  * Without `actions` the board is read-only.

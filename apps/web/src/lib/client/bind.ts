@@ -1,4 +1,4 @@
-import { bindClientActor, type BindClientResult, type ClientIdentity } from "@tacit/core";
+import { bindClientActor, type BindClientResult, type ClientIdentity } from "@tacit-ats/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
 /**

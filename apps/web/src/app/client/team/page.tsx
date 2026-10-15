@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listPendingInvites } from "@tacit/core";
+import { listPendingInvites } from "@tacit-ats/core";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { resolveClient } from "@/lib/client/session";

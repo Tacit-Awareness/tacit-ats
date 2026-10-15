@@ -8,11 +8,11 @@ import { describe, expect, test } from "vitest";
  *
  * A member of a client org must only ever act through their own token, so
  * that RLS decides what they see. Two things would break that silently: a
- * file in the client area importing the staff database client (which reads
- * all of Tacit's data), and a server action that forgets to check who is
- * calling. A server action is reachable by its id from any page the proxy
- * lets through, so the path split in proxy.ts does not cover actions on its
- * own; each one has to check.
+ * file importing a privileged database client (the service role, or
+ * tacit_internal, which reads all of Tacit's data), and a server action that
+ * forgets to check who is calling. A server action is reachable by its id
+ * from any page, so the proxy does not cover actions on its own; each one has
+ * to check.
  */
 const SRC = dirname(fileURLToPath(import.meta.url));
 const rel = (file: string) => relative(SRC, file);
@@ -45,11 +45,10 @@ function resolveLocal(from: string, spec: string): string | null {
 
 /** Names that hand back a database client which is not the signed-in user's. */
 const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createServiceClient|createTacitClient)\b/;
-const STAFF_DB = join(SRC, "lib/db.ts");
 /** The one client-area module allowed a privileged client: first sign-in binding. */
 const ALLOWED = new Set([join(SRC, "lib/client/bind.ts")]);
 
-describe("the client area never holds a staff database client", () => {
+describe("the client area never holds a privileged database client", () => {
   const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
 
   test("there is a client area to check", () => {
@@ -57,15 +56,14 @@ describe("the client area never holds a staff database client", () => {
     expect(roots.map(rel)).toContain("lib/client/session.ts");
   });
 
-  test("nothing it imports, at any depth, reaches lib/db or a privileged client", () => {
+  test("nothing it imports, at any depth, reaches a privileged client", () => {
     const offenders: string[] = [];
     const seen = new Set<string>();
     const visit = (file: string, trail: string[]) => {
       if (seen.has(file)) return;
       seen.add(file);
       const here = [...trail, rel(file)];
-      if (file === STAFF_DB) offenders.push(`${here.join(" -> ")} (the staff database client)`);
-      else if (!ALLOWED.has(file) && PRIVILEGED.test(readFileSync(file, "utf8"))) {
+      if (!ALLOWED.has(file) && PRIVILEGED.test(readFileSync(file, "utf8"))) {
         offenders.push(`${here.join(" -> ")} (names a privileged client)`);
       }
       // What the allowed module imports is its own business; its callers get a verdict, never the client.
@@ -88,13 +86,6 @@ describe("the client area never holds a staff database client", () => {
     const text = readFileSync(join(SRC, "lib/client/bind.ts"), "utf8");
     const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
     expect(exported).toEqual(["bindInvitedActor"]);
-  });
-
-  test("the staff side never borrows the client area's session", () => {
-    const borrowers = walk(SRC)
-      .filter((f) => !roots.includes(f) && f !== join(SRC, "proxy.ts"))
-      .filter((f) => importsOf(f).some((spec) => /^@\/lib\/client\/(session|bind)$/.test(spec)));
-    expect(borrowers.map(rel)).toEqual([]);
   });
 });
 
@@ -151,7 +142,7 @@ describe("every server action checks who is calling, first", () => {
   }
 
   test("there are server actions to check", () => {
-    expect(actionFiles.map(rel)).toContain("app/actions.ts");
+    expect(actionFiles.map(rel)).toContain("app/client/team/actions.ts");
   });
 
   test("a 'use server' file exports only async functions", () => {
@@ -163,21 +154,18 @@ describe("every server action checks who is calling, first", () => {
     expect(others, "Anything else exported from a 'use server' file is either an error or an unchecked action.").toEqual([]);
   });
 
-  test("each one starts with requireUser() or requireClient()", () => {
+  test("each one starts with requireClient()", () => {
     const unchecked: string[] = [];
     let total = 0;
     for (const file of actionFiles) {
       const text = readFileSync(file, "utf8");
-      const inClientArea = rel(file).startsWith("app/client/");
       for (const m of text.matchAll(/^export async function (\w+)\s*(?:<[^>]*>)?\(/gm)) {
         total++;
         const first = firstStatement(text, m.index + m[0].length - 1);
-        // A staff action checks the staff session; a client-area action the client one. Never the other's.
-        const wanted = inClientArea ? /\bawait requireClient\(\)/ : /\bawait requireUser\(\)/;
-        if (!wanted.test(first)) unchecked.push(`${rel(file)}: ${m[1]} starts with \`${first.slice(0, 70)}\``);
+        if (!/\bawait requireClient\(\)/.test(first)) unchecked.push(`${rel(file)}: ${m[1]} starts with \`${first.slice(0, 70)}\``);
       }
     }
-    expect(total).toBeGreaterThan(40);
+    expect(total).toBeGreaterThan(5);
     expect(
       unchecked,
       "A server action can be invoked by its id from any page the caller can load, so the proxy's path " +

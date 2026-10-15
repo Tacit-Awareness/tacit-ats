@@ -1,8 +1,8 @@
-import type { BindClientResult, ClientIdentity } from "@tacit/core";
+import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
 import { createUserClient, mintClientMemberToken, type Db, type MemberTokenSigner } from "@tacit/db";
 
-// Relative and without ".js": see the note in app/api/mcp/route.ts.
-import type { AccessClaims } from "../connector/auth";
+// Relative and without ".js": see apps/mcp/CLAUDE.md.
+import type { AccessClaims } from "./oauth";
 import type { OrganizationLookup } from "./workos";
 
 /**

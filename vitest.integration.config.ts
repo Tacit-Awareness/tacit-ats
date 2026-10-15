@@ -1,11 +1,12 @@
 import { defineConfig } from "vitest/config";
-import { workspaceAliases } from "./test/aliases.js";
+import { packageAliases } from "./test/aliases.js";
 
-// Integration tests run against the local Supabase stack (`supabase start`
-// in packages/db). They share one `people` table, so files run serially.
+// Integration tests run against the local Supabase stack, started from the
+// Tacit-Awareness checkout (test/integration-setup.ts). They share tables, so
+// files run serially.
 export default defineConfig({
   resolve: {
-    alias: workspaceAliases,
+    alias: packageAliases,
   },
   test: {
     include: ["apps/*/src/**/*.integration.test.ts", "packages/*/src/**/*.integration.test.ts"],

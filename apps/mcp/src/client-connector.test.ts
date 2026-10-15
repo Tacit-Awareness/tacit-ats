@@ -82,7 +82,7 @@ describe("the client connector never holds a database client other than the memb
     }
   });
 
-  test("the staff connector and the iMessage route never borrow the client connector's member resolution", () => {
+  test("nothing outside the client connector borrows its member resolution", () => {
     const borrowers = walk(SRC)
       .filter((f) => !roots.includes(f))
       .filter((f) => importsOf(f).some((spec) => /client\/(session|bind)$/.test(spec)));

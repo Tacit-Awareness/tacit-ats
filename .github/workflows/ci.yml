@@ -1,24 +1,19 @@
 name: CI
 
-# PRs run the checks; merges to main only deploy. The squash-merge lands the
-# tree that just passed on the PR, so re-checking it on main was ~3 min of
-# duplicate work per merge (private repo, 2,000 Actions min/month).
+# Pull requests only: a merge to main deploys through Vercel, and the
+# squash-merge lands the tree that just passed. Actions minutes are shared
+# with Tacit-Awareness (private repos, 2,000 min/month).
 on:
   pull_request:
-    # Evaluated against the whole PR diff, not each push: a PR that touches
-    # any code still runs CI on every later commit.
-    paths-ignore: ['**.md', '**.csv']
-  push:
-    branches: [main]
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   checks:
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,65 +23,9 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # A step, not its own job: GitHub bills a 1-minute minimum per job.
-      - name: New migrations must sort after everything on main
-        run: scripts/ci/check-migration-order.sh
       - run: pnpm ci:build
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build:functions
-      # The edge handlers are outside every tsconfig -- deno check is the only
-      # typecheck they get. Needs the bundle above (they import ../_shared/core.js).
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Typecheck edge handlers (Deno)
-        run: deno check granola-webhook/index.ts
-        working-directory: packages/db/supabase/functions
-      # Pinned to the version the local dev stack is verified against.
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.113.0
-      # A fresh stack replays every migration from scratch, which doubles as the
-      # "do migrations still apply in order" check. Integration tests only use
-      # PostgREST (via kong) and direct Postgres, so skip every other service.
-      - name: Start local Supabase
-        run: supabase start -x studio,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,postgres-meta,mailpit,supavisor
-        working-directory: packages/db
-      - run: pnpm test:integration
-
-  deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      PROJECT_REF: qlqebxtjzcotiwgdnukj
-    steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      # Migrations FIRST: the new function code may depend on the new schema.
-      # If the push fails, the function steps are skipped and the previous
-      # function version keeps running against the previous schema. The old
-      # function may 500 briefly between a schema change landing and the new
-      # function finishing deployment -- Granola retries with backoff and
-      # ingestion is idempotent, so that window self-heals.
-      # No --include-all: an out-of-order migration that somehow reached main
-      # fails loudly here rather than being applied out of order.
-      - name: Push migrations
-        run: |
-          supabase link --project-ref "$PROJECT_REF"
-          supabase db push
-        working-directory: packages/db
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build:functions
-      - name: Deploy edge functions
-        run: supabase functions deploy --no-verify-jwt --project-ref "$PROJECT_REF"
-        working-directory: packages/db
+      # Integration tests need Tacit-Awareness's migrations for the local
+      # stack, a private repo this workflow cannot check out yet. Run them
+      # locally (CLAUDE.md, Commands).

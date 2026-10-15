@@ -1,6 +1,6 @@
 import type { Db } from "@tacit/db";
 
-import { getRolePipeline, type PipelineCard } from "../pipeline/pipeline.js";
+import { getRolePipeline, type PipelineCard } from "@tacit/core";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
