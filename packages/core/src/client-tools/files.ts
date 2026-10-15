@@ -65,6 +65,12 @@ export type FileStore = {
   put: (storagePath: string, bytes: Uint8Array, contentType: string) => Promise<void>;
   /** A link to the object that works for `seconds` and downloads as `filename`; null when there is no object there. */
   signedUrl: (storagePath: string, seconds: number, filename: string) => Promise<string | null>;
+  /**
+   * Deletes the objects (merge.ts's anonymizeCandidate, after the database has
+   * deleted their rows). Throws when they were not deleted. Absent = an erasure
+   * of a candidate with files is refused.
+   */
+  remove?: (storagePaths: string[]) => Promise<void>;
 };
 
 const unavailable = () =>
@@ -144,6 +150,21 @@ export type FileLink = {
   expiresAt: string;
 };
 
+const UUID_PART = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
+/**
+ * <org_id>/<person_id>/<id>, as the insert policy requires. A merge
+ * (merge.ts) moves a file to the record kept without moving its bytes, so the
+ * middle part may name the person it was uploaded for rather than the one it
+ * is on now: the org and the row's own id, unique to this row, are what make
+ * the object this row's.
+ */
+function isOwnPath(row: { org_id: string; person_id: string; id: string; storage_path: string }): boolean {
+  if (row.storage_path === `${row.org_id}/${row.person_id}/${row.id}`) return true;
+  const parts = row.storage_path.split("/");
+  return parts.length === 3 && parts[0] === row.org_id && parts[2] === row.id && new RegExp(`^${UUID_PART}$`).test(parts[1]);
+}
+
 export async function getFileLink(
   db: Db,
   _ctx: ClientToolCtx,
@@ -160,7 +181,7 @@ export async function getFileLink(
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new ClientToolError("not_found", "No file with that id that you can see. list_files lists a candidate's files.");
-  if (data.storage_path !== `${data.org_id}/${data.person_id}/${data.id}`) {
+  if (!isOwnPath(data)) {
     // Only the service role can write another path, and nothing does: refuse rather than sign it.
     throw new Error(`person_files ${data.id}: storage_path is not the row's own`);
   }

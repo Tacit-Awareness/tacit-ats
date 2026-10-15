@@ -34,3 +34,14 @@ export async function putFile(storagePath: string, bytes: Uint8Array, contentTyp
     throw new Error(`org-files: upload ${storagePath}: ${error.message}${hint}`);
   }
 }
+
+/**
+ * Deletes stored objects: an erasure (anonymize_candidate), called only after
+ * the member's own call to client_anonymize_candidate has deleted their rows
+ * and returned these paths, each a <org_id>/<person_id>/<id> of that org.
+ */
+export async function removeFiles(storagePaths: string[]): Promise<void> {
+  if (!storagePaths.length) return;
+  const { error } = await bucket().remove(storagePaths);
+  if (error) throw new Error(`org-files: remove ${storagePaths.length} object(s): ${error.message}`);
+}

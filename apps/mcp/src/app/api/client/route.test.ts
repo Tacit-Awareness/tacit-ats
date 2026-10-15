@@ -253,6 +253,7 @@ describe("the tools", () => {
       "list_openings", "add_openings", "close_opening",
       "add_prospect", "convert_prospect", "list_pools", "create_pool", "archive_pool", "add_to_pool", "remove_from_pool", "list_pool",
       "list_job_posts", "create_job_post", "update_job_post", "set_job_post_status", "list_applications_inbox",
+      "find_duplicates", "merge_candidates", "anonymize_candidate",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -271,6 +272,8 @@ describe("the tools", () => {
     expect(byName.set_scorecard).toMatchObject({ destructiveHint: true });
     for (const read of ["get_approval_flow", "list_my_approvals"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     for (const change of ["set_approval_flow", "approve", "reject"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
+    expect(byName.find_duplicates).toMatchObject({ readOnlyHint: true });
+    for (const change of ["merge_candidates", "anonymize_candidate"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
     expect(byName.request_approval).not.toMatchObject({ readOnlyHint: true });
     expect(byName.list_custom_fields).toMatchObject({ readOnlyHint: true });
     expect(byName.update_custom_field).toMatchObject({ destructiveHint: true });
@@ -531,5 +534,34 @@ describe("job posts", () => {
     const out = await call("create_job_post", { job_id: JOB, questions: [{ type: "select", label: "Start", options: ["Now"] }] });
     expect(out.isError).toBe(true);
     expect(out.content[0].text).toMatch(/2 to 50 options/);
+  });
+});
+
+describe("duplicates, merging and erasure", () => {
+  const A = "33333333-3333-4333-8333-333333333333";
+  const B = "44444444-4444-4444-8444-444444444444";
+
+  test("all three are for admins, refused before anything is read", async () => {
+    fakeDb.level = "elevated";
+    for (const [name, args] of [
+      ["find_duplicates", {}],
+      ["merge_candidates", { keep_id: A, merge_id: B }],
+      ["anonymize_candidate", { candidate_id: A, confirm: "ANONYMIZE Ada" }],
+    ] as const) {
+      const out = await result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps()));
+      expect(out.isError, name).toBe(true);
+      expect(out.content[0].text, name).toMatch(/Only an admin at your company/);
+    }
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([
+      ["find_duplicates", false], ["merge_candidates", false], ["anonymize_candidate", false],
+    ]);
+  });
+
+  test("the erasure says it is permanent and how to confirm it; the merge asks for a yes", async () => {
+    const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
+    const byName = Object.fromEntries(tools.map((t: { name: string; description: string }) => [t.name, t.description]));
+    expect(byName.anonymize_candidate).toMatch(/cannot be undone/);
+    expect(byName.anonymize_candidate).toMatch(/"ANONYMIZE "/);
+    expect(byName.merge_candidates).toMatch(/wait for their yes/);
   });
 });

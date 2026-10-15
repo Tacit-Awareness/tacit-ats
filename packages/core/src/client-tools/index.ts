@@ -84,3 +84,7 @@ export {
 export type {
   ApplicationAnswer, ApplicationAnswers, InboxEntry, JobPost, JobPostInput, JobPostStatus, Question, QuestionInput, QuestionType,
 } from "./posts.js";
+export { anonymizeCandidate, confirmationFor, findDuplicates, linkedinKey, mergeCandidates } from "./merge.js";
+export type {
+  AnonymizeResult, DuplicateCandidate, DuplicateGroup, DuplicateReason, Duplicates, MergeResult,
+} from "./merge.js";

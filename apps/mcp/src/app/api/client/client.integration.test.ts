@@ -43,7 +43,7 @@ let deps: Parameters<typeof handleClientRequest>[1];
 /** What the stand-in for WorkOS was asked to do. */
 const workos = { sent: [] as Array<{ email: string; organizationId: string; inviterUserId?: string }>, revoked: [] as string[] };
 /** The stand-in for Storage (CI's stack has no storage service): what was stored, and what was signed. */
-const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: string }>(), signed: [] as string[], failPut: false };
+const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: string }>(), signed: [] as string[], removed: [] as string[], failPut: false };
 /** The stand-in for Resend: every email handed to it. */
 const mail = { sent: [] as Array<{ from: string; replyTo: string; to: string; subject: string; text: string; idempotencyKey: string }> };
 
@@ -117,6 +117,10 @@ beforeAll(async () => {
         storage.signed.push(path);
         return `https://storage.test/object/sign/org-files/${path}?expires=${seconds}`;
       },
+      remove: async (paths) => {
+        for (const path of paths) storage.objects.delete(path);
+        storage.removed.push(...paths);
+      },
     },
     email: {
       fromAddress: "hiring@tacitawareness.test",
@@ -140,6 +144,7 @@ beforeEach(async () => {
   workos.revoked.length = 0;
   storage.objects.clear();
   storage.signed.length = 0;
+  storage.removed.length = 0;
   storage.failPut = false;
   mail.sent.length = 0;
   await clear();
@@ -1533,5 +1538,103 @@ describe("job posts and inbound applications against real Postgres", () => {
     const { data: audit } = await db().from("audit_log").select("action, after").eq("actor_id", ADMIN).like("action", "job_post.%");
     expect(audit!.map((a) => a.action).sort()).toEqual(["job_post.create", "job_post.status", "job_post.status"]);
     expect(JSON.stringify(audit)).not.toContain("Build it with us");
+  });
+});
+
+describe("duplicates, merging and erasure against real Postgres", () => {
+  const PAT_AGAIN = "c1c00000-0000-4000-8000-000000000002";
+  const AGAIN_APP = "c1d00000-0000-4000-8000-000000000002";
+
+  async function duplicateOfPat() {
+    // The same address in another case, further along in the same job, plus a job of her own and a note.
+    must(await db().from("people").insert({
+      id: PAT_AGAIN, org_id: ACME, display_name: "Pat C.", email: "PAT@cand.test", current_title: null, current_company: null,
+      location: "Toronto",
+    }));
+    must(await db().from("applications").insert([
+      { id: AGAIN_APP, org_id: ACME, person_id: PAT_AGAIN, role_id: ENGINEER, stage: "interviewing" },
+      { id: "c1d00000-0000-4000-8000-000000000003", org_id: ACME, person_id: PAT_AGAIN, role_id: DESIGNER, stage: "sourced" },
+    ]));
+    must(await db().from("person_notes").insert({ org_id: ACME, person_id: PAT_AGAIN, text: "Met at a meetup" }));
+  }
+
+  test("an admin finds the duplicate and merges it; the further application and the interview stay with the record kept", async () => {
+    await duplicateOfPat();
+    expect((await tool(IVAN, "find_duplicates")).content[0].text).toMatch(/Only an admin/);
+    const { groups } = await ok(ADA, "find_duplicates", { candidate_id: PAT });
+    expect(groups).toHaveLength(1);
+    expect(groups[0].matched_on).toEqual(["email"]);
+    expect(groups[0].candidates.map((c: { candidate_id: string }) => c.candidate_id).sort()).toEqual([PAT, PAT_AGAIN].sort());
+
+    expect((await tool(IVAN, "merge_candidates", { keep_id: PAT, merge_id: PAT_AGAIN })).content[0].text).toMatch(/Only an admin/);
+    expect((await tool(ADA, "merge_candidates", { keep_id: PAT, merge_id: SECRET_PERSON })).content[0].text).toMatch(/No candidate with that id/);
+    const merged = await ok(ADA, "merge_candidates", { keep_id: PAT, merge_id: PAT_AGAIN });
+    expect(merged).toMatchObject({ keep_id: PAT, merged_id: PAT_AGAIN, jobs_both_were_in: 1 });
+    expect(merged.fields_filled).toContain("location");
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    expect(card.jobs.map((j: { application_id: string; stage: string }) => [j.application_id, j.stage]).sort()).toEqual([
+      [AGAIN_APP, "interviewing"], ["c1d00000-0000-4000-8000-000000000003", "sourced"],
+    ]);
+    expect(card.notes).toHaveLength(1);
+    expect((await tool(ADA, "get_candidate", { candidate_id: PAT_AGAIN })).content[0].text).toMatch(/No candidate with that id/);
+    expect((await ok(ADA, "find_duplicates")).groups).toEqual([]);
+    const pipeline = await ok(ADA, "get_pipeline", { job_id: ENGINEER });
+    expect(pipeline.candidates.map((c: { application_id: string }) => c.application_id)).toEqual([AGAIN_APP]);
+
+    // The duplicate stays on file, merged; Pat's own application is kept too, marked.
+    const { data: rows } = await db().from("people").select("id, merged_into_id, merged_by_actor_id").eq("id", PAT_AGAIN).single();
+    expect(rows).toEqual({ id: PAT_AGAIN, merged_into_id: PAT, merged_by_actor_id: ADMIN });
+    const { data: old } = await db().from("applications").select("person_id, merged_into_id").eq("id", PAT_APP).single();
+    expect(old).toEqual({ person_id: PAT, merged_into_id: AGAIN_APP });
+    // The interviewer's interview moved with it, and they still see it.
+    const { interviews } = await ok(IVAN, "list_my_interviews");
+    expect(interviews).toMatchObject([{ interview_id: UPCOMING, application_id: AGAIN_APP, candidate_id: PAT }]);
+
+    const { data: audit } = await db().from("audit_log").select("entity_id, before, after").eq("actor_id", ADMIN).eq("action", "person.merge").single();
+    expect(audit!.entity_id).toBe(PAT);
+    expect(JSON.stringify(audit)).not.toMatch(/Pat|Toronto|meetup/);
+    expect((await tool(ADA, "merge_candidates", { keep_id: PAT, merge_id: PAT_AGAIN })).isError).toBe(true);
+  });
+
+  test("an erasure needs the name, removes the data and the stored file, keeps the pipeline, and happens once", async () => {
+    await duplicateOfPat();
+    await ok(ADA, "merge_candidates", { keep_id: PAT, merge_id: PAT_AGAIN });
+    const file = await ok(ADA, "add_file", {
+      candidate_id: PAT, kind: "resume", filename: "cv.pdf", content_type: "application/pdf",
+      content_base64: Buffer.from("%PDF-1.7\n%%EOF\n").toString("base64"),
+    });
+    await ok(ADA, "add_note", { candidate_id: PAT, text: "Wants to relocate" });
+    expect(storage.objects.size).toBe(1);
+
+    expect((await tool(IVAN, "anonymize_candidate", { candidate_id: PAT, confirm: "ANONYMIZE Pat Candidate" })).content[0].text)
+      .toMatch(/Only an admin/);
+    const wrong = await tool(ADA, "anonymize_candidate", { candidate_id: PAT, confirm: "ANONYMIZE Pat" });
+    expect(wrong.content[0].text).toMatch(/confirm must be exactly/);
+    expect(wrong.content[0].text).not.toMatch(/Candidate/);
+    expect((await ok(ADA, "get_candidate", { candidate_id: PAT })).email).toBe("pat@cand.test");
+
+    const done = await ok(ADA, "anonymize_candidate", { candidate_id: PAT, confirm: "ANONYMIZE Pat Candidate" });
+    expect(done).toMatchObject({ candidate_id: PAT, records_anonymized: 2, files_deleted: 1, storage: "removed" });
+    expect(storage.removed).toEqual([`${ACME}/${PAT}/${file.file_id}`]);
+    expect(storage.objects.size).toBe(0);
+
+    const card = await ok(ADA, "get_candidate", { candidate_id: PAT });
+    expect(card.name).toContain("Anonymized candidate");
+    expect(card).toMatchObject({ email: null, notes: [], files: [] });
+    expect(card.jobs.map((j: { stage: string }) => j.stage).sort()).toEqual(["interviewing", "sourced"]);
+    const { data: people } = await db().from("people").select("display_name, email, location, anonymized_at").in("id", [PAT, PAT_AGAIN]);
+    for (const p of people!) expect(p).toMatchObject({ display_name: "Anonymized candidate", email: null, location: null });
+    const { data: ids } = await db().from("person_identifiers").select("id").in("person_id", [PAT, PAT_AGAIN]);
+    expect(ids).toEqual([]);
+
+    const { data: audit } = await db().from("audit_log").select("before, after").eq("actor_id", ADMIN).eq("action", "person.anonymize").single();
+    expect(JSON.stringify(audit)).not.toMatch(/Pat|relocate|cv\.pdf|cand\.test/);
+    // Earlier audit rows about Pat keep the action and lose their contents.
+    const { data: noteAudit } = await db().from("audit_log").select("after").eq("actor_id", ADMIN).eq("action", "note.add").single();
+    expect(noteAudit!.after).toEqual({ anonymized: true });
+
+    expect((await tool(ADA, "anonymize_candidate", { candidate_id: PAT, confirm: "ANONYMIZE Anonymized candidate" })).content[0].text)
+      .toMatch(/already anonymized/);
   });
 });

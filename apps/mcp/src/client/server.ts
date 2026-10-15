@@ -2598,6 +2598,111 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "find_duplicates",
+        {
+          title: "Find duplicate candidates",
+          description:
+            "Candidates who are probably the same person: the same email (ignoring case), the same LinkedIn " +
+            "profile, or exactly the same name. Each group says what matched and lists the candidates oldest " +
+            "first. With candidate_id, only that candidate's group. A shared name alone is weak evidence: " +
+            "show the user the records before suggesting merge_candidates. Admins only.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id").optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("find_duplicates", "read", args, async () => {
+            const d = await clientTools.findDuplicates(db, ctx, { candidateId: args.candidate_id });
+            const ids = d.groups.flatMap((g) => g.candidates.map((c) => c.candidateId));
+            return {
+              summary: d.groups.length
+                ? `${d.groups.length} group${d.groups.length === 1 ? "" : "s"} of likely duplicates.`
+                : "No likely duplicates found.",
+              data: {
+                groups: d.groups.map((g) => ({
+                  matched_on: g.matchedOn,
+                  candidates: g.candidates.map((c) => ({
+                    candidate_id: c.candidateId, name: named(c.name), email: c.email,
+                    headline: fence("headline", c.headline), added_at: c.createdAt, jobs: c.jobs,
+                  })),
+                })),
+                compared: d.scanned,
+                ...(d.truncated ? { note: "Only the oldest candidates were compared; pass candidate_id to check one." } : {}),
+              },
+              candidateIds: ids,
+            };
+          }),
+      );
+
+      server.registerTool(
+        "merge_candidates",
+        {
+          title: "Merge two candidate records",
+          description:
+            "Merges merge_id into keep_id: notes, files, tags, interviews, feedback, emails and every job " +
+            "application move to keep_id; a job both were in keeps the further-along application (the other " +
+            "is kept on file, marked merged); blank fields on keep_id are filled from merge_id, never " +
+            "overwritten. merge_id stays on file marked merged and disappears from search and the pipeline. " +
+            "Only Tacit can undo it. Admins only. Before calling, name both candidates to the user, say which " +
+            "record is kept, and wait for their yes.",
+          inputSchema: z.object({ keep_id: uuid("keep_id"), merge_id: uuid("merge_id") }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("merge_candidates", "write", args, async () => {
+            const r = await clientTools.mergeCandidates(db, ctx, { keepId: args.keep_id, mergeId: args.merge_id });
+            const moved = Object.values(r.moved).reduce((a, b) => a + b, 0);
+            return {
+              summary: "Merged. The duplicate's record now points at the one kept.",
+              data: {
+                keep_id: r.keepId,
+                kept: named(r.keepName),
+                merged_id: r.mergedId,
+                merged: named(r.mergedName),
+                jobs_both_were_in: r.applicationsMerged,
+                records_moved: moved,
+                left_on_merged_record: Object.values(r.leftBehind).reduce((a, b) => a + b, 0),
+                fields_filled: r.filled,
+              },
+              candidateIds: [r.keepId, r.mergedId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "anonymize_candidate",
+        {
+          title: "Erase a candidate's personal data (GDPR)",
+          description:
+            "Permanently erases a candidate's personal data, and that of any record merged into them: name, " +
+            "contact details, profile, notes, files, tags, emails, offers, and the words of interview " +
+            "feedback. Their applications, stages, dates, interviews and ratings stay for reporting, under " +
+            "the name \"Anonymized candidate\". It cannot be undone, by anyone. Admins only. Use it only when " +
+            "the user asks to erase this candidate: tell them what will be erased, and once they say yes, pass " +
+            "confirm as \"ANONYMIZE \" followed by the candidate's full name exactly as Tacit has it " +
+            "(get_candidate).",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id"), confirm: z.string().min(1).max(300) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("anonymize_candidate", "write", { candidate_id: args.candidate_id }, async () => {
+            const r = await clientTools.anonymizeCandidate(db, ctx, deps.files, { candidateId: args.candidate_id, confirm: args.confirm });
+            return {
+              summary: r.storage === "failed"
+                ? "Anonymized, but their stored files could not be deleted yet. Tell Tacit so they can finish it."
+                : "Anonymized. Their personal data is gone; their applications remain for reporting.",
+              data: {
+                candidate_id: r.candidateId,
+                records_anonymized: r.records,
+                removed: r.removed,
+                files_deleted: r.filesRemoved,
+                storage: r.storage,
+              },
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -2610,8 +2715,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "archive_pool, remove_from_pool, " +
         "update_email_template, update_custom_field, update_department, update_office, close_opening, set_job_post_status or removing someone from a hiring team, tell the user exactly what will " +
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
-        "the whole draft, then send_email only after their explicit yes. Nothing here " +
-        "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
+        "the whole draft, then send_email only after their explicit yes. merge_candidates and " +
+        "anonymize_candidate are for admins and need the user's explicit yes naming the candidate (for a " +
+        "merge, both and which record is kept); never call either unasked. Nothing here deletes a job. A " +
+        "merge keeps the duplicate's record, marked merged; anonymize_candidate permanently erases a " +
+        "candidate's personal data and keeps only their applications' stages and dates. Interview feedback is private to the hiring team: never put it " +
         "in a message to a candidate. Offer terms are confidential: share them only with the user. " +
         "Approvals: before set_approval_flow, approve or reject, tell the user exactly what they are " +
         "setting, approving or rejecting and wait for their yes; never approve or reject on your own.\n\n" +

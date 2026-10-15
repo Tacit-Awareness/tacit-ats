@@ -74,7 +74,7 @@ describe("the client connector never holds a database client other than the memb
     for (const [file, names] of [
       ["client/bind.ts", ["bindMember"]],
       ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]],
-      ["client/files.ts", ["signFileUrl", "putFile"]],
+      ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
     ] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);

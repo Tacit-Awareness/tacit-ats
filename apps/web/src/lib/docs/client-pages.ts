@@ -525,6 +525,16 @@ A job post is the public page for a job, with an application form: a title, a lo
 
 A post takes applications only while its job is open. \`get_candidate\` and \`get_pipeline\` show a job-board applicant's answers. Applicants cannot upload a resume yet; the resume question asks for a link.
 
+## Duplicates and erasure
+
+For admins only. A merge folds one candidate record into another: notes, files, tags, emails, custom fields, pools, interviews and every job move to the record you keep; where both were in the same job, the further-along application is kept. Blank fields on the kept record are filled from the other, never overwritten, and the duplicate stays on file marked merged, hidden from your team. Erasure (GDPR) is permanent: the candidate's name, contact details, profile, notes, files, emails and the words of their feedback are deleted, and their applications, stages and dates stay under "Anonymized candidate" so your numbers still add up. To erase someone you confirm by typing ANONYMIZE and their name.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`find_duplicates\` | Candidates who are probably the same person: same email, LinkedIn or name | Admins | |
+| \`merge_candidates\` | Fold a duplicate into the record you keep | Admins | Yes, naming both |
+| \`anonymize_candidate\` | Permanently erase a candidate's personal data | Admins | Yes, naming them |
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |
@@ -546,9 +556,9 @@ A post takes applications only while its job is open. \`get_candidate\` and \`ge
     title: "Limits, privacy & audit",
     category: "Reference",
     description: "What is recorded, the hourly limits, and how candidate data is handled.",
-    body: `## Nothing is deleted
+    body: `## Nothing is deleted, except an erasure
 
-No tool deletes a candidate, a job, a note or a file. Things that end are closed, withdrawn or archived instead, so the record stays complete.
+No tool deletes a job or a note. Things that end are closed, withdrawn or archived instead, so the record stays complete. A merge keeps the duplicate's record, marked merged. The one exception is \`anonymize_candidate\`: an admin can permanently erase a candidate's personal data, files included, when they ask for it (GDPR). Their applications, stages and dates stay, anonymized.
 
 ## Everything is recorded
 
