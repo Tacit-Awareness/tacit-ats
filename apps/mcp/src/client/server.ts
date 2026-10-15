@@ -41,7 +41,7 @@ export type ClientHandlerDeps = {
    * address under the member's name). Null = draft_email and send_email refuse.
    */
   email: clientTools.ClientMailer | null;
-  /** The origin serving public job posts (apps/internal /jobs/[slug]). Null or absent = no links. */
+  /** The origin serving public job posts (apps/web /jobs/[slug]). Null or absent = no links. */
   jobsOrigin?: string | null;
 };
 

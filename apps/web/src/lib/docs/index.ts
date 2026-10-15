@@ -1,10 +1,8 @@
 import { CLIENT_DOCS } from "./client-pages";
-import { STAFF_DOCS, STAFF_OVERVIEW } from "./staff-pages";
 import type { DocPage } from "./types";
 
 export type { DocPage } from "./types";
 export { CLIENT_CONNECTOR_URL } from "./client-pages";
-export { STAFF_CONNECTOR_URL } from "./staff-pages";
 
 /**
  * One mounted copy of the docs: the pages it shows, in reading order (the
@@ -16,22 +14,6 @@ export type DocsSite = {
   title: string;
   intro: string;
   pages: DocPage[];
-};
-
-const staffOnly = (category: string) => STAFF_DOCS.filter((p) => p.category === category);
-
-/** /docs: everything, the client pages grouped together in the middle. */
-export const STAFF_SITE: DocsSite = {
-  basePath: "/docs",
-  title: "Connector docs",
-  intro: "Using Tacit from Claude: the Tacit connector, the client connector, and how both are run.",
-  pages: [
-    STAFF_OVERVIEW,
-    ...staffOnly("Tacit connector"),
-    ...CLIENT_DOCS.map((p) => ({ ...p, category: "Client connector" })),
-    ...staffOnly("Other servers"),
-    ...staffOnly("Administration"),
-  ],
 };
 
 /** /client/docs: the client connector only. */

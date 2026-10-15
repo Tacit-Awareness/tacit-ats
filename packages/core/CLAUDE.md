@@ -1,6 +1,6 @@
 # @tacit-ats/core
 
-The client ATS's domain logic: first sign-in, a client admin's invitations, and every tool the client connector (apps/mcp `/api/client`) exposes. Moved from Tacit-Awareness's `packages/core` on 2026-10-14 with its history.
+The client ATS's domain logic: first sign-in, a client admin's invitations, and every tool the client connector (apps/mcp `/api/client`) exposes. Moved from Tacit-Awareness's `packages/core` on 2026-10-16 with its history.
 
 ## What it builds on
 
@@ -208,6 +208,216 @@ src/
                         carries `emails` (no bodies); getActivity has an
                         `email` entry per sent email (the subject as
                         text)
+                        approvals.ts (2026-10-15, 20261016110000): approval
+                        chains per job, kind `offer` (gates draft ->
+                        extended) or `job_open` (gates moving the job to
+                        open). The gates are database triggers, so
+                        updateOffer / updateJob need nothing new beyond
+                        turning the 22023 into a sentence that names
+                        request_approval. getApprovalFlow (managers and the
+                        flow's approvers; job_open also returns the latest
+                        request), setApprovalFlow (whoever manages the job;
+                        steps = string[][], any one approver per step, at
+                        most 10 x 10, nobody twice, every id an active
+                        member, checked in code first; [] clears; the same
+                        flow claims nothing), requestApproval (offerId XOR
+                        jobId; a draft offer, a job not open, a flow that
+                        exists; already_pending / already_approved give the
+                        claim back), listMyApprovals (my_approvals(): what
+                        waits on the caller's step, with the candidate and
+                        the terms for an offer), decideApproval (approve or
+                        reject with a required reason; a request no longer
+                        pending is answered `not_pending` without a claim;
+                        someone not at the waiting step is told which step
+                        it waits on). Every write is a definer function
+                        (set_approval_flow / request_approval /
+                        decide_approval), audited as approval_flow.set,
+                        approval.request, approval.approve / .reject; the
+                        reason stays out of the audit row. getOffers carries
+                        each offer's `approval` (null with no flow and no
+                        request) from offerApprovals; getActivity adds
+                        approval.requested / .approved / .rejected / .reset
+                        / .cancelled for the candidate's offers
+                        custom-fields.ts (2026-10-16): per-org custom
+                        fields on a candidate, job or offer
+                        (CUSTOM_FIELD_OBJECTS; CUSTOM_FIELD_TYPES:
+                        short_text, long_text, number, date, yes_no,
+                        single_select, multi_select, url).
+                        listCustomFields (above interviewer),
+                        createCustomField and updateCustomField (admins:
+                        rename, private on/off, archive / restore, and a
+                        select field's options as a list that becomes
+                        the live set in order -- renamed by optionId,
+                        matched by name, added, the rest archived, never
+                        deleted), setCustomField (value null clears; the
+                        object checked first with the same helpers the
+                        policies use: can_edit_person for a candidate,
+                        plus can_manage_job on one of their jobs for a
+                        private field unless admin; can_manage_job for a
+                        job; an offer must be a draft). A field is named
+                        by id or by name ignoring case within its object,
+                        matched in code over the org's fields. Values are
+                        checked against the type here and again by the
+                        database's trigger; select values are stored as
+                        option ids and shown as names, and an archived
+                        option stays on whoever had it but is chosen by
+                        no one new. A long_text value stays out of the
+                        audit row. customFieldValuesFor(db, object, ids)
+                        is the read the others use: getCandidate,
+                        listJobs, getJobPipeline and getOffers carry
+                        `customFields` (live fields only, in the fields'
+                        order; empty for an interviewer). New rows get
+                        their id in code, never read back
+                        structure.ts (2026-10-16): listDepartments (each
+                        with its path, "Engineering > Platform", and the
+                        jobs the member can see in it), createDepartment
+                        (optionally inside a parent) / updateDepartment
+                        (rename, move, archive or bring back; a move that
+                        would put one inside itself is refused before the
+                        claim, and the database refuses it too),
+                        listOffices / createOffice / updateOffice (name,
+                        location, archive). Admins write, interviewers
+                        read none; named by id or name ignoring case,
+                        matched in code over the org's rows (pickByRef);
+                        an existing name is answered with, an archived
+                        one restored. Nothing deletes either.
+                        createJob takes `department`, `offices` and
+                        `openings` (1 unless said, 0 for a job made filled
+                        or closed), all in the one role.create write;
+                        updateJob takes `department` (null clears) and
+                        `offices` (the whole set; only the difference is
+                        written), refusing an archived one unless the job
+                        already has it. listJobs carries each job's
+                        department, offices and opening counts and takes
+                        `department` (with the ones inside it) and
+                        `office` filters.
+                        openings.ts (2026-10-16): listOpenings (counts and
+                        rows, who filled each), addOpenings (ids made in
+                        code, one insert, numbers read afterwards: the
+                        database numbers them; codes unique in the org),
+                        closeOpening (an open one, with a reason kept out
+                        of the audit row; a filled one is refused). The
+                        filling is the database's (fill_opening_on_hire):
+                        updateStage to hired reads back the opening it
+                        filled (openingFilledBy), how many are left open
+                        and the job's status, best-effort after the move
+                        has committed
+                        pools.ts (2026-10-16): prospects and talent pools.
+                        A prospect is a person in the org with no
+                        application. addProspect (anyone who
+                        can_add_people; name / email / LinkedIn through
+                        pipeline/candidate.ts parseCandidateIdentity, the
+                        same parse add_candidate uses; an email already on
+                        file that the member can see is reused and not
+                        changed; people.added_by_actor_id = the member,
+                        prospect_source / prospect_source_detail; optional
+                        pool), convertProspect (into a job over ../pipeline
+                        addToPipeline, for whoever has can_edit_pipeline on
+                        it; the application takes the source given, else
+                        the prospect's, else sourced; pools untouched;
+                        audited as prospect.convert). Pools: listPools,
+                        createPool (can_add_people; an existing name is
+                        answered with, an archived one restored by an
+                        admin), archivePool (admins), addToPool (new
+                        member at a stage, or with `stage` a move
+                        conditional on the stage read), removeFromPool,
+                        listPool. POOL_STAGES: new, contacted, engaged,
+                        not_interested. A pool is named by id or by name
+                        ignoring case (findPool, as findTag). Interviewers
+                        are refused every one of them before a query.
+                        searchCandidates takes `pool` and `prospectsOnly`
+                        (reads up to 200 rows, keeps those in no job the
+                        member can see, then asks person_in_no_pipeline,
+                        since an admin does not see a confidential job's
+                        applications); getCandidate carries `prospect`,
+                        the prospect source and `pools` (poolsFor). New
+                        rows get their id in code; source details stay out
+                        of the audit row
+                        posts.ts (2026-10-16): job posts and the
+                        applications they bring in. createJobPost (a
+                        draft; id and slug made in code, never read back;
+                        title defaults to the job's), updateJobPost (text
+                        and questions, any status, conditional on the
+                        updated_at read; a custom question passed again
+                        under its label keeps its id), setJobPostStatus
+                        (live | closed, conditional on the status read;
+                        live needs the job open), listJobPosts (questions,
+                        whether it is accepting, applications counted under
+                        the answers policy) -- whoever can manage the job,
+                        never an interviewer. buildQuestions shapes and
+                        checks the form before any query (name and email
+                        always first and required; built-ins phone,
+                        linkedin, resume; custom short_text, long_text,
+                        yes_no, select) and jobPostUrl builds the public
+                        link from an origin the caller passes.
+                        listApplicationsInbox: applications with source
+                        job_board at INBOX_STAGES ("applied" for a pipeline
+                        that grows one, then "sourced"), newest first, with
+                        their answers. answersFor reads application_answers
+                        as the member; getCandidate and getJobPipeline
+                        attach them to job_board applications only (so no
+                        extra query otherwise). Descriptions stay out of
+                        the audit row. The public half (job_post_public,
+                        submit_job_application on the publishable key) is
+                        apps/web's /jobs/[slug], not here.
+                        merge.ts (2026-10-16): findDuplicates,
+                        mergeCandidates, anonymizeCandidate, admins only,
+                        refused before any query for anyone else.
+                        findDuplicates reads up to 5,000 of the org's
+                        candidates (anonymized ones filtered, merged ones
+                        hidden by the policy) plus their email identifiers
+                        on the member's token and groups them in code
+                        (union-find) by email ignoring case, LinkedIn
+                        profile (linkedinKey: linkedin.com/in/<slug>) or
+                        exact name. The two writes are the definer functions
+                        client_merge_candidates / client_anonymize_candidate
+                        (20261016160000) inside withAudit (person.merge /
+                        person.anonymize; ids, counts and column names only,
+                        never a name). A merge is soft: the duplicate stays,
+                        merged_into the record kept. anonymizeCandidate
+                        checks confirm == "ANONYMIZE <name on file>"
+                        (confirmationFor; the id when there is no name, and
+                        the database checks it again), refuses a candidate
+                        with files when the FileStore has no remove(), and
+                        removes the returned storage paths only after the
+                        database committed: a Storage failure then is
+                        reported (storage: "failed", paths logged), not
+                        thrown. FileStore gained the optional remove();
+                        getFileLink accepts <org>/<any person uuid>/<id>,
+                        since a merged file keeps the path it was uploaded at
+                        reports.ts (2026-10-16): pipelineReport (per
+                        stage: now, reached (a skipped stage counts as
+                        passed), conversion to the next forward stage,
+                        average days per ended stay from application_events),
+                        sourceReport, timeToHire (a hire = stage hired now,
+                        dated by its last move to hired; a job opens at
+                        roles.created_at, there is no opened date),
+                        rejectionReport (closed now, by the last move to
+                        that stage, per reason), interviewerActivity
+                        (admins, or whoever can_manage_job on some job,
+                        over the jobs they manage; on time = within
+                        FEEDBACK_ON_TIME_HOURS = 24 of the end; a filing
+                        the caller's token cannot see is not_visible,
+                        told apart from not filed by can_see_feedback) and
+                        offerReport. Plain reads on the member's token, no
+                        SQL function, so each counts only what the member
+                        reads; scan() pages 1,000 rows (the API's max) up
+                        to REPORT_SCAN_MAX = 5000 (events 10,000) and the
+                        report says truncated. Interviewers are refused
+                        before any query. `since` is a YYYY-MM-DD day.
+                        eeoc.ts (2026-10-16): recordEeoc (a manager on the
+                        job types in a paper EEO form through the
+                        record_eeoc definer function; audited as
+                        eeoc.record with NO answer in the row or the call
+                        log) and eeocReport (admins only: per answer,
+                        applicants and hires, every cell under
+                        EEOC_MIN_CELL = 5 "<5", a lone small cell's
+                        smallest neighbour "hidden" so it cannot be
+                        subtracted out, no breakdown at all under five
+                        responses). It never returns a row, even to an
+                        admin, and eeoc.test.ts fails if any other file
+                        here names eeoc_responses, so get_candidate and
+                        get_activity cannot start showing EEO answers
   test-helpers/         fake Supabase client for unit tests (excluded from the
                         build; a copy of Tacit-Awareness's)
 ```

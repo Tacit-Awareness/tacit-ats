@@ -1,6 +1,6 @@
 import type { Db } from "@tacit/db";
 
-import { ACTIVE_STAGES, APPLICATION_STAGES, CANDIDATE_SOURCES, parseDueDate } from "../pipeline/pipeline.js";
+import { ACTIVE_STAGES, APPLICATION_STAGES, CANDIDATE_SOURCES, parseDueDate } from "@tacit/core";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 
 /**

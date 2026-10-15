@@ -3,12 +3,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { rankPages } from "@/components/docs/docs-search";
-import { CLIENT_SITE, STAFF_SITE, docHref, docSections, findDocPage, headingId, type DocPage } from ".";
+import { CLIENT_SITE, docHref, docSections, findDocPage, headingId, type DocPage } from ".";
 
 /**
- * The docs describe two MCP servers that live in another app, so nothing
- * would notice them drifting apart. These tests read the servers' source and
- * hold each tool reference page to exactly the tools registered there.
+ * The docs describe the client connector, which lives in another app, so
+ * nothing would notice them drifting apart. These tests read its source and
+ * hold the tool reference page to exactly the tools registered there.
  */
 const MCP_SRC = join(dirname(fileURLToPath(import.meta.url)), "../../../../mcp/src");
 
@@ -31,34 +31,18 @@ describe("tool references match the servers", () => {
     expect(referencedTools(findDocPage(CLIENT_SITE, ["client-tools"])!)).toEqual(tools);
   });
 
-  test("the Tacit connector reference lists exactly the staff connector's tools", () => {
-    const tools = registeredTools("connector/server.ts");
-    expect(tools.length).toBeGreaterThan(30);
-    expect(referencedTools(findDocPage(STAFF_SITE, ["connector-tools"])!)).toEqual(tools);
-  });
-
-  test("the overview's tool counts are the real ones", () => {
-    const overview = findDocPage(STAFF_SITE, ["overview"])!.body;
-    expect(overview).toContain(`${registeredTools("connector/server.ts").length} tools over Tacit's org`);
-    expect(overview).toContain(`${registeredTools("client/server.ts").length} tools over their own company`);
-  });
 });
 
-describe("the two sites", () => {
-  test("slugs are unique within each site", () => {
-    for (const site of [STAFF_SITE, CLIENT_SITE]) {
+describe("the client site", () => {
+  test("slugs are unique", () => {
+    for (const site of [CLIENT_SITE]) {
       const slugs = site.pages.map((p) => p.slug);
       expect(new Set(slugs).size).toBe(slugs.length);
     }
   });
 
-  test("staff see every client page", () => {
-    const staff = new Set(STAFF_SITE.pages.map((p) => p.slug));
-    for (const p of CLIENT_SITE.pages) expect(staff.has(p.slug)).toBe(true);
-  });
-
-  test("every link between pages lands on a page of the same site", () => {
-    for (const site of [STAFF_SITE, CLIENT_SITE]) {
+  test("every link between pages lands on a page of the site", () => {
+    for (const site of [CLIENT_SITE]) {
       const slugs = new Set(site.pages.map((p) => p.slug));
       for (const page of site.pages) {
         for (const link of linksOf(page)) {
@@ -77,7 +61,7 @@ describe("the two sites", () => {
   });
 
   test("headings on a page have distinct anchors", () => {
-    for (const page of STAFF_SITE.pages) {
+    for (const page of CLIENT_SITE.pages) {
       const ids = docSections(page).map(headingId);
       expect(new Set(ids).size, page.slug).toBe(ids.length);
     }
@@ -86,12 +70,10 @@ describe("the two sites", () => {
 
 describe("findDocPage", () => {
   test("no slug is the site's first page", () => {
-    expect(findDocPage(STAFF_SITE, undefined)?.slug).toBe("overview");
     expect(findDocPage(CLIENT_SITE, [])?.slug).toBe("connect");
   });
 
   test("a staff-only page is not found on the client site", () => {
-    expect(findDocPage(STAFF_SITE, ["operations"])).not.toBeNull();
     expect(findDocPage(CLIENT_SITE, ["operations"])).toBeNull();
   });
 
@@ -103,14 +85,12 @@ describe("findDocPage", () => {
 
 describe("docHref", () => {
   test("rewrites page links to the site they are shown on", () => {
-    expect(docHref(STAFF_SITE, "/docs/files")).toBe("/docs/files");
     expect(docHref(CLIENT_SITE, "/docs/files")).toBe("/client/docs/files");
     expect(docHref(CLIENT_SITE, "/docs/access#feedback-visibility")).toBe("/client/docs/access#feedback-visibility");
   });
 
   test("leaves other links alone", () => {
     expect(docHref(CLIENT_SITE, "https://claude.ai")).toBe("https://claude.ai");
-    expect(docHref(STAFF_SITE, "/orgs")).toBe("/orgs");
   });
 });
 

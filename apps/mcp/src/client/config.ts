@@ -25,9 +25,9 @@ export type ClientMcpConfig = {
   /** Signs the per-request database token (@tacit/db's mintClientMemberToken). */
   signer: MemberTokenSigner;
   /**
-   * The origin of the site serving public job posts (apps/internal's /jobs/[slug]),
-   * for the links the job-post tools return (CLIENT_JOBS_ORIGIN, else
-   * INTERNAL_ORIGIN). Null or absent = they return no link.
+   * The origin of the site serving public job posts (apps/web's /jobs/[slug]),
+   * for the links the job-post tools return (CLIENT_JOBS_ORIGIN). Null or
+   * absent = they return no link.
    */
   jobsOrigin?: string | null;
 };
@@ -54,7 +54,7 @@ export function clientMcpConfig(env: Record<string, string | undefined> = proces
     publishableKey,
     signer: parseTacitSigningKey(rawKey, env.SUPABASE_TACIT_SIGNING_KEY_ID?.trim() || undefined),
     jobsOrigin: (() => {
-      const origin = env.CLIENT_JOBS_ORIGIN?.trim() || env.INTERNAL_ORIGIN?.trim();
+      const origin = env.CLIENT_JOBS_ORIGIN?.trim();
       return origin ? trimSlash(origin) : null;
     })(),
   };

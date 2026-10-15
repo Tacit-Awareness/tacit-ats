@@ -1,11 +1,9 @@
 import type { Db } from "@tacit/db";
 
-import { findPersonByIdentifier } from "../dedupe/identifiers.js";
-import { parseCandidateIdentity } from "../pipeline/candidate.js";
 import {
-  CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, addToPipeline, isCandidateSource,
+  CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, addToPipeline, findPersonByIdentifier, isCandidateSource, parseCandidateIdentity,
   type AddToPipelineResult, type CandidateSource,
-} from "../pipeline/pipeline.js";
+} from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 

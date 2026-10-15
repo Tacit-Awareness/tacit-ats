@@ -12,7 +12,7 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
  * a question list it could not ask, and the checks here only say so first, in
  * a sentence.
  *
- * The public half is not here: apps/internal's /jobs/[slug] reads a live post
+ * The public half is not here: apps/web's /jobs/[slug] reads a live post
  * through job_post_public and submits through submit_job_application, both on
  * the publishable key. An applicant lands in the job at sourced with source
  * job_board, and listApplicationsInbox is where the team finds them.

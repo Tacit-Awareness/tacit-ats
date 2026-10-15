@@ -1,6 +1,6 @@
 import type { Db, Json, TablesInsert, TablesUpdate } from "@tacit/db";
 
-import { parseDueDate } from "../pipeline/pipeline.js";
+import { parseDueDate } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 

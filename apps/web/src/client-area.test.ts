@@ -92,17 +92,15 @@ describe("the client area never holds a privileged database client", () => {
 describe("the public job pages hold no session and no client but the publishable key", () => {
   // /jobs/[slug] and /api/jobs/[slug]/apply are outside the proxy's sign-in
   // check on purpose. What they can reach must not be able to act as anyone:
-  // no staff or privileged database client, no staff or client session.
+  // no privileged database client, no client session.
   const roots = [...walk(join(SRC, "app/jobs")), ...walk(join(SRC, "app/api/jobs")), ...walk(join(SRC, "lib/public"))];
-  const SESSIONS = new Set([
-    join(SRC, "lib/auth.ts"), join(SRC, "lib/session.ts"), join(SRC, "lib/client/session.ts"), join(SRC, "lib/client/bind.ts"),
-  ]);
+  const SESSIONS = new Set([join(SRC, "lib/client/session.ts"), join(SRC, "lib/client/bind.ts")]);
 
   test("there are public pages to check", () => {
     expect(roots.map(rel)).toEqual(expect.arrayContaining(["app/jobs/[slug]/page.tsx", "app/api/jobs/[slug]/apply/route.ts", "lib/public/jobs.ts"]));
   });
 
-  test("nothing they import, at any depth, reaches a session, lib/db or a privileged client, and none is an action", () => {
+  test("nothing they import, at any depth, reaches a session or a privileged client, and none is an action", () => {
     const offenders: string[] = [];
     const seen = new Set<string>();
     const visit = (file: string, trail: string[]) => {
@@ -110,7 +108,6 @@ describe("the public job pages hold no session and no client but the publishable
       seen.add(file);
       const here = [...trail, rel(file)];
       const text = readFileSync(file, "utf8");
-      if (file === STAFF_DB) offenders.push(`${here.join(" -> ")} (the staff database client)`);
       if (SESSIONS.has(file)) offenders.push(`${here.join(" -> ")} (a session)`);
       if (PRIVILEGED.test(text)) offenders.push(`${here.join(" -> ")} (names a privileged client)`);
       if (/^\s*(["'])use server\1/.test(text)) offenders.push(`${here.join(" -> ")} (a server action file)`);

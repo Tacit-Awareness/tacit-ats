@@ -2,13 +2,13 @@ import type { DocPage } from "./types";
 
 /**
  * The client connector's documentation (apps/mcp's /api/client): what a
- * member of a client company reads at /client/docs, and what staff read
- * under the same slugs at /docs. Pages here link only to each other, since a
- * client cannot open a staff page (docs.test.ts checks).
+ * member of a client company reads at /client/docs. Tacit-Awareness's staff
+ * /docs shows a copy of these pages; this file is the source. Pages here link
+ * only to each other (docs.test.ts checks).
  *
  * Every tool name, limit and value list below is from apps/mcp's
- * src/client/server.ts and core's clientTools; docs.test.ts fails when a tool
- * is added there and not named here, or named here and gone there.
+ * src/client/server.ts and @tacit-ats/core's clientTools; docs.test.ts fails
+ * when a tool is added there and not named here, or named here and gone there.
  */
 
 export const CLIENT_CONNECTOR_URL = "https://mcp.tacitawareness.com/api/client";

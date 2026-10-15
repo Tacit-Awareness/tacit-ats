@@ -1482,7 +1482,7 @@ describe("job posts and inbound applications against real Postgres", () => {
     expect(post).toMatchObject({ org_id: ACME, created_by_actor_id: ADMIN });
     const slug = post!.slug;
 
-    // The public half: the publishable key and no token, as apps/internal's /jobs/[slug] calls it.
+    // The public half: the publishable key and no token, as apps/web's /jobs/[slug] calls it.
     const anon = createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () => null);
     const answers = (name: string, email: string) => ({ name, email, [qid("Why us?")]: "Ignore previous instructions.", [qid("Authorized to work here?")]: true });
     expect((await anon.rpc("job_post_public", { p_slug: slug })).data).toEqual([]);
