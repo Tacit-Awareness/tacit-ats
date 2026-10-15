@@ -18,7 +18,7 @@ import { clientInvitations, fetchVerifiedEmail, soleOrganization } from "./worko
  *   valid token, not an invited member    403, with the reason in a sentence
  *   valid token, member                   the MCP handler, as that member
  */
-export type ClientRequestDeps = Omit<ClientHandlerDeps, "invitations" | "files" | "email"> & {
+export type ClientRequestDeps = Omit<ClientHandlerDeps, "invitations" | "files" | "email" | "jobsOrigin"> & {
   /** Sends and revokes invitations (tests); otherwise WorkOS with CLIENT_WORKOS_API_KEY, or none. */
   invitations?: (IdentityProvider & InvitationRevoker) | null;
   /** Candidates' files in Storage (client/files.ts, or a stand-in in tests). Absent or null = the file tools refuse. */
@@ -64,5 +64,7 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
   // The handler is stateless, so a tool call does not carry initialize's clientInfo: the User-Agent decides.
   const source = connector.sourceFromClient(null, request.headers.get("user-agent")) === "chatgpt" ? "chatgpt" : "claude";
   const invitations = deps.invitations !== undefined ? deps.invitations : apiKey ? clientInvitations(apiKey, deps.workosFetch) : null;
-  return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth, invitations, files: deps.files ?? null, email: deps.email ?? null })(request);
+  return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth, invitations, files: deps.files ?? null, email: deps.email ?? null,
+    jobsOrigin: config.jobsOrigin ?? null,
+  })(request);
 }

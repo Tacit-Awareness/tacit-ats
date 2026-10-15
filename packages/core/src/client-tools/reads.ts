@@ -9,6 +9,7 @@ import { emailsFor, type CandidateEmail } from "./email.js";
 import { customFieldValuesFor, type CustomFieldValue } from "./custom-fields.js";
 import { countOpenings, type OpeningCounts } from "./openings.js";
 import { departmentAndBelow, pickByRef, readDepartments, readOffices } from "./structure.js";
+import { answersFor, type ApplicationAnswers } from "./posts.js";
 
 export type JobView = {
   jobId: string;
@@ -100,7 +101,8 @@ export type JobPipeline = {
   jobId: string;
   title: string;
   status: string;
-  cards: PipelineCard[];
+  /** Each card carries what its applicant answered on a job post, when they applied through one. */
+  cards: Array<PipelineCard & { answers: ApplicationAnswers | null }>;
   stalledCount: number;
   customFields: CustomFieldValue[];
 };
@@ -115,11 +117,12 @@ export async function getJobPipeline(db: Db, ctx: ClientToolCtx, jobId: string):
   }
   const pipeline = await getRolePipeline(db, jobId);
   if (!pipeline) throw new ClientToolError("not_found", "No job with that id that you can see. Call list_jobs for the ids.");
+  const answers = await answersFor(db, pipeline.cards.filter((c) => c.source === "job_board").map((c) => c.applicationId));
   return {
     jobId: pipeline.roleId,
     title: pipeline.roleTitle,
     status: pipeline.roleStatus,
-    cards: pipeline.cards,
+    cards: pipeline.cards.map((c) => ({ ...c, answers: answers.get(c.applicationId) ?? null })),
     stalledCount: pipeline.stalledCount,
     customFields: (await customFieldValuesFor(db, "job", [pipeline.roleId])).get(pipeline.roleId) ?? [],
   };
@@ -260,6 +263,8 @@ export type CandidateDetail = {
     rejectionNote: string | null;
     /** The newest offer, for someone who manages the job; null otherwise or when there is none. */
     offer: { offerId: string; status: string } | null;
+    /** What they answered on the job post they applied through; null when they did not. */
+    answers: ApplicationAnswers | null;
   }>;
   notes: CandidateNote[];
   /** The files the member can read: an interviewer, only the resume. */
@@ -365,6 +370,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
     if (offersError) throw new Error(offersError.message);
     for (const o of rows ?? []) if (!offers.has(o.application_id)) offers.set(o.application_id, { offerId: o.id, status: o.status });
   }
+  const answers = await answersFor(db, (apps ?? []).filter((a) => a.source === "job_board").map((a) => a.id));
   return {
     candidateId,
     name: person.display_name,
@@ -388,6 +394,7 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       rejectionReason: a.rejection_reasons?.name ?? null,
       rejectionNote: a.rejection_note,
       offer: offers.get(a.id) ?? null,
+      answers: answers.get(a.id) ?? null,
     })),
     notes: await notesFor(db, ctx, candidateId),
     files: await filesFor(db, candidateId),

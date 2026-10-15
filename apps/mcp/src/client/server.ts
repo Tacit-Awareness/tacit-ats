@@ -41,6 +41,8 @@ export type ClientHandlerDeps = {
    * address under the member's name). Null = draft_email and send_email refuse.
    */
   email: clientTools.ClientMailer | null;
+  /** The origin serving public job posts (apps/internal /jobs/[slug]). Null or absent = no links. */
+  jobsOrigin?: string | null;
 };
 
 /**
@@ -64,6 +66,19 @@ const TEAM_ROLE_HELP =
   "candidates, interviewer gives no access beyond their own interviews.";
 
 const LEVELS = { limited: "interviewer", elevated: "hiring team", admin: "admin" } as const;
+
+const QUESTION = z.object({
+  type: z.enum(clientTools.QUESTION_TYPES),
+  label: z.string().min(1).max(clientTools.QUESTION_LABEL_MAX).optional(),
+  required: z.boolean().optional(),
+  options: z.array(z.string().min(1).max(200)).max(50).optional(),
+  question_id: z.string().max(40).optional(),
+});
+const QUESTIONS_HELP =
+  "questions is the application form, in order: built-ins name and email (always asked, always required, " +
+  "added if you leave them out), phone, linkedin and resume (a link to it: the public form takes no " +
+  "uploads), and custom short_text, long_text, yes_no and select (with 2-50 options), each with a label " +
+  "and required. Left out on a new post: name, email, and optional phone, LinkedIn and resume link.";
 
 export function buildClientHandler(member: ClientMember, source: "claude" | "chatgpt", deps: ClientHandlerDeps) {
   const db = member.db;
@@ -120,11 +135,21 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     next_action: c.nextAction,
     next_action_due: c.nextActionDue,
     needs_attention: c.stalled,
+    ...(c.answers ? { answers: answersOut(c.answers.answers) } : {}),
   });
   // A subject is the member's or a template's text, with the candidate's name filled in: fenced.
   const emailOut = (e: clientTools.CandidateEmail) => ({
     email_id: e.emailId, status: e.status, to: e.to, subject: fence("subject", e.subject), by: e.author, yours: e.mine,
     application_id: e.applicationId, template_id: e.templateId, created_at: e.createdAt, sent_at: e.sentAt,
+  });
+  // An applicant's answers are theirs: fenced. Labels are the member's, like job titles: bare.
+  const answersOut = (answers: clientTools.ApplicationAnswer[]) =>
+    answers.map((a) => ({ question_id: a.questionId, label: a.label, value: fence("answer", a.value) }));
+  const questionOut = (q: clientTools.Question) => ({
+    question_id: q.questionId, type: q.type, label: q.label, required: q.required, ...(q.options ? { options: q.options } : {}),
+  });
+  const questionIn = (q: z.infer<typeof QUESTION>): clientTools.QuestionInput => ({
+    type: q.type, label: q.label, required: q.required, options: q.options, questionId: q.question_id,
   });
   // A filename is the uploader's text: fenced.
   const fileOut = (f: clientTools.CandidateFile) => ({
@@ -324,6 +349,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                   next_action: a.nextAction, next_action_due: a.nextActionDue, last_touch_at: a.lastTouchAt,
                   rejection_reason: a.rejectionReason, rejection_note: fence("note", a.rejectionNote),
                   offer: a.offer ? { offer_id: a.offer.offerId, status: a.offer.status } : null,
+                  answers: a.answers ? answersOut(a.answers.answers) : null,
                 })),
                 notes: c.notes.map((n) => ({ note_id: n.noteId, text: fence("note", n.text), author: n.author, created_at: n.createdAt, yours: n.mine })),
                 files: c.files.map(fileOut),
@@ -2417,6 +2443,161 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      server.registerTool(
+        "list_job_posts",
+        {
+          title: "List job posts",
+          description:
+            "The public posts for your company's jobs (job_id narrows to one), each with a post_id, its " +
+            "status (draft, live or closed), whether it is taking applications (live and the job open), the " +
+            "public link, the questions its form asks (question_id for update_job_post) and how many " +
+            "applications came in through it. A job can have several posts.",
+          inputSchema: z.object({ job_id: uuid("job_id").optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_job_posts", "read", args, async () => {
+            const posts = await clientTools.listJobPosts(db, ctx, { jobId: args.job_id });
+            return {
+              summary: `${posts.length} job post${posts.length === 1 ? "" : "s"}.`,
+              data: {
+                posts: posts.map((p) => ({
+                  post_id: p.postId, job_id: p.jobId, job: p.jobTitle, title: p.title, location: p.location,
+                  description: fence("description", p.description), status: p.status, accepting_applications: p.accepting,
+                  url: clientTools.jobPostUrl(deps.jobsOrigin, p.slug), questions: p.questions.map(questionOut),
+                  applications: p.applications, published_at: p.publishedAt, closed_at: p.closedAt,
+                })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_job_post",
+        {
+          title: "Create a job post",
+          description:
+            "Writes a public post for a job (job_id) as a draft: nothing is public until set_job_post_status " +
+            "makes it live. title defaults to the job's; location and description are what applicants read. " +
+            `${QUESTIONS_HELP} Returns the post_id and the link it will have. Whoever manages the job.`,
+          inputSchema: z.object({
+            job_id: uuid("job_id"),
+            title: z.string().min(1).max(200).optional(),
+            location: z.string().max(200).optional(),
+            description: z.string().max(20_000).optional(),
+            questions: z.array(QUESTION).max(clientTools.QUESTIONS_MAX).optional(),
+          }),
+        },
+        (args) =>
+          run("create_job_post", "write", { ...args, description: undefined }, async () => {
+            const r = await clientTools.createJobPost(db, ctx, {
+              jobId: args.job_id, title: args.title, location: args.location, description: args.description,
+              questions: args.questions?.map(questionIn),
+            });
+            return {
+              summary: "Draft post created. It is not public until it is set live.",
+              data: {
+                post_id: r.postId, status: r.status, title: r.title, url: clientTools.jobPostUrl(deps.jobsOrigin, r.slug),
+                questions: r.questions.map(questionOut),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "update_job_post",
+        {
+          title: "Edit a job post",
+          description:
+            "Changes a post's title, location, description or questions (post_id from list_job_posts), in " +
+            "any status: a live post's public page changes at once. questions replaces the whole form; pass " +
+            "each custom question's question_id to keep it. Answers already given keep the question as it " +
+            `was asked. ${QUESTIONS_HELP}`,
+          inputSchema: z.object({
+            post_id: uuid("post_id"),
+            title: z.string().min(1).max(200).optional(),
+            location: z.string().max(200).nullable().optional(),
+            description: z.string().max(20_000).nullable().optional(),
+            questions: z.array(QUESTION).max(clientTools.QUESTIONS_MAX).optional(),
+          }),
+        },
+        (args) =>
+          run("update_job_post", "write", { ...args, description: undefined }, async () => {
+            const r = await clientTools.updateJobPost(db, ctx, {
+              postId: args.post_id, title: args.title, location: args.location, description: args.description,
+              questions: args.questions?.map(questionIn),
+            });
+            const summary = {
+              updated: `Updated: ${r.changed.join(", ")}.`,
+              unchanged: "Already that. Nothing changed.",
+              changed_since: "Not saved: someone changed the post since. Read it again with list_job_posts.",
+            }[r.outcome];
+            return { summary, data: { outcome: r.outcome, post_id: args.post_id, changed: r.changed }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "set_job_post_status",
+        {
+          title: "Publish or close a job post",
+          description:
+            "live publishes a post (post_id): anyone with its link can read it and apply, and applicants land " +
+            "in the job at sourced with source job_board. closed takes it down; a closed post can go live " +
+            "again. Going live needs the job open. Tell the user exactly what will change and wait for a yes " +
+            "before calling this.",
+          inputSchema: z.object({ post_id: uuid("post_id"), status: z.enum(["live", "closed"]) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("set_job_post_status", "write", args, async () => {
+            const r = await clientTools.setJobPostStatus(db, ctx, { postId: args.post_id, status: args.status });
+            const summary = {
+              updated: r.status === "live" ? "The post is live and taking applications." : "The post is closed.",
+              unchanged: `Already ${r.status}. Nothing changed.`,
+              changed_since: `Not changed: someone changed it since; it is ${r.status} now.`,
+            }[r.outcome];
+            return {
+              summary,
+              data: { outcome: r.outcome, post_id: args.post_id, status: r.status, url: clientTools.jobPostUrl(deps.jobsOrigin, r.slug) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_applications_inbox",
+        {
+          title: "New applicants from job posts",
+          description:
+            "People who applied through a job post and are still at the first stage, newest first " +
+            "(job_id narrows to one job), each with candidate_id, application_id, the post they applied " +
+            "through and their answers. Moving them on with update_stage takes them out of the inbox. " +
+            "Not available to interviewers.",
+          inputSchema: z.object({
+            job_id: uuid("job_id").optional(),
+            limit: z.number().int().min(1).max(clientTools.LIST_MAX).optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_applications_inbox", "read", args, async () => {
+            const inbox = await clientTools.listApplicationsInbox(db, ctx, { jobId: args.job_id, limit: args.limit });
+            return {
+              summary: `${inbox.length} new applicant${inbox.length === 1 ? "" : "s"}.`,
+              data: {
+                applicants: inbox.map((e) => ({
+                  application_id: e.applicationId, candidate_id: e.candidateId, name: named(e.name), email: e.email,
+                  job_id: e.jobId, job: e.jobTitle, stage: e.stage, post: fence("source", e.post), applied_at: e.appliedAt,
+                  answers: answersOut(e.answers),
+                })),
+              },
+              candidateIds: inbox.map((e) => e.candidateId),
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -2427,7 +2608,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
         "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, convert_prospect, " +
         "archive_pool, remove_from_pool, " +
-        "update_email_template, update_custom_field, update_department, update_office, close_opening or removing someone from a hiring team, tell the user exactly what will " +
+        "update_email_template, update_custom_field, update_department, update_office, close_opening, set_job_post_status or removing someone from a hiring team, tell the user exactly what will " +
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
         "the whole draft, then send_email only after their explicit yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +

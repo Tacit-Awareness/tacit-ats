@@ -34,7 +34,11 @@ export const config = {
     // outright when SLACK_SIGNING_SECRET is unset. Exempting the prefix
     // without that check in place would publish the rolodex. api/tacit-bot/
     // likewise: a bearer check in the route, refusing when its secret is unset.
-    "/((?!_next/|login$|auth/|api/cron/|api/slack/|api/tacit-bot/|fonts/|[^/]+\\.[\\w]+$).*)",
+    // jobs/ and api/jobs/ are a client's public job posts and their form
+    // (2026-10-16): public on purpose, they read no session and hold only
+    // the publishable key with no token, so the database answers them as
+    // anon (lib/public/jobs.ts; client-area.test.ts walks their imports).
+    "/((?!_next/|login$|auth/|api/cron/|api/slack/|api/tacit-bot/|jobs/|api/jobs/|fonts/|[^/]+\\.[\\w]+$).*)",
   ],
 };
 

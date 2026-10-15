@@ -511,6 +511,20 @@ A prospect is someone your team wants to keep in touch with before there is a jo
 
 A prospect can be changed by whoever added them and by admins. \`search_candidates\` can look only at prospects or only in one pool, and \`get_candidate\` shows the pools someone is in.
 
+## Job posts
+
+A job post is the public page for a job, with an application form: a title, a location, a description and the questions to ask. Name and email are always asked; you can add phone, LinkedIn, a link to a resume, and your own short-answer, long-answer, yes/no and multiple-choice questions. A post starts as a draft and is public only once it is live, at a link nobody can guess. Applicants join the job at sourced, with the source job board, and their answers stay with their application.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`list_job_posts\` | A job's posts, their status, link, questions and how many applied | Anyone who can see the job | |
+| \`create_job_post\` | Write a post for a job, as a draft | Job managers | |
+| \`update_job_post\` | Change a post's text or questions; a live post changes at once | Job managers | |
+| \`set_job_post_status\` | Publish a post (live) or take it down (closed) | Job managers | Yes |
+| \`list_applications_inbox\` | New applicants from job posts, with their answers | Hiring team, admins | |
+
+A post takes applications only while its job is open. \`get_candidate\` and \`get_pipeline\` show a job-board applicant's answers. Applicants cannot upload a resume yet; the resume question asks for a link.
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |

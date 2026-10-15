@@ -252,6 +252,7 @@ describe("the tools", () => {
       "list_departments", "create_department", "update_department", "list_offices", "create_office", "update_office",
       "list_openings", "add_openings", "close_opening",
       "add_prospect", "convert_prospect", "list_pools", "create_pool", "archive_pool", "add_to_pool", "remove_from_pool", "list_pool",
+      "list_job_posts", "create_job_post", "update_job_post", "set_job_post_status", "list_applications_inbox",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -281,6 +282,8 @@ describe("the tools", () => {
     }
     for (const read of ["list_pools", "list_pool"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
     for (const change of ["archive_pool", "remove_from_pool"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
+    for (const read of ["list_job_posts", "list_applications_inbox"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
+    expect(byName.set_job_post_status).toMatchObject({ destructiveHint: true });
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {
@@ -497,5 +500,36 @@ describe("approvals", () => {
     const out = await result(res);
     expect(out.isError).toBe(true);
     expect(audits).toEqual([]);
+  });
+});
+
+describe("job posts", () => {
+  const JOB = "55555555-5555-4555-8555-555555555555";
+  const call = async (name: string, args: Record<string, unknown>) =>
+    result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps()));
+
+  test("publishing is confirm-first, in its description and in the server's instructions", async () => {
+    const res = await handleClientRequest(await rpc("tools/list"), deps());
+    const { tools } = await result(res);
+    const publish = tools.find((t: { name: string }) => t.name === "set_job_post_status");
+    expect(publish.description).toMatch(/wait for a yes/);
+    expect(publish.inputSchema.properties.status.enum).toEqual(["live", "closed"]);
+  });
+
+  test("an interviewer can neither post a job nor read its applicants, and the database is never asked", async () => {
+    fakeDb.level = "limited";
+    const post = await call("create_job_post", { job_id: JOB, description: "Secret sauce" });
+    expect(post.isError).toBe(true);
+    expect(post.content[0].text).toMatch(/Only the people who manage a job/);
+    const inbox = await call("list_applications_inbox", { job_id: JOB });
+    expect(inbox.isError).toBe(true);
+    expect(inbox.content[0].text).toMatch(/Interviewers do not see a job's applicants/);
+    expect(audits.map((a) => [a.tool, a.ok])).toEqual([["create_job_post", false], ["list_applications_inbox", false]]);
+  });
+
+  test("a question list the form could not ask is refused before any write", async () => {
+    const out = await call("create_job_post", { job_id: JOB, questions: [{ type: "select", label: "Start", options: ["Now"] }] });
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toMatch(/2 to 50 options/);
   });
 });

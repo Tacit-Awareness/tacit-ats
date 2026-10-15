@@ -143,3 +143,17 @@ describe("proxy", () => {
     });
   });
 });
+
+describe("the matcher", () => {
+  // Next anchors the pattern; a path it does not match never reaches proxy() at all.
+  const gated = async (path: string) => new RegExp(`^${(await import("./proxy")).config.matcher[0]}$`).test(path);
+
+  test("the public job posts and their form skip the sign-in check, and nothing beside them does", async () => {
+    for (const path of ["/jobs/0123456789abcdef0123456789abcdef", "/api/jobs/0123456789abcdef0123456789abcdef/apply"]) {
+      expect(await gated(path), path).toBe(false);
+    }
+    for (const path of ["/jobs", "/jobsx/abc", "/people", "/client/jobs/abc", "/api/jobsx/abc", "/roles/abc"]) {
+      expect(await gated(path), path).toBe(true);
+    }
+  });
+});
