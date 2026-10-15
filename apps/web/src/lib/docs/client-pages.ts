@@ -289,13 +289,27 @@ A job's **interview plan** is its interview steps in order, such as *Recruiter s
 
 > Schedule Priya's technical screen with Dana and Lee on Thursday at 2pm Pacific for an hour.
 
-\`schedule_interview\` records an interview on one application with your company's interviewers. Times include their timezone offset.
+\`schedule_interview\` schedules an interview on one application with your company's interviewers. Times include their timezone offset.
 
-**It only records the interview in Tacit. No calendar invite is sent to anyone, the candidate included.** Send invites from your own calendar as usual.
+**With your Google Calendar connected** (the Calendar page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on your calendar, Google sends the interviewers their invitations, and a Google Meet link is added unless you give a place.
+
+**Without a connected calendar** it is recorded in Tacit only, and nobody is invited.
+
+The candidate is never put on the calendar invite. Instead Claude drafts an email to them with the time and the link, shows it to you, and sends it only after your yes.
 
 When the job has an interview plan, the step must be one of its steps. Scheduling needs the right to schedule on that job; Claude confirms the time and interviewers first.
 
-\`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first.
+## Find a time
+
+> When are Dana and Lee both free for an hour next week?
+
+\`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free.
+
+## Connect your calendar
+
+Open **Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
+
+\`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first. When the interview is on a calendar, the event follows: a move is checked against the interviewers' calendars, new interviewers are invited, and cancelling removes the event, with Google telling everyone on it. A move or a cancellation comes with a draft email to the candidate, sent only after your yes.
 
 \`list_my_interviews\` lists the interviews you are on (upcoming by default, or past, or all), with the candidate, the job and whether you have filed feedback.
 
@@ -447,7 +461,8 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`list_my_interviews\` | Interviews you are on | Everyone | |
 | \`get_interview_plan\` | A job's steps, and a candidate's progress | Everyone who can see the job | |
 | \`set_interview_plan\` | Replace a job's steps | Job managers | Yes |
-| \`schedule_interview\` | Record an interview (no calendar invite) | Job managers | Confirms time |
+| \`find_interview_times\` | Times the interviewers are all free | Job managers | |
+| \`schedule_interview\` | Book an interview and invite the interviewers | Job managers | Confirms time |
 | \`update_interview\` | Move, change or cancel an interview | Job managers | Yes |
 | \`get_scorecard\` | A job's rated attributes | Everyone who can see the job | |
 | \`set_scorecard\` | Set a job's attributes | Job managers | Yes |

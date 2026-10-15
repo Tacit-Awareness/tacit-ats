@@ -26,7 +26,7 @@ See each folder's own `CLAUDE.md`.
 
 ## Hard rules
 
-- **A member reads and writes only through their own token.** Nothing reachable from `apps/web/src/app/client` or `src/lib/client` may name a privileged client (service role, `tacit_internal`) except `lib/client/bind.ts` (first sign-in); `apps/web/src/client-area.test.ts` walks the imports. In `apps/mcp`, only `client/bind.ts`, `client/audit.ts` and `client/files.ts` may, each exporting functions and never a client; `src/client-connector.test.ts` walks those imports.
+- **A member reads and writes only through their own token.** Nothing reachable from `apps/web/src/app/client` or `src/lib/client` may name a privileged client (service role, `tacit_internal`) except `lib/client/bind.ts` (first sign-in); `apps/web/src/client-area.test.ts` walks the imports. In `apps/mcp`, only `client/bind.ts`, `client/audit.ts`, `client/files.ts` and `client/calendar.ts` may, each exporting functions and never a client; `src/client-connector.test.ts` walks those imports.
 - **A server action starts with `await requireClient()`.** An action is callable by id from any page, so the proxy does not cover it. The same test enforces it.
 - **Interview feedback and offer terms stay private.** Feedback notes, rating notes, email subjects and bodies, filenames and source details are kept out of `audit_log` and `mcp_calls`; candidate text comes back fenced.
 - **`packages/*` never depends on `apps/*`**, and `@tacit-ats/core` never reads `process.env` or builds a client at module load.

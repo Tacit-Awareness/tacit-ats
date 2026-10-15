@@ -83,3 +83,20 @@ export function clientMailer(env: Record<string, string | undefined> = process.e
   const apiKey = env.RESEND_API_KEY?.trim();
   return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress };
 }
+
+/**
+ * The Google OAuth client members connect their calendars to (apps/web's
+ * /client/calendar, the same CLIENT_GOOGLE_CLIENT_ID / _SECRET there): the
+ * connector refreshes their grants with it. Null when either is unset:
+ * find_interview_times refuses and interviews are recorded in Tacit only.
+ * The connect page is named from CLIENT_JOBS_ORIGIN, which is apps/web's origin.
+ */
+export function clientGoogleCalendar(
+  env: Record<string, string | undefined> = process.env,
+): { clientId: string; clientSecret: string; connectUrl: string | null } | null {
+  const clientId = env.CLIENT_GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.CLIENT_GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+  const origin = env.CLIENT_JOBS_ORIGIN?.trim();
+  return { clientId, clientSecret, connectUrl: origin ? `${trimSlash(origin)}/client/calendar` : null };
+}

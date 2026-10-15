@@ -6,7 +6,7 @@ Tacit ATS is the client-facing applicant tracking system: the place a client com
 
 This repo was split out of [Tacit-Awareness](https://github.com/Tacit-Awareness/Tacit-Awareness) on 2026-10-14. It is one product with that repo, on one database: Tacit-Awareness owns the schema, the access policies and the shared pipeline logic, and this repo consumes them.
 
-Status: the web area, the public job posts and the connector's 90 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). WorkOS and Supabase are configured for `/client`, but **no client has completed a sign-in yet**, the connector's production env is not set, and the private `org-files` bucket does not exist in production. Open items are listed at the end.
+Status: the web area, the public job posts and the connector's 91 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). WorkOS and Supabase are configured for `/client`, but **no client has completed a sign-in yet**, the connector's production env is not set, and the private `org-files` bucket does not exist in production. Open items are listed at the end.
 
 Each folder's `CLAUDE.md` has the detail behind every section here.
 
@@ -15,7 +15,7 @@ Each folder's `CLAUDE.md` has the detail behind every section here.
 | Component | Choice | Purpose |
 |---|---|---|
 | Member web area (`apps/web`) | Next.js App Router, WorkOS AuthKit, Vercel | `/client`: jobs, the pipeline board, the team and invitations, the connector's docs. Public `/jobs/[slug]` posts and their application form. |
-| Client connector (`apps/mcp`) | Next.js, one MCP route `/api/client`, AuthKit OAuth, Vercel | The MCP server a member adds to Claude: 90 tools over their company's hiring data. |
+| Client connector (`apps/mcp`) | Next.js, one MCP route `/api/client`, AuthKit OAuth, Vercel | The MCP server a member adds to Claude: 91 tools over their company's hiring data. |
 | Domain logic (`packages/core`, `@tacit-ats/core`) | TypeScript, dependencies injected | First sign-in binding, a client admin's invitations, and every connector tool (`clientTools`). Never reads `process.env` or builds a client at module load. |
 | Shared Tacit code (`vendor/`) | Built tarballs of `@tacit/core` and `@tacit/db` | The pipeline (the only writer of `applications` / `application_events`), generated types, token minting, email pieces. Pinned in `vendor/SOURCE`, refreshed with `pnpm sync:tacit`. |
 | Database and identity | Supabase Postgres (project `tacit`), RLS | One org per client company (Tacit is org #1). Every member query runs as `authenticated` on their own token. |
@@ -30,7 +30,7 @@ flowchart TD
     claude["Member, Claude<br/>OAuth + MCP"]
 
     web["<b>apps/web</b><br/>/client pages, /jobs/[slug]"]
-    mcp["<b>apps/mcp</b><br/>/api/client, 90 tools"]
+    mcp["<b>apps/mcp</b><br/>/api/client, 91 tools"]
     core["<b>@tacit-ats/core</b><br/>client-auth, clientTools"]
 
     subgraph ta["Owned by Tacit-Awareness"]
@@ -97,6 +97,7 @@ What the code adds on top: before a write, it asks the policies' own helpers (`c
 | `apps/mcp` `client/bind.ts` | service role | First sign-in binding |
 | `apps/mcp` `client/audit.ts` | `tacit_internal` | `mcp_calls` rows and the read-breadth ceiling, which members cannot read |
 | `apps/mcp` `client/files.ts` | service role | Signing and uploading `org-files` objects |
+| `apps/mcp` `client/calendar.ts` | service role | Members' calendar refresh tokens, which no member token can read |
 
 `apps/web/src/client-area.test.ts` and `apps/mcp/src/client-connector.test.ts` walk the imports and fail on any other path. The web test also fails on a server action that does not start with `await requireClient()`, since an action is callable by id from any page and the proxy does not cover it.
 
@@ -110,7 +111,7 @@ Each tool in `apps/mcp/src/client/server.ts` is a thin wrapper over one `clientT
 |---|---|---|
 | Pipeline | `reads.ts`, `writes.ts` | `whoami`, `list_jobs`, `get_pipeline`, `search_candidates`, `add_candidate`, `update_stage` |
 | Admin | `admin.ts` | `create_job`, `update_job`, hiring team, `set_member_access`, invitations |
-| Interviews | `interviews.ts`, `plans.ts`, `scorecards.ts` | `schedule_interview` (record only, no calendar), feedback, plans, scorecards |
+| Interviews | `interviews.ts`, `calendar.ts`, `plans.ts`, `scorecards.ts` | `find_interview_times`, `schedule_interview` / `update_interview` on the member's Google Calendar, feedback, plans, scorecards |
 | Offers | `offers.ts`, `approvals.ts` | `create_offer`, `update_offer`, rejection reasons, approval flows |
 | Candidates | `files.ts`, `activity.ts`, `tags.ts`, `pools.ts`, `merge.ts` | files, history, tags, prospects and pools, duplicates, merge, GDPR anonymize |
 | Org structure | `structure.ts`, `openings.ts`, `custom-fields.ts` | departments, offices, openings, custom fields |
@@ -154,5 +155,6 @@ Configuration is in `.env.example`. Each app stays dormant until its required va
 - No client has completed a sign-in; the connector's production env is unset.
 - Whether AuthKit's MCP access tokens carry `org_id` is unverified; the membership fallback covers it until the first real sign-in.
 - The `org-files` bucket must be created by hand in production (`apps/mcp/CLAUDE.md`, "Files").
+- Calendar scheduling needs a Google OAuth client (`CLIENT_GOOGLE_CLIENT_ID` / `_SECRET` on both apps, the `/client/calendar/callback` redirect URI, and Google's verification of the calendar scopes) before any member can connect (`apps/mcp/CLAUDE.md`, "Calendar scheduling"). Microsoft calendars are not supported.
 - `CLIENT_CONNECTOR_URL` still names `mcp.tacitawareness.com/api/client`; change it once `apps/mcp` has its own domain.
 - Not built in the web area: a candidate page, creating and editing jobs, changing a member's access. These exist in the connector.

@@ -66,6 +66,6 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
   const source = connector.sourceFromClient(null, request.headers.get("user-agent")) === "chatgpt" ? "chatgpt" : "claude";
   const invitations = deps.invitations !== undefined ? deps.invitations : apiKey ? clientInvitations(apiKey, deps.workosFetch) : null;
   return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth, invitations, files: deps.files ?? null, email: deps.email ?? null,
-    jobsOrigin: config.jobsOrigin ?? null,
+    jobsOrigin: config.jobsOrigin ?? null, calendar: deps.calendar ?? null,
   })(request);
 }

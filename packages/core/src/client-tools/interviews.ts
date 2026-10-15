@@ -1,8 +1,14 @@
+import { connector } from "@tacit/core";
 import type { Db } from "@tacit/db";
 
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 import { STEP_NAME_MAX, planStep, stepsOf } from "./plans.js";
+import {
+  accessToken, availability, busyIn, checkInterviewers as interviewers, checkTimezone, connectHint, instant,
+  interviewerDetails, notSetUp, unknownText, type Availability, type ClientCalendar, type Person, type UnknownReason,
+} from "./calendar.js";
+import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js";
 
 /**
  * Interviews and interview feedback for the client connector. Same rules as
@@ -13,6 +19,14 @@ import { STEP_NAME_MAX, planStep, stepsOf } from "./plans.js";
  * against the job's interview plan when it has one (plans.ts). A feedback's
  * scorecard ratings (20261015140000) follow it: written by its interviewer
  * against the job's attributes, read whenever the feedback is.
+ *
+ * Scheduling books on the member's own Google Calendar when they have
+ * connected it (calendar.ts): the event goes on the booker's calendar under an
+ * id derived from the interview's, with the interviewers invited by Google
+ * and a Meet link unless a place is given; a move, a change of interviewers
+ * or a cancellation follows to the event, with the grant of whoever holds
+ * it. The candidate is never on the event: what they are told is a DRAFT
+ * email (email.ts) the member reads and sends.
  *
  * Feedback is private to the company's hiring team: nothing here sends it
  * anywhere, and its notes and the ratings' notes are kept out of the audit row.
@@ -27,16 +41,7 @@ const FEEDBACK_MAX = 10_000;
 const RATING_NOTE_MAX = 500;
 const RATINGS_MAX = 25;
 const LOCATION_MAX = 500;
-const MAX_INTERVIEWERS = 10;
 const MAX_LENGTH_MS = 8 * 60 * 60 * 1000;
-
-/** An instant the caller must give with its offset: a bare local time is ambiguous across time zones. */
-function instant(value: string, label: string): string {
-  if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(value.trim()) || Number.isNaN(Date.parse(value))) {
-    throw new ClientToolError("invalid", `${label} must be an ISO 8601 time with its offset, e.g. 2026-10-20T15:00:00-07:00.`);
-  }
-  return new Date(value).toISOString();
-}
 
 function span(startsAt: string, endsAt: string) {
   if (Date.parse(endsAt) <= Date.parse(startsAt)) throw new ClientToolError("invalid", "An interview must end after it starts.");
@@ -47,20 +52,6 @@ async function can(db: Db, roleId: string, perm: "can_schedule"): Promise<boolea
   const { data, error } = await db.rpc("can_on_role", { p_role: roleId, perm });
   if (error) throw new Error(error.message);
   return data === true;
-}
-
-/** The interviewers, each an active member of the caller's company. */
-async function interviewers(db: Db, ids: string[]): Promise<string[]> {
-  const unique = [...new Set(ids)];
-  if (!unique.length) throw new ClientToolError("invalid", "An interview needs at least one interviewer.");
-  if (unique.length > MAX_INTERVIEWERS) throw new ClientToolError("invalid", `At most ${MAX_INTERVIEWERS} interviewers.`);
-  const { data, error } = await db.from("org_members").select("id").in("id", unique);
-  if (error) throw new Error(error.message);
-  const found = new Set((data ?? []).map((m) => m.id));
-  if (unique.some((id) => !found.has(id))) {
-    throw new ClientToolError("not_found", "Every interviewer must be someone at your company. Call list_team for the user ids.");
-  }
-  return unique;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +250,108 @@ function checkRatings(ratings: RatingInput[]): Array<{ attributeId: string; rati
 // Writes
 // ---------------------------------------------------------------------------
 
+/** What scheduling needs beyond the member's client. Absent = Tacit's record only, as before calendars. */
+export type SchedulingDeps = {
+  calendar?: ClientCalendar | null;
+  /** For the draft to the candidate (email.ts). Absent or null = no draft. */
+  mailer?: ClientMailer | null;
+  now?: () => Date;
+};
+
+export type InterviewConflicts = {
+  /** Interviewers with something else on their calendar then. */
+  busy: Person[];
+  /** Interviewers whose calendar could not be read, and why. */
+  unknown: Array<Person & { reason: UnknownReason }>;
+};
+
+export type CalendarOutcome =
+  | { status: "invited"; eventLink: string | null; meetLink: string | null; invited: Person[]; notInvited: Person[] }
+  /** Recorded in Tacit only. */
+  | { status: "not_sent"; reason: "not_connected" | "not_set_up" | "not_asked" | "in_the_past"; connectUrl: string | null };
+
+export type ScheduleResult =
+  | {
+      outcome: "scheduled";
+      interviewId: string;
+      calendar: CalendarOutcome;
+      conflicts: InterviewConflicts;
+      candidateDraft: DraftEmailResult | null;
+      noDraftBecause: string | null;
+    }
+  /** Someone is busy and the caller did not say to book anyway. Nothing was written. */
+  | { outcome: "conflicts"; interviewId: null; startsAt: string; endsAt: string; conflicts: InterviewConflicts };
+
+const firstNames = (people: Person[]) => people.map((p) => p.name).join(", ");
+
+function conflictsOf(avail: Availability | null, busyIds: string[], people: Array<{ id: string; name: string }>): InterviewConflicts {
+  const name = (id: string) => people.find((p) => p.id === id)?.name ?? "(no name)";
+  return {
+    busy: busyIds.map((id) => ({ userId: id, name: name(id) })),
+    unknown: avail ? [...avail.unknown].map(([id, reason]) => ({ userId: id, name: name(id), reason })) : [],
+  };
+}
+
+const googleRefusal = (err: unknown, what: string): ClientToolError => {
+  if (!(err instanceof connector.CalendarError)) throw err;
+  console.error(`[client-tools interviews] Google refused: ${what}`, err);
+  return new ClientToolError(
+    "forbidden",
+    err.status === 401 || err.status === 403
+      ? `Google Calendar refused: the connection does not allow calendar changes. Connect the calendar again. ${what}`
+      : `Google Calendar refused the change. ${what} Try again.`,
+  );
+};
+
+/** The draft to the candidate. Best effort: the interview stands if it cannot be written. */
+async function draftToCandidate(
+  db: Db,
+  ctx: ClientToolCtx,
+  mailer: ClientMailer | null | undefined,
+  input: { candidateId: string; applicationId: string; subject: string; body: string },
+): Promise<{ candidateDraft: DraftEmailResult | null; noDraftBecause: string | null }> {
+  if (mailer === undefined) return { candidateDraft: null, noDraftBecause: "Candidate email is not set up here." };
+  try {
+    return { candidateDraft: await draftEmail(db, ctx, mailer, input), noDraftBecause: null };
+  } catch (err) {
+    if (!(err instanceof ClientToolError)) throw err;
+    return { candidateDraft: null, noDraftBecause: err.message };
+  }
+}
+
+type AppDetail = { personId: string; candidateName: string | null; jobTitle: string };
+
+async function applicationDetail(db: Db, applicationId: string): Promise<AppDetail> {
+  const { data, error } = await db
+    .from("applications").select("person_id, people(display_name), roles(title)").eq("id", applicationId).maybeSingle();
+  if (error) throw new Error(error.message);
+  const app = data as unknown as { person_id: string; people: { display_name: string | null } | null; roles: { title: string } | null } | null;
+  if (!app) throw new ClientToolError("not_found", "No application with that id that you can see.");
+  return { personId: app.person_id, candidateName: app.people?.display_name ?? null, jobTitle: app.roles?.title ?? "the job" };
+}
+
+/** Who gets Google's invite: the interviewers other than whoever holds the event, at their calendar's address. */
+function inviteesOf(
+  people: Array<{ id: string; name: string; email: string | null }>,
+  avail: Pick<Availability, "connections">,
+  holder: string,
+): { emails: string[]; invited: Person[]; notInvited: Person[] } {
+  const emails: string[] = [];
+  const invited: Person[] = [];
+  const notInvited: Person[] = [];
+  for (const p of people) {
+    if (p.id === holder) continue;
+    const address = avail.connections.get(p.id)?.accountEmail ?? p.email?.toLowerCase() ?? null;
+    if (address && connector.isPlainEmail(address)) {
+      emails.push(address);
+      invited.push({ userId: p.id, name: p.name });
+    } else {
+      notInvited.push({ userId: p.id, name: p.name });
+    }
+  }
+  return { emails: [...new Set(emails)], invited, notInvited };
+}
+
 export async function scheduleInterview(
   db: Db,
   ctx: ClientToolCtx,
@@ -269,8 +362,16 @@ export async function scheduleInterview(
     interviewerIds: string[];
     locationOrLink?: string | null;
     step?: string | null;
+    /** Default: invite when the caller's calendar is connected. True = refuse unless it is; false = Tacit only. */
+    sendInvites?: boolean;
+    bookDespiteConflicts?: boolean;
+    /** What the event is anchored in and the candidate's draft is written in. */
+    timezone?: string;
+    /** Default true when candidate email is set up. */
+    draftCandidateEmail?: boolean;
   },
-): Promise<{ interviewId: string }> {
+  deps: SchedulingDeps = {},
+): Promise<ScheduleResult> {
   const startsAt = instant(input.startsAt, "starts_at");
   const endsAt = instant(input.endsAt, "ends_at");
   span(startsAt, endsAt);
@@ -278,6 +379,14 @@ export async function scheduleInterview(
   if (location && location.length > LOCATION_MAX) throw new ClientToolError("invalid", `A location or link is at most ${LOCATION_MAX} characters.`);
   let step = input.step?.trim() || null;
   if (step && step.length > STEP_NAME_MAX) throw new ClientToolError("invalid", `A step name is at most ${STEP_NAME_MAX} characters.`);
+  const tz = checkTimezone(input.timezone);
+  const calendar = deps.calendar ?? null;
+  if (input.sendInvites === true && !calendar) throw notSetUp("Nothing was scheduled; pass send_invites: false to record it in Tacit only.");
+  // An interview that already happened is recorded (for its feedback), never invited to or announced.
+  const past = Date.parse(startsAt) <= (deps.now ?? (() => new Date()))().getTime();
+  if (past && input.sendInvites === true) {
+    throw new ClientToolError("invalid", "That start time is in the past, so there is nobody to invite. Nothing was scheduled; leave send_invites out to record it.");
+  }
 
   const { data: app, error } = await db.from("applications").select("id, role_id").eq("id", input.applicationId).maybeSingle();
   if (error) throw new Error(error.message);
@@ -293,11 +402,37 @@ export async function scheduleInterview(
   }
   const ids = await interviewers(db, input.interviewerIds);
 
-  return withAudit(db, ctx, { action: "interview.schedule", entity: "interview" }, async () => {
+  // The calendar side, decided before anything is written.
+  let invite: { token: string; avail: Availability; people: Array<{ id: string; name: string; email: string | null }>; detail: AppDetail } | null = null;
+  let notSent: CalendarOutcome = {
+    status: "not_sent", reason: input.sendInvites === false ? "not_asked" : past ? "in_the_past" : "not_set_up", connectUrl: calendar?.connectUrl ?? null,
+  };
+  let conflicts: InterviewConflicts = { busy: [], unknown: [] };
+  if (calendar && input.sendInvites !== false && !past) {
+    const people = await interviewerDetails(db, ids);
+    const avail = await availability(calendar, ctx, people, { startIso: startsAt, endIso: endsAt });
+    if (avail.callerExpired) {
+      throw new ClientToolError("forbidden", `Your Google connection has expired. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
+    }
+    if (!avail.callerToken) {
+      if (input.sendInvites === true) {
+        throw new ClientToolError("forbidden", `Your calendar is not connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
+      }
+      notSent = { status: "not_sent", reason: "not_connected", connectUrl: calendar.connectUrl };
+    } else {
+      const busy = busyIn(avail, Date.parse(startsAt), Date.parse(endsAt));
+      conflicts = conflictsOf(avail, busy, people);
+      if (busy.length && !input.bookDespiteConflicts) return { outcome: "conflicts", interviewId: null, startsAt, endsAt, conflicts };
+      invite = { token: avail.callerToken, avail, people, detail: await applicationDetail(db, app.id) };
+    }
+  }
+
+  const scheduled = await withAudit<{ interviewId: string; calendar: CalendarOutcome }>(db, ctx, { action: "interview.schedule", entity: "interview" }, async () => {
     const interviewId = globalThis.crypto.randomUUID();
     const row = {
       id: interviewId, application_id: app.id, starts_at: startsAt, ends_at: endsAt,
       interviewer_actor_ids: ids, location_or_link: location, step,
+      ...(invite ? { calendar_actor_id: ctx.actorId } : {}),
     };
     const { error: insertError } = await db.from("interviews").insert(row);
     // interviews_one_active_per_step: one scheduled interview per step of an application.
@@ -305,9 +440,70 @@ export async function scheduleInterview(
       throw new ClientToolError("invalid", `This candidate already has a scheduled "${step}" interview. Move or cancel it with update_interview.`);
     }
     if (insertError) throw new Error(insertError.message);
-    return { result: { interviewId }, entityId: interviewId, after: row, changed: true };
+    if (!invite) return { result: { interviewId, calendar: notSent }, entityId: interviewId, after: row, changed: true };
+
+    const to = inviteesOf(invite.people, invite.avail, ctx.actorId);
+    let event: connector.CreatedCalendarEvent;
+    try {
+      event = await connector.createInterviewEvent(calendar!.google, invite.token, {
+        // A uuid without its dashes is 32 characters of 0-9a-f, which Google takes as an event id.
+        eventId: interviewId.replace(/-/g, ""),
+        summary: `${step ?? "Interview"}: ${invite.detail.candidateName ?? "Candidate"} for ${invite.detail.jobTitle}`,
+        description: "Scheduled in Tacit.",
+        startIso: startsAt, endIso: endsAt, timezone: tz,
+        attendeeEmails: to.emails,
+        location, conferencing: !location,
+      });
+    } catch (err) {
+      // Nothing is on a calendar (or we cannot tell): the row goes, so the step can be booked again.
+      const { error: undoError } = await db.from("interviews").delete().eq("id", interviewId);
+      if (undoError) console.error(`[client-tools interviews] could not remove interview ${interviewId} after a failed booking`, undoError);
+      throw googleRefusal(err, "Nothing was scheduled.");
+    }
+    // The event exists. Nothing below may report the booking as failed.
+    const links = {
+      google_event_id: event.eventId, google_event_link: event.link,
+      ...(location ? {} : { location_or_link: event.meetLink }),
+    };
+    const { error: linkError } = await db.from("interviews").update(links).eq("id", interviewId);
+    if (linkError) console.error(`[client-tools interviews] booked interview ${interviewId}, but could not save its event`, linkError);
+    const outcome: CalendarOutcome = {
+      status: "invited", eventLink: event.link, meetLink: event.meetLink, invited: to.invited, notInvited: to.notInvited,
+    };
+    return { result: { interviewId, calendar: outcome }, entityId: interviewId, after: { ...row, ...links }, changed: true };
   });
+
+  let drafted: { candidateDraft: DraftEmailResult | null; noDraftBecause: string | null } = { candidateDraft: null, noDraftBecause: null };
+  if (input.draftCandidateEmail !== false && deps.mailer !== undefined && !past) {
+    const detail = invite?.detail ?? (await applicationDetail(db, app.id));
+    const where = scheduled.calendar.status === "invited" ? (scheduled.calendar.meetLink ?? location) : location;
+    const people = invite?.people ?? (await interviewerDetails(db, ids));
+    const minutes = Math.round((Date.parse(endsAt) - Date.parse(startsAt)) / 60_000);
+    drafted = await draftToCandidate(db, ctx, deps.mailer, {
+      candidateId: detail.personId, applicationId: app.id,
+      subject: `Your ${step ?? "interview"} for {{job_title}}`,
+      body:
+        `Hi {{candidate_first_name}},\n\nYou are confirmed for your ${step ?? "interview"} for the {{job_title}} role.\n\n` +
+        `When: ${connector.formatLocal(startsAt, tz)} (${minutes} minutes)\n` +
+        (where ? `Where: ${where}\n` : "") +
+        `With: ${firstNames(people.map((p) => ({ userId: p.id, name: p.name })))}\n` +
+        `\nIf that time no longer works, reply and we will find another.\n\n{{sender_name}}`,
+    });
+  }
+  return { outcome: "scheduled", interviewId: scheduled.interviewId, calendar: scheduled.calendar, conflicts, ...drafted };
 }
+
+export type UpdateInterviewResult =
+  | {
+      outcome: "updated" | "unchanged";
+      changed: string[];
+      /** What happened to the calendar event: none when there is none or it did not need to change. */
+      calendar: "moved" | "updated" | "cancelled" | "already_gone" | "left_alone" | "none";
+      conflicts: InterviewConflicts;
+      candidateDraft: DraftEmailResult | null;
+      noDraftBecause: string | null;
+    }
+  | { outcome: "conflicts"; changed: string[]; startsAt: string; endsAt: string; conflicts: InterviewConflicts };
 
 export async function updateInterview(
   db: Db,
@@ -319,16 +515,26 @@ export async function updateInterview(
     interviewerIds?: string[];
     locationOrLink?: string | null;
     status?: InterviewStatus;
+    bookDespiteConflicts?: boolean;
+    /** False = Tacit's record only; the calendar event stays as it is. */
+    updateCalendar?: boolean;
+    timezone?: string;
+    /** Default true when candidate email is set up: a move or a cancellation drafts a note to the candidate. */
+    draftCandidateEmail?: boolean;
   },
-): Promise<{ outcome: "updated" | "unchanged"; changed: string[] }> {
+  deps: SchedulingDeps = {},
+): Promise<UpdateInterviewResult> {
   if (input.status !== undefined && !INTERVIEW_STATUSES.includes(input.status)) {
     throw new ClientToolError("invalid", `An interview's status is one of ${INTERVIEW_STATUSES.join(", ")}.`);
   }
+  const tz = checkTimezone(input.timezone);
   const { data, error } = await db
-    .from("interviews").select(`${INTERVIEW_COLUMNS}, location_or_link`).eq("id", input.interviewId).maybeSingle();
+    .from("interviews")
+    .select(`${INTERVIEW_COLUMNS}, location_or_link, google_event_id, calendar_actor_id`)
+    .eq("id", input.interviewId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) throw new ClientToolError("not_found", "No interview with that id that you can see.");
-  const current = data as InterviewRow & { location_or_link: string | null };
+  const current = data as InterviewRow & { location_or_link: string | null; google_event_id: string | null; calendar_actor_id: string | null };
 
   const { data: roleId, error: roleError } = await db.rpc("application_role", { p_application: current.application_id });
   if (roleError) throw new Error(roleError.message);
@@ -342,8 +548,9 @@ export async function updateInterview(
   if (input.startsAt !== undefined || input.endsAt !== undefined) span(startsAt, endsAt);
   if (Date.parse(startsAt) !== Date.parse(current.starts_at)) next.starts_at = startsAt;
   if (Date.parse(endsAt) !== Date.parse(current.ends_at)) next.ends_at = endsAt;
+  let ids = current.interviewer_actor_ids;
   if (input.interviewerIds !== undefined) {
-    const ids = await interviewers(db, input.interviewerIds);
+    ids = await interviewers(db, input.interviewerIds);
     const same = ids.length === current.interviewer_actor_ids.length && ids.every((id) => current.interviewer_actor_ids.includes(id));
     if (!same) next.interviewer_actor_ids = ids;
   }
@@ -355,21 +562,112 @@ export async function updateInterview(
   if (input.status !== undefined && input.status !== current.status) next.status = input.status;
 
   const changed = Object.keys(next);
-  if (!changed.length) return { outcome: "unchanged", changed: [] };
+  const none = { conflicts: { busy: [], unknown: [] }, candidateDraft: null, noDraftBecause: null };
+  if (!changed.length) return { outcome: "unchanged", changed: [], calendar: "none", ...none };
+  const moved = "starts_at" in next || "ends_at" in next;
+  const cancelling = next.status === "cancelled";
+  const reinvite = "interviewer_actor_ids" in next;
+
+  // The calendar side, decided before anything is written: the event is moved
+  // or cancelled with the grant of whoever holds it.
+  const eventId = current.google_event_id;
+  const touchesEvent = !!eventId && current.status === "scheduled" && (cancelling || (next.status === undefined && (moved || reinvite)));
+  let google: { token: string; holder: string; people: Array<{ id: string; name: string; email: string | null }>; avail: Pick<Availability, "connections"> } | null = null;
+  let conflicts: InterviewConflicts = { busy: [], unknown: [] };
+  if (touchesEvent && input.updateCalendar !== false) {
+    const calendar = deps.calendar ?? null;
+    if (!calendar) throw notSetUp("Nothing was changed; pass update_calendar: false to change Tacit's record only.");
+    const holder = current.calendar_actor_id ?? ctx.actorId;
+    const people = await interviewerDetails(db, [...new Set([holder, ...ids])]);
+    const interviewing = people.filter((p) => ids.includes(p.id));
+    if (moved && !cancelling) {
+      const now = (deps.now ?? (() => new Date()))();
+      if (Date.parse(startsAt) <= now.getTime()) throw new ClientToolError("invalid", "That time is in the past. Nothing was changed.");
+      const avail = await availability(calendar, ctx, interviewing, { startIso: startsAt, endIso: endsAt }, holder);
+      // The interview's own event shows its interviewers busy at the old time: that is not a clash.
+      const own = { start: Date.parse(current.starts_at), end: Date.parse(current.ends_at) };
+      for (const c of avail.checked.values()) c.busy = c.busy.filter((b) => !(b.start === own.start && b.end === own.end));
+      const busy = busyIn(avail, Date.parse(startsAt), Date.parse(endsAt));
+      conflicts = conflictsOf(avail, busy, people);
+      if (busy.length && !input.bookDespiteConflicts) return { outcome: "conflicts", changed, startsAt, endsAt, conflicts };
+      if (avail.callerToken) google = { token: avail.callerToken, holder, people: interviewing, avail };
+    } else {
+      const connections = await calendar.connections(ctx.orgId, [...new Set([holder, ...ids])]);
+      const conn = connections.get(holder);
+      const token = conn ? await accessToken(calendar, conn) : null;
+      if (token) google = { token, holder, people: interviewing, avail: { connections } };
+    }
+    if (!google) {
+      const name = people.find((p) => p.id === holder)?.name ?? "the member who booked it";
+      throw new ClientToolError(
+        "forbidden",
+        holder === ctx.actorId
+          ? `This interview's event is on your calendar, which is not connected now. ${connectHint(calendar)} Nothing was changed; or pass update_calendar: false to change Tacit's record only.`
+          : `This interview's event is on ${name}'s calendar, which is not connected now. They can connect it again, or pass update_calendar: false to change Tacit's record only (the event then stays as it is). Nothing was changed.`,
+      );
+    }
+  }
+
   const before = Object.fromEntries(changed.map((k) => [k, (current as Record<string, unknown>)[k]]));
-  return withAudit(db, ctx, { action: "interview.update", entity: "interview" }, async () => {
+  const done = await withAudit(db, ctx, { action: "interview.update", entity: "interview" }, async () => {
     const { data: updated, error: updateError } = await db
-      .from("interviews").update({ ...next, updated_at: new Date().toISOString() }).eq("id", current.id).select("id");
+      .from("interviews").update({ ...next, updated_at: new Date().toISOString() })
+      .eq("id", current.id).eq("status", current.status).select("id");
     if (updateError) throw new Error(updateError.message);
     const ok = !!updated?.length;
+    let cal: Extract<UpdateInterviewResult, { outcome: "updated" | "unchanged" }>["calendar"] = eventId && touchesEvent ? "left_alone" : "none";
+    if (ok && google && eventId) {
+      try {
+        if (cancelling) {
+          cal = (await connector.cancelInterviewEvent(deps.calendar!.google, google.token, eventId)) === "gone" ? "already_gone" : "cancelled";
+        } else {
+          if (moved) await connector.moveInterviewEvent(deps.calendar!.google, google.token, eventId, { startIso: startsAt, endIso: endsAt, timezone: tz });
+          if (reinvite) {
+            await connector.setInterviewEventAttendees(deps.calendar!.google, google.token, eventId, inviteesOf(google.people, google.avail, google.holder).emails);
+          }
+          cal = moved ? "moved" : "updated";
+        }
+      } catch (err) {
+        // The calendar did not follow: put the row back, so Tacit and the calendar agree.
+        const { error: undoError } = await db.from("interviews").update({ ...before, updated_at: new Date().toISOString() }).eq("id", current.id);
+        if (undoError) console.error(`[client-tools interviews] could not put interview ${current.id} back after a failed calendar change`, undoError);
+        throw googleRefusal(err, "Nothing was changed.");
+      }
+    }
     return {
-      result: ok ? { outcome: "updated" as const, changed } : { outcome: "unchanged" as const, changed: [] },
+      result: { outcome: ok ? ("updated" as const) : ("unchanged" as const), changed: ok ? changed : [], calendar: cal },
       entityId: current.id,
       before,
       after: next,
       changed: ok,
     };
   });
+
+  let drafted: { candidateDraft: DraftEmailResult | null; noDraftBecause: string | null } = { candidateDraft: null, noDraftBecause: null };
+  // Only about an interview still ahead: moved to the future, or cancelled before it happened.
+  const ahead = Date.parse(cancelling ? current.starts_at : startsAt) > (deps.now ?? (() => new Date()))().getTime();
+  if (done.outcome === "updated" && (moved || cancelling) && ahead && input.draftCandidateEmail !== false && deps.mailer !== undefined) {
+    const detail = await applicationDetail(db, current.application_id);
+    const what = current.step ?? "interview";
+    drafted = await draftToCandidate(db, ctx, deps.mailer, cancelling
+      ? {
+          candidateId: detail.personId, applicationId: current.application_id,
+          subject: `Your ${what} for {{job_title}} is cancelled`,
+          body:
+            `Hi {{candidate_first_name}},\n\nWe have had to cancel your ${what} for the {{job_title}} role, ` +
+            `planned for ${connector.formatLocal(current.starts_at, tz)}.\n\nWe will be in touch about what comes next.\n\n{{sender_name}}`,
+        }
+      : {
+          candidateId: detail.personId, applicationId: current.application_id,
+          subject: `New time for your ${what} for {{job_title}}`,
+          body:
+            `Hi {{candidate_first_name}},\n\nWe have had to move your ${what} for the {{job_title}} role.\n\n` +
+            `New time: ${connector.formatLocal(startsAt, tz)}\nWas: ${connector.formatLocal(current.starts_at, tz)}\n` +
+            ((next.location_or_link ?? current.location_or_link) ? `Where: ${String(next.location_or_link ?? current.location_or_link)}\n` : "") +
+            `\nIf the new time does not work, reply and we will find another.\n\n{{sender_name}}`,
+        });
+  }
+  return { ...done, conflicts, ...drafted };
 }
 
 export async function submitFeedback(

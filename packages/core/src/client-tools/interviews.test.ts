@@ -120,7 +120,7 @@ describe("updateInterview", () => {
       { data: current }, { data: "role-1" }, { data: true }, { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null },
     ]);
     expect(await updateInterview(fake.asDb(), ctx(), { interviewId: "int-1", status: "cancelled", startsAt: "2026-10-21T22:00:00Z" }))
-      .toEqual({ outcome: "updated", changed: ["status"] });
+      .toMatchObject({ outcome: "updated", changed: ["status"], calendar: "none", candidateDraft: null });
     expect(fake.calls.at(-1)?.args).toMatchObject({ p_before: { status: "scheduled" }, p_after: { status: "cancelled" } });
   });
 });

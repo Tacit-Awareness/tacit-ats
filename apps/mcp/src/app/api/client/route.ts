@@ -1,7 +1,8 @@
 // Relative and without ".js": see apps/mcp/CLAUDE.md.
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
-import { clientMailer, clientMcpConfig } from "../../../client/config";
+import { calendarConnections } from "../../../client/calendar";
+import { clientGoogleCalendar, clientMailer, clientMcpConfig } from "../../../client/config";
 import { putFile, removeFiles, signFileUrl } from "../../../client/files";
 import { handleClientRequest } from "../../../client/handler";
 
@@ -22,6 +23,13 @@ async function handle(request: Request): Promise<Response> {
     files: process.env.CLIENT_FILES_DISABLED ? null : { put: putFile, signedUrl: signFileUrl, remove: removeFiles },
     // CLIENT_EMAIL_DISABLED set: draft_email and send_email refuse. No RESEND_API_KEY: drafts only.
     email: clientMailer(),
+    // No CLIENT_GOOGLE_CLIENT_ID / _SECRET: no availability, interviews recorded in Tacit only.
+    calendar: (() => {
+      const google = clientGoogleCalendar();
+      return google
+        ? { google: { clientId: google.clientId, clientSecret: google.clientSecret }, connections: calendarConnections, connectUrl: google.connectUrl }
+        : null;
+    })(),
   });
 }
 

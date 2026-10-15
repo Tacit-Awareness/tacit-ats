@@ -52,7 +52,7 @@ async function clear() {
   // org_id references orgs without a cascade: every row in these orgs goes first.
   for (const table of [
     "job_post_attempts", "application_answers", "job_posts",
-    "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "eeoc_responses", "applications",
+    "audit_log", "calendar_connections", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "eeoc_responses", "applications",
     "scorecard_attributes", "person_notes", "person_tags", "tags", "pool_memberships", "talent_pools", "people", "companies",
     "openings", "job_offices", "departments", "offices",
   ] as const) {
@@ -498,9 +498,13 @@ describe("interviews and feedback against real Postgres", () => {
 
   test("cancelling an interview changes only its status", async () => {
     expect(await ok(ADA, "update_interview", { interview_id: UPCOMING, status: "cancelled" }))
-      .toEqual({ outcome: "updated", interview_id: UPCOMING, changed: ["status"] });
+      .toMatchObject({ outcome: "updated", interview_id: UPCOMING, changed: ["status"], calendar: "none" });
     const { data } = await db().from("interviews").select("status").eq("id", UPCOMING).single();
     expect(data!.status).toBe("cancelled");
+    // The candidate is told only through a draft the member sends: nothing went out.
+    const { data: drafts } = await db().from("candidate_emails").select("status, subject").eq("person_id", PAT);
+    expect(drafts).toEqual([{ status: "draft", subject: "Your interview for Founding Engineer is cancelled" }]);
+    expect(mail.sent).toEqual([]);
   });
 
   test("a time without an offset is refused, not guessed", async () => {
@@ -508,6 +512,131 @@ describe("interviews and feedback against real Postgres", () => {
       application_id: PAT_APP, starts_at: "2026-11-01T10:00:00", ends_at: "2026-11-01T11:00:00", interviewer_user_ids: [ADMIN],
     });
     expect(out.content[0].text).toMatch(/with its offset/);
+  });
+});
+
+describe("calendar scheduling against real Postgres", () => {
+  // Google stood in for as fetch: refresh token rt-<x> -> access token at-<x>;
+  // free/busy from `busy` per access token and address; events recorded.
+  const google = {
+    calls: [] as Array<{ method: string; url: string; token: string | null; body: unknown }>,
+    busy: {} as Record<string, Record<string, Array<[string, string]>>>,
+  };
+  const fakeGoogle = (async (input: string | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+    const token = new Headers(init?.headers).get("authorization")?.replace(/^Bearer /, "") ?? null;
+    const body = init?.body instanceof URLSearchParams
+      ? Object.fromEntries(init.body)
+      : typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+    google.calls.push({ method, url, token, body });
+    if (url.startsWith("https://oauth2.googleapis.com/token")) {
+      return Response.json({ access_token: String(body.refresh_token).replace(/^rt-/, "at-") });
+    }
+    if (url.endsWith("/freeBusy")) {
+      const mine = google.busy[token ?? ""] ?? {};
+      return Response.json({
+        calendars: Object.fromEntries((body.items as Array<{ id: string }>).map(({ id }) => [
+          id, id in mine ? { busy: mine[id].map(([start, end]) => ({ start, end })) } : { errors: [{ reason: "notFound" }] },
+        ])),
+      });
+    }
+    if (method === "DELETE") return new Response(null, { status: 204 });
+    const id = body?.id ?? url.split("/events/")[1]?.split("?")[0];
+    return Response.json({ id, htmlLink: `https://calendar.google.com/event?eid=${id}`, hangoutLink: "https://meet.google.com/itest" });
+  }) as typeof fetch;
+  const events = () => google.calls.filter((c) => c.url.includes("/events"));
+  // Monday 7 January 2030 in New York (UTC-5).
+  const at = (hour: number) => `2030-01-07T${String(hour).padStart(2, "0")}:00:00-05:00`;
+
+  beforeAll(async () => {
+    const { calendarConnections } = await import("../../../client/calendar.js");
+    deps.calendar = {
+      google: { clientId: "cid", clientSecret: "secret", fetch: fakeGoogle },
+      connections: calendarConnections,
+      connectUrl: "https://ats.test/client/calendar",
+    };
+  });
+  afterAll(() => {
+    deps.calendar = undefined;
+  });
+  beforeEach(async () => {
+    google.calls.length = 0;
+    // Ada's grant reads Ivan's calendar (one Workspace): busy all morning.
+    google.busy = { "at-ada": { "ivan@acme.test": [["2030-01-07T14:00:00Z", "2030-01-07T17:00:00Z"]] } };
+    must(await db().from("calendar_connections").insert({
+      actor_id: ADMIN, org_id: ACME, provider: "google", account_email: "ada@acme.test", refresh_token: "rt-ada", scopes: "calendar.events",
+    }));
+  });
+
+  test("finds times around the interviewers' busy calendars; an interviewer cannot ask", async () => {
+    const found = await ok(ADA, "find_interview_times", {
+      interviewer_user_ids: [INTERVIEWER], window_start: at(9), window_end: at(17), timezone: "America/New_York", max_results: 3,
+    });
+    expect(found.slots.map((s: { starts_at: string }) => s.starts_at)).toEqual([
+      "2030-01-07T17:00:00.000Z", "2030-01-07T17:30:00.000Z", "2030-01-07T18:00:00.000Z",
+    ]);
+    expect(found.checked).toEqual([{ user_id: INTERVIEWER, name: "Ivan Interviewer", via: "your_calendar" }]);
+    expect(events()).toEqual([]);
+    expect((await tool(IVAN, "find_interview_times", {
+      interviewer_user_ids: [INTERVIEWER], window_start: at(9), window_end: at(17),
+    })).content[0].text).toMatch(/Interviewers do not schedule/);
+  });
+
+  test("books on the member's calendar, invites the interviewer, drafts to the candidate, then moves and cancels", async () => {
+    const clash = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(10), ends_at: at(11), interviewer_user_ids: [INTERVIEWER], timezone: "America/New_York",
+    });
+    expect(clash).toMatchObject({ outcome: "conflicts", busy: [{ user_id: INTERVIEWER, name: "Ivan Interviewer" }] });
+    expect((await db().from("interviews").select("id").eq("application_id", PAT_APP)).data).toHaveLength(1);
+
+    const booked = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(12), ends_at: at(13), interviewer_user_ids: [ADMIN, INTERVIEWER], timezone: "America/New_York",
+    });
+    expect(booked).toMatchObject({
+      outcome: "scheduled",
+      calendar: { status: "invited", meet_link: "https://meet.google.com/itest", invited: [{ user_id: INTERVIEWER }] },
+      candidate_draft: { to: "pat@cand.test" },
+    });
+    const eventId = (booked.interview_id as string).replace(/-/g, "");
+    expect(events()).toMatchObject([{ method: "POST", token: "at-ada", body: { id: eventId, attendees: [{ email: "ivan@acme.test" }] } }]);
+    const { data: row } = await db().from("interviews")
+      .select("calendar_actor_id, google_event_id, location_or_link").eq("id", booked.interview_id).single();
+    expect(row).toEqual({ calendar_actor_id: ADMIN, google_event_id: eventId, location_or_link: "https://meet.google.com/itest" });
+    expect(mail.sent).toEqual([]);
+    const { data: audit } = await db().from("audit_log").select("action, after").eq("entity_id", booked.interview_id);
+    expect(audit?.map((a) => a.action)).toEqual(["interview.schedule"]);
+
+    const moved = await ok(ADA, "update_interview", {
+      interview_id: booked.interview_id, starts_at: at(14), ends_at: at(15), timezone: "America/New_York",
+    });
+    expect(moved).toMatchObject({ outcome: "updated", calendar: "moved", candidate_draft: { to: "pat@cand.test" } });
+    expect(events().at(-1)).toMatchObject({ method: "PATCH", token: "at-ada", body: { start: { dateTime: "2030-01-07T19:00:00.000Z" } } });
+
+    const cancelled = await ok(ADA, "update_interview", { interview_id: booked.interview_id, status: "cancelled" });
+    expect(cancelled).toMatchObject({ calendar: "cancelled" });
+    expect(events().at(-1)).toMatchObject({ method: "DELETE", token: "at-ada" });
+    expect(events().at(-1)?.url).toContain(`/events/${eventId}?sendUpdates=all`);
+    const { data: drafts } = await db().from("candidate_emails").select("status").eq("person_id", PAT);
+    expect(drafts?.map((d) => d.status)).toEqual(["draft", "draft", "draft"]);
+  });
+
+  test("not connected: recorded in Tacit only, and the result says where to connect", async () => {
+    must(await db().from("calendar_connections").delete().eq("actor_id", ADMIN));
+    const out = await ok(ADA, "schedule_interview", {
+      application_id: PAT_APP, starts_at: at(12), ends_at: at(13), interviewer_user_ids: [INTERVIEWER], draft_candidate_email: false,
+    });
+    expect(out).toMatchObject({
+      outcome: "scheduled", calendar: { status: "not_sent", reason: "not_connected", connect_url: "https://ats.test/client/calendar" },
+      candidate_draft: null,
+    });
+    expect(google.calls).toEqual([]);
+  });
+
+  test("another company's calendar grant is never read", async () => {
+    const { calendarConnections } = await import("../../../client/calendar.js");
+    expect((await calendarConnections(GLOBEX, [ADMIN])).size).toBe(0);
+    expect((await calendarConnections(ACME, [ADMIN])).get(ADMIN)).toEqual({ accountEmail: "ada@acme.test", refreshToken: "rt-ada" });
   });
 });
 
