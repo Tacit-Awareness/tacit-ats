@@ -383,6 +383,12 @@ Claude picks the matching reason, calls \`update_stage\` with it and your note, 
 
 \`set_member_access\` (admins) sets a member to interviewer, hiring team or admin. Your company always keeps at least one admin who has signed in, so the last admin cannot be lowered. Claude tells you exactly what will change and waits for a yes.
 
+## Read-only connector
+
+> Make the Claude connector read-only for our company.
+
+\`set_connector_access\` (admins) makes the connector **read-only** for everyone at your company: Claude can still read jobs, candidates and reports, but every change through the connector is refused, with a sentence saying so and that an admin can turn changes back on. Admins can always switch it back to **read-write** with the same tool, even while it is read-only. \`get_connector_settings\` shows which it is and who last changed it. This applies only to the connector: the Tacit workspace on the web works as before. Claude tells you exactly what will change and waits for a yes.
+
 ## Invitations
 
 > Invite dana@yourcompany.com as hiring team.
@@ -567,6 +573,8 @@ Candidates can answer the voluntary US equal-opportunity questions (gender, race
 | \`add_to_hiring_team\` | Add a member to a job's team | Admins | |
 | \`remove_from_hiring_team\` | Take a member off a job's team | Admins | Yes |
 | \`set_member_access\` | Change a member's access level | Admins | Yes |
+| \`get_connector_settings\` | Whether the connector can make changes, and who last set it | Everyone | |
+| \`set_connector_access\` | Make the connector read-only, or read-write again | Admins | Yes |
 | \`invite_member\` | Invite a colleague by email | Admins | Confirms address |
 | \`list_invites\` | Pending invitations | Admins | |
 | \`withdraw_invite\` | Take back an invitation | Admins | Yes |
