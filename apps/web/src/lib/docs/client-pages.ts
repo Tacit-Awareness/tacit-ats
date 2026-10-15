@@ -1,0 +1,513 @@
+import type { DocPage } from "./types";
+
+/**
+ * The client connector's documentation (apps/mcp's /api/client): what a
+ * member of a client company reads at /client/docs, and what staff read
+ * under the same slugs at /docs. Pages here link only to each other, since a
+ * client cannot open a staff page (docs.test.ts checks).
+ *
+ * Every tool name, limit and value list below is from apps/mcp's
+ * src/client/server.ts and core's clientTools; docs.test.ts fails when a tool
+ * is added there and not named here, or named here and gone there.
+ */
+
+export const CLIENT_CONNECTOR_URL = "https://mcp.tacitawareness.com/api/client";
+
+export const CLIENT_DOCS: DocPage[] = [
+  {
+    slug: "connect",
+    title: "Connect Tacit to Claude",
+    category: "Get started",
+    description: "Add your company's Tacit workspace to Claude and sign in.",
+    body: `The Tacit connector lets you work your company's hiring in Claude. You can ask about jobs and candidates, move people through a pipeline, email candidates, schedule interviews, file feedback and draft offers. Claude acts as you, so it can see and change only what your access in Tacit allows.
+
+## Before you start
+
+You need an invitation to your company's Tacit workspace. An admin at your company sends it from Tacit, and it arrives as an email from WorkOS, our sign-in provider. Sign in once from that email so your account exists. If you have no invitation, ask an admin to [invite you](/docs/admin).
+
+## Add the connector in Claude
+
+1. In Claude, open **Settings → Connectors** and choose **Add custom connector**.
+2. Name it **Tacit** and paste this URL:
+
+\`\`\`text
+${CLIENT_CONNECTOR_URL}
+\`\`\`
+
+3. Choose **Connect**. A Tacit sign-in page opens; sign in with the email you were invited at.
+4. Back in Claude, the Tacit tools appear under the connector. Turn it on in a chat from the tools menu.
+
+On a Team or Enterprise plan, an owner may need to add the connector for the organization first. It then shows up for you to connect.
+
+### Claude Code
+
+\`\`\`sh
+claude mcp add --transport http tacit ${CLIENT_CONNECTOR_URL}
+\`\`\`
+
+Then run \`/mcp\` in Claude Code, choose **tacit** and sign in in the browser it opens.
+
+## Check it works
+
+Ask Claude:
+
+> Who am I in Tacit?
+
+Claude calls \`whoami\` and answers with your company, your name, your access level and the jobs you can see. Start every new chat this way if you are unsure what you can do.
+
+## If sign-in is refused
+
+| What you see | What it means |
+| --- | --- |
+| You are not a member of this workspace | Your email has not been invited, or the invitation was withdrawn. Ask an admin. |
+| Sign in again choosing the company | You belong to more than one company in Tacit. Disconnect, reconnect and pick the company during sign-in. |
+| Claude asks you to reconnect | Your sign-in expired. Choose **Connect** again. |
+
+## Disconnect
+
+Remove the connector in **Settings → Connectors**. That stops Claude from acting for you. It changes nothing in Tacit, and your account stays as it is.`,
+  },
+  {
+    slug: "access",
+    title: "Access levels",
+    category: "Get started",
+    description: "What interviewers, hiring teams and admins can see and change.",
+    body: `Everyone at your company has one of three access levels. Claude works through your own sign-in, so the level decides what every tool returns. Nothing is filtered by Claude; Tacit itself refuses what you may not see.
+
+## The three levels
+
+| Level | Sees | Can change |
+| --- | --- | --- |
+| **Interviewer** | Their own interviews, and a short card on each candidate they interview: name, headline, LinkedIn, resume, and their own notes. No pipelines, no tags. | Their own feedback and notes on the people they interview. |
+| **Hiring team** | The jobs they are on through a hiring team, those jobs' pipelines and candidates. | What their team role on each job allows (below). |
+| **Admin** | Every job, the whole team, pending invitations. | Everything, including jobs, hiring teams, access levels and invitations. |
+
+A job marked confidential is visible only to the people on it, and to admins who have been given confidential access.
+
+## Team roles on a job
+
+The hiring team decides who works each job. A person can hold more than one role on a job.
+
+| Team role | Gives |
+| --- | --- |
+| \`hiring_manager\`, \`recruiter\` | Manage the job and its pipeline: add candidates, move stages, schedule interviews, draft offers, set the interview plan and scorecard. |
+| \`coordinator\`, \`sourcer\` | See the job's candidates and read feedback. |
+| \`interviewer\` | Nothing beyond their own interviews. |
+
+Someone at interviewer access who is given a managing role becomes hiring team. Lowering a level later does not remove them from teams; it just stops the team role from granting anything.
+
+## Feedback visibility
+
+Your company has one setting for when interviewers can read each other's feedback:
+
+- **always**: as soon as it is filed;
+- **after submit** (the default): once you have filed your own for every interview of that candidate you are on;
+- **never**: admins only.
+
+\`get_feedback\` and \`get_interview_plan\` follow it. An interview whose feedback is hidden from you shows as hidden, not missing.`,
+  },
+  {
+    slug: "pipeline",
+    title: "Candidates & pipeline",
+    category: "Working with candidates",
+    description: "Find candidates, add them to jobs and move them through stages.",
+    body: `A **job** has a **pipeline**: each candidate in it is an **application** with a stage, an owner and a next action. One person can be in several jobs, with a separate application in each.
+
+## Find what you need
+
+| Ask | Tool |
+| --- | --- |
+| "What jobs can I see?" | \`list_jobs\` (narrow with a status such as \`open\`) |
+| "Where does the Backend Engineer search stand?" | \`get_pipeline\` |
+| "Find Priya Shah" / "who from Stripe is in our pipeline?" | \`search_candidates\` |
+| "Tell me about Priya" | \`get_candidate\` |
+| "Who is on our team?" | \`list_team\` |
+
+\`search_candidates\` matches name, email, company or title, and can be narrowed to one job or one tag. It returns the \`candidate_id\` and each application with its \`application_id\` and stage. When you give Claude only a name, it searches first and uses those ids; if several people match, it asks which one.
+
+\`get_candidate\` returns the profile, tags, every job they are in (stage, how they came in, next action, why they closed, the latest offer if you manage that job), the team's notes and their files.
+
+\`get_pipeline\` lists a job's candidates by stage and flags the ones that **need attention**: no contact for a week, or a next action past its date. Interviewers cannot read pipelines.
+
+## Stages
+
+\`sourced\` → \`contacted\` → \`screening\` → \`interviewing\` → \`offer\` → \`hired\`, plus \`rejected\` and \`withdrawn\`, which close an application.
+
+## Add a candidate
+
+> Add Priya Shah (priya@example.com) to the Backend Engineer job. She was referred by Sam.
+
+\`add_candidate\` puts someone in a job at \`sourced\`. With an email, a person already in your company's records under that address is reused rather than duplicated, and someone already in the job is left where they are. Say how they came in and Claude records it as the source:
+
+| Source | |
+| --- | --- |
+| \`sourced\` | The default: your team found them. |
+| \`applicant\`, \`referral\`, \`agency\`, \`job_board\`, \`event\`, \`suggested\`, \`other\` | With an optional detail: which referrer, agency, board or event. |
+
+Adding, moving and setting next actions need the right to edit the job's pipeline: admins, and the job's hiring managers and recruiters.
+
+## Move a stage
+
+> Move Priya to interviewing.
+
+\`update_stage\` moves one application. Claude tells you the change and waits for your yes before calling it. It passes the stage it last saw, so if a teammate moved the candidate in the meantime, nothing changes and you get the current stage back.
+
+Moving to \`rejected\` or \`withdrawn\` needs a reason from your company's list ([Offers & closing](/docs/offers)) and takes an optional note.
+
+## Next actions and notes
+
+- \`set_next_action\` records what happens next on an application, with an optional due date (YYYY-MM-DD). It replaces the one there; clear it by saying so. A next action past its date makes the card need attention.
+- \`add_note\` adds a note on a candidate that your team can read. Interviewers can note the people they interview. Notes cannot be edited or deleted through Claude.`,
+  },
+  {
+    slug: "activity-tags",
+    title: "History & tags",
+    category: "Working with candidates",
+    description: "Read a candidate's history and organize people with tags.",
+    body: `## A candidate's history
+
+> What has happened with Priya so far?
+
+\`get_activity\` returns one candidate's history, newest first (30 entries unless you ask for more): when they were added to each job and how, stage moves and why they closed, owner and next-action changes, notes, interviews scheduled, done or cancelled, offers drafted, extended and closed (status only), and tags. Each entry says who did it.
+
+Only what you can read appears. An interviewer gets their own notes and the interviews they are on.
+
+## Tags
+
+Tags are your company's own labels, such as *Strong systems*, *Re-engage in Q3* or *Boston*. They are shared by the whole team.
+
+| Ask | Tool |
+| --- | --- |
+| "What tags do we have?" | \`list_tags\`: each tag with how many of the candidates you can see carry it. Archived tags on request. |
+| "Make a tag called Re-engage" | \`create_tag\`: at most 60 characters. A tag that already exists under that name, ignoring case, is returned instead of duplicated. |
+| "Tag Priya with Strong systems" | \`tag_candidate\`: by name or id. Tagging twice changes nothing. |
+| "Take the Boston tag off Priya" | \`untag_candidate\`: Claude confirms first. |
+| "Archive the Q2 tag" | \`archive_tag\`: admins only, confirmed first. The tag stays on the people who have it and goes on no one new. Creating it again brings it back. |
+
+\`search_candidates\` takes a tag, so "everyone tagged Strong systems in the Backend job" is one request.
+
+Anyone who can add candidates can create tags. Changing a candidate's tags needs the right to change that candidate. Interviewers see no tags.`,
+  },
+  {
+    slug: "files",
+    title: "Resumes & attachments",
+    category: "Working with candidates",
+    description: "Attach resumes and files to a candidate and download them.",
+    body: `Each candidate can have resumes and other attachments, such as a portfolio, a work sample or a reference letter.
+
+## List and download
+
+> Show me Priya's files.
+
+\`list_files\` returns a candidate's files, newest first: each with its kind (\`resume\` or \`attachment\`), filename, type, size, who added it and when. \`get_candidate\` lists them too.
+
+> Give me a link to her resume.
+
+\`get_file_link\` returns a download link for one file. **The link expires five minutes after it is made**, and anyone holding it can download the file until then, so open it straight away and do not paste it anywhere else. Ask again for a fresh one.
+
+An interviewer sees only the resume of someone they interview.
+
+## Attach a file
+
+> Attach this PDF to Priya as her resume.
+
+\`add_file\` attaches a file you give Claude. What Tacit accepts:
+
+| | |
+| --- | --- |
+| Kind | \`resume\` or \`attachment\` |
+| Types | PDF, Word (.doc, .docx), plain text, PNG, JPEG |
+| Size | 3 MB at most |
+| Filename | Letters, digits, spaces and \`. _ - ( ) & , + '\`, ending in the type's extension |
+
+The file's contents must match its type: a PNG renamed to .pdf is refused. Whoever can edit the candidate can add files (their hiring team or an admin), never an interviewer.
+
+Files cannot be replaced or deleted through Claude. To correct one, add the right file; the newest is listed first.`,
+  },
+  {
+    slug: "email",
+    title: "Email to candidates",
+    category: "Working with candidates",
+    description: "Draft and send email to candidates, from your company's templates or from scratch.",
+    body: `You can email a candidate from Claude. **It is always two steps**: Claude writes a draft and shows it to you in full, and sends it only after you say yes.
+
+## Draft, then send
+
+> Email Priya to set up a call next week, using our intro template.
+
+1. \`draft_email\` writes a draft to a candidate and sends nothing. It starts from a template (by name or id), or from a subject and body Claude writes from what you asked for; given both, yours replace the template's. Tie it to one of their jobs to fill in the job title. Claude shows you who it goes to, the subject and the whole body exactly as saved. To change anything, it drafts again.
+2. \`send_email\` sends that draft, exactly as drafted, once you say yes. Only the person who drafted it can send it, and only once.
+
+The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
+
+Drafting and sending need the right to change the candidate. Interviewers cannot email candidates.
+
+## What never goes in an email
+
+Interview feedback, scorecard ratings, offer terms and private notes. Claude leaves them out of every draft; read the draft before you say yes all the same.
+
+## Templates
+
+Templates are your company's reusable emails, shared by the team.
+
+| Tool | |
+| --- | --- |
+| \`list_email_templates\` | Each template with its subject and body. Archived ones on request. Not available to interviewers. |
+| \`create_email_template\` | Admins: a name (unique, ignoring case), a one-line subject and a body. |
+| \`update_email_template\` | Admins: rename or rewrite one, or archive it (kept, and drafts already written from it are untouched) or bring it back. Templates are never deleted. Claude confirms first. |
+
+Tacit fills these placeholders in when it drafts:
+
+| Placeholder | Becomes |
+| --- | --- |
+| \`{{candidate_first_name}}\`, \`{{candidate_name}}\` | The candidate's first or full name |
+| \`{{job_title}}\` | The job's title, when the draft is tied to a job |
+| \`{{company_name}}\` | Your company's name |
+| \`{{sender_name}}\`, \`{{sender_first_name}}\` | Your full or first name |
+
+If a placeholder cannot be filled for this candidate (no job given for \`{{job_title}}\`, say), no draft is written and Claude tells you which one.
+
+## Sent email is on the record
+
+\`list_emails\` shows the emails to one candidate, newest first, with their bodies: every one sent or being sent, and your own drafts, each with its status (\`draft\`, \`sending\`, \`sent\`, \`failed\`). A sent email also appears in \`get_candidate\` and \`get_activity\`, and counts as contact on the job it was tied to.
+
+You can send at most 30 emails an hour.`,
+  },
+  {
+    slug: "interviews",
+    title: "Interviews & feedback",
+    category: "Interviews & offers",
+    description: "Plans, scheduling, scorecards and interview feedback.",
+    body: `## Interview plans
+
+A job's **interview plan** is its interview steps in order, such as *Recruiter screen*, *Technical*, *Onsite*.
+
+- \`get_interview_plan\` shows a job's steps. Given a candidate's application, it also shows their progress on each step: its interviews and their status, whether each interviewer's feedback is filed, not filed, or hidden by your company's setting, interviews on no step, and the next step to schedule.
+- \`set_interview_plan\` replaces the whole plan with the steps you give, in order: at most 15, each a distinct name of up to 120 characters. An empty list clears it. Interviews already on a step you remove keep its name and show as off the plan. Needs the right to manage the job; Claude reads the new steps back and waits for your yes.
+
+## Schedule an interview
+
+> Schedule Priya's technical screen with Dana and Lee on Thursday at 2pm Pacific for an hour.
+
+\`schedule_interview\` records an interview on one application with your company's interviewers. Times include their timezone offset.
+
+**It only records the interview in Tacit. No calendar invite is sent to anyone, the candidate included.** Send invites from your own calendar as usual.
+
+When the job has an interview plan, the step must be one of its steps. Scheduling needs the right to schedule on that job; Claude confirms the time and interviewers first.
+
+\`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first.
+
+\`list_my_interviews\` lists the interviews you are on (upcoming by default, or past, or all), with the candidate, the job and whether you have filed feedback.
+
+## Scorecards
+
+A job's **scorecard** is the list of attributes interviewers rate, such as *System design* or *Communication*.
+
+- \`get_scorecard\`: a job's attributes in order. Anyone who can see the job can read it, interviewers included.
+- \`set_scorecard\`: sets the attributes to exactly the list you give. An attribute is matched by name, so you can reorder freely; renaming one keeps its ratings. One you leave out is archived, never deleted, so ratings already filed keep it. Only for the people who manage the job, and confirmed first.
+
+## File feedback
+
+> File my feedback on Priya's technical: yes, rating 3. System design 4, she broke the problem down well. Communication 3.
+
+\`submit_feedback\` files your feedback on an interview you were on, once it has started:
+
+| | |
+| --- | --- |
+| Recommendation | \`strong_yes\`, \`yes\`, \`no\` or \`strong_no\` |
+| Rating | Optional, 1 to 4 |
+| Notes | Your own words |
+| Scorecard ratings | Optional: 1 to 4 per attribute, with a short note each |
+
+Filing again replaces your earlier feedback, ratings included.
+
+\`get_feedback\` reads the feedback on one interview, or on every interview of one application, with each interviewer and their ratings. Whose feedback you see follows your company's [feedback visibility](/docs/access) setting.
+
+**Feedback is private to your hiring team.** Claude will not put it in anything written to a candidate.`,
+  },
+  {
+    slug: "offers",
+    title: "Offers & closing",
+    category: "Interviews & offers",
+    description: "Draft and track offers, and close applications with a reason.",
+    body: `## Offers
+
+An offer moves through these statuses:
+
+\`draft\` → \`extended\` → \`accepted\` or \`declined\`, and \`draft\` or \`extended\` → \`withdrawn\`.
+
+> Draft an offer for Priya: $185,000 a year, 0.1% equity, start March 2.
+
+- \`create_offer\` drafts an offer on one application: salary (a whole amount a year), currency (three letters, USD unless you say), bonus, equity, start date, expiry date and notes. One open offer per application. Claude confirms the terms first.
+- \`update_offer\` changes a draft's terms, or moves an offer along: mark it **extended** once it has gone to the candidate, then **accepted** or **declined**, or **withdrawn**. An extended offer's terms never change: withdraw it and draft a new one, so what was sent stays on record. Claude confirms first.
+- \`get_offers\` lists every offer on an application, newest first, with its terms and history.
+
+Recording an offer changes nothing else. Drafting one does not move the stage or send anything, and recording **accepted** does not mark them hired: move the stage with \`update_stage\`.
+
+Offers are only for the people who manage the job. **Compensation is confidential**: Claude shares it only with you.
+
+## Closing an application
+
+Every company has a list of reasons an application can close. \`list_rejection_reasons\` returns them, each with its kind:
+
+| Kind | For |
+| --- | --- |
+| \`rejected\` | Your company passed on the candidate. Use with stage \`rejected\`. |
+| \`withdrew\` | The candidate pulled out. Use with stage \`withdrawn\`. |
+
+> Reject Lee from the Backend job: not enough distributed systems experience.
+
+Claude picks the matching reason, calls \`update_stage\` with it and your note, and confirms first. Calling it again on someone already closed replaces the reason. \`get_candidate\` and \`get_activity\` show why an application closed.`,
+  },
+  {
+    slug: "admin",
+    title: "Jobs, teams & invitations",
+    category: "Administration",
+    description: "Create jobs, staff hiring teams, set access and invite colleagues.",
+    body: `## Jobs
+
+- \`create_job\` (admins): a job with a title, and optionally a status, location, level and description. It starts \`open\` unless you say otherwise. Claude confirms the details first.
+- \`update_job\`: change a job's title, status (\`open\`, \`paused\`, \`filled\`, \`closed\`), location, level or description. Only what you mention changes. Needs the right to manage the job; confirmed first.
+
+## Hiring teams
+
+> Put Dana on the Backend Engineer job as hiring manager.
+
+- \`get_hiring_team\`: who works a job, their team roles on it, and the access that gives them.
+- \`add_to_hiring_team\` (admins): adds a member (from \`list_team\`) as \`hiring_manager\`, \`recruiter\`, \`coordinator\`, \`sourcer\` or \`interviewer\`. See [Access levels](/docs/access) for what each gives.
+- \`remove_from_hiring_team\` (admins): takes one team role off a member, or every role they hold on the job. The access it gave goes with it. Confirmed first.
+
+## Access levels
+
+> Make Lee an admin.
+
+\`set_member_access\` (admins) sets a member to interviewer, hiring team or admin. Your company always keeps at least one admin who has signed in, so the last admin cannot be lowered. Claude tells you exactly what will change and waits for a yes.
+
+## Invitations
+
+> Invite dana@yourcompany.com as hiring team.
+
+- \`invite_member\` (admins): sends an invitation email from WorkOS to join your company's Tacit workspace, at the access level you choose. Inviting an address that is already invited sends the email again. Claude confirms the address first.
+- \`list_invites\` (admins): who has been invited and not signed in yet.
+- \`withdraw_invite\` (admins): takes back an invitation nobody has accepted.
+
+Once someone accepts and signs in, they appear in \`list_team\` and can [connect Claude](/docs/connect) themselves.`,
+  },
+  {
+    slug: "client-tools",
+    title: "Tool reference",
+    category: "Reference",
+    description: "Every tool the connector offers, who can use it, and which ones ask first.",
+    body: `You rarely need tool names: ask in plain words and Claude picks the tool. This list is for knowing what is possible. **Asks first** means Claude describes the change and waits for your yes.
+
+## Workspace and candidates
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`whoami\` | Your company, name, access level and the jobs you can see | Everyone | |
+| \`list_jobs\` | The jobs you can see, with candidate counts | Everyone | |
+| \`get_pipeline\` | One job's candidates by stage, flagging who needs attention | Hiring team, admins | |
+| \`search_candidates\` | Find candidates by name, email, company, title, job or tag | Everyone (interviewers: their own) | |
+| \`get_candidate\` | Profile, jobs, notes, tags and files | Everyone (interviewers: a short card) | |
+| \`get_activity\` | A candidate's history, newest first | Everyone (interviewers: their own) | |
+| \`list_team\` | Your company's members and their access | Everyone | |
+| \`add_candidate\` | Add someone to a job at sourced, with a source | Job managers | |
+| \`update_stage\` | Move an application, with a reason when closing | Job managers | Yes |
+| \`set_next_action\` | Set or clear what happens next, with a due date | Job managers | |
+| \`add_note\` | A note the team can read | Everyone | |
+
+## Tags and files
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`list_tags\` | Your company's tags and how many carry each | Hiring team, admins | |
+| \`create_tag\` | Make a tag | Anyone who can add candidates | |
+| \`tag_candidate\` | Put a tag on a candidate | Whoever can edit the candidate | |
+| \`untag_candidate\` | Take a tag off | Whoever can edit the candidate | Yes |
+| \`archive_tag\` | Retire a tag | Admins | Yes |
+| \`list_files\` | A candidate's resumes and attachments | Everyone (interviewers: the resume) | |
+| \`get_file_link\` | A five-minute download link | Everyone who can see the file | |
+| \`add_file\` | Attach a resume or file, up to 3 MB | Whoever can edit the candidate | |
+
+## Email
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`draft_email\` | Draft an email to a candidate; sends nothing | Whoever can edit the candidate | |
+| \`send_email\` | Send your draft, once | The draft's author | Yes |
+| \`list_emails\` | A candidate's emails and your drafts | Hiring team, admins | |
+| \`list_email_templates\` | Your company's email templates | Hiring team, admins | |
+| \`create_email_template\` | Make a template | Admins | |
+| \`update_email_template\` | Rename, rewrite or archive a template | Admins | Yes |
+
+## Interviews, feedback and offers
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`list_my_interviews\` | Interviews you are on | Everyone | |
+| \`get_interview_plan\` | A job's steps, and a candidate's progress | Everyone who can see the job | |
+| \`set_interview_plan\` | Replace a job's steps | Job managers | Yes |
+| \`schedule_interview\` | Record an interview (no calendar invite) | Job managers | Confirms time |
+| \`update_interview\` | Move, change or cancel an interview | Job managers | Yes |
+| \`get_scorecard\` | A job's rated attributes | Everyone who can see the job | |
+| \`set_scorecard\` | Set a job's attributes | Job managers | Yes |
+| \`submit_feedback\` | File your feedback and ratings | The interview's interviewers | |
+| \`get_feedback\` | Read filed feedback | Per your company's setting | |
+| \`list_rejection_reasons\` | Your company's closing reasons | Hiring team, admins | |
+| \`get_offers\` | An application's offers | Job managers | |
+| \`create_offer\` | Draft an offer | Job managers | Confirms terms |
+| \`update_offer\` | Change terms or record the outcome | Job managers | Yes |
+
+## Administration
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`create_job\` | Create a job | Admins | Confirms details |
+| \`update_job\` | Change a job's details or status | Job managers | Yes |
+| \`get_hiring_team\` | Who works a job | Job managers | |
+| \`add_to_hiring_team\` | Add a member to a job's team | Admins | |
+| \`remove_from_hiring_team\` | Take a member off a job's team | Admins | Yes |
+| \`set_member_access\` | Change a member's access level | Admins | Yes |
+| \`invite_member\` | Invite a colleague by email | Admins | Confirms address |
+| \`list_invites\` | Pending invitations | Admins | |
+| \`withdraw_invite\` | Take back an invitation | Admins | Yes |
+
+"Job managers" are admins and the job's hiring managers and recruiters.`,
+  },
+  {
+    slug: "client-privacy",
+    title: "Limits, privacy & audit",
+    category: "Reference",
+    description: "What is recorded, the hourly limits, and how candidate data is handled.",
+    body: `## Nothing is deleted
+
+No tool deletes a candidate, a job, a note or a file. Things that end are closed, withdrawn or archived instead, so the record stays complete.
+
+## Everything is recorded
+
+- Every tool call is logged with who made it and when.
+- Every change is recorded with what it was before and after. Admins can read this record. Feedback notes, rating notes, offer notes, filenames and email subjects and bodies are kept out of it.
+
+## Limits
+
+| Limit | |
+| --- | --- |
+| Changes | 300 per person per hour |
+| Candidates looked at | 150 different candidates per person per hour |
+| Emails sent | 30 per person per hour |
+| File size | 3 MB |
+| Download links | Expire after five minutes |
+
+The candidate limit stops anyone from copying out the whole database. When you reach it, Claude says so; narrow the request or try again later.
+
+## Candidate text is treated as data
+
+Names, headlines, notes, filenames and other text written by or about a candidate are marked as untrusted when they reach Claude. Claude reads them as information, never as instructions, so a resume that says "ignore your rules" changes nothing.
+
+## Confidential by default
+
+- Interview feedback stays with the hiring team and never goes in a message to a candidate.
+- Offer terms are shared only with you.
+- Email reaches a candidate only after you have read the whole draft and said yes. Scheduling records the interview without inviting anyone, and offers are marked extended only after you have sent them yourself.`,
+  },
+];
