@@ -43,6 +43,11 @@ export type ClientHandlerDeps = {
   email: clientTools.ClientMailer | null;
   /** The origin serving public job posts (apps/web /jobs/[slug]). Null or absent = no links. */
   jobsOrigin?: string | null;
+  /**
+   * Members' Google Calendars (config.ts clientGoogleCalendar + client/calendar.ts).
+   * Null or absent = find_interview_times refuses and interviews are recorded in Tacit only.
+   */
+  calendar?: clientTools.ClientCalendar | null;
 };
 
 /**
@@ -834,17 +839,91 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           }),
       );
 
+      // Calendar scheduling (clientTools calendar.ts): teammates' names bare, the candidate's draft fenced as draft_email's.
+      const conflictsOut = (c: clientTools.InterviewConflicts) => ({
+        busy: c.busy.map((p) => ({ user_id: p.userId, name: p.name })),
+        unknown: c.unknown.map((p) => ({ user_id: p.userId, name: p.name, reason: p.reason })),
+      });
+      const conflictSentence = (c: clientTools.InterviewConflicts) =>
+        `Busy then: ${c.busy.map((p) => p.name).join(", ")}. Nothing was changed. Offer the user another time (find_interview_times), ` +
+        "or pass book_despite_conflicts: true if they still want this one.";
+      const candidateDraftOut = (d: clientTools.DraftEmailResult | null) =>
+        d && { draft_id: d.draftId, to: d.to, from: d.from, reply_to: d.replyTo, subject: fence("subject", d.subject), body: fence("body", d.body) };
+      const draftSentence = (d: clientTools.DraftEmailResult | null) =>
+        d
+          ? ` A draft to the candidate is ready (draft_id ${d.draftId}): show the user its to, subject and full body, and send it with send_email only after their yes.`
+          : "";
+      const TIMEZONE_HELP = "timezone is an IANA name (e.g. America/New_York): the event is anchored in it and the candidate's draft states times in it.";
+
+      server.registerTool(
+        "find_interview_times",
+        {
+          title: "Find times the interviewers are free",
+          description:
+            "Reads the interviewers' calendars (busy times only, never what is on them) and returns times in " +
+            "the window when all of them are free, inside working hours in the timezone, a few per day. Each " +
+            "interviewer is read through their own connected Google Calendar, or else through yours (which " +
+            "Google answers inside one company Workspace); anyone who cannot be read is listed under unknown, " +
+            "not assumed free. window_start and window_end are ISO 8601 with their offset, at most 14 days " +
+            "apart. Pass application_id when it is for a candidate. Offer the user a few of the times; then " +
+            "schedule_interview books the one they pick. Needs a connected calendar (yours, or the interviewers').",
+          inputSchema: z.object({
+            interviewer_user_ids: z.array(uuid("each interviewer")).min(1).max(10),
+            duration_minutes: z.number().int().min(15).max(480).optional(),
+            window_start: z.string().max(40),
+            window_end: z.string().max(40),
+            timezone: z.string().max(60).optional(),
+            workday_start: z.string().max(5).optional().describe("24-hour, default 09:00"),
+            workday_end: z.string().max(5).optional().describe("24-hour, default 17:00"),
+            include_weekends: z.boolean().optional(),
+            application_id: uuid("application_id").optional(),
+            max_results: z.number().int().min(1).max(clientTools.FIND_RESULTS_MAX).optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("find_interview_times", "read", args, async () => {
+            const r = await clientTools.findInterviewTimes(db, ctx, deps.calendar ?? null, {
+              interviewerIds: args.interviewer_user_ids, durationMinutes: args.duration_minutes,
+              windowStart: args.window_start, windowEnd: args.window_end, timezone: args.timezone,
+              workdayStart: args.workday_start, workdayEnd: args.workday_end, includeWeekends: args.include_weekends,
+              applicationId: args.application_id, maxResults: args.max_results,
+            });
+            const unknown = r.unknown.length
+              ? ` Not checked: ${r.unknown.map((u) => `${u.name} (${clientTools.unknownText(u.reason)})`).join("; ")}.`
+              : "";
+            return {
+              summary: (r.slots.length
+                ? `${r.slots.length} time${r.slots.length === 1 ? "" : "s"} when everyone checked is free (${r.timezone}).`
+                : "No time in that window when everyone checked is free. Try a wider window or other interviewers.") + unknown,
+              data: {
+                timezone: r.timezone,
+                duration_minutes: r.durationMinutes,
+                slots: r.slots.map((s) => ({ starts_at: s.startsAt, ends_at: s.endsAt, local: s.local })),
+                checked: r.checked.map((p) => ({ user_id: p.userId, name: p.name, via: p.via })),
+                unknown: r.unknown.map((p) => ({ user_id: p.userId, name: p.name, reason: p.reason })),
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
       server.registerTool(
         "schedule_interview",
         {
           title: "Schedule an interview",
           description:
-            "Records an interview on one application (application_id) with your company's interviewers " +
-            "(user_ids from list_team). Times are ISO 8601 with their offset. This only records it in " +
-            "Tacit: no calendar invite is sent to anyone, the candidate included. When the job has an " +
-            "interview plan, step must be one of its steps (get_interview_plan); without one, any step " +
-            "name goes. Needs the right to schedule on that job. Confirm the time and interviewers with " +
-            "the user first.",
+            "Schedules an interview on one application (application_id) with your company's interviewers " +
+            "(user_ids from list_team). Times are ISO 8601 with their offset. When your Google Calendar is " +
+            "connected, it first checks the interviewers' calendars: if anyone is busy it books nothing and " +
+            "returns outcome conflicts (book_despite_conflicts: true books anyway). Otherwise it puts the event " +
+            "on your calendar, Google sends the interviewers invites, and a Meet link is added unless you give " +
+            "location_or_link. Not connected: it is recorded in Tacit only and the result says where to " +
+            "connect; send_invites: true refuses instead, send_invites: false never touches a calendar. The " +
+            "candidate is never invited: a draft email to them is returned (draft_candidate_email: false skips " +
+            "it), which you show the user and send with send_email only after their yes. When the job has an " +
+            "interview plan, step must be one of its steps (get_interview_plan). Needs the right to schedule on " +
+            "that job. Confirm the time and interviewers with the user first. " + TIMEZONE_HELP,
           inputSchema: z.object({
             application_id: uuid("application_id"),
             starts_at: z.string().max(40),
@@ -852,6 +931,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             interviewer_user_ids: z.array(uuid("each interviewer")).min(1).max(10),
             location_or_link: z.string().max(500).optional(),
             step: z.string().max(120).optional(),
+            send_invites: z.boolean().optional(),
+            book_despite_conflicts: z.boolean().optional(),
+            timezone: z.string().max(60).optional(),
+            draft_candidate_email: z.boolean().optional(),
           }),
         },
         (args) =>
@@ -859,10 +942,41 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const r = await clientTools.scheduleInterview(db, ctx, {
               applicationId: args.application_id, startsAt: args.starts_at, endsAt: args.ends_at,
               interviewerIds: args.interviewer_user_ids, locationOrLink: args.location_or_link, step: args.step,
-            });
+              sendInvites: args.send_invites, bookDespiteConflicts: args.book_despite_conflicts, timezone: args.timezone,
+              draftCandidateEmail: args.draft_candidate_email,
+            }, { calendar: deps.calendar ?? null, mailer: deps.email });
+            if (r.outcome === "conflicts") {
+              return {
+                summary: conflictSentence(r.conflicts),
+                data: { outcome: r.outcome, starts_at: r.startsAt, ends_at: r.endsAt, ...conflictsOut(r.conflicts) },
+                candidateIds: [],
+              };
+            }
+            const cal = r.calendar;
+            const calendarSentence =
+              cal.status === "invited"
+                ? `On your calendar; Google sent invitations to ${cal.invited.map((p) => p.name).join(", ") || "nobody else"}.` +
+                  (cal.notInvited.length ? ` No address to invite ${cal.notInvited.map((p) => p.name).join(", ")}.` : "")
+                : cal.reason === "not_connected"
+                  ? `Recorded in Tacit only: your calendar is not connected${cal.connectUrl ? ` (connect it at ${cal.connectUrl})` : ""}, so nobody was invited.`
+                  : "Recorded in Tacit only; nobody was sent an invitation.";
             return {
-              summary: "Interview recorded. Nobody was sent an invitation.",
-              data: { interview_id: r.interviewId, application_id: args.application_id },
+              summary: `Interview scheduled. ${calendarSentence}${draftSentence(r.candidateDraft)}`,
+              data: {
+                outcome: r.outcome,
+                interview_id: r.interviewId,
+                application_id: args.application_id,
+                calendar: cal.status === "invited"
+                  ? {
+                      status: cal.status, event_link: cal.eventLink, meet_link: cal.meetLink,
+                      invited: cal.invited.map((p) => ({ user_id: p.userId, name: p.name })),
+                      not_invited: cal.notInvited.map((p) => ({ user_id: p.userId, name: p.name })),
+                    }
+                  : { status: cal.status, reason: cal.reason, connect_url: cal.connectUrl },
+                ...conflictsOut(r.conflicts),
+                candidate_draft: candidateDraftOut(r.candidateDraft),
+                no_draft_because: r.noDraftBecause,
+              },
               candidateIds: [],
             };
           }),
@@ -874,8 +988,14 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Change or cancel an interview",
           description:
             `Moves an interview, changes its interviewers or location, or sets its status (${clientTools.INTERVIEW_STATUSES.join(", ")}). ` +
-            "Only what you pass changes. Needs the right to schedule on that job. Tell the user what will " +
-            "change and wait for a yes.",
+            "Only what you pass changes. When it is on a calendar, the event follows, through the calendar of " +
+            "whoever booked it: a move is checked against the interviewers' calendars first (conflicts are " +
+            "returned and nothing changes, unless book_despite_conflicts: true) and Google tells the attendees; " +
+            "new interviewers are invited and removed ones told; cancelled deletes the event. A location change " +
+            "and done do not touch the event. update_calendar: false changes Tacit's record only. A move or a " +
+            "cancellation returns a draft email to the candidate (draft_candidate_email: false skips it), sent " +
+            "with send_email only after the user's yes. Needs the right to schedule on that job. Tell the user " +
+            "what will change and wait for a yes. " + TIMEZONE_HELP,
           inputSchema: z.object({
             interview_id: uuid("interview_id"),
             starts_at: z.string().max(40).optional(),
@@ -883,6 +1003,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             interviewer_user_ids: z.array(uuid("each interviewer")).min(1).max(10).optional(),
             location_or_link: z.string().max(500).nullable().optional(),
             status: z.enum(clientTools.INTERVIEW_STATUSES).optional(),
+            book_despite_conflicts: z.boolean().optional(),
+            update_calendar: z.boolean().optional(),
+            timezone: z.string().max(60).optional(),
+            draft_candidate_email: z.boolean().optional(),
           }),
           annotations: { destructiveHint: true },
         },
@@ -891,10 +1015,33 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const r = await clientTools.updateInterview(db, ctx, {
               interviewId: args.interview_id, startsAt: args.starts_at, endsAt: args.ends_at,
               interviewerIds: args.interviewer_user_ids, locationOrLink: args.location_or_link, status: args.status,
-            });
+              bookDespiteConflicts: args.book_despite_conflicts, updateCalendar: args.update_calendar, timezone: args.timezone,
+              draftCandidateEmail: args.draft_candidate_email,
+            }, { calendar: deps.calendar ?? null, mailer: deps.email });
+            if (r.outcome === "conflicts") {
+              return {
+                summary: conflictSentence(r.conflicts),
+                data: { outcome: r.outcome, interview_id: args.interview_id, starts_at: r.startsAt, ends_at: r.endsAt, ...conflictsOut(r.conflicts) },
+                candidateIds: [],
+              };
+            }
+            const calendarSentence = {
+              moved: " The calendar event moved; Google told the attendees.",
+              updated: " The calendar event's attendees changed; Google told them.",
+              cancelled: " The calendar event was cancelled; Google told the attendees.",
+              already_gone: " Its calendar event was already gone.",
+              left_alone: " The calendar event was left as it is.",
+              none: "",
+            }[r.calendar];
             return {
-              summary: r.outcome === "updated" ? `Updated ${r.changed.join(", ")}.` : "Nothing to change.",
-              data: { outcome: r.outcome, interview_id: args.interview_id, changed: r.changed },
+              summary: (r.outcome === "updated" ? `Updated ${r.changed.join(", ")}.${calendarSentence}` : "Nothing to change.") +
+                draftSentence(r.candidateDraft),
+              data: {
+                outcome: r.outcome, interview_id: args.interview_id, changed: r.changed, calendar: r.calendar,
+                ...conflictsOut(r.conflicts),
+                candidate_draft: candidateDraftOut(r.candidateDraft),
+                no_draft_because: r.noDraftBecause,
+              },
               candidateIds: [],
             };
           }),

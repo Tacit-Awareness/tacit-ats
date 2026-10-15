@@ -245,7 +245,7 @@ describe("the tools", () => {
       "add_candidate", "update_stage", "set_next_action", "add_note",
       "create_job", "update_job", "get_hiring_team", "add_to_hiring_team", "remove_from_hiring_team",
       "set_member_access", "get_connector_settings", "set_connector_access", "invite_member", "list_invites", "withdraw_invite",
-      "list_my_interviews", "schedule_interview", "update_interview", "submit_feedback", "get_feedback",
+      "list_my_interviews", "find_interview_times", "schedule_interview", "update_interview", "submit_feedback", "get_feedback",
       "list_rejection_reasons", "get_offers", "create_offer", "update_offer",
       "get_interview_plan", "set_interview_plan",
       "list_files", "get_file_link", "add_file",
@@ -264,7 +264,7 @@ describe("the tools", () => {
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
-      "list_my_interviews", "get_feedback", "list_rejection_reasons", "get_offers", "get_interview_plan",
+      "list_my_interviews", "find_interview_times", "get_feedback", "list_rejection_reasons", "get_offers", "get_interview_plan",
       "get_activity", "list_tags", "list_email_templates", "list_emails", "get_connector_settings",
     ]) {
       expect(byName[read], read).toMatchObject({ readOnlyHint: true });
@@ -363,6 +363,35 @@ describe("whoami", () => {
       jobs: [{ job_id: "role-1", title: "Founding Engineer", status: "open" }],
     });
     expect(audits).toEqual([{ tool: "whoami", ok: true, actorId: ACTOR }]);
+  });
+});
+
+describe("calendar scheduling", () => {
+  const MEMBER = "55555555-5555-4555-8555-555555555555";
+  const call = async (name: string, args: Record<string, unknown>, over: Partial<Deps> = {}) =>
+    result(await handleClientRequest(await rpc("tools/call", { name, arguments: args }), deps(over)));
+  const window = { interviewer_user_ids: [MEMBER], window_start: "2030-01-07T09:00:00Z", window_end: "2030-01-08T09:00:00Z" };
+
+  test("without a Google client set up, find_interview_times refuses in a sentence before reading anything", async () => {
+    const out = await call("find_interview_times", window, { calendar: null });
+    expect(out.isError).toBe(true);
+    expect(out.content[0].text).toMatch(/Calendar scheduling is not set up on this Tacit deployment/);
+    expect(audits).toEqual([{ tool: "find_interview_times", ok: false, actorId: ACTOR }]);
+  });
+
+  test("an interviewer is refused", async () => {
+    fakeDb.level = "limited";
+    const out = await call("find_interview_times", window);
+    expect(out.content[0].text).toMatch(/Interviewers do not schedule interviews/);
+  });
+
+  test("the scheduling tools say what they do with a calendar and with the candidate", async () => {
+    const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
+    const byName = Object.fromEntries(tools.map((t: { name: string; description: string }) => [t.name, t.description]));
+    expect(byName.schedule_interview).toMatch(/Google sends the interviewers invites/);
+    expect(byName.schedule_interview).toMatch(/candidate is never invited/);
+    expect(byName.update_interview).toMatch(/cancelled deletes the event/);
+    expect(byName.find_interview_times).toMatch(/busy times only/);
   });
 });
 

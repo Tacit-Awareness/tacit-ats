@@ -8,7 +8,7 @@ It never reimplements what Tacit-Awareness owns. The pipeline (`addCandidateToRo
 
 ## The DI contract
 
-Same as Tacit-Awareness's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`) as parameters. Apps read env at their edge.
+Same as Tacit-Awareness's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`, Google Calendar as a `ClientCalendar`) as parameters. Apps read env at their edge.
 
 ## Module map
 
@@ -66,8 +66,9 @@ src/
                         never read back: the roles read policy's helpers
                         cannot see a row inserted by the same statement
                         interviews.ts: listMyInterviews (my_interviews()),
-                        scheduleInterview / updateInterview (Tacit's record
-                        only, no calendar; times need an offset),
+                        scheduleInterview / updateInterview (times need an
+                        offset; with a ClientCalendar, booked on the member's
+                        Google Calendar: see calendar.ts),
                         submitFeedback (the caller's own, once started, notes
                         kept out of the audit row) and getFeedback (what the
                         org's feedback_visibility lets the caller read).
@@ -431,8 +432,35 @@ src/
                         READ_ONLY_REFUSAL), so every write here is refused
                         before it starts; a new write must go through
                         withAudit or it escapes the switch
+                        calendar.ts (2026-10-17, 20261017120000): calendar
+                        scheduling. ClientCalendar {google: the OAuth client,
+                        connections(orgId, actorIds): the members' grants,
+                        read by apps/mcp with the service role, connectUrl}.
+                        availability(): each interviewer's busy intervals
+                        through their own grant, else the caller's (or the
+                        event holder's) asking for their address, else
+                        unknown with a reason; one freeBusy per access
+                        token, over @tacit/core's connector.freeBusy.
+                        findInterviewTimes (not interviewers; window <= 14
+                        days, working hours in an IANA zone, half-hour
+                        starts, round-robin across days; zonedInstant /
+                        wallClock do the zone math with Intl only).
+                        interviews.ts books with it: scheduleInterview
+                        checks conflicts before any write, inserts the row
+                        with calendar_actor_id, creates the event under the
+                        row's id without dashes (connector.createInterviewEvent,
+                        Meet unless a location), deletes the row if Google
+                        refuses; updateInterview moves / re-invites /
+                        cancels the event with the HOLDER's grant after the
+                        row's conditional update, putting the row back if
+                        Google refuses; update_calendar false = record only.
+                        The candidate gets a draftEmail draft for a booking,
+                        a move or a cancellation, never an invite; a draft
+                        that cannot be written is reported, not thrown.
+                        Without a ClientCalendar both behave as before
   test-helpers/         fake Supabase client for unit tests (excluded from the
-                        build; a copy of Tacit-Awareness's)
+                        build; a copy of Tacit-Awareness's) and fake-google.ts
+                        (Google's token endpoint and Calendar API as fetch)
 ```
 
 ## Tests

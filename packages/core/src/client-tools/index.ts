@@ -18,8 +18,13 @@ export {
   getFeedback, listMyInterviews, scheduleInterview, submitFeedback, updateInterview,
 } from "./interviews.js";
 export type {
-  FeedbackEntry, FeedbackRating, FeedbackSummary, InterviewStatus, MyInterview, RatingInput, Recommendation,
+  CalendarOutcome, FeedbackEntry, FeedbackRating, FeedbackSummary, InterviewConflicts, InterviewStatus, MyInterview,
+  RatingInput, Recommendation, ScheduleResult, SchedulingDeps, UpdateInterviewResult,
 } from "./interviews.js";
+export {
+  DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS, findInterviewTimes, unknownText,
+} from "./calendar.js";
+export type { CalendarConnection, ClientCalendar, FoundTimes, Person, Slot, UnknownReason } from "./calendar.js";
 export {
   OFFER_STATUSES, REJECTION_KINDS,
   createOffer, getOffers, listRejectionReasons, updateOffer,

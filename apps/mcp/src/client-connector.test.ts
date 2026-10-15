@@ -9,12 +9,16 @@ import { describe, expect, test } from "vitest";
  * Every client tool must read and write through the member's own database
  * client, so that RLS decides. Nothing reachable from src/client or the
  * /api/client route may get another client (the service role, tacit_internal,
- * or lib/context's db()) except the three modules below, which hand back a
- * verdict, write one audit row, or sign and store one file, and never return
- * a client. files.ts is there because the `org-files` bucket has no policies
- * for a member's token: signing a link and uploading need the service role.
- * Core calls it only after the member's own client has read or inserted the
- * person_files row, so RLS has decided, and only with that row's own path.
+ * or lib/context's db()) except the four modules below, which hand back a
+ * verdict, write one audit row, sign and store one file, or read calendar
+ * grants, and never return a client. files.ts is there because the
+ * `org-files` bucket has no policies for a member's token: signing a link and
+ * uploading need the service role. Core calls it only after the member's own
+ * client has read or inserted the person_files row, so RLS has decided, and
+ * only with that row's own path. calendar.ts is there because a member's
+ * calendar refresh token is granted to no member token (calendar_connections);
+ * core asks it only for the caller and the interviewers or event holder the
+ * member's own token has already been allowed to name, inside their org.
  */
 const SRC = dirname(fileURLToPath(import.meta.url));
 const rel = (file: string) => relative(SRC, file);
@@ -42,7 +46,9 @@ function resolveLocal(from: string, spec: string): string | null {
 
 const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createServiceClient|createTacitClient|mintTacitInternalToken)\b/;
 const CONTEXT = join(SRC, "lib/context.ts");
-const ALLOWED = new Set([join(SRC, "client/bind.ts"), join(SRC, "client/audit.ts"), join(SRC, "client/files.ts")]);
+const ALLOWED = new Set([
+  join(SRC, "client/bind.ts"), join(SRC, "client/audit.ts"), join(SRC, "client/files.ts"), join(SRC, "client/calendar.ts"),
+]);
 
 describe("the client connector never holds a database client other than the member's", () => {
   const roots = [...walk(join(SRC, "client")), ...walk(join(SRC, "app/api/client"))];
@@ -70,11 +76,12 @@ describe("the client connector never holds a database client other than the memb
     expect(offenders, "Use the member's `db` from resolveMember instead.").toEqual([]);
   });
 
-  test("the three allowed modules export only their functions, and no client", () => {
+  test("the four allowed modules export only their functions, and no client", () => {
     for (const [file, names] of [
       ["client/bind.ts", ["bindMember"]],
       ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]],
       ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
+      ["client/calendar.ts", ["calendarConnections"]],
     ] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
