@@ -55,10 +55,35 @@ describe("getOffers", () => {
     expect(fake.calls).toEqual([]);
   });
 
-  test("offers come back with their author's name", async () => {
-    const fake = new FakeSupabase([{ data: APP }, { data: true }, { data: [OFFER] }, { data: [{ id: "actor-1", display_name: "Ryan" }] }]);
+  test("offers come back with their author's name, and no approval when the job has no flow", async () => {
+    const fake = new FakeSupabase([
+      { data: APP }, { data: true }, { data: [OFFER] },
+      // approval_flows, approval_requests
+      { data: null }, { data: [] },
+      { data: [{ id: "actor-1", display_name: "Ryan" }] },
+    ]);
     const [o] = await getOffers(fake.asDb(), ctx(), { applicationId: "app-1" });
-    expect(o).toMatchObject({ offerId: "offer-1", status: "draft", salary: 180000, equity: "0.5%", createdBy: "Ryan" });
+    expect(o).toMatchObject({ offerId: "offer-1", status: "draft", salary: 180000, equity: "0.5%", createdBy: "Ryan", approval: null });
+  });
+
+  test("on a job with an offer flow, each offer carries its latest request and decisions, named", async () => {
+    const fake = new FakeSupabase([
+      { data: APP }, { data: true }, { data: [OFFER] },
+      { data: { id: "flow-1", updated_at: "t", updated_by_actor_id: "actor-1", approval_flow_approvers: [{ step: 1, actor_id: "actor-2" }, { step: 2, actor_id: "actor-3" }] } },
+      { data: [{
+        id: "req-1", offer_id: "offer-1", status: "pending", current_step: 2, requested_by_actor_id: "actor-1",
+        created_at: "2026-10-15T00:00:00Z", resolved_at: null, used_at: null,
+        approval_decisions: [{ step: 1, decision: "approved", actor_id: "actor-2", reason: null, created_at: "2026-10-15T01:00:00Z" }],
+      }] },
+      { data: [{ id: "actor-1", display_name: "Ryan" }, { id: "actor-2", display_name: "Fin" }] },
+    ]);
+    const [o] = await getOffers(fake.asDb(), ctx(), { applicationId: "app-1" });
+    expect(o.approval).toEqual({
+      required: true, status: "pending", requestId: "req-1", waitingStep: 2, steps: 2, requestedBy: "Ryan",
+      requestedAt: "2026-10-15T00:00:00Z",
+      decisions: [{ step: 1, decision: "approved", by: "Fin", at: "2026-10-15T01:00:00Z", reason: null }],
+    });
+    expect(fake.calls[4]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["offer-1"] }] });
   });
 });
 
@@ -131,6 +156,17 @@ describe("updateOffer", () => {
     const finish = fake.calls.find((c) => c.table === "client_finish_write");
     expect(finish?.args).toMatchObject({ p_before: { status: "draft" }, p_after: { status: "extended" }, p_keep: true });
     expect(JSON.stringify(finish?.args)).not.toContain("sent by email");
+  });
+
+  test("the approval gate's refusal says how to ask for approval", async () => {
+    const fake = new FakeSupabase([
+      { data: OFFER }, { data: "audit-1" },
+      { error: { code: "22023", message: "offers on this job need approval before they are extended, and this one is not approved" } },
+      { data: null },
+    ]);
+    const err = await refusal(updateOffer(fake.asDb(), ctx(), { offerId: "offer-1", status: "extended" }));
+    expect(err.message).toMatch(/need approval.*request_approval with the offer_id/);
+    expect(fake.calls.at(-1)).toMatchObject({ table: "client_finish_write", args: { p_keep: false } });
   });
 
   test("someone else closing it first is reported, and the claim is given back", async () => {

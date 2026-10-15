@@ -134,6 +134,10 @@ export async function updateJob(
   return withAudit(db, ctx, { action: "role.update", entity: "role" }, async () => {
     const { data, error } = await db
       .from("roles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", job.id).select("id");
+    // 22023: the job_open approval gate (20261016110000_client_approvals) refused opening it.
+    if (error?.code === "22023") {
+      throw new ClientToolError("invalid", `Not saved: ${error.message}. request_approval with the job_id asks for it.`);
+    }
     if (error) throw new Error(error.message);
     const ok = !!data?.length;
     return {

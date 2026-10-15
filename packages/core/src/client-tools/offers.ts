@@ -1,6 +1,7 @@
 import type { Db, TablesInsert, TablesUpdate } from "@tacit/db";
 
 import { parseDueDate } from "../pipeline/pipeline.js";
+import { memberNames, offerApprovals, type OfferApproval } from "./approvals.js";
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 
@@ -91,6 +92,11 @@ export type Offer = {
   createdAt: string;
   extendedAt: string | null;
   resolvedAt: string | null;
+  /**
+   * Its approval (20261016110000_client_approvals): null when the job has no
+   * offer approval flow and the offer was never sent for approval.
+   */
+  approval: OfferApproval | null;
 };
 
 const OFFER_COLUMNS =
@@ -102,7 +108,7 @@ type OfferRow = {
   created_by_actor_id: string | null; created_at: string; extended_at: string | null; resolved_at: string | null;
 };
 
-const toOffer = (r: OfferRow, names: Map<string, string | null>): Offer => ({
+const toOffer = (r: OfferRow, names: Map<string, string | null>): Omit<Offer, "approval"> => ({
   offerId: r.id,
   applicationId: r.application_id,
   status: r.status as OfferStatus,
@@ -135,24 +141,15 @@ async function offerApplication(db: Db, ctx: ClientToolCtx, applicationId: strin
   return data;
 }
 
-async function authorNames(db: Db, rows: OfferRow[]): Promise<Map<string, string | null>> {
-  const ids = [...new Set(rows.map((r) => r.created_by_actor_id).filter((id): id is string => !!id))];
-  const names = new Map<string, string | null>();
-  if (!ids.length) return names;
-  const { data, error } = await db.from("org_members").select("id, display_name").in("id", ids);
-  if (error) throw new Error(error.message);
-  for (const m of data ?? []) if (m.id) names.set(m.id, m.display_name);
-  return names;
-}
-
 export async function getOffers(db: Db, ctx: ClientToolCtx, input: { applicationId: string }): Promise<Offer[]> {
   const app = await offerApplication(db, ctx, input.applicationId);
   const { data, error } = await db
     .from("offers").select(OFFER_COLUMNS).eq("application_id", app.id).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as OfferRow[];
-  const names = await authorNames(db, rows);
-  return rows.map((r) => toOffer(r, names));
+  const approvals = rows.length ? await offerApprovals(db, app.role_id, rows.map((r) => r.id)) : null;
+  const names = await memberNames(db, [...rows.map((r) => r.created_by_actor_id), ...(approvals?.actorIds ?? [])]);
+  return rows.map((r) => ({ ...toOffer(r, names), approval: approvals?.forOffer(r.id, names) ?? null }));
 }
 
 export type OfferTerms = {
@@ -211,6 +208,13 @@ const withoutNotes = (columns: Record<string, unknown>): Record<string, unknown>
 function offerWriteError(error: { code?: string; message: string }): Error {
   if (error.code === "23505") {
     return new ClientToolError("invalid", "This application already has an open offer. Change it with update_offer, or withdraw it first.");
+  }
+  if (error.code === "22023" && /approv/.test(error.message)) {
+    // The offer approval gate (20261016110000_client_approvals).
+    return new ClientToolError(
+      "invalid",
+      `Not saved: ${error.message}. request_approval with the offer_id asks for it; get_offers shows where it stands.`,
+    );
   }
   if (error.code === "22023") return new ClientToolError("invalid", `Not saved: ${error.message}.`);
   return new Error(error.message);

@@ -43,3 +43,11 @@ export type {
   CandidateEmail, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
   TemplateChange,
 } from "./email.js";
+export {
+  APPROVAL_KINDS, APPROVAL_REASON_MAX, APPROVAL_STEPS_MAX, APPROVERS_PER_STEP_MAX,
+  decideApproval, getApprovalFlow, listMyApprovals, requestApproval, setApprovalFlow,
+} from "./approvals.js";
+export type {
+  ApprovalApprover, ApprovalDecision, ApprovalFlow, ApprovalKind, ApprovalStatus, ApprovalStep, DecisionResult,
+  JobApproval, MyApproval, OfferApproval, RequestApprovalResult,
+} from "./approvals.js";

@@ -1061,3 +1061,115 @@ describe("candidate email against real Postgres", () => {
     expect(data!.status).toBe("draft");
   });
 });
+
+describe("approvals against real Postgres", () => {
+  type Decision = { step: number; decision: string; by: string; reason: string | null };
+
+  test("an offer on a job with an approval flow is extended only once every step approves", async () => {
+    const drafted = await ok(ADA, "create_offer", { application_id: PAT_APP, salary: 185000 });
+    const offerId = drafted.offer_id as string;
+    // Without a flow there is nothing to ask for, and an interviewer sets none.
+    expect((await tool(ADA, "request_approval", { offer_id: offerId })).content[0].text).toMatch(/no offer approval flow/);
+    expect((await tool(IVAN, "set_approval_flow", { job_id: ENGINEER, kind: "offer", steps: [[ADMIN]] })).isError).toBe(true);
+
+    expect(await ok(ADA, "set_approval_flow", { job_id: ENGINEER, kind: "offer", steps: [[ADMIN], [INTERVIEWER]] }))
+      .toMatchObject({ outcome: "set", steps: 2 });
+    expect((await ok(ADA, "set_approval_flow", { job_id: ENGINEER, kind: "offer", steps: [[ADMIN], [INTERVIEWER]] })).outcome).toBe("unchanged");
+    const flow = await ok(ADA, "get_approval_flow", { job_id: ENGINEER, kind: "offer" });
+    expect(flow.steps.map((s: { approvers: Array<{ name: string }> }) => s.approvers.map((a) => a.name))).toEqual([["Ada Admin"], ["Ivan Interviewer"]]);
+
+    expect((await tool(ADA, "update_offer", { offer_id: offerId, status: "extended" })).content[0].text).toMatch(/need approval.*request_approval/);
+    const asked = await ok(ADA, "request_approval", { offer_id: offerId });
+    expect(asked).toMatchObject({ outcome: "requested", status: "pending", first_step: ["Ada Admin"] });
+    expect((await ok(ADA, "request_approval", { offer_id: offerId })).outcome).toBe("already_pending");
+
+    // Step 2 waits its turn.
+    expect((await ok(IVAN, "list_my_approvals")).approvals).toEqual([]);
+    expect((await tool(IVAN, "approve", { request_id: asked.request_id })).content[0].text).toMatch(/waiting on step 1/);
+    const [mine] = (await ok(ADA, "list_my_approvals")).approvals;
+    expect(mine).toMatchObject({ request_id: asked.request_id, kind: "offer", waiting_step: 1, steps: 2, job_title: "Founding Engineer", terms: { salary: 185000 } });
+    expect(mine.candidate).toContain("<<<UNTRUSTED_DATA>>>");
+    expect((await ok(ADA, "approve", { request_id: asked.request_id })).outcome).toBe("advanced");
+
+    // The interviewer cannot read offers, but sees what they are asked to approve, and rejects it.
+    expect((await tool(IVAN, "get_offers", { application_id: PAT_APP })).isError).toBe(true);
+    const [theirs] = (await ok(IVAN, "list_my_approvals")).approvals;
+    expect(theirs).toMatchObject({ waiting_step: 2, terms: { salary: 185000 } });
+    expect((await ok(IVAN, "reject", { request_id: asked.request_id, reason: "Above the band we agreed" })).outcome).toBe("rejected");
+    expect((await tool(ADA, "update_offer", { offer_id: offerId, status: "extended" })).isError).toBe(true);
+
+    let { offers } = await ok(ADA, "get_offers", { application_id: PAT_APP });
+    expect(offers[0].status).toBe("draft");
+    expect(offers[0].approval).toMatchObject({ required: true, status: "rejected", steps: 2 });
+    expect(offers[0].approval.decisions.map((d: Decision) => [d.step, d.decision, d.by]))
+      .toEqual([[1, "approved", "Ada Admin"], [2, "rejected", "Ivan Interviewer"]]);
+    expect(offers[0].approval.decisions[1].reason).toContain("Above the band");
+
+    // New terms, asked again and approved; changing the terms after that resets it.
+    await ok(ADA, "update_offer", { offer_id: offerId, salary: 180000 });
+    const again = await ok(ADA, "request_approval", { offer_id: offerId });
+    expect(again.request_id).not.toBe(asked.request_id);
+    await ok(ADA, "approve", { request_id: again.request_id });
+    expect((await ok(IVAN, "approve", { request_id: again.request_id })).outcome).toBe("approved");
+    await ok(ADA, "update_offer", { offer_id: offerId, salary: 181000 });
+    ({ offers } = await ok(ADA, "get_offers", { application_id: PAT_APP }));
+    expect(offers[0].approval.status).toBe("reset");
+    expect((await tool(ADA, "update_offer", { offer_id: offerId, status: "extended" })).isError).toBe(true);
+
+    const third = await ok(ADA, "request_approval", { offer_id: offerId });
+    await ok(ADA, "approve", { request_id: third.request_id });
+    await ok(IVAN, "approve", { request_id: third.request_id, comment: "Fine" });
+    expect((await tool(ADA, "update_offer", { offer_id: offerId, salary: 190000, status: "extended" })).isError).toBe(true);
+    expect(await ok(ADA, "update_offer", { offer_id: offerId, status: "extended" })).toMatchObject({ outcome: "updated", status: "extended" });
+    const { data: spent } = await db().from("approval_requests").select("status, used_at").eq("id", third.request_id).single();
+    expect(spent!.status).toBe("approved");
+    expect(spent!.used_at).toBeTruthy();
+
+    // The feed tells the story; the rejection's reason is fenced there and absent from the audit rows.
+    const { activity } = await ok(ADA, "get_activity", { candidate_id: PAT });
+    const kinds = activity.map((e: { kind: string }) => e.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["approval.requested", "approval.approved", "approval.rejected", "approval.reset", "offer.extended"]));
+    const rejected = activity.find((e: { kind: string }) => e.kind === "approval.rejected");
+    expect(rejected).toMatchObject({ by: "Ivan Interviewer" });
+    expect(rejected.text).toContain("<<<UNTRUSTED_DATA>>>");
+    const { data: audit } = await db().from("audit_log").select("action, after").in("actor_id", [ADMIN, INTERVIEWER]).like("action", "approval%");
+    expect(audit!.filter((a) => a.action === "approval.reject")).toHaveLength(1);
+    expect(audit!.filter((a) => a.action === "approval.request")).toHaveLength(3);
+    expect(audit!.filter((a) => a.action === "approval_flow.set")).toHaveLength(1);
+    expect(JSON.stringify(audit)).not.toContain("Above the band");
+  });
+
+  test("a job with a job_open flow opens only once its opening is approved", async () => {
+    await ok(ADA, "update_job", { job_id: DESIGNER, status: "paused" });
+    await ok(ADA, "set_approval_flow", { job_id: DESIGNER, kind: "job_open", steps: [[INTERVIEWER]] });
+    expect((await tool(ADA, "update_job", { job_id: DESIGNER, status: "open" })).content[0].text)
+      .toMatch(/needs approval before it opens.*request_approval/);
+    const asked = await ok(ADA, "request_approval", { job_id: DESIGNER });
+
+    // An approver who cannot see the job still sees what they approve.
+    const [item] = (await ok(IVAN, "list_my_approvals")).approvals;
+    expect(item).toMatchObject({ kind: "job_open", job_title: "Designer", candidate_id: null, terms: null });
+    expect((await ok(IVAN, "approve", { request_id: asked.request_id, comment: "Budget signed" })).outcome).toBe("approved");
+    expect((await ok(ADA, "update_job", { job_id: DESIGNER, status: "open" })).outcome).toBe("updated");
+    const flow = await ok(ADA, "get_approval_flow", { job_id: DESIGNER, kind: "job_open" });
+    expect(flow.latest_request).toMatchObject({ status: "approved" });
+    expect(flow.latest_request.used_at).toBeTruthy();
+    expect(flow.latest_request.decisions[0].reason).toContain("Budget signed");
+
+    // Closed, it needs approving again; with the flow removed, nothing is gated.
+    await ok(ADA, "update_job", { job_id: DESIGNER, status: "closed" });
+    expect((await tool(ADA, "update_job", { job_id: DESIGNER, status: "open" })).isError).toBe(true);
+    expect((await ok(ADA, "set_approval_flow", { job_id: DESIGNER, kind: "job_open", steps: [] })).outcome).toBe("cleared");
+    expect((await ok(ADA, "update_job", { job_id: DESIGNER, status: "open" })).outcome).toBe("updated");
+  });
+
+  test("another company's job and requests read as not found, and nothing is set there", async () => {
+    expect((await tool(ADA, "set_approval_flow", { job_id: GLOBEX_ROLE, kind: "offer", steps: [[ADMIN]] })).content[0].text)
+      .toMatch(/No job with that id/);
+    expect((await tool(ADA, "get_approval_flow", { job_id: GLOBEX_ROLE, kind: "offer" })).content[0].text).toMatch(/No job with that id/);
+    expect((await tool(ADA, "approve", { request_id: "c2e00000-0000-4000-8000-000000000001" })).content[0].text)
+      .toMatch(/No approval request/);
+    const { data } = await db().from("approval_flows").select("id").eq("org_id", GLOBEX);
+    expect(data).toEqual([]);
+  });
+});

@@ -5,8 +5,8 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 /**
  * One candidate's activity, newest first, for the client connector: their
  * pipeline history (application_events), the team's notes, their interviews,
- * their offers, the tags put on them and the emails sent to them. Each is read with the member's own
- * client, so what the member's token cannot read simply does not appear: a
+ * their offers (and those offers' approvals), the tags put on them and the
+ * emails sent to them. Each is read with the member's own client, so what the member's token cannot read simply does not appear: a
  * private note they may not see, a job they have no access to, an offer on a
  * job they do not manage. Nothing here filters by org or level beyond
  * choosing how an interviewer reads.
@@ -31,7 +31,11 @@ export type ActivityKind =
   | "interview.scheduled" | "interview.done" | "interview.cancelled"
   | "offer.drafted" | "offer.extended" | "offer.accepted" | "offer.declined" | "offer.withdrawn"
   | "tag.added"
-  | "email";
+  | "email"
+  // An offer's approval (20261016110000_client_approvals): asked for, each
+  // step's decision, and the request ending because the terms or the flow
+  // changed (reset) or the offer was withdrawn (cancelled).
+  | "approval.requested" | "approval.approved" | "approval.rejected" | "approval.reset" | "approval.cancelled";
 
 export type ActivityEntry = {
   at: string;
@@ -49,12 +53,13 @@ export type ActivityEntry = {
   people: string[];
   /**
    * Member-written or candidate-derived text: a note, a next action, a
-   * rejection reason, a source detail, an interview step, a tag, an email's subject.
+   * rejection reason, a source detail, an interview step, a tag, an email's
+   * subject, an approver's reason.
    */
   text: string | null;
   /** When an interview is (interview entries). */
   startsAt: string | null;
-  /** The note, interview, offer, tag or email the entry is about. */
+  /** The note, interview, offer, tag, email or approval request the entry is about. */
   refId: string | null;
 };
 
@@ -210,6 +215,25 @@ export async function getActivity(
   type EmailRow = { id: string; application_id: string | null; author_actor_id: string | null; subject: string; sent_at: string | null };
   const emailRows = ((emails.data ?? []) as EmailRow[]).filter((e) => e.sent_at);
 
+  // The offers' approval requests and decisions: readable exactly where the offers are.
+  type ApprovalRow = {
+    id: string; offer_id: string; status: string; requested_by_actor_id: string | null; created_at: string; resolved_at: string | null;
+    approval_decisions: Array<{ step: number; decision: string; actor_id: string | null; reason: string | null; created_at: string }>;
+  };
+  let approvalRows: ApprovalRow[] = [];
+  if (offerRows.length) {
+    const { data, error: approvalsError } = await db
+      .from("approval_requests")
+      .select("id, offer_id, status, requested_by_actor_id, created_at, resolved_at, approval_decisions(step, decision, actor_id, reason, created_at)")
+      .in("offer_id", offerRows.map((o) => o.id))
+      .order("created_at", { ascending: false })
+      .limit(limit)
+      .overrideTypes<ApprovalRow[], { merge: false }>();
+    if (approvalsError) throw new Error(approvalsError.message);
+    approvalRows = data ?? [];
+  }
+  const offerApp = (offerId: string) => offerRows.find((o) => o.id === offerId)?.application_id ?? null;
+
   const names = await memberNames(db, [
     ...eventRows.map((e) => e.actor_id),
     ...interviewRows.flatMap((i) => i.interviewer_actor_ids),
@@ -217,6 +241,7 @@ export async function getActivity(
     ...tagRows.map((t) => t.added_by_actor_id),
     ...notes.map((n) => n.actor_id),
     ...emailRows.map((e) => e.author_actor_id),
+    ...approvalRows.flatMap((r) => [r.requested_by_actor_id, ...(r.approval_decisions ?? []).map((d) => d.actor_id)]),
   ]);
   const nameOf = (id: string | null) => (id ? (names.get(id) ?? null) : null);
 
@@ -240,6 +265,22 @@ export async function getActivity(
       if (o.extended_at) out.push(entry({ ...base, at: o.extended_at, kind: "offer.extended" }));
       if (o.resolved_at && (o.status === "accepted" || o.status === "declined" || o.status === "withdrawn")) {
         out.push(entry({ ...base, at: o.resolved_at, kind: `offer.${o.status}` }));
+      }
+      return out;
+    }),
+    // Who asked and who decided, and an approver's reason; never the terms.
+    ...approvalRows.flatMap((r) => {
+      const applicationId = offerApp(r.offer_id);
+      const base = { applicationId, jobTitle: applicationId ? jobOf(applicationId) : null, refId: r.id };
+      const out = [entry({ ...base, at: r.created_at, kind: "approval.requested", actor: nameOf(r.requested_by_actor_id) })];
+      for (const d of r.approval_decisions ?? []) {
+        out.push(entry({
+          ...base, at: d.created_at, kind: d.decision === "rejected" ? "approval.rejected" : "approval.approved",
+          actor: nameOf(d.actor_id), text: d.reason,
+        }));
+      }
+      if (r.resolved_at && (r.status === "reset" || r.status === "cancelled")) {
+        out.push(entry({ ...base, at: r.resolved_at, kind: `approval.${r.status}` }));
       }
       return out;
     }),

@@ -51,6 +51,8 @@ describe("getActivity", () => {
       { data: [{ id: "n-1", text: "Great call", actor_id: "actor-2", created_at: "2026-10-06T00:00:00Z" }] },
       // candidate_emails: sent ones only, the subject as text
       { data: [{ id: "em-1", application_id: "app-1", author_actor_id: "actor-1", subject: "Next steps", sent_at: "2026-10-07T00:00:00Z" }] },
+      // the offers' approval requests: none
+      { data: [] },
       { data: [{ id: "actor-1", display_name: "Ada Admin" }, { id: "actor-2", display_name: "Ivan Interviewer" }] },
     ]);
     const a = await getActivity(fake.asDb(), ctx(), { candidateId: "p-1" });
@@ -78,6 +80,42 @@ describe("getActivity", () => {
     expect(fake.calls[7]).toMatchObject({ table: "candidate_emails", filters: expect.arrayContaining([{ method: "eq", column: "status", value: "sent" }]) });
     // Each source asks for at most the limit, newest first.
     for (const call of fake.calls.slice(2, 8)) expect(call.modifiers).toContainEqual({ method: "limit", value: 30 });
+  });
+
+  test("an offer's approval: who asked, each decision with its reason, and a reset", async () => {
+    const fake = new FakeSupabase([
+      { data: { id: "p-1" } },
+      { data: [{ id: "app-1", source_detail: null, roles: { title: "Founding Engineer" } }] },
+      { data: [] },
+      { data: [] },
+      { data: [{ id: "of-1", application_id: "app-1", status: "draft", created_by_actor_id: "actor-1", created_at: "2026-10-08T00:00:00Z", extended_at: null, resolved_at: null }] },
+      // person_tags, person_notes, candidate_emails: none
+      { data: [] },
+      { data: [] },
+      { data: [] },
+      // the offers' approval requests, read after the six above
+      { data: [
+        {
+          id: "req-2", offer_id: "of-1", status: "rejected", requested_by_actor_id: "actor-1", created_at: "2026-10-11T00:00:00Z", resolved_at: "2026-10-12T00:00:00Z",
+          approval_decisions: [{ step: 1, decision: "rejected", actor_id: "actor-2", reason: "Over band", created_at: "2026-10-12T00:00:00Z" }],
+        },
+        {
+          id: "req-1", offer_id: "of-1", status: "reset", requested_by_actor_id: "actor-1", created_at: "2026-10-09T00:00:00Z", resolved_at: "2026-10-10T00:00:00Z",
+          approval_decisions: [],
+        },
+      ] },
+      { data: [{ id: "actor-1", display_name: "Ada Admin" }, { id: "actor-2", display_name: "Fin Approver" }] },
+    ]);
+    const a = await getActivity(fake.asDb(), ctx(), { candidateId: "p-1" });
+    expect(a.entries.map((e) => [e.kind, e.actor, e.refId])).toEqual([
+      ["approval.rejected", "Fin Approver", "req-2"],
+      ["approval.requested", "Ada Admin", "req-2"],
+      ["approval.reset", null, "req-1"],
+      ["approval.requested", "Ada Admin", "req-1"],
+      ["offer.drafted", "Ada Admin", "of-1"],
+    ]);
+    expect(a.entries[0]).toMatchObject({ text: "Over band", jobTitle: "Founding Engineer", applicationId: "app-1" });
+    expect(fake.calls[8]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["of-1"] }] });
   });
 
   test("cut to the limit after merging; no applications means no pipeline reads", async () => {

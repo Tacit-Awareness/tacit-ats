@@ -475,8 +475,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Update a job",
           description:
             `Changes a job's title, status (${clientTools.JOB_STATUSES.join(", ")}), location, level or ` +
-            "description. Only what you pass changes. Needs the right to manage that job. Tell the user what " +
-            "will change and wait for a yes.",
+            "description. Only what you pass changes. Needs the right to manage that job. When the job has " +
+            "a job_open approval flow, it opens only once its opening is approved (request_approval with " +
+            "job_id). Tell the user what will change and wait for a yes.",
           inputSchema: z.object({
             job_id: uuid("job_id"),
             title: z.string().min(1).max(200).optional(),
@@ -864,11 +865,22 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           }),
       );
 
+      // An approver's reason is their own words: fenced like a note.
+      const decisionOut = (d: clientTools.ApprovalDecision) => ({
+        step: d.step, decision: d.decision, by: d.by, at: d.at, reason: fence("reason", d.reason),
+      });
       const offerOut = (o: clientTools.Offer) => ({
         offer_id: o.offerId, application_id: o.applicationId, status: o.status,
         salary: o.salary, currency: o.currency, bonus: o.bonus, equity: o.equity,
         start_date: o.startDate, expires_on: o.expiresOn, notes: fence("note", o.notes),
         created_by: o.createdBy, created_at: o.createdAt, extended_at: o.extendedAt, resolved_at: o.resolvedAt,
+        approval: o.approval
+          ? {
+              required: o.approval.required, status: o.approval.status, request_id: o.approval.requestId,
+              waiting_step: o.approval.waitingStep, steps: o.approval.steps, requested_by: o.approval.requestedBy,
+              requested_at: o.approval.requestedAt, decisions: o.approval.decisions.map(decisionOut),
+            }
+          : null,
       });
       const OFFER_TERMS = {
         salary: z.number().int().min(0).max(100_000_000).nullable().optional(),
@@ -892,8 +904,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           description:
             "Every offer on one application (application_id), newest first: status, salary (a whole " +
             "amount a year), currency, bonus, equity, start date, expiry, who drafted it and when it was " +
-            "extended or closed. Only for the people who manage the job. Compensation is confidential: " +
-            "share it only with the user.",
+            "extended or closed, and its approval when the job has an offer approval flow (required, " +
+            "status, the step it waits on, each decision). Only for the people who manage the job. " +
+            "Compensation is confidential: share it only with the user.",
           inputSchema: z.object({ application_id: uuid("application_id") }),
           annotations: { readOnlyHint: true },
         },
@@ -941,8 +954,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             "the candidate) or withdrawn; an extended one becomes accepted, declined or withdrawn. An " +
             "extended offer's terms never change: withdraw it and draft a new one. A closed offer never " +
             "changes. Notes can change while it is open. Only what you pass changes. Recording accepted " +
-            "does not mark them hired: move their stage with update_stage. Tell the user what will change " +
-            "and wait for a yes.",
+            "does not mark them hired: move their stage with update_stage. When the job has an offer " +
+            "approval flow, a draft is extended only once request_approval's request is approved, with " +
+            "the approved terms; changing a draft's terms resets its approval. Tell the user what will " +
+            "change and wait for a yes.",
           inputSchema: z.object({
             offer_id: uuid("offer_id"),
             status: z.enum(clientTools.OFFER_STATUSES).optional(),
@@ -1531,6 +1546,208 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+
+      // Approvals (core's clientTools approvals.ts). Job titles and teammates' names are bare;
+      // candidate names and approvers' reasons are fenced.
+      const APPROVAL_KIND_HELP =
+        "kind offer gates extending the job's offers, job_open gates moving the job to open";
+
+      server.registerTool(
+        "get_approval_flow",
+        {
+          title: "Get a job's approval flow",
+          description:
+            `A job's approval flow of one kind (${APPROVAL_KIND_HELP}): its steps in order, each with the ` +
+            "approvers who can pass it (any one of them), and for job_open the latest request to open the " +
+            "job with each decision. No steps means nothing is gated. For the people who manage the job " +
+            "and the flow's approvers.",
+          inputSchema: z.object({ job_id: uuid("job_id"), kind: z.enum(clientTools.APPROVAL_KINDS) }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_approval_flow", "read", args, async () => {
+            const f = await clientTools.getApprovalFlow(db, ctx, { jobId: args.job_id, kind: args.kind });
+            const latest = f.latestRequest;
+            return {
+              summary: f.steps.length
+                ? `${f.steps.length} approval step${f.steps.length === 1 ? "" : "s"} for ${args.kind === "offer" ? "offers" : "opening the job"}.`
+                : "No approval flow: nothing is gated.",
+              data: {
+                job_id: f.jobId, title: f.title, kind: f.kind,
+                steps: f.steps.map((s) => ({
+                  step: s.step, approvers: s.approvers.map((a) => ({ user_id: a.userId, name: a.name, active: a.active })),
+                })),
+                updated_by: f.updatedBy, updated_at: f.updatedAt,
+                latest_request: latest
+                  ? {
+                      request_id: latest.requestId, status: latest.status, waiting_step: latest.waitingStep,
+                      requested_by: latest.requestedBy, requested_at: latest.requestedAt, resolved_at: latest.resolvedAt,
+                      used_at: latest.usedAt, decisions: latest.decisions.map(decisionOut),
+                    }
+                  : null,
+              },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "set_approval_flow",
+        {
+          title: "Set a job's approval flow",
+          description:
+            `Sets who must approve, in order, before something happens on a job (${APPROVAL_KIND_HELP}). ` +
+            `steps is a list of at most ${clientTools.APPROVAL_STEPS_MAX} steps, each a list of user ids ` +
+            "(from list_team) of whom any one approves that step, e.g. [[hiring_manager_id], [cfo_id, ceo_id]]. " +
+            "The list given replaces the flow; [] removes it, and then nothing is gated. Changing the flow " +
+            "resets every approval asked for or given under the old one. An approver sees the job title, " +
+            "and for an offer the candidate's name and terms, while it waits on them. Whoever manages the " +
+            "job. Tell the user exactly what will change and wait for a yes.",
+          inputSchema: z.object({
+            job_id: uuid("job_id"),
+            kind: z.enum(clientTools.APPROVAL_KINDS),
+            steps: z.array(z.array(uuid("each approver")).min(1).max(clientTools.APPROVERS_PER_STEP_MAX))
+              .max(clientTools.APPROVAL_STEPS_MAX),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("set_approval_flow", "write", args, async () => {
+            const r = await clientTools.setApprovalFlow(db, ctx, { jobId: args.job_id, kind: args.kind, steps: args.steps });
+            const reset = r.requestsReset ? ` ${r.requestsReset} approval${r.requestsReset === 1 ? "" : "s"} in progress started over.` : "";
+            const summary = {
+              set: `Approval flow set: ${r.steps} step${r.steps === 1 ? "" : "s"}.${reset}`,
+              cleared: `Approval flow removed: nothing is gated now.${reset}`,
+              unchanged: "That is already the flow. Nothing changed.",
+            }[r.outcome];
+            return { summary, data: { outcome: r.outcome, job_id: args.job_id, kind: args.kind, steps: r.steps, requests_reset: r.requestsReset }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "request_approval",
+        {
+          title: "Ask for an approval",
+          description:
+            "Starts the approval flow for a draft offer (offer_id) or for opening a job (job_id), when the " +
+            "job has a flow of that kind. The first step's approvers see it in list_my_approvals; nothing " +
+            "is emailed. One request at a time: asking again returns the one in progress or already " +
+            "approved. A rejected request can be asked again. Whoever manages the job.",
+          inputSchema: z.object({ offer_id: uuid("offer_id").optional(), job_id: uuid("job_id").optional() }),
+        },
+        (args) =>
+          run("request_approval", "write", args, async () => {
+            const r = await clientTools.requestApproval(db, ctx, { offerId: args.offer_id, jobId: args.job_id });
+            const what = r.kind === "offer" ? "the offer" : "opening the job";
+            const summary = {
+              requested: `Approval of ${what} requested. Waiting on ${r.firstStep.join(" or ")}.`,
+              already_pending: `Approval of ${what} was already requested and is waiting.`,
+              already_approved: `${r.kind === "offer" ? "The offer" : "Opening the job"} is already approved.`,
+            }[r.outcome];
+            return {
+              summary,
+              data: { outcome: r.outcome, request_id: r.requestId, kind: r.kind, status: r.status, first_step: r.firstStep },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_my_approvals",
+        {
+          title: "List approvals waiting on me",
+          description:
+            "The approvals waiting on you: each request's kind (offer or job_open), the job, the step it " +
+            "waits on and how many there are, who asked and when, and for an offer the candidate and the " +
+            "terms to approve. Act on one with approve or reject. Offer terms are confidential: share them " +
+            "only with the user.",
+          inputSchema: z.object({}),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_my_approvals", "read", args, async () => {
+            const items = await clientTools.listMyApprovals(db, ctx);
+            return {
+              summary: items.length ? `${items.length} approval${items.length === 1 ? "" : "s"} waiting on you.` : "Nothing is waiting on you.",
+              data: {
+                approvals: items.map((a) => ({
+                  request_id: a.requestId, kind: a.kind, waiting_step: a.waitingStep, steps: a.steps,
+                  job_id: a.jobId, job_title: a.jobTitle, job_status: a.jobStatus,
+                  requested_by: a.requestedBy, requested_at: a.requestedAt,
+                  offer_id: a.offerId, application_id: a.applicationId, candidate_id: a.candidateId,
+                  candidate: a.candidateId ? named(a.candidateName) : null,
+                  terms: a.terms
+                    ? {
+                        salary: a.terms.salary, currency: a.terms.currency, bonus: a.terms.bonus, equity: a.terms.equity,
+                        start_date: a.terms.startDate, expires_on: a.terms.expiresOn,
+                      }
+                    : null,
+                })),
+              },
+              candidateIds: items.map((a) => a.candidateId).filter((id): id is string => !!id),
+            };
+          }),
+      );
+
+      const decided = (r: clientTools.DecisionResult): string =>
+        ({
+          advanced: `Approved your step; it now waits on step ${r.waitingStep}.`,
+          approved: r.kind === "offer"
+            ? "Approved. That was the last step: the offer can be extended."
+            : "Approved. That was the last step: the job can be opened.",
+          rejected: r.kind === "offer"
+            ? "Rejected. The offer stays a draft; whoever asked can change it and ask again."
+            : "Rejected. The job stays as it was; whoever asked can ask again.",
+          not_pending: `Nothing changed: that request is no longer waiting (${r.status}).`,
+        })[r.outcome];
+      const decisionData = (r: clientTools.DecisionResult, requestId: string) => ({
+        outcome: r.outcome, request_id: requestId, status: r.status, waiting_step: r.waitingStep,
+        kind: r.kind, offer_id: r.offerId, job_id: r.jobId,
+      });
+
+      server.registerTool(
+        "approve",
+        {
+          title: "Approve",
+          description:
+            "Approves the step a request (request_id, from list_my_approvals) waits on, when you are one of " +
+            "that step's approvers: it moves to the next step, or after the last one the offer can be " +
+            "extended or the job opened. An optional comment is kept with the decision. Tell the user " +
+            "exactly what they are approving and wait for a yes.",
+          inputSchema: z.object({
+            request_id: uuid("request_id"),
+            comment: z.string().max(clientTools.APPROVAL_REASON_MAX).optional(),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("approve", "write", { request_id: args.request_id }, async () => {
+            const r = await clientTools.decideApproval(db, ctx, { requestId: args.request_id, decision: "approve", reason: args.comment });
+            return { summary: decided(r), data: decisionData(r, args.request_id), candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "reject",
+        {
+          title: "Reject an approval",
+          description:
+            "Rejects a request (request_id, from list_my_approvals) at the step it waits on, when you are " +
+            "one of that step's approvers, with a reason whoever asked will see. The offer stays a draft " +
+            "(or the job as it was), and they can ask again. Tell the user exactly what they are rejecting " +
+            "and wait for a yes.",
+          inputSchema: z.object({
+            request_id: uuid("request_id"),
+            reason: z.string().min(1).max(clientTools.APPROVAL_REASON_MAX),
+          }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("reject", "write", { request_id: args.request_id }, async () => {
+            const r = await clientTools.decideApproval(db, ctx, { requestId: args.request_id, decision: "reject", reason: args.reason });
+            return { summary: decided(r), data: decisionData(r, args.request_id), candidateIds: [] };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -1544,7 +1761,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
         "the whole draft, then send_email only after their explicit yes. Nothing here " +
         "deletes a candidate or a job. Interview feedback is private to the hiring team: never put it " +
-        "in a message to a candidate. Offer terms are confidential: share them only with the user.\n\n" +
+        "in a message to a candidate. Offer terms are confidential: share them only with the user. " +
+        "Approvals: before set_approval_flow, approve or reject, tell the user exactly what they are " +
+        "setting, approving or rejecting and wait for their yes; never approve or reject on your own.\n\n" +
         UNTRUSTED_PREAMBLE,
     },
   );
