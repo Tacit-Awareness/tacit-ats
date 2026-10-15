@@ -9,7 +9,7 @@ One product, one database, two repos.
 - **Same Supabase project** (`tacit`, ref `qlqebxtjzcotiwgdnukj`). Each client company is an org; Tacit is org #1. A member's every query runs as the database role `authenticated` on their own token, so RLS decides what they see.
 - **Tacit-Awareness owns the schema.** Migrations, RLS policies, the definer functions this repo calls (`invite_org_member`, `client_claim_write`, `my_interviews`, ...) and the generated types all live in its `packages/db`. A feature here that needs a schema change starts there: land the migration (its CI pushes it to production on merge), then `pnpm sync:tacit` here.
 - **It also owns the shared domain logic**: the pipeline (`applications` / `application_events`, whose only writer is its `pipeline.ts`), the staff connector's email pieces, `wrapUntrusted`, and staff onboarding of a client org (its `/orgs` page and `createClientOrg` / `inviteOrgMember`: a client org and its first admin are always created from Tacit's side).
-- **`vendor/` holds those two packages as built tarballs**, `@tacit/db` and `@tacit/core`, pinned to the commit in `vendor/SOURCE`. `pnpm sync:tacit [path]` (default `../Tacit-Awareness`, needs a clean `packages/db` and `packages/core`) rebuilds them; then `pnpm install`. Never edit them, and never copy their code here: if this repo needs something `@tacit/core` does not export, export it there first.
+- **`vendor/` holds those two packages as built tarballs**, `@tacit/db` and `@tacit/core`, pinned to the commit in `vendor/SOURCE` and named after it: `vendor/tacit-core-<shortsha>.tgz`, `vendor/tacit-db-<shortsha>.tgz`. `pnpm sync:tacit [path]` (default `../Tacit-Awareness`, needs a clean `packages/db` and `packages/core`) rebuilds them, deletes the old ones and rewrites every `file:` specifier (root `pnpm.overrides` and each workspace `package.json`); then `pnpm install`. The name must change with the contents: Vercel restores a cached `node_modules`, and pnpm keeps the stale package when only a tarball's contents change at the same path. Never edit them, and never copy their code here: if this repo needs something `@tacit/core` does not export, export it there first.
 
 ## Layout
 
@@ -19,7 +19,7 @@ apps/
   mcp/        Next.js -- /api/client, the MCP connector members add to Claude (OAuth)
 packages/
   core/       @tacit-ats/core -- first sign-in, client invitations, the connector's tools
-vendor/       @tacit/db + @tacit/core from Tacit-Awareness (scripts/sync-tacit.mjs)
+vendor/       @tacit/db + @tacit/core tarballs from Tacit-Awareness, named by commit (scripts/sync-tacit.mjs)
 ```
 
 See each folder's own `CLAUDE.md`.
