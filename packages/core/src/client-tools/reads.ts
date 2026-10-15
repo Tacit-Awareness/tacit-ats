@@ -4,6 +4,7 @@ import { getRolePipeline, type PipelineCard } from "../pipeline/pipeline.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { peopleTagged, tagsFor } from "./tags.js";
 import { filesFor, type CandidateFile } from "./files.js";
+import { isProspect, peopleInPool, poolsFor, type CandidatePool } from "./pools.js";
 import { emailsFor, type CandidateEmail } from "./email.js";
 import { customFieldValuesFor, type CustomFieldValue } from "./custom-fields.js";
 import { countOpenings, type OpeningCounts } from "./openings.js";
@@ -135,6 +136,9 @@ export type CandidateHit = {
 const headline = (title: string | null, company: string | null) =>
   [title, company].filter(Boolean).join(" at ") || null;
 
+/** How many people a prospects_only search reads to find `limit` prospects. */
+const PROSPECT_SCAN = 200;
+
 /** PostgREST's or() is a comma-separated filter: keep a query to letters, digits and a few separators. */
 const cleanQuery = (q: string) => q.replace(/[^\p{L}\p{N}@.\-' ]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 100);
 
@@ -149,13 +153,14 @@ type PersonRow = {
 export async function searchCandidates(
   db: Db,
   ctx: ClientToolCtx,
-  input: { query?: string; jobId?: string; tag?: string; limit?: number },
+  input: { query?: string; jobId?: string; tag?: string; pool?: string; prospectsOnly?: boolean; limit?: number },
 ): Promise<CandidateHit[]> {
   const limit = Math.min(Math.max(input.limit ?? 20, 1), LIST_MAX);
   const query = input.query ? cleanQuery(input.query) : "";
 
   if (ctx.accessLevel === "limited") {
     if (input.tag) throw new ClientToolError("forbidden", "Interviewers do not see or use your company's tags.");
+    if (input.pool || input.prospectsOnly) throw new ClientToolError("forbidden", "Interviewers do not see prospects or talent pools.");
     // What an interviewer may know: the five fields of the people they interview.
     const { data, error } = await db.rpc("my_interview_candidates");
     if (error) throw new Error(error.message);
@@ -166,6 +171,8 @@ export async function searchCandidates(
       .map((c) => ({ candidateId: c.person_id, name: c.display_name, headline: headline(c.current_title, c.current_company), applications: [] }));
   }
 
+  // Nobody in a job is a prospect.
+  if (input.prospectsOnly && input.jobId) return [];
   let personIds: string[] | null = null;
   if (input.jobId) {
     const { data, error } = await db.from("applications").select("person_id").eq("role_id", input.jobId).limit(500);
@@ -179,11 +186,21 @@ export async function searchCandidates(
     personIds = personIds ? personIds.filter((id) => tagged.includes(id)) : tagged;
     if (personIds.length === 0) return [];
   }
+  if (input.pool?.trim()) {
+    const pooled = await peopleInPool(db, input.pool);
+    if (!pooled) throw new ClientToolError("not_found", "No talent pool by that name or id. list_pools has them.");
+    personIds = personIds ? personIds.filter((id) => pooled.includes(id)) : pooled;
+    if (personIds.length === 0) return [];
+  }
+  // A prospect is in no job: read more rows than asked for, keep those in no
+  // job the member can see, then ask the database whether they are in none at
+  // all (an admin does not see a confidential job's applications).
+  const prospectsOnly = !!input.prospectsOnly;
   let q = db
     .from("people")
     .select("id, display_name, current_title, current_company, applications(id, role_id, stage, roles(title))")
     .order("display_name")
-    .limit(limit);
+    .limit(prospectsOnly ? PROSPECT_SCAN : limit);
   if (query) {
     const like = `%${query}%`;
     q = q.or(`display_name.ilike.${like},email.ilike.${like},current_company.ilike.${like},current_title.ilike.${like}`);
@@ -191,7 +208,16 @@ export async function searchCandidates(
   if (personIds) q = q.in("id", personIds);
   const { data, error } = await q.overrideTypes<PersonRow[], { merge: false }>();
   if (error) throw new Error(error.message);
-  return (data ?? []).map((p) => ({
+  let rows = data ?? [];
+  if (prospectsOnly) {
+    const kept: PersonRow[] = [];
+    for (const p of rows.filter((r) => !r.applications?.length)) {
+      if (kept.length >= limit) break;
+      if (await isProspect(db, p.id)) kept.push(p);
+    }
+    rows = kept;
+  }
+  return rows.map((p) => ({
     candidateId: p.id,
     name: p.display_name,
     headline: headline(p.current_title, p.current_company),
@@ -242,6 +268,13 @@ export type CandidateDetail = {
   emails: CandidateEmail[];
   /** The custom field values the member can read; empty for an interviewer. */
   customFields: CustomFieldValue[];
+  /** In no job at all; always false for an interviewer. */
+  prospect: boolean;
+  /** How a prospect came in (one of CANDIDATE_SOURCES), and which referrer, board or event. */
+  prospectSource: string | null;
+  prospectSourceDetail: string | null;
+  /** The talent pools they are in, with their stage in each; empty for an interviewer. */
+  pools: CandidatePool[];
 };
 
 async function notesFor(db: Db, ctx: ClientToolCtx, personId: string): Promise<CandidateNote[]> {
@@ -293,12 +326,16 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
       files: await filesFor(db, candidateId),
       emails: [],
       customFields: [],
+      prospect: false,
+      prospectSource: null,
+      prospectSourceDetail: null,
+      pools: [],
     };
   }
 
   const { data: person, error } = await db
     .from("people")
-    .select("id, display_name, current_title, current_company, email, location, linkedin_url, summary")
+    .select("id, display_name, current_title, current_company, email, location, linkedin_url, summary, prospect_source, prospect_source_detail")
     .eq("id", candidateId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -356,6 +393,10 @@ export async function getCandidate(db: Db, ctx: ClientToolCtx, candidateId: stri
     files: await filesFor(db, candidateId),
     emails: await emailsFor(db, ctx, candidateId),
     customFields: (await customFieldValuesFor(db, "candidate", [candidateId])).get(candidateId) ?? [],
+    prospect: apps?.length ? false : await isProspect(db, candidateId),
+    prospectSource: person.prospect_source,
+    prospectSourceDetail: person.prospect_source_detail,
+    pools: (await poolsFor(db, [candidateId])).get(candidateId) ?? [],
   };
 }
 

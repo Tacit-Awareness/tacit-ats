@@ -251,6 +251,7 @@ describe("the tools", () => {
       "list_custom_fields", "create_custom_field", "update_custom_field", "set_custom_field",
       "list_departments", "create_department", "update_department", "list_offices", "create_office", "update_office",
       "list_openings", "add_openings", "close_opening",
+      "add_prospect", "convert_prospect", "list_pools", "create_pool", "archive_pool", "add_to_pool", "remove_from_pool", "list_pool",
     ]);
     for (const read of [
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team", "get_hiring_team", "list_invites",
@@ -278,6 +279,8 @@ describe("the tools", () => {
     for (const change of ["update_department", "update_office", "close_opening"]) {
       expect(byName[change], change).toMatchObject({ destructiveHint: true });
     }
+    for (const read of ["list_pools", "list_pool"]) expect(byName[read], read).toMatchObject({ readOnlyHint: true });
+    for (const change of ["archive_pool", "remove_from_pool"]) expect(byName[change], change).toMatchObject({ destructiveHint: true });
   });
 
   test("a refusal comes back as its sentence, audited as a failure", async () => {

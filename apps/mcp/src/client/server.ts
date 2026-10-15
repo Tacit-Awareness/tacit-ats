@@ -149,6 +149,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
     body: fence("body", t.body), archived: t.archived, updated_at: t.updatedAt,
   });
 
+  // A pool's name is a member's text: fenced, like a tag's.
+  const poolRef = (p: clientTools.CandidatePool) => ({ pool_id: p.poolId, pool: fence("pool", p.pool), stage: p.stage });
+  const poolOut = (r: clientTools.PoolResult) => ({ outcome: r.outcome, pool_id: r.poolId, pool: fence("pool", r.pool), stage: r.stage });
+
   return createMcpHandler(
     (server) => {
       server.registerTool(
@@ -252,18 +256,23 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             "Find candidates you can see by name, email, company or title (query), optionally only those " +
             "in one job (job_id) or carrying one tag (tag: its name or tag_id, from list_tags). Returns " +
             "candidate_id and the jobs each is in, with application_id and stage. An interviewer finds only " +
-            "the people they interview.",
+            "the people they interview. pool narrows to one talent pool (its name or pool_id, from " +
+            "list_pools); prospects_only to prospects, people in no job yet.",
           inputSchema: z.object({
             query: z.string().max(200).optional(),
             job_id: uuid("job_id").optional(),
             tag: z.string().min(1).max(100).optional(),
+            pool: z.string().min(1).max(100).optional(),
+            prospects_only: z.boolean().optional(),
             limit: z.number().int().min(1).max(clientTools.LIST_MAX).optional(),
           }),
           annotations: { readOnlyHint: true },
         },
         (args) =>
           run("search_candidates", "read", args, async () => {
-            const hits = await clientTools.searchCandidates(db, ctx, { query: args.query, jobId: args.job_id, tag: args.tag, limit: args.limit });
+            const hits = await clientTools.searchCandidates(db, ctx, {
+              query: args.query, jobId: args.job_id, tag: args.tag, pool: args.pool, prospectsOnly: args.prospects_only, limit: args.limit,
+            });
             return {
               summary: `${hits.length} candidate${hits.length === 1 ? "" : "s"}.`,
               data: {
@@ -289,7 +298,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             "job), the team's notes, their files (file_id for get_file_link) and the emails sent to them " +
             "(list_emails has the bodies). get_activity has their " +
             "history. An interviewer gets the name, headline and LinkedIn of someone they interview, their " +
-            "resume, and their own notes.",
+            "resume, and their own notes. prospect is true for someone in no job yet (with how they came " +
+            "in), and pools lists the talent pools they are in with their stage in each.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
           annotations: { readOnlyHint: true },
         },
@@ -319,6 +329,10 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 files: c.files.map(fileOut),
                 custom_fields: c.customFields.map(customFieldOut),
                 emails: c.emails.map(emailOut),
+                prospect: c.prospect,
+                prospect_source: c.prospectSource,
+                prospect_source_detail: fence("source", c.prospectSourceDetail),
+                pools: c.pools.map(poolRef),
               },
               candidateIds: [c.candidateId],
             };
@@ -2198,6 +2212,211 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             };
           }),
       );
+      server.registerTool(
+        "add_prospect",
+        {
+          title: "Add a prospect",
+          description:
+            "Adds someone to your company's records without putting them in a job: a prospect, for people " +
+            "the team wants to keep in touch with before there is a job for them. With an email, someone " +
+            "already in your company's records under it is reused rather than duplicated. source is how " +
+            `they came in (${SOURCE_LIST}) and source_detail which referrer, agency, board or event; ` +
+            "convert_prospect carries both onto their application. pool (a name or pool_id from list_pools) " +
+            "also puts them in that talent pool at new. For admins and anyone who can add candidates; the " +
+            "prospect can then be changed by whoever added them and admins.",
+          inputSchema: z.object({
+            name: z.string().min(1).max(200),
+            email: z.string().max(320).optional(),
+            linkedin_url: z.string().max(500).optional(),
+            source: z.enum(CANDIDATE_SOURCES).optional(),
+            source_detail: z.string().max(SOURCE_DETAIL_MAX).optional(),
+            pool: z.string().min(1).max(100).optional(),
+          }),
+        },
+        (args) =>
+          run("add_prospect", "write", { ...args, source_detail: undefined }, async () => {
+            const r = await clientTools.addProspect(db, ctx, {
+              name: args.name, email: args.email, linkedinUrl: args.linkedin_url,
+              source: args.source, sourceDetail: args.source_detail, pool: args.pool,
+            });
+            const where = r.pool ? (r.pool.outcome === "added" ? " Added to the pool." : " Already in the pool.") : "";
+            return {
+              summary: (r.outcome === "added" ? "Prospect added." : "Already in your company's records under that email; nothing about them changed.") + where,
+              data: { outcome: r.outcome, candidate_id: r.candidateId, pool: r.pool ? poolOut(r.pool) : null },
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "convert_prospect",
+        {
+          title: "Put a prospect in a job",
+          description:
+            "Puts a prospect (or anyone you can see, by candidate_id) in a job's pipeline (job_id) at " +
+            "sourced. The application carries the prospect's source unless you pass source and " +
+            "source_detail. Someone already in the job is left where they are. Their talent pools are " +
+            "unchanged. Needs hiring-team access to the job. Tell the user which job and wait for a yes.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            job_id: uuid("job_id"),
+            source: z.enum(CANDIDATE_SOURCES).optional(),
+            source_detail: z.string().max(SOURCE_DETAIL_MAX).optional(),
+          }),
+        },
+        (args) =>
+          run("convert_prospect", "write", { ...args, source_detail: undefined }, async () => {
+            const r = await clientTools.convertProspect(db, ctx, {
+              candidateId: args.candidate_id, jobId: args.job_id, source: args.source, sourceDetail: args.source_detail,
+            });
+            return {
+              summary: r.outcome === "added" ? `In the job at ${r.stage}.` : `Already in this job, at ${r.stage}. Nothing changed.`,
+              data: { outcome: r.outcome, application_id: r.applicationId, candidate_id: r.candidateId, job_id: args.job_id, stage: r.stage, source: r.source },
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_pools",
+        {
+          title: "List talent pools",
+          description:
+            "Your company's talent pools, each with a pool_id and how many of the people you can see are " +
+            "in it. include_archived adds the archived ones. Interviewers and external recruiters see none.",
+          inputSchema: z.object({ include_archived: z.boolean().optional() }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_pools", "read", args, async () => {
+            const pools = await clientTools.listPools(db, ctx, { includeArchived: args.include_archived });
+            return {
+              summary: `${pools.length} talent pool${pools.length === 1 ? "" : "s"}.`,
+              data: { pools: pools.map((p) => ({ pool_id: p.poolId, name: fence("pool", p.name), archived: p.archived, people: p.members })) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "create_pool",
+        {
+          title: "Create a talent pool",
+          description:
+            `Makes a talent pool, a named list of people to keep warm (at most ${clientTools.POOL_NAME_MAX} ` +
+            "characters). A pool already there under that name, ignoring case, is returned rather than " +
+            "duplicated; an admin naming an archived one brings it back. For admins and anyone who can add candidates.",
+          inputSchema: z.object({ name: z.string().min(1).max(clientTools.POOL_NAME_MAX) }),
+        },
+        (args) =>
+          run("create_pool", "write", args, async () => {
+            const r = await clientTools.createPool(db, ctx, { name: args.name });
+            const summary = { created: "Talent pool created.", exists: "That talent pool already exists.", restored: "The archived talent pool is back." }[r.outcome];
+            return { summary, data: { outcome: r.outcome, pool_id: r.poolId, name: fence("pool", r.name) }, candidateIds: [] };
+          }),
+      );
+
+      server.registerTool(
+        "archive_pool",
+        {
+          title: "Archive a talent pool",
+          description:
+            "Archives a talent pool (its name or pool_id): the people in it stay, and it takes no one new; " +
+            "create_pool with its name brings it back. Admins only. Confirm with the user first.",
+          inputSchema: z.object({ pool: z.string().min(1).max(100) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("archive_pool", "write", args, async () => {
+            const r = await clientTools.archivePool(db, ctx, { pool: args.pool });
+            return {
+              summary: r.outcome === "archived" ? "Talent pool archived." : "Already archived. Nothing changed.",
+              data: { outcome: r.outcome, pool_id: r.poolId, name: fence("pool", r.name) },
+              candidateIds: [],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "add_to_pool",
+        {
+          title: "Put someone in a talent pool",
+          description:
+            "Puts a prospect or candidate (candidate_id) in a talent pool (its name or pool_id) at a pool " +
+            `stage (${clientTools.POOL_STAGES.join(", ")}; new if not said). For someone already in the pool, ` +
+            "passing stage moves them to it; without stage nothing changes. Archived pools take no one new. " +
+            "For admins and anyone who can add candidates.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            pool: z.string().min(1).max(100),
+            stage: z.enum(clientTools.POOL_STAGES).optional(),
+          }),
+        },
+        (args) =>
+          run("add_to_pool", "write", args, async () => {
+            const r = await clientTools.addToPool(db, ctx, { candidateId: args.candidate_id, pool: args.pool, stage: args.stage });
+            const summary = r.outcome === "added" ? `In the pool at ${r.stage}.`
+              : r.outcome === "stage_changed" ? `Moved to ${r.stage} in the pool.`
+              : `Already in the pool, at ${r.stage}. Nothing changed.`;
+            return { summary, data: { candidate_id: args.candidate_id, ...poolOut(r) }, candidateIds: [args.candidate_id] };
+          }),
+      );
+
+      server.registerTool(
+        "remove_from_pool",
+        {
+          title: "Take someone out of a talent pool",
+          description:
+            "Takes a prospect or candidate (candidate_id) out of a talent pool (its name or pool_id). " +
+            "Their record and any jobs they are in are unchanged. For admins and anyone who can add " +
+            "candidates. Confirm with the user first.",
+          inputSchema: z.object({ candidate_id: uuid("candidate_id"), pool: z.string().min(1).max(100) }),
+          annotations: { destructiveHint: true },
+        },
+        (args) =>
+          run("remove_from_pool", "write", args, async () => {
+            const r = await clientTools.removeFromPool(db, ctx, { candidateId: args.candidate_id, pool: args.pool });
+            return {
+              summary: r.outcome === "removed" ? "Taken out of the pool." : "They were not in that pool. Nothing changed.",
+              data: { candidate_id: args.candidate_id, ...poolOut(r) },
+              candidateIds: [args.candidate_id],
+            };
+          }),
+      );
+
+      server.registerTool(
+        "list_pool",
+        {
+          title: "List the people in a talent pool",
+          description:
+            "The people you can see in one talent pool (its name or pool_id), most recently moved first, " +
+            "each with candidate_id, pool stage and how many jobs you can see them in (0 for a prospect). " +
+            `stage narrows to one pool stage (${clientTools.POOL_STAGES.join(", ")}).`,
+          inputSchema: z.object({
+            pool: z.string().min(1).max(100),
+            stage: z.enum(clientTools.POOL_STAGES).optional(),
+            limit: z.number().int().min(1).max(clientTools.LIST_MAX).optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("list_pool", "read", args, async () => {
+            const p = await clientTools.listPool(db, ctx, { pool: args.pool, stage: args.stage, limit: args.limit });
+            return {
+              summary: `${p.members.length} ${p.members.length === 1 ? "person" : "people"} in the pool${p.archived ? " (archived)" : ""}.`,
+              data: {
+                pool_id: p.poolId,
+                name: fence("pool", p.name),
+                archived: p.archived,
+                people: p.members.map((m) => ({
+                  candidate_id: m.candidateId, name: named(m.name), headline: fence("headline", m.headline),
+                  stage: m.stage, jobs: m.jobs, added_at: m.addedAt, updated_at: m.updatedAt,
+                })),
+              },
+              candidateIds: p.members.map((m) => m.candidateId),
+            };
+          }),
+      );
     },
     {
       serverInfo: { name: "tacit-client", version: "0.1.0" },
@@ -2206,7 +2425,8 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
         "your team. You act as the signed-in member, and Tacit shows and changes only what their access " +
         "allows. Call whoami first. When you only have a name, call search_candidates and use the ids it " +
         "returns. Before update_stage, update_job, set_member_access, invite_member, update_interview, " +
-        "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, " +
+        "create_offer, update_offer, set_interview_plan, untag_candidate, archive_tag, convert_prospect, " +
+        "archive_pool, remove_from_pool, " +
         "update_email_template, update_custom_field, update_department, update_office, close_opening or removing someone from a hiring team, tell the user exactly what will " +
         "change and wait for a yes. Email to a candidate is always two steps: draft_email, show the user " +
         "the whole draft, then send_email only after their explicit yes. Nothing here " +

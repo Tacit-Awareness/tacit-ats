@@ -70,3 +70,10 @@ export {
   addOpenings, closeOpening, listOpenings,
 } from "./openings.js";
 export type { HireOpening, JobOpenings, Opening, OpeningCounts, OpeningStatus } from "./openings.js";
+export {
+  POOL_NAME_MAX, POOL_STAGES,
+  addProspect, addToPool, archivePool, convertProspect, createPool, listPool, listPools, removeFromPool,
+} from "./pools.js";
+export type {
+  AddProspectResult, CandidatePool, ConvertResult, CreatePoolResult, Pool, PoolMember, PoolResult, PoolStage, PoolView,
+} from "./pools.js";

@@ -52,7 +52,7 @@ async function clear() {
   // org_id references orgs without a cascade: every row in these orgs goes first.
   for (const table of [
     "audit_log", "candidate_emails", "email_templates", "interview_feedback_ratings", "interview_feedback", "application_events", "interviews", "applications",
-    "scorecard_attributes", "person_notes", "person_tags", "tags", "people", "companies",
+    "scorecard_attributes", "person_notes", "person_tags", "tags", "pool_memberships", "talent_pools", "people", "companies",
     "openings", "job_offices", "departments", "offices",
   ] as const) {
     must(await db().from(table).delete().in("org_id", ids));
@@ -1372,5 +1372,94 @@ describe("departments, offices and openings against real Postgres", () => {
     expect((await tool(IVAN, "list_openings", { job_id: ENGINEER })).content[0].text).toMatch(/Interviewers do not/);
     expect((await tool(IVAN, "close_opening", { opening_id: added.added[0].opening_id, reason: "x" })).isError).toBe(true);
     expect((await tool(ADA, "list_openings", { job_id: GLOBEX_ROLE })).content[0].text).toMatch(/No job with that id/);
+  });
+});
+
+describe("prospects and talent pools against real Postgres", () => {
+  const ids = (r: { candidates: Array<{ candidate_id: string }> }) => r.candidates.map((c) => c.candidate_id);
+
+  test("a prospect comes in with no job, is pooled, moved, found, and put in a job with the source they came with", async () => {
+    expect((await ok(ADA, "create_pool", { name: "Staff engineers" })).outcome).toBe("created");
+    const added = await ok(ADA, "add_prospect", {
+      name: "Rae Prospect", email: "rae@cand.test", source: "referral", source_detail: "Pat Candidate", pool: "staff ENGINEERS",
+    });
+    expect(added).toMatchObject({ outcome: "added", pool: { outcome: "added", stage: "new" } });
+    const rae = added.candidate_id as string;
+    const { data: row } = await db().from("people").select("org_id, added_by_actor_id, prospect_source").eq("id", rae).single();
+    expect(row).toEqual({ org_id: ACME, added_by_actor_id: ADMIN, prospect_source: "referral" });
+    expect((await db().from("applications").select("id").eq("person_id", rae)).data).toEqual([]);
+
+    // The same email again is the same person, not a second row.
+    expect((await ok(ADA, "add_prospect", { name: "Rae P.", email: "RAE@cand.test" })).candidate_id).toBe(rae);
+    expect((await db().from("people").select("id").eq("org_id", ACME).eq("email", "rae@cand.test")).data).toHaveLength(1);
+
+    expect(ids(await ok(ADA, "search_candidates", { prospects_only: true }))).toEqual([rae]);
+    expect(ids(await ok(ADA, "search_candidates", { pool: "Staff engineers" }))).toEqual([rae]);
+
+    expect((await ok(ADA, "add_to_pool", { candidate_id: rae, pool: "Staff engineers", stage: "engaged" })).outcome).toBe("stage_changed");
+    const card = await ok(ADA, "get_candidate", { candidate_id: rae });
+    expect(card).toMatchObject({ prospect: true, prospect_source: "referral", jobs: [] });
+    expect(card.prospect_source_detail).toContain("<<<UNTRUSTED_DATA>>>");
+    expect(card.pools).toHaveLength(1);
+    expect(card.pools[0]).toMatchObject({ stage: "engaged" });
+    expect(card.pools[0].pool).toContain("Staff engineers");
+    const pool = await ok(ADA, "list_pool", { pool: "Staff engineers" });
+    expect(pool.people).toMatchObject([{ candidate_id: rae, stage: "engaged", jobs: 0 }]);
+    expect((await ok(ADA, "list_pools")).pools).toMatchObject([{ people: 1, archived: false }]);
+
+    const converted = await ok(ADA, "convert_prospect", { candidate_id: rae, job_id: DESIGNER });
+    expect(converted).toMatchObject({ outcome: "added", stage: "sourced", source: "referral" });
+    const { data: app } = await db().from("applications").select("source, source_detail, added_by_actor_id").eq("id", converted.application_id).single();
+    expect(app).toEqual({ source: "referral", source_detail: "Pat Candidate", added_by_actor_id: ADMIN });
+    expect((await ok(ADA, "convert_prospect", { candidate_id: rae, job_id: DESIGNER })).outcome).toBe("already_in_pipeline");
+    const after = await ok(ADA, "get_candidate", { candidate_id: rae });
+    expect(after.prospect).toBe(false);
+    expect(after.pools).toHaveLength(1);
+    expect(ids(await ok(ADA, "search_candidates", { prospects_only: true }))).toEqual([]);
+
+    const { data: audit } = await db().from("audit_log").select("action, after").eq("actor_id", ADMIN);
+    expect(audit!.map((a) => a.action)).toEqual(expect.arrayContaining([
+      "pool.create", "prospect.add", "pool.add", "pool.stage_change", "prospect.convert",
+    ]));
+    // The detail can name a person: it stays with the prospect and the application.
+    expect(JSON.stringify(audit)).not.toContain("Pat Candidate");
+  });
+
+  test("an interviewer sees no prospects or pools and adds none; another company's person is not found", async () => {
+    const rae = (await ok(ADA, "add_prospect", { name: "Rae Prospect" })).candidate_id as string;
+    await ok(ADA, "create_pool", { name: "Designers" });
+    for (const [name, args] of [
+      ["search_candidates", { prospects_only: true }],
+      ["list_pools", {}],
+      ["list_pool", { pool: "Designers" }],
+      ["add_prospect", { name: "Ivan's pick" }],
+      ["add_to_pool", { candidate_id: PAT, pool: "Designers" }],
+      ["create_pool", { name: "Mine" }],
+    ] as const) {
+      const out = await tool(IVAN, name, args);
+      expect(out.isError, name).toBe(true);
+      expect(out.content[0].text, name).toMatch(/Interviewers do not/);
+    }
+    expect((await tool(IVAN, "get_candidate", { candidate_id: rae })).content[0].text).toMatch(/No candidate with that id/);
+    expect((await db().from("people").select("id").eq("org_id", ACME).ilike("display_name", "Ivan%")).data).toEqual([]);
+
+    expect((await tool(ADA, "add_to_pool", { candidate_id: SECRET_PERSON, pool: "Designers" })).content[0].text).toMatch(/No candidate with that id/);
+    expect((await tool(ADA, "convert_prospect", { candidate_id: SECRET_PERSON, job_id: DESIGNER })).content[0].text).toMatch(/No candidate with that id/);
+    expect((await tool(ADA, "convert_prospect", { candidate_id: rae, job_id: GLOBEX_ROLE })).content[0].text).toMatch(/can't add candidates to that job/);
+    expect((await db().from("pool_memberships").select("id").eq("person_id", SECRET_PERSON)).data).toEqual([]);
+  });
+
+  test("an archived pool keeps its people and takes no one new; taking someone out leaves their record alone", async () => {
+    await ok(ADA, "create_pool", { name: "Designers" });
+    expect((await ok(ADA, "add_to_pool", { candidate_id: PAT, pool: "Designers" })).outcome).toBe("added");
+    expect((await ok(ADA, "archive_pool", { pool: "designers" })).outcome).toBe("archived");
+    const rae = (await ok(ADA, "add_prospect", { name: "Rae Prospect" })).candidate_id as string;
+    expect((await tool(ADA, "add_to_pool", { candidate_id: rae, pool: "Designers" })).content[0].text).toMatch(/archived/);
+    expect((await ok(ADA, "list_pools")).pools).toEqual([]);
+    expect((await ok(ADA, "list_pools", { include_archived: true })).pools).toMatchObject([{ archived: true, people: 1 }]);
+    expect((await ok(ADA, "remove_from_pool", { candidate_id: PAT, pool: "Designers" })).outcome).toBe("removed");
+    expect((await ok(ADA, "remove_from_pool", { candidate_id: PAT, pool: "Designers" })).outcome).toBe("not_in_pool");
+    expect((await db().from("applications").select("stage").eq("id", PAT_APP).single()).data).toEqual({ stage: "screening" });
+    expect((await ok(ADA, "create_pool", { name: "DESIGNERS" })).outcome).toBe("restored");
   });
 });

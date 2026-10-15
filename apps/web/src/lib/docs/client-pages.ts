@@ -494,6 +494,23 @@ Jobs sit in a department (departments can nest) and in one or more offices. A jo
 | \`add_openings\` | Add openings to a job, with your own codes and a target start date | Job managers | Confirms count |
 | \`close_opening\` | Close an open opening without a hire, with a reason | Job managers | Yes |
 
+## Prospects and talent pools
+
+A prospect is someone your team wants to keep in touch with before there is a job for them: they are on file but in no job. A talent pool is a named list of prospects or candidates, each at a pool stage (new, contacted, engaged, not interested). Interviewers see neither, and an external recruiter sees only the prospects they added.
+
+| Tool | What it does | Who | Asks first |
+| --- | --- | --- | --- |
+| \`add_prospect\` | Add someone with no job yet, with how they came in, optionally into a pool | Anyone who can add candidates | |
+| \`convert_prospect\` | Put a prospect in a job at sourced, carrying their source | Job managers | Yes |
+| \`list_pools\` | Your company's talent pools and how many people are in each | Hiring team, admins | |
+| \`create_pool\` | Make a talent pool | Anyone who can add candidates | |
+| \`archive_pool\` | Retire a pool; its people stay in it | Admins | Yes |
+| \`add_to_pool\` | Put someone in a pool, or move them to another pool stage | Anyone who can add candidates | |
+| \`remove_from_pool\` | Take someone out of a pool | Anyone who can add candidates | Yes |
+| \`list_pool\` | The people in a pool and their pool stage | Hiring team, admins | |
+
+A prospect can be changed by whoever added them and by admins. \`search_candidates\` can look only at prospects or only in one pool, and \`get_candidate\` shows the pools someone is in.
+
 ## Administration
 
 | Tool | What it does | Who | Asks first |
