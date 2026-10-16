@@ -117,6 +117,12 @@ function CardView({
         )}
       </div>
       {card.headline && <p className="mt-0.5 text-[13px] text-muted-foreground">{card.headline}</p>}
+      {/* An agency's submission (Tacit's reads "Tacit · <teammate>"): who sent them. */}
+      {card.source === "agency" && (
+        <span className="mt-1.5 inline-block rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary">
+          {card.sourceDetail ?? "Agency"}
+        </span>
+      )}
       {showRole &&
         (links.role ? (
           <Link
