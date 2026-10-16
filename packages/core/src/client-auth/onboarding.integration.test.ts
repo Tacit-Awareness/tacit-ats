@@ -4,7 +4,7 @@ import { getSupabaseServiceClient } from "@tacit/db";
 
 import { bindClientActor } from "./bind.js";
 
-// Staff onboarding (Tacit-Awareness's /orgs, @tacit/core's createClientOrg and
+// Staff onboarding (Tacit-Awareness's ATS Admin, /admin/orgs, @tacit/core's createClientOrg and
 // inviteOrgMember) handing over to this repo's first sign-in. The onboarding
 // half on its own is tested in Tacit-Awareness.
 
