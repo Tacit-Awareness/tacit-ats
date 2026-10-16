@@ -6,7 +6,7 @@ Tacit ATS is the client-facing applicant tracking system: the place a client com
 
 This repo was split out of [Tacit-Awareness](https://github.com/Tacit-Awareness/Tacit-Awareness) on 2026-10-14. It is one product with that repo, on one database: Tacit-Awareness owns the schema, the access policies and the shared pipeline logic, and this repo consumes them.
 
-Status: the web area, the public job posts and the connector's 93 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). WorkOS and Supabase are configured for `/client`, but **no client has completed a sign-in yet**, the connector's production env is not set, and the private `org-files` bucket does not exist in production. Open items are listed at the end.
+Status: the web area, the public job posts and the connector's 93 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). Production is set up: the web area serves `ats.tacitawareness.com`, the connector `ats-mcp.tacitawareness.com/api/client`, and on 2026-10-15 a test client org's admin signed in through both and stored and fetched a file. No real client company is on it yet. Open items are listed at the end.
 
 Each folder's `CLAUDE.md` has the detail behind every section here.
 
@@ -152,9 +152,7 @@ Configuration is in `.env.example`. Each app stays dormant until its required va
 
 ## Open items
 
-- No client has completed a sign-in; the connector's production env is unset.
-- Whether AuthKit's MCP access tokens carry `org_id` is unverified; the membership fallback covers it until the first real sign-in.
-- The `org-files` bucket must be created by hand in production (`apps/mcp/CLAUDE.md`, "Files").
-- Calendar scheduling needs a Google OAuth client (`CLIENT_GOOGLE_CLIENT_ID` / `_SECRET` on both apps, the `/client/calendar/callback` redirect URI, and Google's verification of the calendar scopes) before any member can connect (`apps/mcp/CLAUDE.md`, "Calendar scheduling"). Microsoft calendars are not supported.
-- `CLIENT_CONNECTOR_URL` still names `mcp.tacitawareness.com/api/client`; change it once `apps/mcp` has its own domain.
+- Google has not verified the calendar app yet (Linear ENG-7). Until it does, only the OAuth client's listed test users can connect a calendar, they see an unverified-app warning, and their connections expire after 7 days while the app is in Testing. The OAuth client and `CLIENT_GOOGLE_CLIENT_ID` / `_SECRET` are set on both apps. Microsoft calendars are not supported.
+- Whether AuthKit's MCP access tokens carry `org_id` is still not known: the first connector sign-in found the right org, but which of the two paths found it was not recorded.
+- Not exercised in production yet: finding interview times and scheduling against a real calendar, and switching the connector to read-only and back.
 - Not built in the web area: a candidate page, creating and editing jobs, changing a member's access. These exist in the connector.
