@@ -12,7 +12,7 @@ import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
 export type ClientMcpConfig = {
   /** The AuthKit domain of the clients' WorkOS environment: the token issuer. */
   issuer: string;
-  /** This server's public URL, e.g. https://mcp.tacitawareness.com/api/client: the token audience. */
+  /** This server's public URL, e.g. https://ats-mcp.tacitawareness.com/api/client: the token audience. */
   resource: string;
   /**
    * That environment's API key. Looks up a verified email on a first sign-in

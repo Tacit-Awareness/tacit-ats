@@ -11,7 +11,7 @@ import type { DocPage } from "./types";
  * when a tool is added there and not named here, or named here and gone there.
  */
 
-export const CLIENT_CONNECTOR_URL = "https://mcp.tacitawareness.com/api/client";
+export const CLIENT_CONNECTOR_URL = "https://ats-mcp.tacitawareness.com/api/client";
 
 export const CLIENT_DOCS: DocPage[] = [
   {
