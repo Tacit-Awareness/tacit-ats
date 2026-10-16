@@ -22,7 +22,7 @@ src/
                         Never creates an actor; takes a SERVICE-ROLE client.
                         Staff onboarding (createClientOrg, inviteOrgMember,
                         listClientOrgs) stayed in Tacit-Awareness's
-                        client-auth/orgs.ts, behind its /orgs page; the
+                        client-auth/orgs.ts, behind its /admin/orgs page; the
                         IdentityProvider and AccessLevel types come from
                         there. invite.ts --
                         the client side (2026-10-14): inviteClientMember /

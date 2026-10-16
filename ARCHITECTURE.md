@@ -52,7 +52,7 @@ flowchart TD
 
 - **Schema.** Migrations, RLS policies, the definer functions this repo calls (`invite_org_member`, `client_claim_write`, `my_interviews`, `submit_job_application`, ...) and the generated types live in Tacit-Awareness's `packages/db`. A feature here that needs a schema change lands its migration there first (that repo's CI pushes it to production on merge), then `pnpm sync:tacit` here.
 - **Shared logic.** The pipeline, the staff connector's email helpers, `wrapUntrusted` and `renderTemplate` come from `@tacit/core`. Code is never copied across: a missing export is added there and synced.
-- **Onboarding.** A client org and its first admin are always created from Tacit's staff `/orgs` page. Nothing here creates an org; a first sign-in here only binds the actor that page (or a client admin) invited.
+- **Onboarding.** A client org and its first admin are always created from Tacit's ATS Admin (`/admin/orgs` in Tacit-Awareness's `apps/internal`, staff admins only). Nothing here creates an org; a first sign-in here only binds the actor that page (or a client admin) invited.
 - **Docs.** `apps/web/src/lib/docs/client-pages.ts` is the source of the connector's docs; Tacit-Awareness's staff `/docs` shows a copy.
 
 ## Identity and sign-in

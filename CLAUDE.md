@@ -6,9 +6,19 @@ The client-facing ATS: where a client company's own team works their jobs, candi
 
 One product, one database, two repos.
 
+Three surfaces, named by who uses them:
+
+| | Who | Where |
+|---|---|---|
+| **Workspace** | Tacit's recruiters | Tacit-Awareness `apps/internal` (internal.tacitawareness.com) and its staff connector |
+| **ATS** | a client company's hiring team, on their own token | this repo (ats.tacitawareness.com, ats-mcp) |
+| **ATS Admin** | Tacit staff admins operating the ATS: create an org, invite its first admin | Tacit-Awareness `apps/internal`'s `/admin` (service role) |
+
+Nothing staff-only lives in this repo: no staff session, no console.
+
 - **Same Supabase project** (`tacit`, ref `qlqebxtjzcotiwgdnukj`). Each client company is an org; Tacit is org #1. A member's every query runs as the database role `authenticated` on their own token, so RLS decides what they see.
 - **Tacit-Awareness owns the schema.** Migrations, RLS policies, the definer functions this repo calls (`invite_org_member`, `client_claim_write`, `my_interviews`, ...) and the generated types all live in its `packages/db`. A feature here that needs a schema change starts there: land the migration (its CI pushes it to production on merge), then `pnpm sync:tacit` here.
-- **It also owns the shared domain logic**: the pipeline (`applications` / `application_events`, whose only writer is its `pipeline.ts`), the staff connector's email pieces, `wrapUntrusted`, and staff onboarding of a client org (its `/orgs` page and `createClientOrg` / `inviteOrgMember`: a client org and its first admin are always created from Tacit's side).
+- **It also owns the shared domain logic**: the pipeline (`applications` / `application_events`, whose only writer is its `pipeline.ts`), the staff connector's email pieces, `wrapUntrusted`, and staff onboarding of a client org (its ATS Admin page `/admin/orgs` and `createClientOrg` / `inviteOrgMember`: a client org and its first admin are always created from Tacit's side).
 - **`vendor/` holds those two packages as built tarballs**, `@tacit/db` and `@tacit/core`, pinned to the commit in `vendor/SOURCE` and named after it: `vendor/tacit-core-<shortsha>.tgz`, `vendor/tacit-db-<shortsha>.tgz`. `pnpm sync:tacit [path]` (default `../Tacit-Awareness`, needs a clean `packages/db` and `packages/core`) rebuilds them, deletes the old ones and rewrites every `file:` specifier (root `pnpm.overrides` and each workspace `package.json`); then `pnpm install`. The name must change with the contents: Vercel restores a cached `node_modules`, and pnpm keeps the stale package when only a tarball's contents change at the same path. Never edit them, and never copy their code here: if this repo needs something `@tacit/core` does not export, export it there first.
 
 ## Layout
