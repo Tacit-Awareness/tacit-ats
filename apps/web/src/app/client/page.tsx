@@ -103,20 +103,6 @@ export default async function ClientHome() {
           ))}
         </ul>
       </section>
-
-      {accessLevel === "admin" ? (
-        <section>
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[21px] leading-[1.3]">Tacit</h2>
-            <Link href="/client/settings" className="inline-link text-[14px]">
-              Tacit&apos;s access
-            </Link>
-          </div>
-          <p className="glass mt-3 px-5 py-4 text-[15px] text-muted-foreground">
-            Choose which of your jobs Tacit can submit candidates to, and see who from Tacit has.
-          </p>
-        </section>
-      ) : null}
     </main>
   );
 }
