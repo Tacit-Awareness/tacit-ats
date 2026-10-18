@@ -2,7 +2,7 @@ name: CI
 
 # Pull requests only: a merge to main deploys through Vercel, and the
 # squash-merge lands the tree that just passed. Actions minutes are shared
-# with Tacit-Awareness (private repos, 2,000 min/month).
+# with tacit-internal (private repos, 2,000 min/month).
 on:
   pull_request:
     paths-ignore: ['**.md']
@@ -26,6 +26,6 @@ jobs:
       - run: pnpm ci:build
       - run: pnpm typecheck
       - run: pnpm test
-      # Integration tests need Tacit-Awareness's migrations for the local
+      # Integration tests need tacit-internal's migrations for the local
       # stack, a private repo this workflow cannot check out yet. Run them
       # locally (CLAUDE.md, Commands).

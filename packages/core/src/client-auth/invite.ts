@@ -5,7 +5,7 @@ import type { AccessLevel, IdentityProvider } from "@tacit/core";
 /**
  * A client org's admin inviting their own team (apps/web's /client/team, apps/mcp's invite tools).
  *
- * The staff path (Tacit-Awareness's inviteOrgMember) runs on the service role. This one
+ * The staff path (tacit-internal's inviteOrgMember) runs on the service role. This one
  * runs on the admin's OWN database client: the actor row is written by the
  * `invite_org_member` definer function, which checks that the caller is an
  * admin and writes only into the caller's org (20261014120000_client_invites).

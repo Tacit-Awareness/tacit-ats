@@ -4,7 +4,7 @@ import { CONNECTOR_ACCESS_ACTION, withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 
 /**
- * The connector's own setting (Tacit-Awareness migration
+ * The connector's own setting (tacit-internal migration
  * 20261017110000_client_connector_access): an org's admin can make it
  * read-only, like Greenhouse's read scopes without write scopes. The database
  * enforces it: in a read-only org client_claim_write refuses every write's

@@ -1,19 +1,27 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
  * Points the integration suite at the local Supabase stack by reading
- * `supabase status` from the Tacit-Awareness checkout's packages/db (the
+ * `supabase status` from the tacit-internal checkout's packages/db (the
  * schema and migrations live there, not here; TACIT_REPO overrides the
- * default ../Tacit-Awareness) and exporting the URL/service key as
+ * default ../tacit-internal, or ../tacit-internal for a checkout not yet
+ * renamed) and exporting the URL/service key as
  * the same env vars production code reads. Env set here is inherited by
  * vitest's worker processes.
  */
+function defaultTacitRepo(): string {
+  const renamed = fileURLToPath(new URL("../../tacit-internal", import.meta.url));
+  const legacy = fileURLToPath(new URL("../../Tacit-Awareness", import.meta.url));
+  return existsSync(renamed) || !existsSync(legacy) ? renamed : legacy;
+}
+
 export default function setup(): void {
   const tacitRepo = process.env.TACIT_REPO
     ? resolve(process.env.TACIT_REPO)
-    : fileURLToPath(new URL("../../Tacit-Awareness", import.meta.url));
+    : defaultTacitRepo();
   const dbDir = join(tacitRepo, "packages/db");
 
   let output: string;

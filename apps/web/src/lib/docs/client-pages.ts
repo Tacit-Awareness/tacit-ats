@@ -2,7 +2,7 @@ import type { DocPage } from "./types";
 
 /**
  * The client connector's documentation (apps/mcp's /api/client): what a
- * member of a client company reads at /client/docs. Tacit-Awareness's staff
+ * member of a client company reads at /client/docs. tacit-internal's staff
  * /docs shows a copy of these pages; this file is the source. Pages here link
  * only to each other (docs.test.ts checks).
  *

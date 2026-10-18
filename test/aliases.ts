@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 
 // Tests import this repo's own package from source (src/index.ts), not dist/,
 // so no build step is needed first. @tacit/db and @tacit/core are NOT aliased:
-// they are the vendored builds from Tacit-Awareness (vendor/, node_modules).
+// they are the vendored builds from tacit-internal (vendor/, node_modules).
 export const packageAliases = [
   {
     find: "@tacit-ats/core",

@@ -4,7 +4,7 @@
 
 Tacit ATS is the client-facing applicant tracking system: the place a client company's own team works its jobs, candidates, pipeline, interviews, offers and candidate email inside Tacit, on the Ashby / Greenhouse model. It reaches members two ways: a web area they sign in to, and an MCP connector they add to Claude.
 
-This repo was split out of [Tacit-Awareness](https://github.com/Tacit-Awareness/Tacit-Awareness) on 2026-10-14. It is one product with that repo, on one database: Tacit-Awareness owns the schema, the access policies and the shared pipeline logic, and this repo consumes them.
+This repo was split out of Tacit-Awareness/Tacit-Awareness, now [tacit-internal](https://github.com/Tacit-Awareness/tacit-internal), on 2026-10-14. It is one product with that repo, on one database: tacit-internal owns the schema, the access policies and the shared pipeline logic, and this repo consumes them.
 
 Status: the web area, the public job posts and the connector's 93 tools are built and tested (unit tests in CI, integration tests against a local Supabase stack). Production is set up: the web area serves `ats.tacitawareness.com`, the connector `ats-mcp.tacitawareness.com/api/client`, and on 2026-10-15 a test client org's admin signed in through both and stored and fetched a file. No real client company is on it yet. Open items are listed at the end.
 
@@ -33,7 +33,7 @@ flowchart TD
     mcp["<b>apps/mcp</b><br/>/api/client, 93 tools"]
     core["<b>@tacit-ats/core</b><br/>client-auth, clientTools"]
 
-    subgraph ta["Owned by Tacit-Awareness"]
+    subgraph ta["Owned by tacit-internal"]
         vendor["<b>vendor/</b> @tacit/core, @tacit/db<br/>pipeline, types, pinned in vendor/SOURCE"]
         db[("<b>Supabase tacit</b><br/>RLS on the member's token")]
     end
@@ -48,12 +48,12 @@ flowchart TD
     mcp -. "service role: bind, audit, files" .-> db
 ```
 
-## Relationship with Tacit-Awareness
+## Relationship with tacit-internal
 
-- **Schema.** Migrations, RLS policies, the definer functions this repo calls (`invite_org_member`, `client_claim_write`, `my_interviews`, `submit_job_application`, ...) and the generated types live in Tacit-Awareness's `packages/db`. A feature here that needs a schema change lands its migration there first (that repo's CI pushes it to production on merge), then `pnpm sync:tacit` here.
+- **Schema.** Migrations, RLS policies, the definer functions this repo calls (`invite_org_member`, `client_claim_write`, `my_interviews`, `submit_job_application`, ...) and the generated types live in tacit-internal's `packages/db`. A feature here that needs a schema change lands its migration there first (that repo's CI pushes it to production on merge), then `pnpm sync:tacit` here.
 - **Shared logic.** The pipeline, the staff connector's email helpers, `wrapUntrusted` and `renderTemplate` come from `@tacit/core`. Code is never copied across: a missing export is added there and synced.
-- **Onboarding.** A client org and its first admin are always created from Tacit's ATS Admin (`/admin/orgs` in Tacit-Awareness's `apps/internal`, staff admins only). Nothing here creates an org; a first sign-in here only binds the actor that page (or a client admin) invited.
-- **Docs.** `apps/web/src/lib/docs/client-pages.ts` is the source of the connector's docs; Tacit-Awareness's staff `/docs` shows a copy.
+- **Onboarding.** A client org and its first admin are always created from Tacit's ATS Admin (`/admin/orgs` in tacit-internal's `apps/internal`, staff admins only). Nothing here creates an org; a first sign-in here only binds the actor that page (or a client admin) invited.
+- **Docs.** `apps/web/src/lib/docs/client-pages.ts` is the source of the connector's docs; tacit-internal's staff `/docs` shows a copy.
 
 ## Identity and sign-in
 
@@ -146,7 +146,7 @@ The member's own client reads or inserts the `person_files` row first; only then
 
 ## Deploy and configuration
 
-Two Vercel projects, `apps/web` and `apps/mcp`, each with its own `vercel.json`. A merge to `main` deploys; CI (`.github/workflows`) runs build, typecheck and unit tests on pull requests. Integration tests need Tacit-Awareness's migrations on a local stack and run locally (`pnpm test:integration`).
+Two Vercel projects, `apps/web` and `apps/mcp`, each with its own `vercel.json`. A merge to `main` deploys; CI (`.github/workflows`) runs build, typecheck and unit tests on pull requests. Integration tests need tacit-internal's migrations on a local stack and run locally (`pnpm test:integration`).
 
 Configuration is in `.env.example`. Each app stays dormant until its required variables are set: `/client` answers 404, `/api/client` answers 503. Optional variables turn features off cleanly: no `RESEND_API_KEY` means drafts only, `CLIENT_FILES_DISABLED` means no file links or uploads.
 

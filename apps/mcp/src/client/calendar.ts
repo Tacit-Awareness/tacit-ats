@@ -2,7 +2,7 @@ import { getSupabaseServiceClient } from "@tacit/db";
 import type { clientTools } from "@tacit-ats/core";
 
 /**
- * Members' connected calendars (calendar_connections, Tacit-Awareness
+ * Members' connected calendars (calendar_connections, tacit-internal
  * migration 20261017120000): the refresh token is granted to no member
  * token, so reading it needs the service role. The fourth module under
  * src/client allowed a privileged client (src/client-connector.test.ts), and
