@@ -47,7 +47,7 @@ async function workosError(res: Response): Promise<Error> {
 /**
  * Invitations into the member's own WorkOS organization, the same ones the
  * /client portal sends (apps/web's lib/client/workos.ts, over the SDK).
- * Creating an organization is Tacit staff's (Tacit-Awareness's ATS Admin, /admin/orgs) and
+ * Creating an organization is Tacit staff's (tacit-internal's ATS Admin, /admin/orgs) and
  * refused here.
  */
 export function clientInvitations(apiKey: string, doFetch: typeof fetch = fetch): IdentityProvider & InvitationRevoker {
