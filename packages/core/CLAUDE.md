@@ -8,7 +8,7 @@ It never reimplements what tacit-internal owns. The pipeline (`addCandidateToRol
 
 ## The DI contract
 
-Same as tacit-internal's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`, Google Calendar as a `ClientCalendar`) as parameters. Apps read env at their edge.
+Same as tacit-internal's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`, Google Calendar as a `ClientCalendar`, Granola as a `ClientGranola`) as parameters. Apps read env at their edge.
 
 ## Module map
 
@@ -458,6 +458,21 @@ src/
                         a move or a cancellation, never an invite; a draft
                         that cannot be written is reported, not thrown.
                         Without a ClientCalendar both behave as before
+                        granola.ts (2026-10-19, 20261019150000):
+                        getInterviewNotes, the caller's own Granola note
+                        from an interview they were an interviewer on.
+                        ClientGranola {key(orgId, actorId): the caller's
+                        key, read by apps/mcp with the service role,
+                        connectUrl, fetch?}. The interview is read on the
+                        member's token (RLS first), then Granola's notes
+                        created within 3 h of it are listed and up to 8
+                        opened, matched by the booked event id, the
+                        candidate's email (when readable), or the start
+                        time; or a note_id given. Returns summary, the
+                        member's private notes and, asked for, the
+                        transcript, clipped; the server fences them. Its
+                        own small Granola fetch, since @tacit/core's staff
+                        client has no calendar event or private notes
   test-helpers/         fake Supabase client for unit tests (excluded from the
                         build; a copy of tacit-internal's) and fake-google.ts
                         (Google's token endpoint and Calendar API as fetch)

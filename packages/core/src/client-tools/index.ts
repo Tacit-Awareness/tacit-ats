@@ -25,6 +25,8 @@ export {
   DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS, findInterviewTimes, unknownText,
 } from "./calendar.js";
 export type { CalendarConnection, ClientCalendar, FoundTimes, Person, Slot, UnknownReason } from "./calendar.js";
+export { GRANOLA_TEXT_MAX, GRANOLA_TRANSCRIPT_MAX, getInterviewNotes } from "./granola.js";
+export type { ClientGranola, GranolaMatch, GranolaNearby, InterviewNotes } from "./granola.js";
 export {
   OFFER_STATUSES, REJECTION_KINDS,
   createOffer, getOffers, listRejectionReasons, updateOffer,

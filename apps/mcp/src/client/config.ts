@@ -84,6 +84,12 @@ export function clientMailer(env: Record<string, string | undefined> = process.e
   return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress };
 }
 
+/** Where a member connects Granola (apps/web /client/integrations), from CLIENT_JOBS_ORIGIN, apps/web's origin. */
+export function granolaConnectUrl(env: Record<string, string | undefined> = process.env): string | null {
+  const origin = env.CLIENT_JOBS_ORIGIN?.trim();
+  return origin ? `${trimSlash(origin)}/client/integrations` : null;
+}
+
 /**
  * The Google OAuth client members connect their calendars to (apps/web's
  * /client/calendar, the same CLIENT_GOOGLE_CLIENT_ID / _SECRET there): the

@@ -15,8 +15,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             <span className="tacit-mark aspect-[900/620] w-10" />
           </Link>
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/client/calendar" className="rounded-full px-2 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground">
-              Calendar
+            <Link href="/client/integrations" className="rounded-full px-2 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground">
+              Integrations
             </Link>
             <Link href="/client/docs" className="rounded-full px-2 py-1 text-[14px] text-muted-foreground transition-colors hover:text-foreground">
               Documentation
