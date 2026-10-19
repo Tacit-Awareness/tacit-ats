@@ -4,43 +4,52 @@ import { ClientToolError, type ClientToolCtx } from "./context.js";
 
 /**
  * An interviewer's own Granola notes on an interview, for the client
- * connector. A member connects Granola on apps/web's /client/integrations by
- * pasting a Granola API key (granola_connections, 20261019150000); no member
- * token can read the key back, so it arrives through `ClientGranola.key`,
- * which apps/mcp implements with the service role (src/client/granola.ts)
- * and core asks only for the caller.
+ * connector. A member connects Granola on apps/web's /client/integrations
+ * with one button: they sign in to Granola, and the OAuth grant for
+ * Granola's MCP server (mcp.granola.ai) is stored in granola_connections
+ * (20261019200000). No member token can read it, so the access token arrives
+ * through `ClientGranola.accessToken`, which apps/mcp implements with the
+ * service role (src/client/granola.ts), refreshing it when it has expired,
+ * and which core asks only for the caller.
  *
  * Only the caller's own notes, and only on an interview the caller's own
  * token reads them on as an interviewer: the interview row is read on the
  * member's client first, so RLS decides before Granola is asked. What comes
- * back from Granola (titles, summaries, the member's private notes, the
- * transcript) is interview content: private to the hiring team, fenced by
- * the server, and never in an audit row.
+ * back from Granola (titles, notes, summaries, the transcript) is interview
+ * content: private to the hiring team, fenced by the server, and never in an
+ * audit row.
  *
- * Finding the note: Granola lists notes by creation time, with no attendee
- * or event filter, so the notes created around the interview are listed and
- * each one's detail is checked, in this order of confidence:
- *   event   its calendar event is the one Tacit booked (interviews.google_event_id)
- *   email   the candidate's email is among its attendees or invitees (when
- *           the caller may read the candidate's email: not an interviewer)
- *   time    its calendar event was scheduled within 10 minutes of the
- *           interview's start, or, with no event, it was created during it
- * No match lists the nearby notes, so the caller can pick one by note_id.
+ * Granola's MCP tools answer in text meant for a model (XML-ish tags, not a
+ * fixed schema; checked against a real account on 2026-10-19), so the
+ * matching here reads that text rather than fields. Only meetings whose note
+ * the caller captured are listed (involvement.captured_by_me):
+ *   event   the event id Tacit booked (interviews.google_event_id) appears
+ *           in a meeting Granola lists around the interview
+ *   email   the candidate's email appears in one of them (when the caller
+ *           may read the candidate's email: not an interviewer)
+ *   time    exactly one meeting is listed during the interview itself
+ * No match lists the meetings nearby, so the caller can pick one by note_id.
  */
 
-const API = "https://public-api.granola.ai";
-/** Notes are created around when a meeting starts: look this far either side of the interview. */
+export const GRANOLA_MCP_URL = "https://mcp.granola.ai/mcp";
+/** Nearby meetings: this far either side of the interview. */
 const LOOK_AROUND_MS = 3 * 60 * 60 * 1000;
-const SAME_START_MS = 10 * 60 * 1000;
-/** How many nearby notes to open looking for the match. */
-const CANDIDATES_MAX = 8;
-export const GRANOLA_TEXT_MAX = 20_000;
+/** "During the interview": from this long before it starts to this long after it ends. */
+const SAME_TIME_MS = 10 * 60 * 1000;
+const NEARBY_MAX = 10;
+const EXCERPT_MAX = 400;
+export const GRANOLA_TEXT_MAX = 40_000;
 export const GRANOLA_TRANSCRIPT_MAX = 60_000;
-const NOTE_ID = /^not_[a-zA-Z0-9]{14}$/;
+/** Granola's meeting ids are uuids; anything id-shaped is let through to Granola, which decides. */
+const NOTE_ID = /^[A-Za-z0-9_-]{6,64}$/;
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+/** The caller's Granola access: a token, null when not connected, or `reconnect` when Granola no longer accepts the grant. */
+export type GranolaAccess = { token: string } | { reconnect: true } | null;
 
 export type ClientGranola = {
-  /** The member's Granola API key; null = not connected. Asked only for the caller. */
-  key: (orgId: string, actorId: string) => Promise<string | null>;
+  /** The member's current Granola access token, refreshed if it had expired. Asked only for the caller. */
+  accessToken: (orgId: string, actorId: string) => Promise<GranolaAccess>;
   /** Where a member connects Granola (apps/web /client/integrations), for the sentences. Null = not said. */
   connectUrl: string | null;
   fetch?: typeof fetch;
@@ -48,7 +57,7 @@ export type ClientGranola = {
 
 export type GranolaMatch = "event" | "email" | "time" | "chosen";
 
-export type GranolaNearby = { noteId: string; title: string | null; createdAt: string };
+export type GranolaNearby = { noteId: string; excerpt: string };
 
 export type InterviewNotes =
   | {
@@ -57,39 +66,13 @@ export type InterviewNotes =
       candidateId: string;
       matchedBy: GranolaMatch;
       noteId: string;
-      title: string | null;
-      webUrl: string | null;
-      createdAt: string;
-      summary: string | null;
-      /** The member's own notes typed into Granola (Granola returns them only to the note's owner). */
-      myNotes: string | null;
+      /** Granola's own text for the meeting: its title, attendees, the member's private notes and the AI summary. */
+      notes: string | null;
       transcript: string | null;
-      transcriptStatus: "included" | "not_requested" | "too_large" | "none";
+      transcriptStatus: "included" | "not_requested" | "unavailable";
       truncated: boolean;
     }
   | { found: false; interviewId: string; candidateId: string; nearby: GranolaNearby[] };
-
-type RawUser = { name?: string | null; email?: string | null };
-type RawNote = {
-  id: string;
-  title?: string | null;
-  created_at: string;
-  web_url?: string | null;
-  calendar_event?: {
-    calendar_event_id?: string | null;
-    scheduled_start_time?: string | null;
-    invitees?: Array<{ email?: string | null }> | null;
-  } | null;
-  attendees?: RawUser[] | null;
-  summary_text?: string | null;
-  summary_markdown?: string | null;
-  private_notes_markdown?: string | null;
-  private_notes_text?: string | null;
-  transcript?: Array<{
-    speaker?: { attribution?: string | null; name?: string | null; diarization_label?: string | null } | null;
-    text?: string | null;
-  }> | null;
-};
 
 class GranolaHttpError extends Error {
   constructor(readonly status: number) {
@@ -97,12 +80,79 @@ class GranolaHttpError extends Error {
   }
 }
 
-async function granola<T>(deps: ClientGranola, key: string, path: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(path, API);
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  const res = await (deps.fetch ?? fetch)(url, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) throw new GranolaHttpError(res.status);
-  return (await res.json()) as T;
+/** A tool Granola answered with isError: its own sentence, kept out of logs. */
+class GranolaToolError extends Error {}
+
+type JsonRpcResponse = { id?: number; result?: unknown; error?: { message?: string } };
+
+/** The JSON-RPC answer with this id, from a JSON body or a Streamable HTTP event stream. */
+async function rpcAnswer(res: Response, id: number): Promise<JsonRpcResponse> {
+  const body = await res.text();
+  const messages: JsonRpcResponse[] = [];
+  if ((res.headers.get("content-type") ?? "").includes("text/event-stream")) {
+    for (const event of body.split(/\r?\n\r?\n/)) {
+      const data = event.split(/\r?\n/).filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trimStart()).join("\n");
+      if (data) messages.push(JSON.parse(data) as JsonRpcResponse);
+    }
+  } else if (body.trim()) {
+    const parsed = JSON.parse(body) as JsonRpcResponse | JsonRpcResponse[];
+    messages.push(...(Array.isArray(parsed) ? parsed : [parsed]));
+  }
+  const answer = messages.find((m) => m.id === id);
+  if (!answer) throw new GranolaHttpError(502);
+  return answer;
+}
+
+/**
+ * A minimal MCP client for Granola's server: initialize once, then call tools.
+ * Each call returns the text of the tool's content.
+ */
+export function granolaMcp(token: string, fetchImpl: typeof fetch = fetch) {
+  let session: string | null = null;
+  let nextId = 1;
+  let ready: Promise<void> | null = null;
+
+  async function post(message: object): Promise<Response> {
+    const headers: Record<string, string> = {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": "2025-06-18",
+    };
+    if (session) headers["mcp-session-id"] = session;
+    const res = await fetchImpl(GRANOLA_MCP_URL, { method: "POST", headers, body: JSON.stringify(message), signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) throw new GranolaHttpError(res.status);
+    session = res.headers.get("mcp-session-id") ?? session;
+    return res;
+  }
+
+  async function request(method: string, params: object): Promise<unknown> {
+    const id = nextId++;
+    const answer = await rpcAnswer(await post({ jsonrpc: "2.0", id, method, params }), id);
+    if (answer.error) throw new GranolaHttpError(502);
+    return answer.result;
+  }
+
+  function init(): Promise<void> {
+    ready ??= (async () => {
+      await request("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "Tacit", version: "1" } });
+      await post({ jsonrpc: "2.0", method: "notifications/initialized" });
+    })();
+    return ready;
+  }
+
+  return {
+    async call(name: string, args: Record<string, unknown>): Promise<string> {
+      await init();
+      const result = (await request("tools/call", { name, arguments: args })) as {
+        content?: Array<{ type?: string; text?: string }>;
+        isError?: boolean;
+      } | null;
+      const text = (result?.content ?? []).filter((c) => c.type === "text" && c.text).map((c) => c.text).join("\n\n").trim();
+      if (result?.isError) throw new GranolaToolError(text || "Granola refused the request.");
+      return text;
+    },
+  };
 }
 
 function connectHint(deps: ClientGranola | null): string {
@@ -115,30 +165,33 @@ const clip = (text: string | null | undefined, max: number): { text: string | nu
   return { text: `${t.slice(0, max)}\n[…cut at ${max} characters]`, cut: true };
 };
 
-function transcriptText(raw: NonNullable<RawNote["transcript"]>): string {
-  return raw
-    .map((s) => {
-      const who = s.speaker?.name || (s.speaker?.attribution === "me" ? "Me" : s.speaker?.attribution === "them" ? "Them" : s.speaker?.diarization_label || "Unknown");
-      return `${who}: ${(s.text ?? "").trim()}`;
-    })
-    .filter((line) => !line.endsWith(": "))
-    .join("\n");
+/** Granola's list as one chunk of text per meeting, each starting at the meeting's id. */
+export function meetingsIn(raw: string): Array<{ id: string; text: string }> {
+  // A meeting's folders carry folder uuids; they are not meetings.
+  const listText = raw.replace(/<folders\b[\s\S]*?<\/folders>/gi, "");
+  const hits = [...listText.matchAll(UUID)];
+  const seen = new Set<string>();
+  const meetings: Array<{ id: string; text: string }> = [];
+  hits.forEach((hit, i) => {
+    const id = hit[0].toLowerCase();
+    if (seen.has(id)) return;
+    seen.add(id);
+    // From the line the id is on to the line the next meeting's id is on.
+    const start = listText.lastIndexOf("\n", hit.index) + 1;
+    const next = hits.slice(i + 1).find((h) => h[0].toLowerCase() !== id);
+    const end = next ? listText.lastIndexOf("\n", next.index) + 1 || next.index : listText.length;
+    meetings.push({ id, text: listText.slice(start, Math.max(end, start)).trim() });
+  });
+  return meetings;
 }
 
-function matchOf(note: RawNote, interview: { startsAt: number; endsAt: number; eventId: string | null; email: string | null }): GranolaMatch | null {
-  const ev = note.calendar_event;
-  if (interview.eventId && ev?.calendar_event_id && ev.calendar_event_id === interview.eventId) return "event";
-  if (interview.email) {
-    const emails = [...(note.attendees ?? []), ...(ev?.invitees ?? [])].map((p) => p.email?.trim().toLowerCase());
-    if (emails.includes(interview.email)) return "email";
-  }
-  const scheduled = ev?.scheduled_start_time ? Date.parse(ev.scheduled_start_time) : NaN;
-  if (!Number.isNaN(scheduled)) return Math.abs(scheduled - interview.startsAt) <= SAME_START_MS ? "time" : null;
-  const created = Date.parse(note.created_at);
-  return created >= interview.startsAt - SAME_START_MS && created <= interview.endsAt ? "time" : null;
-}
-
-const RANK: Record<GranolaMatch, number> = { chosen: 4, event: 3, email: 2, time: 1 };
+// Only meetings whose note the caller captured: without the filter Granola
+// also lists colleagues' Team Space notes.
+const listMeetings = (mcp: ReturnType<typeof granolaMcp>, from: number, to: number) =>
+  mcp.call("list_meetings", {
+    time_range: "custom", custom_start: new Date(from).toISOString(), custom_end: new Date(to).toISOString(),
+    involvement: { captured_by_me: true },
+  });
 
 export async function getInterviewNotes(
   db: Db,
@@ -148,7 +201,7 @@ export async function getInterviewNotes(
 ): Promise<InterviewNotes> {
   if (!deps) throw new ClientToolError("forbidden", "Granola is not set up on this Tacit deployment.");
   if (input.noteId !== undefined && !NOTE_ID.test(input.noteId)) {
-    throw new ClientToolError("invalid", "note_id is a Granola note id like not_1a2b3c4d5e6f7g, from an earlier result.");
+    throw new ClientToolError("invalid", "note_id is a Granola meeting id from an earlier result.");
   }
 
   // The interview, on the member's own token: RLS decides whether it is there at all.
@@ -183,73 +236,70 @@ export async function getInterviewNotes(
   const { data: person, error: personError } = await db.from("people").select("email").eq("id", candidateId).maybeSingle();
   if (personError) throw new Error(personError.message);
 
-  const key = await deps.key(ctx.orgId, ctx.actorId);
-  if (!key) throw new ClientToolError("forbidden", `Your Granola is not connected. ${connectHint(deps)}`);
+  const access = await deps.accessToken(ctx.orgId, ctx.actorId);
+  if (!access) throw new ClientToolError("forbidden", `Your Granola is not connected. ${connectHint(deps)}`);
+  if ("reconnect" in access) throw new ClientToolError("forbidden", `Granola no longer accepts Tacit's access. ${connectHint(deps)}`);
+  const mcp = granolaMcp(access.token, deps.fetch);
 
   try {
     let matchedId: string | null = input.noteId ?? null;
     let matchedBy: GranolaMatch = "chosen";
-    let nearby: GranolaNearby[] = [];
 
     if (!matchedId) {
-      const listed = await granola<{ notes: RawNote[] }>(deps, key, "/v1/notes", {
-        created_after: new Date(startsAt - LOOK_AROUND_MS).toISOString(),
-        created_before: new Date(endsAt + LOOK_AROUND_MS).toISOString(),
-        page_size: "30",
-      });
-      const notes = (listed.notes ?? []).sort(
-        (a, b) => Math.abs(Date.parse(a.created_at) - startsAt) - Math.abs(Date.parse(b.created_at) - startsAt),
-      );
-      nearby = notes.map((n) => ({ noteId: n.id, title: n.title ?? null, createdAt: n.created_at }));
-      const facts = {
-        startsAt, endsAt, email: person?.email?.trim().toLowerCase() || null,
-        // Tacit books the Google event under the interview's id without dashes (calendar.ts).
-        eventId: interview.google_event_id,
-      };
-      let best: { id: string; by: GranolaMatch } | null = null;
-      for (const n of notes.slice(0, CANDIDATES_MAX)) {
-        const detail = await granola<RawNote>(deps, key, `/v1/notes/${n.id}`);
-        const by = matchOf(detail, facts);
-        if (by && (!best || RANK[by] > RANK[best.by])) best = { id: n.id, by };
-        if (best?.by === "event") break;
+      const nearby = meetingsIn(await listMeetings(mcp, startsAt - LOOK_AROUND_MS, endsAt + LOOK_AROUND_MS));
+      const email = person?.email?.trim().toLowerCase() || null;
+      const eventId = interview.google_event_id?.toLowerCase() || null;
+      const byEvent = eventId ? nearby.filter((m) => m.text.toLowerCase().includes(eventId)) : [];
+      const byEmail = email ? nearby.filter((m) => m.text.toLowerCase().includes(email)) : [];
+      if (byEvent.length === 1) [matchedId, matchedBy] = [byEvent[0]!.id, "event"];
+      else if (byEmail.length === 1) [matchedId, matchedBy] = [byEmail[0]!.id, "email"];
+      else {
+        const during = nearby.length ? meetingsIn(await listMeetings(mcp, startsAt - SAME_TIME_MS, endsAt + SAME_TIME_MS)) : [];
+        if (during.length === 1) [matchedId, matchedBy] = [during[0]!.id, "time"];
       }
-      if (!best) return { found: false, interviewId: interview.id, candidateId, nearby };
-      matchedId = best.id;
-      matchedBy = best.by;
+      if (!matchedId) {
+        return {
+          found: false, interviewId: interview.id, candidateId,
+          nearby: nearby.slice(0, NEARBY_MAX).map((m) => ({ noteId: m.id, excerpt: clip(m.text, EXCERPT_MAX).text ?? "" })),
+        };
+      }
     }
 
-    let note: RawNote;
-    let transcriptStatus: "included" | "not_requested" | "too_large" | "none" = "not_requested";
-    try {
-      note = await granola<RawNote>(deps, key, `/v1/notes/${matchedId}`, input.includeTranscript ? { include: "transcript" } : {});
-      if (input.includeTranscript) transcriptStatus = note.transcript?.length ? "included" : "none";
-    } catch (err) {
-      if (!(input.includeTranscript && err instanceof GranolaHttpError && err.status === 413)) throw err;
-      note = await granola<RawNote>(deps, key, `/v1/notes/${matchedId}`);
-      transcriptStatus = "too_large";
+    const notes = clip(await mcp.call("get_meetings", { meeting_ids: [matchedId] }), GRANOLA_TEXT_MAX);
+    let transcriptStatus: "included" | "not_requested" | "unavailable" = "not_requested";
+    let transcript: { text: string | null; cut: boolean } = { text: null, cut: false };
+    if (input.includeTranscript) {
+      try {
+        transcript = clip(await mcp.call("get_meeting_transcript", { meeting_id: matchedId, max_chars: GRANOLA_TRANSCRIPT_MAX }), GRANOLA_TRANSCRIPT_MAX);
+        transcriptStatus = transcript.text ? "included" : "unavailable";
+      } catch (err) {
+        // Transcripts need a paid Granola plan; the notes still come back.
+        if (!(err instanceof GranolaToolError)) throw err;
+        transcriptStatus = "unavailable";
+      }
     }
-
-    const summary = clip(note.summary_markdown ?? note.summary_text, GRANOLA_TEXT_MAX);
-    const myNotes = clip(note.private_notes_markdown ?? note.private_notes_text, GRANOLA_TEXT_MAX);
-    const transcript = clip(transcriptStatus === "included" && note.transcript ? transcriptText(note.transcript) : null, GRANOLA_TRANSCRIPT_MAX);
     return {
-      found: true, interviewId: interview.id, candidateId, matchedBy, noteId: note.id, title: note.title ?? null,
-      webUrl: note.web_url ?? null, createdAt: note.created_at,
-      summary: summary.text, myNotes: myNotes.text, transcript: transcript.text, transcriptStatus,
-      truncated: summary.cut || myNotes.cut || transcript.cut,
+      found: true, interviewId: interview.id, candidateId, matchedBy, noteId: matchedId,
+      notes: notes.text, transcript: transcript.text, transcriptStatus, truncated: notes.cut || transcript.cut,
     };
   } catch (err) {
+    if (err instanceof GranolaToolError) {
+      if (matchedNotFound(err.message)) throw new ClientToolError("not_found", "Granola has no meeting with that id that you can read.");
+      throw new ClientToolError("invalid", "Granola couldn't answer that. Try again in a minute.");
+    }
     if (err instanceof GranolaHttpError) {
       if (err.status === 401 || err.status === 403) {
-        throw new ClientToolError("forbidden", `Granola no longer accepts your API key. ${connectHint(deps)}`);
+        throw new ClientToolError("forbidden", `Granola no longer accepts Tacit's access. ${connectHint(deps)}`);
       }
-      if (err.status === 404) throw new ClientToolError("not_found", "Granola has no note with that id that your key can read.");
       if (err.status === 429) throw new ClientToolError("rate_limited", "Granola is rate limiting requests. Try again in a minute.");
       throw new ClientToolError("invalid", "Granola didn't answer. Try again in a minute.");
     }
+    if (err instanceof SyntaxError) throw new ClientToolError("invalid", "Granola's answer couldn't be read. Try again in a minute.");
     if (err instanceof Error && (err.name === "TimeoutError" || err.name === "TypeError")) {
       throw new ClientToolError("invalid", "Couldn't reach Granola. Try again in a minute.");
     }
     throw err;
   }
 }
+
+const matchedNotFound = (message: string) => /not found|no meeting|does not exist|doesn't exist/i.test(message);

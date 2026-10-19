@@ -458,21 +458,24 @@ src/
                         a move or a cancellation, never an invite; a draft
                         that cannot be written is reported, not thrown.
                         Without a ClientCalendar both behave as before
-                        granola.ts (2026-10-19, 20261019150000):
-                        getInterviewNotes, the caller's own Granola note
+                        granola.ts (2026-10-19, 20261019200000):
+                        getInterviewNotes, the caller's own Granola notes
                         from an interview they were an interviewer on.
-                        ClientGranola {key(orgId, actorId): the caller's
-                        key, read by apps/mcp with the service role,
-                        connectUrl, fetch?}. The interview is read on the
-                        member's token (RLS first), then Granola's notes
-                        created within 3 h of it are listed and up to 8
-                        opened, matched by the booked event id, the
-                        candidate's email (when readable), or the start
-                        time; or a note_id given. Returns summary, the
-                        member's private notes and, asked for, the
-                        transcript, clipped; the server fences them. Its
-                        own small Granola fetch, since @tacit/core's staff
-                        client has no calendar event or private notes
+                        ClientGranola {accessToken(orgId, actorId): the
+                        caller's token, read and refreshed by apps/mcp with
+                        the service role (null = not connected, reconnect =
+                        Granola dropped the grant), connectUrl, fetch?}.
+                        The interview is read on the member's token (RLS
+                        first), then Granola's MCP server is asked
+                        (granolaMcp: initialize, tools/call, JSON or event
+                        stream): list_meetings within 3 h of it, matched in
+                        Granola's text by the booked event id, the
+                        candidate's email (when readable), or being the one
+                        meeting during the interview; or a note_id given.
+                        Returns get_meetings' text and, asked for,
+                        get_meeting_transcript's, clipped; the server
+                        fences them. The tools answer text, not a schema,
+                        so meetingsIn splits a list by meeting id (uuids)
   test-helpers/         fake Supabase client for unit tests (excluded from the
                         build; a copy of tacit-internal's) and fake-google.ts
                         (Google's token endpoint and Calendar API as fetch)

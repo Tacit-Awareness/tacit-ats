@@ -1,17 +1,17 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { SubmitButton } from "@/components/submit-button";
-import { Input } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button";
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
-import { connectGranolaAction, disconnectGranolaAction } from "./actions";
+import { disconnectGranolaAction } from "./actions";
 import { INTEGRATION_ERRORS, INTEGRATION_NOTICES, isIntegrationError, isIntegrationNotice } from "./messages";
 
-const since = (at: string) => new Date(at).toLocaleDateString("en-US", { dateStyle: "medium" });
-
-// The tools a member connects to Tacit, each their own. Both rows are read
-// with the member's own token: the policies show each member only their row,
-// and never the secret in it (a refresh token, an API key).
+// The tools a member connects to Tacit, each their own: one row per tool, a
+// Connect button that does the whole thing. Both rows are read with the
+// member's own token: the policies show each member only their row, and never
+// the secret in it (a refresh token, an access token).
 export default async function ClientIntegrations({
   searchParams,
 }: {
@@ -22,8 +22,8 @@ export default async function ClientIntegrations({
 
   const { notice, error } = await searchParams;
   const [calendar, granola] = await Promise.all([
-    gate.ctx.db.from("calendar_connections").select("account_email, connected_at").maybeSingle(),
-    gate.ctx.db.from("granola_connections").select("account_email, connected_at").maybeSingle(),
+    gate.ctx.db.from("calendar_connections").select("account_email").maybeSingle(),
+    gate.ctx.db.from("granola_connections").select("account_email").maybeSingle(),
   ]);
   if (calendar.error) throw new Error(calendar.error.message);
   if (granola.error) throw new Error(granola.error.message);
@@ -44,79 +44,89 @@ export default async function ClientIntegrations({
       {isIntegrationNotice(notice) ? <p className="notice">{INTEGRATION_NOTICES[notice]}</p> : null}
       {isIntegrationError(error) ? <p className="notice notice-error">{INTEGRATION_ERRORS[error]}</p> : null}
 
-      <section className="glass space-y-4 px-5 py-5">
-        <div>
-          <h2 className="text-[21px] leading-[1.3]">Granola</h2>
-          <p className="mt-1.5 text-[15px] text-muted-foreground">
-            For interviewers who take notes in Granola. Connect it and Claude can read your own note from an interview you
-            were on (Granola&apos;s summary, what you typed, and the transcript if you ask) to help you write your feedback.
-            Only your notes are read, never a colleague&apos;s, and they are never shown to candidates.
-          </p>
-        </div>
-        {granola.data ? (
-          <>
-            <p className="text-[15px]">
-              Connected
-              {granola.data.account_email ? (
-                <>
-                  {" "}as <span className="font-medium">{granola.data.account_email}</span>
-                </>
-              ) : null}
-              <span className="text-muted-foreground"> since {since(granola.data.connected_at)}.</span>
-            </p>
+      <ul className="border-y border-dotted border-border">
+        <IntegrationRow
+          icon={<GranolaIcon />}
+          name="Granola"
+          description="Read your meeting notes, transcripts, and AI summaries"
+          connectedAs={granola.data ? (granola.data.account_email ?? "") : null}
+        >
+          {granola.data ? (
             <form action={disconnectGranolaAction}>
               <SubmitButton variant="outline" pendingLabel="Disconnecting…">
                 Disconnect
               </SubmitButton>
             </form>
-          </>
-        ) : (
-          <form action={connectGranolaAction} className="space-y-4">
-            <ol className="list-decimal space-y-1 pl-5 text-[14px] text-muted-foreground">
-              <li>Open the Granola app and go to Settings → Connectors → API keys.</li>
-              <li>Create a key and copy it.</li>
-              <li>Paste it below.</li>
-            </ol>
-            <label className="block max-w-md space-y-1.5 text-[13px] font-medium text-text">
-              Granola API key
-              <Input
-                name="apiKey"
-                type="password"
-                required
-                minLength={8}
-                maxLength={512}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="grn_…"
-              />
-            </label>
-            <SubmitButton pendingLabel="Checking…">Connect Granola</SubmitButton>
-            <p className="text-[13px] text-muted-foreground">
-              API keys need a Granola Business or Enterprise plan. Tacit checks the key with Granola before saving it.
-            </p>
-          </form>
-        )}
-      </section>
-
-      <section className="glass space-y-4 px-5 py-5">
-        <div>
-          <h2 className="text-[21px] leading-[1.3]">Google Calendar</h2>
-          <p className="mt-1.5 text-[15px] text-muted-foreground">
-            So Claude can find times your interviewers are free and send interview invitations from your calendar.
-          </p>
-        </div>
-        {calendar.data ? (
-          <p className="text-[15px]">
-            Connected as <span className="font-medium">{calendar.data.account_email}</span>
-            <span className="text-muted-foreground"> since {since(calendar.data.connected_at)}.</span>
-          </p>
-        ) : (
-          <p className="text-[15px] text-muted-foreground">{calendarConfigured ? "Not connected." : "Not set up on this Tacit deployment yet."}</p>
-        )}
-        <Link href="/client/calendar" className="inline-link text-[14px]">
-          {calendar.data ? "Manage" : "Set up"} Google Calendar →
-        </Link>
-      </section>
+          ) : (
+            <a href="/client/integrations/granola/connect" className={buttonVariants()}>
+              Connect
+            </a>
+          )}
+        </IntegrationRow>
+        <IntegrationRow
+          icon={<CalendarIcon />}
+          name="Google Calendar"
+          description="Find when interviewers are free and send interview invitations"
+          connectedAs={calendar.data ? calendar.data.account_email : null}
+        >
+          {calendar.data ? (
+            <Link href="/client/calendar" className={buttonVariants({ variant: "outline" })}>
+              Manage
+            </Link>
+          ) : calendarConfigured ? (
+            <a href="/client/calendar/connect" className={buttonVariants()}>
+              Connect
+            </a>
+          ) : (
+            <span className="text-[14px] text-muted-foreground">Not set up yet</span>
+          )}
+        </IntegrationRow>
+      </ul>
     </main>
+  );
+}
+
+function IntegrationRow({
+  icon,
+  name,
+  description,
+  connectedAs,
+  children,
+}: {
+  icon: ReactNode;
+  name: string;
+  description: string;
+  /** Null = not connected; "" = connected, account unknown. */
+  connectedAs: string | null;
+  children: ReactNode;
+}) {
+  return (
+    <li className="flex items-center gap-5 border-b border-dotted border-border px-2 py-6 last:border-b-0 sm:px-4">
+      <span className="flex size-10 shrink-0 items-center justify-center text-foreground">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[16px] font-medium leading-snug">{name}</p>
+        <p className="mt-0.5 text-[15px] text-muted-foreground">
+          {connectedAs === null ? description : connectedAs ? `Connected as ${connectedAs}` : "Connected"}
+        </p>
+      </div>
+      <div className="shrink-0">{children}</div>
+    </li>
+  );
+}
+
+function GranolaIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" aria-hidden>
+      <path d="M12.5 12.4a1.6 1.6 0 1 1-1.9-1.9 3.4 3.4 0 0 1 4.6 3.6 5.2 5.2 0 0 1-6.4 4.2A7 7 0 0 1 5 12a7.2 7.2 0 0 1 8.4-6.9 8.6 8.6 0 0 1 6.2 4.2" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" aria-hidden>
+      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 10h17M8 3v4M16 3v4" strokeLinecap="round" />
+    </svg>
   );
 }
