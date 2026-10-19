@@ -2,7 +2,7 @@
 // consent and code exchange. Pure apart from the fetch it is given, so the
 // unit tests can drive it. The refresh token goes straight into the database
 // through client_connect_calendar on the member's own token
-// (calendar_connections, Tacit-Awareness migration 20261017120000), which no
+// (calendar_connections, tacit-internal migration 20261017120000), which no
 // member token can read back; the client connector (apps/mcp) books with it.
 
 type Env = Record<string, string | undefined>;

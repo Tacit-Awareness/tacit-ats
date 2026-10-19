@@ -1,14 +1,14 @@
 # @tacit-ats/core
 
-The client ATS's domain logic: first sign-in, a client admin's invitations, and every tool the client connector (apps/mcp `/api/client`) exposes. Moved from Tacit-Awareness's `packages/core` on 2026-10-16 with its history.
+The client ATS's domain logic: first sign-in, a client admin's invitations, and every tool the client connector (apps/mcp `/api/client`) exposes. Moved from tacit-internal's `packages/core` on 2026-10-16 with its history.
 
 ## What it builds on
 
-It never reimplements what Tacit-Awareness owns. The pipeline (`addCandidateToRole`, `moveStage`, `setNextAction`, `logTouch`, `getRolePipeline`, the stage and source lists), the staff connector's email pieces (`connector.makeResendSender`, `connector.fromHeader`, `connector.isPlainEmail`), `renderTemplate`, and the org-onboarding types all come from `@tacit/core`, the vendored build in `vendor/` (root `CLAUDE.md`). `pipeline.ts` there is still the only writer of `applications` and `application_events`, for staff and clients alike. If a tool here needs something `@tacit/core` does not export, add the export there, merge it, and `pnpm sync:tacit`; do not copy the code here.
+It never reimplements what tacit-internal owns. The pipeline (`addCandidateToRole`, `moveStage`, `setNextAction`, `logTouch`, `getRolePipeline`, the stage and source lists), the staff connector's email pieces (`connector.makeResendSender`, `connector.fromHeader`, `connector.isPlainEmail`), `renderTemplate`, and the org-onboarding types all come from `@tacit/core`, the vendored build in `vendor/` (root `CLAUDE.md`). `pipeline.ts` there is still the only writer of `applications` and `application_events`, for staff and clients alike. If a tool here needs something `@tacit/core` does not export, add the export there, merge it, and `pnpm sync:tacit`; do not copy the code here.
 
 ## The DI contract
 
-Same as Tacit-Awareness's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`, Google Calendar as a `ClientCalendar`, Granola as a `ClientGranola`) as parameters. Apps read env at their edge.
+Same as tacit-internal's core: nothing here reads `process.env` or constructs a client at module load. Every function takes the database client (almost always the MEMBER'S OWN, a member token) and its other dependencies (WorkOS as `InviteDeps`, Storage as a `FileStore`, Resend as a `ClientMailer`, Google Calendar as a `ClientCalendar`, Granola as a `ClientGranola`) as parameters. Apps read env at their edge.
 
 ## Module map
 
@@ -21,7 +21,7 @@ src/
                         (client orgs only); a returning one resolves by subject.
                         Never creates an actor; takes a SERVICE-ROLE client.
                         Staff onboarding (createClientOrg, inviteOrgMember,
-                        listClientOrgs) stayed in Tacit-Awareness's
+                        listClientOrgs) stayed in tacit-internal's
                         client-auth/orgs.ts, behind its /admin/orgs page; the
                         IdentityProvider and AccessLevel types come from
                         there. invite.ts --
@@ -474,11 +474,11 @@ src/
                         own small Granola fetch, since @tacit/core's staff
                         client has no calendar event or private notes
   test-helpers/         fake Supabase client for unit tests (excluded from the
-                        build; a copy of Tacit-Awareness's) and fake-google.ts
+                        build; a copy of tacit-internal's) and fake-google.ts
                         (Google's token endpoint and Calendar API as fetch)
 ```
 
 ## Tests
 
 - Unit tests are colocated (`*.test.ts`), run by `pnpm test` from the root, with `FakeSupabase` -- no network, no Docker.
-- `client-auth/onboarding.integration.test.ts` runs Tacit-Awareness's staff onboarding into this package's first sign-in against the local stack (`pnpm test:integration`, root `CLAUDE.md`).
+- `client-auth/onboarding.integration.test.ts` runs tacit-internal's staff onboarding into this package's first sign-in against the local stack (`pnpm test:integration`, root `CLAUDE.md`).

@@ -5,7 +5,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
  * environment holding the client organizations) is the authorization server:
  * it runs the sign-in, registers clients dynamically and issues the access
  * tokens this file verifies. Nothing here issues or stores a token. Forked
- * from Tacit-Awareness's apps/mcp/src/connector/auth.ts (the staff
+ * from tacit-internal's apps/mcp/src/connector/auth.ts (the staff
  * connector), keeping only what a resource server needs.
  */
 

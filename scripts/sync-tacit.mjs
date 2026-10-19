@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 // Refreshes vendor/tacit-db-<sha>.tgz and vendor/tacit-core-<sha>.tgz from a
-// checkout of the Tacit-Awareness repo, which owns the schema (packages/db) and
+// checkout of the tacit-internal repo, which owns the schema (packages/db) and
 // the shared domain logic (packages/core: the pipeline, the connector's email
 // helpers, staff org onboarding). This repo never edits either; it pins a build
 // of them.
 //
-//   node scripts/sync-tacit.mjs [path to Tacit-Awareness]   (default ../Tacit-Awareness)
+//   node scripts/sync-tacit.mjs [path to tacit-internal]   (default ../tacit-internal,
+//                                                          or ../Tacit-Awareness, its old name,
+//                                                          if only that exists)
 //   pnpm install
 //
 // The checkout's HEAD is recorded in vendor/SOURCE, and its short sha names the
@@ -16,13 +18,18 @@
 // member's package.json). Sync after any change on that side this repo depends
 // on: a migration, a pipeline/core change, or regenerated database types.
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const vendor = join(root, "vendor");
-const src = resolve(process.argv[2] ?? join(root, "..", "Tacit-Awareness"));
+const defaultSrc = () => {
+  const renamed = join(root, "..", "tacit-internal");
+  const legacy = join(root, "..", "Tacit-Awareness");
+  return existsSync(renamed) || !existsSync(legacy) ? renamed : legacy;
+};
+const src = resolve(process.argv[2] ?? defaultSrc());
 const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: ["ignore", "pipe", "inherit"] }).toString().trim();
 
 const dirty = run("git", ["status", "--porcelain", "--", "packages/db", "packages/core"], src);
@@ -67,5 +74,5 @@ for (const rel of manifests) {
   if (next !== text) writeFileSync(path, next);
 }
 
-writeFileSync(join(vendor, "SOURCE"), `Tacit-Awareness@${sha}\n`);
-console.log(`vendor/ now holds ${tarball("db")} and ${tarball("core")} from Tacit-Awareness@${short}. Run pnpm install.`);
+writeFileSync(join(vendor, "SOURCE"), `tacit-internal@${sha}\n`);
+console.log(`vendor/ now holds ${tarball("db")} and ${tarball("core")} from tacit-internal@${short}. Run pnpm install.`);

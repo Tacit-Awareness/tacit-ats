@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 import { packageAliases } from "./test/aliases.js";
 
 // Integration tests run against the local Supabase stack, started from the
-// Tacit-Awareness checkout (test/integration-setup.ts). They share tables, so
+// tacit-internal checkout (test/integration-setup.ts). They share tables, so
 // files run serially.
 export default defineConfig({
   resolve: {

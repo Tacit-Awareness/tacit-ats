@@ -4,7 +4,7 @@ import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
 
 /**
  * The client connector's settings (/api/client). Separate from the staff
- * connector's (Tacit-Awareness's apps/mcp/src/connector/auth.ts) on purpose:
+ * connector's (tacit-internal's apps/mcp/src/connector/auth.ts) on purpose:
  * clients sign in through the WorkOS environment that holds their organizations (the same one the /client
  * portal uses), teammates through another, and the two must never share a
  * token audience.

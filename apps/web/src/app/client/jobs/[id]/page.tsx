@@ -2,13 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ACTIVE_STAGES, APPLICATION_STAGES, getRolePipeline } from "@tacit/core";
 import { PipelineBoard } from "@/components/pipeline-board";
-import { SubmitButton } from "@/components/submit-button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
-import { JOB_ERRORS, JOB_NOTICES, isJobError, isJobNotice } from "../messages";
-import { addCandidateAction } from "./actions";
 import { CLIENT_PIPELINE_ACTIONS } from "./board-actions";
 
 // One job and its pipeline, read with the signed-in member's own token. What
@@ -22,32 +18,26 @@ const CLOSED_STAGES = APPLICATION_STAGES.filter((s) => !ACTIVE_STAGES.includes(s
 
 export default async function ClientJob({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string; error?: string }>;
 }) {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const { notice, error } = await searchParams;
   const { db, accessLevel } = gate.ctx;
 
-  const [pipeline, canEdit, canAddPeople, team, role] = await Promise.all([
+  const [pipeline, canEdit, team, role] = await Promise.all([
     getRolePipeline(db, id),
     db.rpc("can_on_role", { p_role: id, perm: "can_edit_pipeline" }),
-    db.rpc("can_add_people"),
     db.from("org_members").select("id, display_name").order("display_name"),
     db.from("roles").select("location, seniority").eq("id", id).maybeSingle(),
   ]);
   if (!pipeline) notFound();
-  for (const r of [canEdit, canAddPeople, team, role]) if (r.error) throw new Error(r.error.message);
+  for (const r of [canEdit, team, role]) if (r.error) throw new Error(r.error.message);
 
   const editable = canEdit.data === true;
-  // Adding someone new makes their person row first, which needs both.
-  const canAdd = editable && canAddPeople.data === true;
   const cards = pipeline.cards.map((c) => ({ ...c, roleId: pipeline.roleId, roleTitle: pipeline.roleTitle }));
   const owners = (team.data ?? []).map((m) => ({ actorId: m.id!, name: m.display_name ?? "" }));
   const details = [role.data?.seniority, role.data?.location].filter(Boolean).join(" · ");
@@ -64,9 +54,6 @@ export default async function ClientJob({
         </div>
         {details ? <p className="mt-2 text-[15.5px] text-muted-foreground">{details}</p> : null}
       </div>
-
-      {isJobNotice(notice) ? <p className="notice notice-success max-w-xl">{JOB_NOTICES[notice]}</p> : null}
-      {isJobError(error) ? <p className="notice notice-error max-w-xl">{JOB_ERRORS[error]}</p> : null}
 
       {accessLevel === "limited" ? (
         <p className="notice max-w-xl">
@@ -100,29 +87,6 @@ export default async function ClientJob({
         </section>
       )}
 
-      {canAdd ? (
-        <section className="max-w-xl space-y-3">
-          <h2 className="text-[21px] leading-[1.3]">Add a candidate</h2>
-          <form action={addCandidateAction} className="glass space-y-4 p-5">
-            <input type="hidden" name="roleId" value={pipeline.roleId} />
-            <label className="block space-y-1.5 text-[13px] font-medium text-text">
-              Name
-              <Input name="name" required maxLength={200} autoComplete="off" />
-            </label>
-            <label className="block space-y-1.5 text-[13px] font-medium text-text">
-              Email (optional; someone already in your records with this address is reused)
-              <Input name="email" type="email" maxLength={320} autoComplete="off" />
-            </label>
-            <label className="block space-y-1.5 text-[13px] font-medium text-text">
-              LinkedIn (optional)
-              <Input name="linkedinUrl" placeholder="linkedin.com/in/…" maxLength={500} autoComplete="off" />
-            </label>
-            <SubmitButton pendingLabel="Adding…">
-              Add to pipeline
-            </SubmitButton>
-          </form>
-        </section>
-      ) : null}
     </main>
   );
 }

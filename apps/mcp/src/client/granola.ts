@@ -1,7 +1,7 @@
 import { getSupabaseServiceClient } from "@tacit/db";
 
 /**
- * Members' Granola API keys (granola_connections, Tacit-Awareness migration
+ * Members' Granola API keys (granola_connections, tacit-internal migration
  * 20261019150000): the key is granted to no member token, so reading it
  * needs the service role. The fifth module under src/client allowed a
  * privileged client (src/client-connector.test.ts), and like the others it
