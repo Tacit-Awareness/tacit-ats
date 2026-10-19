@@ -12,7 +12,7 @@ import type { CalendarError, CalendarNotice } from "../messages";
 // only the caller's row.
 export async function GET(request: NextRequest): Promise<Response> {
   const back = (params: { notice?: CalendarNotice; error?: CalendarError }) => {
-    const response = NextResponse.redirect(new URL(`/client/calendar?${new URLSearchParams(params)}`, request.url));
+    const response = NextResponse.redirect(new URL(`/client/integrations?${new URLSearchParams(params)}`, request.url));
     response.cookies.set(CALENDAR_STATE_COOKIE, "", { path: CALENDAR_CALLBACK_PATH, maxAge: 0 });
     return response;
   };

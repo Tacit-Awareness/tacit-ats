@@ -12,5 +12,5 @@ export async function disconnectCalendarAction(): Promise<void> {
   const { error } = await db.rpc("client_disconnect_calendar");
   const params: { notice?: CalendarNotice; error?: CalendarError } = error ? { error: "failed" } : { notice: "disconnected" };
   if (error) console.error("[client-calendar] disconnect failed:", error.message);
-  redirect(`/client/calendar?${new URLSearchParams(params)}`);
+  redirect(`/client/integrations?${new URLSearchParams(params)}`);
 }
