@@ -2,8 +2,9 @@
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
 import { bindMember } from "../../../client/bind";
 import { calendarConnections } from "../../../client/calendar";
-import { clientGoogleCalendar, clientMailer, clientMcpConfig } from "../../../client/config";
+import { clientGoogleCalendar, clientMailer, clientMcpConfig, granolaConnectUrl } from "../../../client/config";
 import { putFile, removeFiles, signFileUrl } from "../../../client/files";
+import { granolaKey } from "../../../client/granola";
 import { handleClientRequest } from "../../../client/handler";
 
 /**
@@ -30,6 +31,8 @@ async function handle(request: Request): Promise<Response> {
         ? { google: { clientId: google.clientId, clientSecret: google.clientSecret }, connections: calendarConnections, connectUrl: google.connectUrl }
         : null;
     })(),
+    // A member's own Granola key, read with the service role only for the caller.
+    granola: { key: granolaKey, connectUrl: granolaConnectUrl() },
   });
 }
 

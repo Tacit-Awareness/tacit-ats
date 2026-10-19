@@ -48,6 +48,11 @@ export type ClientHandlerDeps = {
    * Null or absent = find_interview_times refuses and interviews are recorded in Tacit only.
    */
   calendar?: clientTools.ClientCalendar | null;
+  /**
+   * Members' Granola keys (client/granola.ts), for get_interview_notes. Null or
+   * absent = that tool says Granola is not set up.
+   */
+  granola?: clientTools.ClientGranola | null;
 };
 
 /**
@@ -1123,6 +1128,69 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 yours_outstanding: f.yoursOutstanding,
               },
               candidateIds: [],
+            };
+          }),
+      );
+
+      // Granola (clientTools granola.ts): the caller's own notes, all of it fenced and private.
+      server.registerTool(
+        "get_interview_notes",
+        {
+          title: "Read your Granola notes from an interview",
+          description:
+            "Your own Granola notes from an interview you were an interviewer on (interview_id from " +
+            "list_my_interviews): Granola's summary, the notes you typed, and with include_transcript the " +
+            "transcript. Needs your Granola connected on Tacit's Integrations page. The note is found by " +
+            "the calendar event Tacit booked, the candidate's email among its attendees, or its start time " +
+            "(matched_by says which; when it is only the time, say so). When none matches, the notes " +
+            "taken around then are listed: ask the user which one and call again with its note_id. Use " +
+            "it to help the user write their feedback (submit_feedback, after their yes). Private to the " +
+            "hiring team: never put it in a message to the candidate.",
+          inputSchema: z.object({
+            interview_id: uuid("interview_id"),
+            note_id: z.string().max(40).optional(),
+            include_transcript: z.boolean().optional(),
+          }),
+          annotations: { readOnlyHint: true },
+        },
+        (args) =>
+          run("get_interview_notes", "read", args, async () => {
+            const r = await clientTools.getInterviewNotes(db, ctx, deps.granola ?? null, {
+              interviewId: args.interview_id, noteId: args.note_id, includeTranscript: args.include_transcript,
+            });
+            if (!r.found) {
+              return {
+                summary:
+                  r.nearby.length
+                    ? `No Granola note of yours matches this interview. ${r.nearby.length} note${r.nearby.length === 1 ? " was" : "s were"} taken around then: ask which one it is, then call again with its note_id.`
+                    : "You have no Granola notes from around this interview.",
+                data: {
+                  private: true, found: false, interview_id: r.interviewId,
+                  nearby: r.nearby.map((n) => ({ note_id: n.noteId, title: fence("note title", n.title), created_at: n.createdAt })),
+                },
+                candidateIds: [r.candidateId],
+              };
+            }
+            const transcriptSentence = {
+              included: " With the transcript.",
+              not_requested: "",
+              too_large: " The transcript is too long to send here; it is in Granola.",
+              none: " Granola has no transcript for it.",
+            }[r.transcriptStatus];
+            return {
+              summary:
+                `Your Granola note from this interview, matched by ${r.matchedBy === "chosen" ? "the note_id you gave" : r.matchedBy}.` +
+                transcriptSentence + (r.truncated ? " Some of it was cut for length." : ""),
+              data: {
+                private: true, found: true, interview_id: r.interviewId, matched_by: r.matchedBy,
+                note_id: r.noteId, title: fence("note title", r.title), url: r.webUrl, created_at: r.createdAt,
+                summary: fence("granola summary", r.summary),
+                your_notes: fence("your granola notes", r.myNotes),
+                transcript: fence("granola transcript", r.transcript),
+                transcript_status: r.transcriptStatus,
+                truncated: r.truncated,
+              },
+              candidateIds: [r.candidateId],
             };
           }),
       );

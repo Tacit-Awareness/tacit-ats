@@ -27,8 +27,8 @@ export default async function ClientCalendar({
   return (
     <main className="max-w-3xl space-y-11">
       <div>
-        <Link href="/client" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
-          ← Home
+        <Link href="/client/integrations" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
+          ← Integrations
         </Link>
         <h1 className="mt-3 text-[34px] leading-[1.12] tracking-[-0.01em]">Calendar</h1>
         <p className="mt-3 text-[15px] text-muted-foreground">

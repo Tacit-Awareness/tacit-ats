@@ -337,7 +337,13 @@ Filing again replaces your earlier feedback, ratings included.
 
 \`get_feedback\` reads the feedback on one interview, or on every interview of one application, with each interviewer and their ratings. Whose feedback you see follows your company's [feedback visibility](/docs/access) setting.
 
-**Feedback is private to your hiring team.** Claude will not put it in anything written to a candidate.`,
+**Feedback is private to your hiring team.** Claude will not put it in anything written to a candidate.
+
+## Your Granola notes
+
+If you take interview notes in Granola, connect it on the **Integrations** page (paste a Granola API key from Granola's Settings → Connectors → API keys). Then \`get_interview_notes\` brings back your own note from an interview you were on: Granola's summary, what you typed, and the transcript if you ask for it. Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
+
+The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Claude says which. When nothing matches, it lists the notes you took around then so you can pick one. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
   },
   {
     slug: "offers",
@@ -474,6 +480,7 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`set_scorecard\` | Set a job's attributes | Job managers | Yes |
 | \`submit_feedback\` | File your feedback and ratings | The interview's interviewers | |
 | \`get_feedback\` | Read filed feedback | Per your company's setting | |
+| \`get_interview_notes\` | Your Granola notes from an interview | The interview's interviewers, with Granola connected | |
 | \`list_rejection_reasons\` | Your company's closing reasons | Hiring team, admins | |
 | \`get_offers\` | An application's offers | Job managers | |
 | \`create_offer\` | Draft an offer | Job managers | Confirms terms |
