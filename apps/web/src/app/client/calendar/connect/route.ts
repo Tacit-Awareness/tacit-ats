@@ -10,7 +10,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   const gate = await resolveClient();
   if (gate.status !== "ok") return NextResponse.redirect(new URL("/client", request.url));
   const config = googleCalendarConfig();
-  if (!config) return NextResponse.redirect(new URL("/client/calendar?error=not_set_up", request.url));
+  if (!config) return NextResponse.redirect(new URL("/client/integrations?error=not_set_up", request.url));
 
   const state = Buffer.from(globalThis.crypto.getRandomValues(new Uint8Array(24))).toString("base64url");
   const response = NextResponse.redirect(
