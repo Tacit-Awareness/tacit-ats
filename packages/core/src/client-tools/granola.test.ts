@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { FakeSupabase } from "../test-helpers/fake-supabase.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
-import { getInterviewNotes, type ClientGranola } from "./granola.js";
+import { getInterviewNotes, granolaMcp, meetingsIn, type ClientGranola, type GranolaAccess } from "./granola.js";
 
 const ctx = (accessLevel: ClientToolCtx["accessLevel"] = "elevated"): ClientToolCtx => ({
   actorId: "actor-1", orgId: "org-1", accessLevel, source: "claude",
@@ -19,37 +19,85 @@ const interview = (over: Record<string, unknown> = {}) => ({
   interviewer_actor_ids: ["actor-1", "actor-2"], google_event_id: "iv1event", ...over,
 });
 
-type Note = Record<string, unknown> & { id: string };
-const note = (id: string, over: Record<string, unknown> = {}): Note => ({
-  id, title: `Note ${id}`, created_at: "2026-10-15T17:01:00Z", web_url: `https://notes.granola.ai/d/${id}`,
-  calendar_event: null, attendees: [], summary_text: "plain", summary_markdown: `## Summary of ${id}`,
-  private_notes_markdown: "- strong on systems", ...over,
-});
+const A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const meeting = (id: string, title: string, extra = "") => `<meeting id="${id}" title="${title}" date="Oct 15, 2026">\n${extra}\n</meeting>`;
 
-/** Granola's API as fetch: GET /v1/notes lists `notes`; GET /v1/notes/:id answers from `notes`, or `status`. */
-function granola(notes: Note[], opts: { key?: string | null; status?: Record<string, number> } = {}) {
-  const calls: string[] = [];
-  const keyAsks: Array<[string, string]> = [];
-  const fetchImpl = (async (input: URL | string, init?: RequestInit) => {
-    const url = new URL(String(input));
-    calls.push(`${url.pathname}${url.search}`);
-    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer grn_key");
-    const status = opts.status?.[url.pathname + (url.searchParams.get("include") ? "?transcript" : "")] ?? opts.status?.[url.pathname];
-    if (status) return new Response("{}", { status });
-    if (url.pathname === "/v1/notes") return Response.json({ notes, hasMore: false, cursor: null });
-    const found = notes.find((n) => url.pathname === `/v1/notes/${n.id}`);
-    return found ? Response.json(found) : new Response("{}", { status: 404 });
+type Tools = {
+  /** list_meetings' text: by custom_start, or the same for every window. */
+  list?: string | ((start: string) => string);
+  get?: (ids: string[]) => string;
+  transcript?: string | { error: string };
+};
+
+/** Granola's MCP server as fetch: initialize, then tools/call, answered as an event stream like the real one. */
+function granola(tools: Tools, opts: { access?: GranolaAccess; status?: number } = {}) {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const asks: Array<[string, string]> = [];
+  const fetchImpl = (async (_url: URL | string, init?: RequestInit) => {
+    const headers = new Headers(init?.headers);
+    expect(headers.get("authorization")).toBe("Bearer at_1");
+    if (opts.status) return new Response("{}", { status: opts.status });
+    const msg = JSON.parse(init!.body as string) as { id?: number; method: string; params: { name: string; arguments: Record<string, unknown> } };
+    if (msg.method === "initialize") {
+      return Response.json({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2025-06-18" } }, { headers: { "mcp-session-id": "s1" } });
+    }
+    expect(headers.get("mcp-session-id")).toBe("s1");
+    if (msg.method !== "tools/call") return new Response(null, { status: 202 });
+    const { name, arguments: args } = msg.params;
+    calls.push({ name, args });
+    let result: object;
+    if (name === "list_meetings") {
+      const text = typeof tools.list === "function" ? tools.list(String(args.custom_start)) : (tools.list ?? "");
+      result = { content: [{ type: "text", text }] };
+    } else if (name === "get_meetings") {
+      result = { content: [{ type: "text", text: tools.get?.(args.meeting_ids as string[]) ?? "" }] };
+    } else if (typeof tools.transcript === "object") {
+      result = { content: [{ type: "text", text: tools.transcript.error }], isError: true };
+    } else {
+      result = { content: [{ type: "text", text: tools.transcript ?? "" }] };
+    }
+    return new Response(`event: message\ndata: ${JSON.stringify({ jsonrpc: "2.0", id: msg.id, result })}\n\n`, {
+      headers: { "content-type": "text/event-stream" },
+    });
   }) as typeof fetch;
   const deps: ClientGranola = {
-    key: async (orgId, actorId) => { keyAsks.push([orgId, actorId]); return opts.key === undefined ? "grn_key" : opts.key; },
+    accessToken: async (orgId, actorId) => {
+      asks.push([orgId, actorId]);
+      return opts.access === undefined ? { token: "at_1" } : opts.access;
+    },
     connectUrl: "https://ats.test/client/integrations",
     fetch: fetchImpl,
   };
-  return { deps, calls, keyAsks };
+  return { deps, calls, asks, fetchImpl };
 }
 
-const NOTE_ID = "not_aaaaaaaaaaaaaa";
-const OTHER_ID = "not_bbbbbbbbbbbbbb";
+const reads = (email: string | null = "pat@x.test") => new FakeSupabase([
+  { data: interview() }, { data: { person_id: "p-1" } }, { data: email ? { email } : null },
+]);
+
+describe("meetingsIn", () => {
+  test("one chunk per meeting id, starting at its line", () => {
+    const text = `Meetings:\n${meeting(A, "Pat / Ada", "Attendees: pat@x.test")}\n${meeting(B, "Standup")}`;
+    expect(meetingsIn(text)).toEqual([
+      { id: A, text: meeting(A, "Pat / Ada", "Attendees: pat@x.test") },
+      { id: B, text: meeting(B, "Standup") },
+    ]);
+    expect(meetingsIn("No meetings found.")).toEqual([]);
+    const withFolder = meeting(A, "Pat / Ada", `<folders><folder id="${B}">Hiring</folder></folders>`);
+    expect(meetingsIn(withFolder).map((m) => m.id)).toEqual([A]);
+  });
+});
+
+describe("granolaMcp", () => {
+  test("initializes once, then calls tools in the same session; a plain JSON answer works too", async () => {
+    const g = granola({ list: "x" });
+    const mcp = granolaMcp("at_1", g.fetchImpl);
+    expect(await mcp.call("list_meetings", {})).toBe("x");
+    expect(await mcp.call("list_meetings", {})).toBe("x");
+    expect(g.calls.length).toBe(2);
+  });
+});
 
 describe("getInterviewNotes", () => {
   test("not set up on the deployment is a sentence, before any read", async () => {
@@ -59,45 +107,54 @@ describe("getInterviewNotes", () => {
   });
 
   test("someone who was not an interviewer on it is refused, and Granola is never asked", async () => {
-    const g = granola([]);
+    const g = granola({});
     const fake = new FakeSupabase([{ data: interview({ interviewer_actor_ids: ["actor-2"] }) }]);
     expect((await refusal(getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).code).toBe("forbidden");
-    expect(g.keyAsks).toEqual([]);
+    expect(g.asks).toEqual([]);
     expect(g.calls).toEqual([]);
   });
 
-  test("not connected says where to connect", async () => {
-    const g = granola([], { key: null });
-    const fake = new FakeSupabase([{ data: interview() }, { data: { person_id: "p-1" } }, { data: { email: "pat@x.test" } }]);
-    const err = await refusal(getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" }));
-    expect(err.message).toBe("Your Granola is not connected. Connect it at https://ats.test/client/integrations.");
-    expect(g.keyAsks).toEqual([["org-1", "actor-1"]]);
-  });
-
-  test("the note on the event Tacit booked wins over one that only matches the time", async () => {
-    const g = granola([
-      note(OTHER_ID, { calendar_event: { scheduled_start_time: "2026-10-15T17:00:00Z", calendar_event_id: "someone-else" } }),
-      note(NOTE_ID, { created_at: "2026-10-15T17:05:00Z", calendar_event: { calendar_event_id: "iv1event", scheduled_start_time: "2026-10-15T17:00:00Z" } }),
-    ]);
-    const fake = new FakeSupabase([{ data: interview() }, { data: { person_id: "p-1" } }, { data: { email: "pat@x.test" } }]);
-    const r = await getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" });
-    expect(r).toMatchObject({
-      found: true, matchedBy: "event", noteId: NOTE_ID, candidateId: "p-1", title: `Note ${NOTE_ID}`,
-      summary: `## Summary of ${NOTE_ID}`, myNotes: "- strong on systems", transcript: null, transcriptStatus: "not_requested",
-    });
-    expect(g.calls[0]).toBe(
-      "/v1/notes?created_after=2026-10-15T14%3A00%3A00.000Z&created_before=2026-10-15T21%3A00%3A00.000Z&page_size=30",
+  test("not connected says where to connect; a grant Granola dropped says to connect again", async () => {
+    const off = granola({}, { access: null });
+    expect((await refusal(getInterviewNotes(reads().asDb(), ctx(), off.deps, { interviewId: "iv-1" }))).message).toBe(
+      "Your Granola is not connected. Connect it at https://ats.test/client/integrations.",
+    );
+    expect(off.asks).toEqual([["org-1", "actor-1"]]);
+    const dropped = granola({}, { access: { reconnect: true } });
+    expect((await refusal(getInterviewNotes(reads().asDb(), ctx(), dropped.deps, { interviewId: "iv-1" }))).message).toMatch(
+      /no longer accepts Tacit's access/,
     );
   });
 
-  test("the candidate's email among the attendees matches when the caller may read it", async () => {
-    const g = granola([note(NOTE_ID, { created_at: "2026-10-15T19:30:00Z", attendees: [{ name: "Pat", email: "PAT@x.test" }] })]);
-    const fake = new FakeSupabase([{ data: interview({ google_event_id: null }) }, { data: { person_id: "p-1" } }, { data: { email: "pat@x.test" } }]);
-    expect(await getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" })).toMatchObject({ found: true, matchedBy: "email" });
+  test("the meeting on the event Tacit booked wins over one with the candidate's email", async () => {
+    const g = granola({
+      list: `${meeting(A, "Pat / Ada", "pat@x.test")}\n${meeting(B, "Interview", "event: iv1event")}`,
+      get: (ids) => `notes for ${ids.join(",")}`,
+    });
+    const r = await getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1" });
+    expect(r).toMatchObject({ found: true, matchedBy: "event", noteId: B, notes: `notes for ${B}`, transcriptStatus: "not_requested" });
+    expect(g.calls).toEqual([
+      {
+        name: "list_meetings",
+        args: {
+          time_range: "custom", custom_start: "2026-10-15T14:00:00.000Z", custom_end: "2026-10-15T21:00:00.000Z",
+          involvement: { captured_by_me: true },
+        },
+      },
+      { name: "get_meetings", args: { meeting_ids: [B] } },
+    ]);
   });
 
-  test("an interviewer finds the candidate through my_interviews and matches on time", async () => {
-    const g = granola([note(NOTE_ID, { created_at: "2026-10-15T17:02:00Z" })]);
+  test("the candidate's email matches when the caller may read it", async () => {
+    const g = granola({ list: `${meeting(A, "Pat / Ada", "PAT@x.test")}\n${meeting(B, "Standup")}`, get: () => "n" });
+    expect(await getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1" })).toMatchObject({ found: true, matchedBy: "email", noteId: A });
+  });
+
+  test("an interviewer finds the candidate through my_interviews and matches the one meeting during the interview", async () => {
+    const g = granola({
+      list: (start) => (start === "2026-10-15T16:50:00.000Z" ? meeting(A, "Chat") : `${meeting(A, "Chat")}\n${meeting(B, "Lunch")}`),
+      get: () => "n",
+    });
     const fake = new FakeSupabase([
       { data: interview({ google_event_id: null }) },
       { data: null },
@@ -105,48 +162,36 @@ describe("getInterviewNotes", () => {
       { data: null },
     ]);
     const r = await getInterviewNotes(fake.asDb(), ctx("limited"), g.deps, { interviewId: "iv-1" });
-    expect(r).toMatchObject({ found: true, matchedBy: "time", candidateId: "p-9" });
+    expect(r).toMatchObject({ found: true, matchedBy: "time", candidateId: "p-9", noteId: A });
   });
 
-  test("no match lists the notes nearby, nearest first, so one can be picked by note_id", async () => {
-    const g = granola([
-      note(OTHER_ID, { created_at: "2026-10-15T20:00:00Z" }),
-      note(NOTE_ID, { created_at: "2026-10-15T15:00:00Z", calendar_event: { scheduled_start_time: "2026-10-15T15:00:00Z" } }),
-    ]);
-    const fake = new FakeSupabase([{ data: interview() }, { data: { person_id: "p-1" } }, { data: { email: "pat@x.test" } }]);
-    const r = await getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" });
+  test("no match lists the meetings nearby, so one can be picked by note_id", async () => {
+    const g = granola({ list: (start) => (start === "2026-10-15T16:50:00.000Z" ? "" : `${meeting(A, "Lunch")}\n${meeting(B, "1:1")}`) });
+    const r = await getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1" });
     expect(r).toEqual({
       found: false, interviewId: "iv-1", candidateId: "p-1",
-      nearby: [
-        { noteId: NOTE_ID, title: `Note ${NOTE_ID}`, createdAt: "2026-10-15T15:00:00Z" },
-        { noteId: OTHER_ID, title: `Note ${OTHER_ID}`, createdAt: "2026-10-15T20:00:00Z" },
-      ],
+      nearby: [{ noteId: A, excerpt: meeting(A, "Lunch") }, { noteId: B, excerpt: meeting(B, "1:1") }],
     });
   });
 
-  test("a chosen note with its transcript; one too large to send inline is said, not thrown", async () => {
-    const transcript = [
-      { speaker: { source: "microphone", attribution: "me" }, text: "Tell me about a hard bug." },
-      { speaker: { source: "speaker", attribution: "them" }, text: "A race in our queue." },
-    ];
-    const g = granola([note(NOTE_ID, { transcript })]);
-    const fake = () => new FakeSupabase([{ data: interview() }, { data: { person_id: "p-1" } }, { data: null }]);
-    const r = await getInterviewNotes(fake().asDb(), ctx(), g.deps, { interviewId: "iv-1", noteId: NOTE_ID, includeTranscript: true });
+  test("a chosen meeting with its transcript; a plan without transcripts still gets the notes", async () => {
+    const g = granola({ get: () => "notes", transcript: "Me: Tell me about a hard bug.\nThem: A race in our queue." });
+    const r = await getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1", noteId: A, includeTranscript: true });
     expect(r).toMatchObject({
-      found: true, matchedBy: "chosen", transcriptStatus: "included",
+      found: true, matchedBy: "chosen", notes: "notes", transcriptStatus: "included",
       transcript: "Me: Tell me about a hard bug.\nThem: A race in our queue.",
     });
-    expect(g.calls).toEqual([`/v1/notes/${NOTE_ID}?include=transcript`]);
+    expect(g.calls.map((c) => c.name)).toEqual(["get_meetings", "get_meeting_transcript"]);
+    expect(g.calls[1]!.args).toEqual({ meeting_id: A, max_chars: 60_000 });
 
-    const big = granola([note(NOTE_ID)], { status: { [`/v1/notes/${NOTE_ID}?transcript`]: 413 } });
-    const r2 = await getInterviewNotes(fake().asDb(), ctx(), big.deps, { interviewId: "iv-1", noteId: NOTE_ID, includeTranscript: true });
-    expect(r2).toMatchObject({ found: true, transcriptStatus: "too_large", transcript: null, summary: `## Summary of ${NOTE_ID}` });
+    const free = granola({ get: () => "notes", transcript: { error: "Transcripts need a paid plan." } });
+    const r2 = await getInterviewNotes(reads().asDb(), ctx(), free.deps, { interviewId: "iv-1", noteId: A, includeTranscript: true });
+    expect(r2).toMatchObject({ found: true, notes: "notes", transcript: null, transcriptStatus: "unavailable" });
   });
 
-  test("a key Granola refuses says to connect again; a malformed note_id is refused before any read", async () => {
-    const g = granola([], { status: { "/v1/notes": 401 } });
-    const fake = new FakeSupabase([{ data: interview() }, { data: { person_id: "p-1" } }, { data: null }]);
-    expect((await refusal(getInterviewNotes(fake.asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).message).toMatch(/no longer accepts/);
+  test("a token Granola refuses says to connect again; a malformed note_id is refused before any read", async () => {
+    const g = granola({}, { status: 401 });
+    expect((await refusal(getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).message).toMatch(/no longer accepts/);
 
     const none = new FakeSupabase();
     expect((await refusal(getInterviewNotes(none.asDb(), ctx(), g.deps, { interviewId: "iv-1", noteId: "../x" }))).code).toBe("invalid");
@@ -154,11 +199,11 @@ describe("getInterviewNotes", () => {
   });
 
   test("an interview that has not happened yet or was cancelled is refused before Granola", async () => {
-    const g = granola([]);
+    const g = granola({});
     const future = new FakeSupabase([{ data: interview({ starts_at: "2999-01-01T00:00:00Z", ends_at: "2999-01-01T01:00:00Z" }) }]);
     expect((await refusal(getInterviewNotes(future.asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).message).toMatch(/not happened/);
     const cancelled = new FakeSupabase([{ data: interview({ status: "cancelled" }) }]);
     expect((await refusal(getInterviewNotes(cancelled.asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).message).toMatch(/cancelled/);
-    expect(g.keyAsks).toEqual([]);
+    expect(g.asks).toEqual([]);
   });
 });

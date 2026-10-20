@@ -49,7 +49,7 @@ export type ClientHandlerDeps = {
    */
   calendar?: clientTools.ClientCalendar | null;
   /**
-   * Members' Granola keys (client/granola.ts), for get_interview_notes. Null or
+   * Members' Granola access tokens (client/granola.ts), for get_interview_notes. Null or
    * absent = that tool says Granola is not set up.
    */
   granola?: clientTools.ClientGranola | null;
@@ -1139,16 +1139,17 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Read your Granola notes from an interview",
           description:
             "Your own Granola notes from an interview you were an interviewer on (interview_id from " +
-            "list_my_interviews): Granola's summary, the notes you typed, and with include_transcript the " +
-            "transcript. Needs your Granola connected on Tacit's Integrations page. The note is found by " +
-            "the calendar event Tacit booked, the candidate's email among its attendees, or its start time " +
-            "(matched_by says which; when it is only the time, say so). When none matches, the notes " +
-            "taken around then are listed: ask the user which one and call again with its note_id. Use " +
-            "it to help the user write their feedback (submit_feedback, after their yes). Private to the " +
-            "hiring team: never put it in a message to the candidate.",
+            "list_my_interviews): Granola's text for the meeting (its attendees, the notes you typed and " +
+            "Granola's AI summary), and with include_transcript the transcript (paid Granola plans). Needs " +
+            "your Granola connected on Tacit's Integrations page. The meeting is found by the calendar event " +
+            "Tacit booked, the candidate's email, or being the one meeting during the interview (matched_by " +
+            "says which; when it is only the time, say so). When none matches, the meetings around then are " +
+            "listed: ask the user which one and call again with its note_id. Use it to help the user write " +
+            "their feedback (submit_feedback, after their yes). Private to the hiring team: never put it in " +
+            "a message to the candidate.",
           inputSchema: z.object({
             interview_id: uuid("interview_id"),
-            note_id: z.string().max(40).optional(),
+            note_id: z.string().max(64).optional(),
             include_transcript: z.boolean().optional(),
           }),
           annotations: { readOnlyHint: true },
@@ -1162,11 +1163,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
               return {
                 summary:
                   r.nearby.length
-                    ? `No Granola note of yours matches this interview. ${r.nearby.length} note${r.nearby.length === 1 ? " was" : "s were"} taken around then: ask which one it is, then call again with its note_id.`
-                    : "You have no Granola notes from around this interview.",
+                    ? `No Granola meeting of yours matches this interview. ${r.nearby.length} meeting${r.nearby.length === 1 ? " was" : "s were"} around then: ask which one it is, then call again with its note_id.`
+                    : "You have no Granola meetings from around this interview.",
                 data: {
                   private: true, found: false, interview_id: r.interviewId,
-                  nearby: r.nearby.map((n) => ({ note_id: n.noteId, title: fence("note title", n.title), created_at: n.createdAt })),
+                  nearby: r.nearby.map((n) => ({ note_id: n.noteId, excerpt: fence("granola meeting", n.excerpt) })),
                 },
                 candidateIds: [r.candidateId],
               };
@@ -1174,18 +1175,15 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const transcriptSentence = {
               included: " With the transcript.",
               not_requested: "",
-              too_large: " The transcript is too long to send here; it is in Granola.",
-              none: " Granola has no transcript for it.",
+              unavailable: " Granola has no transcript of it for you (transcripts need a paid Granola plan).",
             }[r.transcriptStatus];
             return {
               summary:
-                `Your Granola note from this interview, matched by ${r.matchedBy === "chosen" ? "the note_id you gave" : r.matchedBy}.` +
+                `Your Granola notes from this interview, matched by ${r.matchedBy === "chosen" ? "the note_id you gave" : r.matchedBy}.` +
                 transcriptSentence + (r.truncated ? " Some of it was cut for length." : ""),
               data: {
-                private: true, found: true, interview_id: r.interviewId, matched_by: r.matchedBy,
-                note_id: r.noteId, title: fence("note title", r.title), url: r.webUrl, created_at: r.createdAt,
-                summary: fence("granola summary", r.summary),
-                your_notes: fence("your granola notes", r.myNotes),
+                private: true, found: true, interview_id: r.interviewId, matched_by: r.matchedBy, note_id: r.noteId,
+                notes: fence("granola notes", r.notes),
                 transcript: fence("granola transcript", r.transcript),
                 transcript_status: r.transcriptStatus,
                 truncated: r.truncated,
