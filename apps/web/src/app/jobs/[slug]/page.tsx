@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Glyph, Notice, Section } from "@/components/page";
+import { Button } from "@/components/ui/button";
+import { Input, selectClass } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, readJobPost, type PublicQuestion } from "@/lib/public/jobs";
 
 // A client's public job post and its application form (packages/db,
@@ -23,23 +27,21 @@ const NOTICES: Record<string, (label: string | null) => string> = {
   failed: () => "Something went wrong on our side. Please try again.",
 };
 
-const field = "field w-full px-[11px] py-2 text-[14.5px]";
-
 function Question({ q }: { q: PublicQuestion }) {
   const name = `${ANSWER_PREFIX}${q.id}`;
   const label = (
-    <span className="text-[13px] font-medium text-text">
+    <span className="text-[13px] font-medium text-foreground/80">
       {q.label}
-      {q.required ? <span className="text-muted-foreground"> *</span> : null}
+      {q.required ? <span className="text-faint"> *</span> : null}
     </span>
   );
   if (q.type === "yes_no") {
     return (
-      <fieldset className="space-y-2.5">
-        <legend>{label}</legend>
-        <div className="flex gap-6 text-[14.5px]">
+      <fieldset className="m-0 grid gap-2 border-0 p-0">
+        <legend className="mb-2 p-0">{label}</legend>
+        <div className="flex gap-6 text-[13px]">
           {["yes", "no"].map((v) => (
-            <label key={v} className="flex items-center gap-2">
+            <label key={v} className="flex items-center gap-2 accent-[var(--accent)]">
               <input type="radio" name={name} value={v} required={q.required} />
               {v === "yes" ? "Yes" : "No"}
             </label>
@@ -50,10 +52,10 @@ function Question({ q }: { q: PublicQuestion }) {
   }
   let input: React.ReactNode;
   if (q.type === "long_text") {
-    input = <textarea name={name} required={q.required} maxLength={5000} rows={6} className={`${field} leading-[1.65]`} />;
+    input = <Textarea name={name} required={q.required} maxLength={5000} rows={6} />;
   } else if (q.type === "select") {
     input = (
-      <select name={name} required={q.required} defaultValue="" className={`${field} h-[38px] py-1`}>
+      <select name={name} required={q.required} defaultValue="" className={selectClass}>
         <option value="">Choose…</option>
         {(q.options ?? []).map((o) => (
           <option key={o} value={o}>
@@ -71,10 +73,10 @@ function Question({ q }: { q: PublicQuestion }) {
       resume: { type: "url", maxLength: 500, placeholder: "https://…" },
       short_text: { type: "text", maxLength: 300 },
     }[q.type];
-    input = <input name={name} required={q.required} className={`${field} h-[38px] py-1`} {...kind} />;
+    input = <Input name={name} required={q.required} {...kind} />;
   }
   return (
-    <label className="block space-y-1.5">
+    <label className="grid gap-1.5">
       {label}
       {input}
     </label>
@@ -96,75 +98,69 @@ export default async function JobPostPage({
   const notice = error && NOTICES[error] ? NOTICES[error](asked) : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-9 px-5 py-14 sm:py-20">
-      <header className="space-y-2.5">
-        <p className="font-mono text-[11.5px] uppercase tracking-[0.06em] text-muted-foreground">{post.company}</p>
-        <h1 className="text-[34px] leading-[1.12] tracking-[-0.01em] sm:text-[40px]">{post.title}</h1>
-        {post.location ? <p className="text-[15.5px] text-muted-foreground">{post.location}</p> : null}
+    <main className="mx-auto grid w-full max-w-[680px] content-start gap-4 px-4 py-12 sm:py-16">
+      <header className="grid gap-3 pb-1">
+        <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
+          <Glyph name={post.company} size="md" />
+          {post.company}
+        </div>
+        <div>
+          <h1 className="m-0 text-[28px] leading-tight font-semibold tracking-[-0.025em]">{post.title}</h1>
+          {post.location ? <p className="mt-1 text-[13.5px] text-muted-foreground">{post.location}</p> : null}
+        </div>
       </header>
 
       {post.description ? (
-        <div className="whitespace-pre-line border-t border-dashed border-[#dcdcd8] pt-8 text-[16px] leading-[1.75] text-text">
-          {post.description}
-        </div>
+        <Section title="About the role">
+          <div className="text-[14px] leading-[1.7] whitespace-pre-line text-foreground/85">{post.description}</div>
+        </Section>
       ) : null}
 
       {applied ? (
-        <p role="status" className="notice notice-success px-5 py-4 text-[15.5px]">
+        <Notice className="py-3.5 text-[14px]">
           Thank you. Your application is in, and the team at {post.company} will be in touch.
-        </p>
+        </Notice>
       ) : (
-        <form
-          id="apply"
-          method="post"
-          action={`/api/jobs/${slug}/apply`}
-          className="glass space-y-6 p-6 sm:p-8"
-        >
-          <h2 className="text-[24px] leading-[1.3]">Apply</h2>
-          {notice ? (
-            <p role="alert" className="notice notice-error">
-              {notice}
-            </p>
-          ) : null}
-          {post.questions.map((question) => (
-            <Question key={question.id} q={question} />
-          ))}
-          {/* Voluntary EEO self-identification, apart from the application's questions. */}
-          <fieldset className="space-y-4 rounded-[14px] bg-[rgb(250_250_249/0.85)] p-5 shadow-[inset_0_0_0_1px_rgb(24_24_27/0.07)]">
-            <legend className="float-left mb-1 w-full font-heading text-[17px] font-medium">Voluntary self-identification</legend>
-            <p className="clear-both text-[14px] leading-[1.6] text-muted-foreground">
-              {post.company} invites applicants to self-identify for equal employment opportunity reporting.
-              Answering is optional and does not affect your application: the hiring team never sees your
-              answers, which are only counted in anonymous totals. Leave any question at &ldquo;I decline to
-              self-identify&rdquo;.
-            </p>
-            {EEOC_QUESTIONS.map((q) => (
-              <label key={q.key} className="block space-y-1.5">
-                <span className="text-[13px] font-medium text-text">{q.label}</span>
-                <select name={`${EEOC_PREFIX}${q.key}`} defaultValue={DECLINE} className={`${field} h-[38px] py-1`}>
-                  {q.options.map(([value, text]) => (
-                    <option key={value} value={value}>
-                      {text}
-                    </option>
-                  ))}
-                </select>
-              </label>
+        <Section title="Apply" className="gap-4 p-5">
+          <form id="apply" method="post" action={`/api/jobs/${slug}/apply`} className="grid gap-4">
+            {notice ? <Notice tone="error">{notice}</Notice> : null}
+            {post.questions.map((question) => (
+              <Question key={question.id} q={question} />
             ))}
-          </fieldset>
-          {/* For bots only: hidden from people and from assistive tech. */}
-          <div aria-hidden className="absolute -left-[10000px] h-px w-px overflow-hidden">
-            <label>
-              Website
-              <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" defaultValue="" />
-            </label>
-          </div>
-          <button
-            type="submit"
-            className="rounded-full bg-dark px-5 py-2.5 text-[15px] leading-5 font-medium text-[#fafafa] shadow-[0_0_0_1px_var(--dark)] transition-colors duration-150 hover:bg-[color:var(--dark-hover)]"
-          >
-            Submit application
-          </button>
-        </form>
+            {/* Voluntary EEO self-identification, apart from the application's questions. */}
+            <fieldset className="m-0 grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-surface p-4">
+              <legend className="float-left mb-1 w-full p-0 text-[13.5px] font-semibold">Voluntary self-identification</legend>
+              <p className="clear-both m-0 text-[12.5px] leading-relaxed text-muted-foreground">
+                {post.company} invites applicants to self-identify for equal employment opportunity reporting.
+                Answering is optional and does not affect your application: the hiring team never sees your
+                answers, which are only counted in anonymous totals. Leave any question at &ldquo;I decline to
+                self-identify&rdquo;.
+              </p>
+              {EEOC_QUESTIONS.map((q) => (
+                <label key={q.key} className="grid gap-1.5">
+                  <span className="text-[13px] font-medium text-foreground/80">{q.label}</span>
+                  <select name={`${EEOC_PREFIX}${q.key}`} defaultValue={DECLINE} className={selectClass}>
+                    {q.options.map(([value, text]) => (
+                      <option key={value} value={value}>
+                        {text}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </fieldset>
+            {/* For bots only: hidden from people and from assistive tech. */}
+            <div aria-hidden className="absolute -left-[10000px] h-px w-px overflow-hidden">
+              <label>
+                Website
+                <input type="text" name={HONEYPOT_FIELD} tabIndex={-1} autoComplete="off" defaultValue="" />
+              </label>
+            </div>
+            <Button type="submit" size="lg" className="justify-self-start">
+              Submit application
+            </Button>
+          </form>
+        </Section>
       )}
     </main>
   );

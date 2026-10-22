@@ -1,87 +1,134 @@
 @import "tailwindcss";
 
 /* ---------- Tacit design tokens ----------
-   Tacit Testbench's skin (its apps/web app/skin.css, `.tb-skin`), adopted for
-   the whole app: a near-white ground under a faint blue wash, frosted-glass
-   cards with a hairline ring instead of a border, pill ("bubble") buttons, a
-   near-black primary and one link blue. Neco for headings, Recoleta for
-   everything else, Geist Mono for keys and timestamps. Single light theme. */
+   tacit-internal's apps/internal globals.css, copied: its 2026-10 redesign (Hy): a Linear-style app shell -- sidebar on the frame,
+   one inset panel for the page -- in the Overseer dashboard's skin: a
+   green-black frame, Geist + Geist Mono, Departure Mono for big numbers,
+   green reserved for "now", "done" and focus, red for overdue. Two themes:
+   light below, dark in the blocks after it. With no choice made the page
+   follows the system; the sidebar's toggle stores one in the `tacit-theme`
+   cookie, which the root layout renders as <html data-theme>, so there is no
+   flash of the wrong theme and no before-paint script.
 
-@font-face {
-  font-family: "Neco";
-  src: url("/fonts/Neco-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Neco";
-  src: url("/fonts/Neco-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Recoleta";
-  src: url("/fonts/Recoleta-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Recoleta";
-  src: url("/fonts/Recoleta-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
+   The older token names (--canvas, --hairline, --card-border, ...) are
+   kept because the copied primitives still name them. */
 :root {
-  --canvas: #fafaf9; /* page ground, under the wash */
-  --paper: #ffffff;
-  --ink: #18181b;
-  --text: #3f3f46; /* body copy, one step softer than ink */
-  --muted-text: #6b6b70;
-  --faint: #9a9aa0;
-  --line: rgb(24 24 27 / 0.08); /* hairline rules and rings */
-  --soft: #f4f4f2; /* recessed fill: hovers, chips, disabled fields */
-  --accent: #1d6fa5; /* links, focus, the one highlight */
-  --accent-hover: #155a87;
-  --accent-soft: #eaf3fa;
-  --callout: #f3f8fc;
-  --dark: #18181b; /* primary buttons */
-  --dark-hover: #2e2e33;
-  --green: #237350;
-  --green-soft: #e8f3ed;
-  --red: #b42318;
-  --red-soft: #fdf3f2;
-  --radius: 12px;
+  --frame: #eef2ef; /* the sidebar and everything behind the panel */
+  --surface: #f7f9f8; /* the inset panel a page sits on */
+  --paper: #ffffff; /* cards */
+  --raised: #ffffff; /* popovers, the active nav item */
+  --ink: #171b18;
+  --fg-rgb: 23, 27, 24; /* ink as a triplet, for alpha-stepped uses */
+  --muted-text: #5c655f;
+  --faint: #7a837d;
+  --line: #e1e6e2; /* card borders, dividers */
+  --line-strong: #cfd6d1; /* inputs, outlined buttons */
+  --soft: #eef2ef; /* recessed fill: hovers, bands, avatar chips */
+  --soft-strong: #e4eae6;
+  --accent: #00803a; /* green: focus, active, links on hover */
+  --accent-soft: #e3f3e8;
+  --green: #00a449;
+  --green-bright: #00803a;
+  --green-soft: #ddf3e5;
+  --red: #c04545;
+  --red-soft: #fbe3e3;
+  --dot-off: rgba(23, 27, 24, 0.1);
+  --shadow: 0 1px 2px rgba(23, 27, 24, 0.08);
+  --pop-shadow: 0 18px 48px rgba(23, 27, 24, 0.14), 0 2px 8px rgba(23, 27, 24, 0.08);
+  --active-inset: inset 0 -0.5px 1px rgba(0, 128, 58, 0.25), 0 0 0 0.5px #dce2de;
+  /* one ordered scale for stages and tiers: slate (just started) to green (furthest along) */
+  --tone-1: #8792a0;
+  --tone-2: #4f7fc0;
+  --tone-3: #20909f;
+  --tone-4: #1d9a68;
+  --tone-5: #00803a;
+  --radius: 0.5rem;
+  color-scheme: light;
 
-  /* surfaces */
-  --glass: rgb(255 255 255 / 0.82);
-  --blur: blur(22px) saturate(170%);
-  --glass-shadow: 0 0 0 1px rgb(24 24 27 / 0.07), 0 1px 2px rgb(24 24 27 / 0.03);
-  --glass-lift: 0 0 0 1px rgb(24 24 27 / 0.07), 0 12px 26px -16px rgb(24 24 27 / 0.3);
-  --bubble: 0 0 0 1px rgb(24 24 27 / 0.07), 0 1px 2px rgb(24 24 27 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.9);
-  --bubble-hover: 0 0 0 1px rgb(24 24 27 / 0.1), 0 4px 12px -4px rgb(24 24 27 / 0.18), inset 0 1px 0 #fff;
-  --field-ring: inset 0 0 0 1px rgb(24 24 27 / 0.12), inset 0 1px 2px rgb(24 24 27 / 0.04);
-  --field-focus: inset 0 0 0 1px rgb(29 111 165 / 0.55), 0 0 0 3px rgb(29 111 165 / 0.16);
-  --focus: 0 0 0 3px rgb(29 111 165 / 0.28);
-  --wash:
-    radial-gradient(620px 420px at 12% 4%, rgb(147 197 253 / 0.24), transparent 70%),
-    radial-gradient(640px 460px at 94% 20%, rgb(199 210 254 / 0.3), transparent 70%),
-    radial-gradient(720px 500px at 55% 100%, rgb(186 230 253 / 0.2), transparent 70%);
+  /* legacy names still referenced by components; mapped onto the palette */
+  --canvas: var(--surface);
+  --hairline: var(--line-strong); /* strong line: input hover, palette frame */
+  --pill-outline: var(--line);
+  --divider: var(--line);
+  --panel: var(--soft);
+  --card-border: var(--line);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --frame: #1f2421;
+    --surface: #252a27;
+    --paper: #2a302c;
+    --raised: #2d332f;
+    --ink: #f5f5f6;
+    --fg-rgb: 245, 245, 246;
+    --muted-text: #a6a6ab;
+    --faint: #7c7c82;
+    --line: rgba(150, 150, 150, 0.16);
+    --line-strong: rgba(150, 150, 150, 0.28);
+    --soft: rgba(255, 255, 255, 0.045);
+    --soft-strong: rgba(255, 255, 255, 0.08);
+    --accent: #4ade80;
+    --accent-soft: rgba(74, 222, 128, 0.1);
+    --green: #00a449;
+    --green-bright: #4ade80;
+    --green-soft: rgba(74, 222, 128, 0.12);
+    --red: #f08a8a;
+    --red-soft: rgba(240, 138, 138, 0.12);
+    --dot-off: rgba(0, 0, 0, 0.3);
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --pop-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --active-inset: inset 0 -0.5px 1px rgba(0, 116, 51, 0.25), inset 0 0.25px 0.5px rgba(255, 255, 255, 0.5);
+    --tone-1: #8a94a1;
+    --tone-2: #82a6d4;
+    --tone-3: #6cc3cf;
+    --tone-4: #5fd4a0;
+    --tone-5: #4ade80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --frame: #1f2421;
+  --surface: #252a27;
+  --paper: #2a302c;
+  --raised: #2d332f;
+  --ink: #f5f5f6;
+  --fg-rgb: 245, 245, 246;
+  --muted-text: #a6a6ab;
+  --faint: #7c7c82;
+  --line: rgba(150, 150, 150, 0.16);
+  --line-strong: rgba(150, 150, 150, 0.28);
+  --soft: rgba(255, 255, 255, 0.045);
+  --soft-strong: rgba(255, 255, 255, 0.08);
+  --accent: #4ade80;
+  --accent-soft: rgba(74, 222, 128, 0.1);
+  --green: #00a449;
+  --green-bright: #4ade80;
+  --green-soft: rgba(74, 222, 128, 0.12);
+  --red: #f08a8a;
+  --red-soft: rgba(240, 138, 138, 0.12);
+  --dot-off: rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  --pop-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --active-inset: inset 0 -0.5px 1px rgba(0, 116, 51, 0.25), inset 0 0.25px 0.5px rgba(255, 255, 255, 0.5);
+  --tone-1: #8a94a1;
+  --tone-2: #82a6d4;
+  --tone-3: #6cc3cf;
+  --tone-4: #5fd4a0;
+  --tone-5: #4ade80;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--canvas);
+  --color-background: var(--surface);
   --color-foreground: var(--ink);
-  --font-sans: "Recoleta", Georgia, serif;
-  --font-heading: "Neco", Georgia, serif;
-  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-sans: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --font-pixel: var(--font-departure), "Geist Mono", ui-monospace, monospace;
 
-  --color-ring: rgb(29 111 165 / 0.28);
-  --color-input: rgb(24 24 27 / 0.12);
+  --color-ring: color-mix(in srgb, var(--accent) 45%, transparent); /* green focus ring */
+  --color-input: var(--line-strong);
   --color-border: var(--line);
   --color-destructive: var(--red);
 
@@ -91,9 +138,11 @@
   --color-muted: var(--soft);
   --color-muted-foreground: var(--muted-text);
 
-  --color-primary: var(--accent);
-  --color-primary-foreground: #ffffff;
-  --color-primary-soft: var(--accent-soft);
+  /* primary actions are ink on the panel, like the mockup's buttons; the
+     active-state tint is the soft band */
+  --color-primary: var(--ink);
+  --color-primary-foreground: var(--surface);
+  --color-primary-soft: var(--soft-strong);
 
   --color-secondary: var(--soft);
   --color-secondary-foreground: var(--ink);
@@ -101,166 +150,84 @@
   --color-card: var(--paper);
   --color-card-foreground: var(--ink);
 
-  --color-text: var(--text);
+  --color-frame: var(--frame);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
   --color-faint: var(--faint);
-  --color-dark: var(--dark);
 
-  --color-positive: var(--green);
+  --color-positive: var(--green-bright);
   --color-positive-soft: var(--green-soft);
   --color-negative: var(--red);
   --color-negative-soft: var(--red-soft);
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: var(--radius);
-  --radius-xl: 18px;
+  --radius-sm: calc(var(--radius) * 0.7);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.3);
+  --radius-xl: calc(var(--radius) * 1.8);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  body {
+    @apply bg-frame text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
   html {
     @apply font-sans;
-    font-synthesis: none;
   }
-  body {
-    @apply text-foreground;
-    background: var(--wash), var(--canvas);
-    background-attachment: fixed;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-  /* Neco for headings at 500, as the testbench sets them. */
   h1,
-  h2,
   h3 {
-    font-family: var(--font-heading);
-    font-weight: 500;
-    letter-spacing: -0.005em;
-  }
-  button,
-  input,
-  select,
-  textarea {
-    font-family: inherit;
-  }
-  input[type="checkbox"],
-  input[type="radio"] {
-    accent-color: var(--ink);
-  }
-  /* The testbench's chevron on every single select. */
-  select:not([multiple]) {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1.5 2 4.5 4.5L10.5 2' fill='none' stroke='%2375756b' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    background-size: 11px 7px;
-    padding-right: 34px;
-  }
-  :is(a, button, summary, [tabindex]):focus-visible {
-    outline: none;
-    box-shadow: var(--focus);
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
   ::selection {
     background: var(--accent);
-    color: #fff;
+    color: var(--surface);
   }
 }
 
-/* A frosted card: the testbench's tables, panels and pipeline stages. */
-@utility glass {
-  border-radius: 18px;
-  background: var(--glass);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  box-shadow: var(--glass-shadow);
-  @media (prefers-reduced-transparency: reduce) {
-    background: #fff;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-}
-
-/* A text field or select: white, rounded, an inset ring that turns blue on focus. */
-@utility field {
-  border: 0;
-  border-radius: var(--radius);
-  background-color: rgb(255 255 255 / 0.9);
-  color: var(--ink);
-  box-shadow: var(--field-ring);
-  outline: none;
-  transition: box-shadow 0.15s ease;
-  &::placeholder {
-    color: var(--faint);
-  }
-  &:focus,
-  &:focus-visible {
-    box-shadow: var(--field-focus);
-  }
-  &:disabled {
-    background-color: var(--soft);
-    color: var(--muted-text);
-  }
-}
-
-/* A notice: soft blue callout, or red for an error. */
-@utility notice {
-  border-radius: 14px;
-  padding: 10px 14px;
-  font-size: 14.5px;
-  background: var(--callout);
-  color: var(--text);
-  box-shadow: 0 0 0 1px rgb(29 111 165 / 0.1);
-}
-@utility notice-error {
-  background: var(--red-soft);
-  color: #9f2a1f;
-  box-shadow: 0 0 0 1px rgb(180 35 24 / 0.16);
-}
-@utility notice-success {
-  background: var(--green-soft);
-  color: var(--green);
-  box-shadow: 0 0 0 1px rgb(35 115 80 / 0.16);
-}
-
-/* Inline links in running text. */
-@utility inline-link {
-  color: var(--accent);
-  font-weight: 500;
-  text-decoration: none;
-  &:hover {
-    color: var(--accent-hover);
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-}
-
-/* the mark: one PNG masked over the ink token, so one asset serves any
-   surface it sits on */
+/* the mark: the two corner brackets, masked over the ink token, so one SVG
+   serves every surface and both themes */
 .tacit-mark {
   display: block;
   background: var(--ink);
-  -webkit-mask: url("/tacit-mark.png") center / contain no-repeat;
-  mask: url("/tacit-mark.png") center / contain no-repeat;
+  -webkit-mask: url("/tacit-mark.svg") center / contain no-repeat;
+  mask: url("/tacit-mark.svg") center / contain no-repeat;
 }
 
-/* New content eases in, as the testbench's sections do. */
-@keyframes tb-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
+/* structural chrome hairline */
+.hairline-b {
+  border-bottom: 1px solid var(--line);
 }
-.tb-enter {
-  animation: tb-enter 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+/* the active sidebar item: a raised chip whose right edge blooms into a
+   field of green dots (Overseer's glow) */
+.nav-glow {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--raised);
+  box-shadow: var(--shadow), var(--active-inset);
 }
+.nav-glow::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 45%;
+  background: radial-gradient(circle, var(--green-bright) 0.7px, transparent 1px) 0 0 / 3px 3px;
+  -webkit-mask-image: radial-gradient(60% 140% at 100% 50%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(60% 140% at 100% 50%, #000 0%, transparent 75%);
+  opacity: 0.75;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .tb-enter {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

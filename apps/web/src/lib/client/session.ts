@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { createUserClient, type Db } from "@tacit/db";
 import { bindInvitedActor } from "./bind";
@@ -34,7 +35,9 @@ export type ClientGate =
 
 const isAccessLevel = (v: unknown): v is AccessLevel => v === "limited" || v === "elevated" || v === "admin";
 
-export async function resolveClient(): Promise<ClientGate> {
+// Cached per request: the client layout's sidebar and the page both ask, and
+// a first sign-in must bind once.
+export const resolveClient = cache(async (): Promise<ClientGate> => {
   const auth = await withAuth();
   if (!auth.user || !auth.accessToken) return { status: "forbidden", reason: "signed_out" };
   const workosOrgId = auth.organizationId;
@@ -85,7 +88,7 @@ export async function resolveClient(): Promise<ClientGate> {
       user: { email: auth.user.email, name, workosUserId: auth.user.id },
     },
   };
-}
+});
 
 /**
  * For server actions in the client area: the first statement of every one.

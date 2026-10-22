@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { cookies } from "next/headers";
+import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,23 +10,30 @@ export const metadata: Metadata = {
   description: "Your company's hiring workspace in Tacit",
 };
 
-// Tacit Testbench's type: Neco and Recoleta are self-hosted from public/fonts
-// (globals.css), Geist Mono for keys and timestamps comes from next/font.
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-geist-mono",
+// tacit-internal's type: Geist for everything, Geist Mono for ids and
+// timestamps, Departure Mono (a pixel face, OFL -- fonts/DepartureMono-LICENSE.txt)
+// only for the big numbers. All self-hosted at build time: no runtime font request.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
+const departure = localFont({
+  src: "./fonts/DepartureMono-Regular.woff2",
+  variable: "--font-departure",
+  display: "swap",
 });
 
-// Bare shell. The client area's header lives in client/layout.tsx.
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+// Bare shell. The client area's sidebar lives in client/layout.tsx, so the
+// public job posts are full-viewport pages without it. The theme is a
+// cookie, read here so the first paint is already right; with no cookie the
+// CSS follows the system setting.
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="en" className={`h-full ${geistMono.variable}`}>
-      <head>
-        <link rel="preload" href="/fonts/Recoleta-Regular.woff2" as="font" type="font/woff2" crossOrigin="" />
-        <link rel="preload" href="/fonts/Neco-Medium.woff2" as="font" type="font/woff2" crossOrigin="" />
-      </head>
-      <body className="flex min-h-full flex-col text-foreground">{children}</body>
+    <html
+      lang="en"
+      data-theme={theme ?? undefined}
+      className={`h-full ${geist.variable} ${geistMono.variable} ${departure.variable}`}
+    >
+      <body className="flex min-h-full flex-col bg-frame text-foreground">{children}</body>
     </html>
   );
 }

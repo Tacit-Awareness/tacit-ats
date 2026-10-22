@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
+import { Empty, Glyph, Page, PageHeader, Section } from "@/components/page";
+import { StatusBadge } from "@/components/status-badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
 
@@ -20,40 +22,41 @@ export default async function ClientJobs() {
   if (error) throw new Error(error.message);
 
   return (
-    <main className="max-w-3xl space-y-7">
-      <div>
-        <Link href="/client" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
-          ← Home
-        </Link>
-        <h1 className="mt-3 text-[34px] leading-[1.12] tracking-[-0.01em]">Jobs</h1>
-      </div>
-      {roles.length === 0 ? (
-        <p className="glass px-5 py-4 text-[15px] text-muted-foreground">
-          {accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}
-        </p>
-      ) : (
-        <ul className="glass divide-y divide-border overflow-hidden">
-          {roles.map((role) => (
-            <li key={role.id}>
-              <Link
-                href={`/client/jobs/${role.id}`}
-                className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-[rgb(24_24_27/0.02)]"
-              >
-                <span>
-                  <span className="text-[15px] font-medium">{role.title}</span>
-                  {role.location ? <span className="ml-2 text-sm text-muted-foreground">{role.location}</span> : null}
-                </span>
-                <span className="flex shrink-0 items-center gap-3">
-                  {showCounts ? (
-                    <span className="font-mono text-xs text-muted-foreground">{role.applications[0]?.count ?? 0} in pipeline</span>
-                  ) : null}
-                  <Badge variant={role.status === "open" ? "accent" : "outline"}>{role.status}</Badge>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+    <Page>
+      <PageHeader title="Jobs" subtitle="Every job you can see, newest first." />
+      <Section title="All jobs" count={roles.length} flush>
+        {roles.length === 0 ? (
+          <Empty className="px-4 py-3">{accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}</Empty>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Job</TableHead>
+                <TableHead>Location</TableHead>
+                {showCounts ? <TableHead className="text-right">In pipeline</TableHead> : null}
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {roles.map((role) => (
+                <TableRow key={role.id} className="relative">
+                  <TableCell>
+                    <Link href={`/client/jobs/${role.id}`} className="flex items-center gap-2.5 font-medium text-foreground after:absolute after:inset-0">
+                      <Glyph name={role.title} />
+                      {role.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{role.location ?? "—"}</TableCell>
+                  {showCounts ? <TableCell className="text-right font-mono">{role.applications[0]?.count ?? 0}</TableCell> : null}
+                  <TableCell>
+                    <StatusBadge status={role.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Section>
+    </Page>
   );
 }
