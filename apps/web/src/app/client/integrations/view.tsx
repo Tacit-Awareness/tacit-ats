@@ -1,36 +1,32 @@
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
-import { SubmitButton } from "@/components/submit-button";
 import { AppTile, Live, Notice, Page, PageHeader, Row, Rows, Section, textLink } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
-import { connectGranolaAction, disconnectGranolaAction } from "./actions";
+import { disconnectGranolaAction } from "./actions";
 import { INTEGRATION_ERRORS, INTEGRATION_NOTICES, isIntegrationError, isIntegrationNotice } from "./messages";
 
 // /client/integrations, laid out like the Connectors card on Tacit's internal
 // home (tacit-internal apps/internal (workspace)/page.tsx): one row per
-// connector, Connect or its connected state. Google Calendar runs its consent flow and comes back here;
-// Granola takes a pasted API key, so Connect opens its form under the row
-// (?connect=granola). Props only, so page.tsx does every read.
+// connector, Connect or its connected state. Both Connects run a sign-in on
+// the provider's own page and come back here: Google's consent
+// (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
+// Props only, so page.tsx does every read.
 export function IntegrationsView({
   calendar,
   granola,
   calendarConfigured,
   notice,
   error,
-  connect,
 }: {
   calendar: { accountEmail: string } | null;
   granola: { accountEmail: string | null } | null;
   calendarConfigured: boolean;
   notice?: string;
   error?: string;
-  connect?: string;
 }) {
   const noticeText = isIntegrationNotice(notice) ? INTEGRATION_NOTICES[notice] : isCalendarNotice(notice) ? CALENDAR_NOTICES[notice] : null;
   const errorText = isIntegrationError(error) ? INTEGRATION_ERRORS[error] : isCalendarError(error) ? CALENDAR_ERRORS[error] : null;
-  const granolaFormOpen = !granola && (connect === "granola" || !!error?.startsWith("granola_"));
 
   return (
     <Page narrow>
@@ -73,39 +69,12 @@ export function IntegrationsView({
               }
               action={
                 granola ? (
-                  <Connected disconnect={disconnectGranolaAction} />
-                ) : granolaFormOpen ? null : (
-                  <ActionLink href="/client/integrations?connect=granola#granola">Connect</ActionLink>
+                  <Connected disconnect={disconnectGranolaAction} manageHref="/client/integrations/granola/connect" />
+                ) : (
+                  <ActionLink href="/client/integrations/granola/connect">Connect</ActionLink>
                 )
               }
             />
-            {granolaFormOpen ? (
-              <form action={connectGranolaAction} className="mb-2 ml-[49px] grid gap-2.5 rounded-lg border border-[color:var(--line)] bg-surface p-3">
-                <p className="m-0 text-[12.5px] text-muted-foreground">
-                  In Granola, open Settings → Connectors → API keys, create a key, and paste it here. Needs a Business or
-                  Enterprise plan.
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    name="apiKey"
-                    type="password"
-                    required
-                    minLength={8}
-                    maxLength={512}
-                    autoComplete="off"
-                    spellCheck={false}
-                    autoFocus
-                    placeholder="grn_…"
-                    aria-label="Granola API key"
-                    className="w-full sm:max-w-xs sm:flex-1"
-                  />
-                  <SubmitButton pendingLabel="Checking…">Connect</SubmitButton>
-                  <a href="/client/integrations" className={buttonVariants({ variant: "ghost" })}>
-                    Cancel
-                  </a>
-                </div>
-              </form>
-            ) : null}
           </div>
         </Rows>
       </Section>

@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
  * /api/client route may get another client (the service role, tacit_internal,
  * or lib/context's db()) except the five modules below, which hand back a
  * verdict, write one audit row, sign and store one file, read calendar
- * grants, or read the caller's Granola key, and never return a client. files.ts is there because the
+ * grants, or read the caller's Granola token, and never return a client. files.ts is there because the
  * `org-files` bucket has no policies for a member's token: signing a link and
  * uploading need the service role. Core calls it only after the member's own
  * client has read or inserted the person_files row, so RLS has decided, and
@@ -19,8 +19,9 @@ import { describe, expect, test } from "vitest";
  * calendar refresh token is granted to no member token (calendar_connections);
  * core asks it only for the caller and the interviewers or event holder the
  * member's own token has already been allowed to name, inside their org.
- * granola.ts is there because a member's Granola API key is granted to no
- * member token (granola_connections); core asks it only for the caller.
+ * granola.ts is there because a member's Granola grant is granted to no
+ * member token (granola_connections), and refreshing it writes the rotated
+ * refresh token back; core asks it only for the caller.
  */
 const SRC = dirname(fileURLToPath(import.meta.url));
 const rel = (file: string) => relative(SRC, file);
@@ -85,7 +86,7 @@ describe("the client connector never holds a database client other than the memb
       ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]],
       ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
       ["client/calendar.ts", ["calendarConnections"]],
-      ["client/granola.ts", ["granolaKey"]],
+      ["client/granola.ts", ["granolaAccessToken"]],
     ] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);

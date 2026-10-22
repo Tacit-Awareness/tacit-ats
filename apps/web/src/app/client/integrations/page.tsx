@@ -4,17 +4,17 @@ import { Refusal } from "../refusal";
 import { IntegrationsView } from "./view";
 
 // The tools a member connects (view.tsx). Both rows are read with the
-// member's own token: each member sees only their row, and never the secret
-// in it (a refresh token, an API key).
+// member's own token: each member sees only their row, and never the secrets
+// in it (refresh and access tokens).
 export default async function ClientIntegrations({
   searchParams,
 }: {
-  searchParams: Promise<{ notice?: string; error?: string; connect?: string }>;
+  searchParams: Promise<{ notice?: string; error?: string }>;
 }) {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
-  const { notice, error, connect } = await searchParams;
+  const { notice, error } = await searchParams;
   const [calendar, granola] = await Promise.all([
     gate.ctx.db.from("calendar_connections").select("account_email").maybeSingle(),
     gate.ctx.db.from("granola_connections").select("account_email").maybeSingle(),
@@ -29,7 +29,6 @@ export default async function ClientIntegrations({
       calendarConfigured={googleCalendarConfig() !== null}
       notice={notice}
       error={error}
-      connect={connect}
     />
   );
 }

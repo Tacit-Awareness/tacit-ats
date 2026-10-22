@@ -1,15 +1,16 @@
 // What /client/integrations says after connecting or disconnecting Granola.
-// The actions redirect with a code and the page looks the sentence up here,
-// so nothing else (least of all the key) rides in a URL.
+// The routes and actions redirect with a code and the page looks the sentence
+// up here, so nothing else (least of all a token) rides in a URL.
 export const INTEGRATION_NOTICES = {
   granola_connected: "Granola is connected.",
-  granola_disconnected: "Granola is disconnected and your key is deleted from Tacit.",
+  granola_disconnected: "Granola is disconnected. Tacit no longer has access to it.",
 } as const;
 
 export const INTEGRATION_ERRORS = {
-  granola_malformed: "That doesn't look like a Granola API key. Copy the whole key from Granola and paste it again.",
-  granola_invalid: "Granola didn't accept that key. Check it is still active in Granola and try again.",
-  granola_unreachable: "Couldn't reach Granola to check the key. Nothing was saved; try again in a minute.",
+  granola_denied: "Granola didn't grant access, so nothing was connected.",
+  granola_expired: "That took too long or came from another tab. Try connecting again.",
+  granola_no_refresh_token: "Granola didn't give Tacit lasting access. Try connecting again.",
+  granola_unreachable: "Couldn't reach Granola. Nothing was connected; try again in a minute.",
   failed: "That didn't work. Nothing was changed.",
 } as const;
 
