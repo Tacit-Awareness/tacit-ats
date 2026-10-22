@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ACTIVE_STAGES, APPLICATION_STAGES, getRolePipeline } from "@tacit/core";
 import { PipelineBoard } from "@/components/pipeline-board";
-import { Badge } from "@/components/ui/badge";
+import { Empty, Page, PageHeader, Pill, Section, textLink } from "@/components/page";
+import { StatusBadge } from "@/components/status-badge";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
 import { CLIENT_PIPELINE_ACTIONS } from "./board-actions";
@@ -43,36 +44,32 @@ export default async function ClientJob({
   const details = [role.data?.seniority, role.data?.location].filter(Boolean).join(" · ");
 
   return (
-    <main className="space-y-9">
-      <div>
-        <Link href="/client/jobs" className="text-[14px] text-muted-foreground transition-colors hover:text-foreground">
-          ← Jobs
-        </Link>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <h1 className="text-[34px] leading-[1.12] tracking-[-0.01em]">{pipeline.roleTitle}</h1>
-          <Badge variant={pipeline.roleStatus === "open" ? "accent" : "outline"}>{pipeline.roleStatus}</Badge>
-        </div>
-        {details ? <p className="mt-2 text-[15.5px] text-muted-foreground">{details}</p> : null}
-      </div>
+    <Page>
+      <PageHeader
+        crumbs={[{ href: "/client/jobs", label: "Jobs" }]}
+        title={pipeline.roleTitle}
+        badge={<StatusBadge status={pipeline.roleStatus} />}
+        subtitle={details || undefined}
+      />
 
       {accessLevel === "limited" ? (
-        <p className="notice max-w-xl">
-          You&apos;re an interviewer on this job. The people you interview are on your{" "}
-          <Link href="/client" className="inline-link">
-            home page
-          </Link>
-          .
-        </p>
+        <Section>
+          <p className="m-0 text-[13px] text-muted-foreground">
+            You&apos;re an interviewer on this job. The people you interview are on your{" "}
+            <Link href="/client" className={textLink}>
+              home page
+            </Link>
+            .
+          </p>
+        </Section>
       ) : (
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-[21px] leading-[1.3]">
-              Pipeline <span className="font-mono text-sm text-faint">{cards.length}</span>
-            </h2>
-            {pipeline.stalledCount > 0 && <Badge variant="negative">{pipeline.stalledCount} need attention</Badge>}
-          </div>
+        <Section
+          title="Pipeline"
+          count={cards.length}
+          aside={pipeline.stalledCount > 0 && <Pill tone="red">{pipeline.stalledCount} need attention</Pill>}
+        >
           {cards.length === 0 ? (
-            <p className="glass max-w-xl px-5 py-4 text-[15px] text-muted-foreground">Nobody is in this job&apos;s pipeline yet.</p>
+            <Empty>Nobody is in this job&apos;s pipeline yet.</Empty>
           ) : (
             <PipelineBoard
               cards={cards}
@@ -84,9 +81,8 @@ export default async function ClientJob({
               links={{}}
             />
           )}
-        </section>
+        </Section>
       )}
-
-    </main>
+    </Page>
   );
 }

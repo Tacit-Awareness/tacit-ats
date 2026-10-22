@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 
 export function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
-    <div data-slot="table-container" className="glass relative w-full overflow-x-auto">
-      <table data-slot="table" className={cn("w-full text-sm", className)} {...props} />
+    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+      <table data-slot="table" className={cn("w-full border-collapse text-[13px]", className)} {...props} />
     </div>
   );
 }
@@ -31,7 +31,7 @@ export function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-border transition-colors last:border-0 hover:bg-[rgb(24_24_27/0.02)]",
+        "border-b border-border transition-colors last:border-0 hover:bg-accent",
         className,
       )}
       {...props}
@@ -44,7 +44,7 @@ export function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-11 px-4 text-left align-middle text-[13px] font-medium whitespace-nowrap text-muted-foreground",
+        "px-3.5 py-2.5 text-left align-middle font-mono text-[11.5px] font-normal tracking-[-0.03em] whitespace-nowrap text-muted-foreground",
         className,
       )}
       {...props}
@@ -56,7 +56,7 @@ export function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("px-4 py-3.5 align-middle whitespace-nowrap text-text", className)}
+      className={cn("px-3.5 py-[9px] align-middle whitespace-nowrap text-foreground/85", className)}
       {...props}
     />
   );

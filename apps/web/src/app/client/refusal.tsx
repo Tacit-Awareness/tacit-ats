@@ -1,3 +1,4 @@
+import { Section } from "@/components/page";
 import type { ClientGate } from "@/lib/client/session";
 
 // What a client-area page shows when resolveClient() turns the user away.
@@ -35,9 +36,14 @@ const REFUSALS: Record<RefusalReason, { title: string; body: string }> = {
 export function Refusal({ reason }: { reason: RefusalReason }) {
   const refusal = REFUSALS[reason];
   return (
-    <main className="glass mx-auto mt-[8vh] max-w-lg px-8 py-9">
-      <h1 className="text-[28px] leading-[1.15] tracking-[-0.01em]">{refusal.title}</h1>
-      <p className="mt-3 text-[15.5px] leading-[1.6] text-muted-foreground">{refusal.body}</p>
+    <main className="mx-auto mt-[12vh] grid w-full max-w-md gap-4">
+      <span className="grid size-9 place-items-center rounded-[9px] bg-black shadow-[inset_0_0_0_0.5px_rgba(74,222,128,0.4)]">
+        <span className="tacit-mark size-[18px] bg-[#4ade80]!" aria-hidden />
+      </span>
+      <Section>
+        <h1 className="m-0 text-xl font-semibold tracking-[-0.02em]">{refusal.title}</h1>
+        <p className="m-0 text-[13.5px] leading-relaxed text-muted-foreground">{refusal.body}</p>
+      </Section>
     </main>
   );
 }
