@@ -30,7 +30,7 @@ describe("calendarConsentUrl", () => {
     expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(url.searchParams.get("redirect_uri")).toBe("https://ats.test/client/calendar/callback");
     expect(url.searchParams.get("scope")).toBe(
-      "openid email https://www.googleapis.com/auth/calendar.freebusy https://www.googleapis.com/auth/calendar.events",
+      "openid email https://www.googleapis.com/auth/calendar.events.freebusy https://www.googleapis.com/auth/calendar.events",
     );
     expect(url.searchParams.get("access_type")).toBe("offline");
     expect(url.searchParams.get("prompt")).toBe("consent");
@@ -55,7 +55,7 @@ describe("exchangeCalendarCode", () => {
 
   test("refuses a grant missing a calendar scope, a refresh token or an account", async () => {
     expect(await refused(400, { error: "invalid_grant" })).toBe("exchange_failed");
-    expect(await refused(200, { refresh_token: "rt", scope: "openid email https://www.googleapis.com/auth/calendar.freebusy", id_token: idToken({ email: "a@b.test" }) }))
+    expect(await refused(200, { refresh_token: "rt", scope: "openid email https://www.googleapis.com/auth/calendar.events.freebusy", id_token: idToken({ email: "a@b.test" }) }))
       .toBe("missing_scopes");
     expect(await refused(200, { scope: ALL, id_token: idToken({ email: "a@b.test" }) })).toBe("no_refresh_token");
     expect(await refused(200, { refresh_token: "rt", scope: ALL, id_token: idToken({ email: "a@b.test", email_verified: false }) })).toBe("no_email");

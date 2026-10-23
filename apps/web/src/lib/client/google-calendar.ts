@@ -16,7 +16,7 @@ export const CALENDAR_STATE_COOKIE = "tacit_calendar_state";
 export const CALENDAR_SCOPES = [
   "openid",
   "email",
-  "https://www.googleapis.com/auth/calendar.freebusy",
+  "https://www.googleapis.com/auth/calendar.events.freebusy",
   "https://www.googleapis.com/auth/calendar.events",
 ] as const;
 
