@@ -20,12 +20,13 @@ import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js
  * scorecard ratings (20261015140000) follow it: written by its interviewer
  * against the job's attributes, read whenever the feedback is.
  *
- * Scheduling books on the member's own Google Calendar when they have
- * connected it (calendar.ts): the event goes on the booker's calendar under an
- * id derived from the interview's, with the interviewers invited by Google
- * and a Meet link unless a place is given; a move, a change of interviewers
- * or a cancellation follows to the event, with the grant of whoever holds
- * it. The candidate is never on the event: what they are told is a DRAFT
+ * Scheduling books on Google Calendar (calendar.ts): the event goes on an
+ * interviewer's own connected calendar, so they are its organizer (the
+ * caller's when they interview, else the first interviewer connected; the
+ * caller's own when no interviewer is), under an id derived from the
+ * interview's, with the other interviewers invited by Google and a Meet link
+ * unless a place is given; a move, a change of interviewers or a
+ * cancellation follows to the event, with the grant of whoever holds it. The candidate is never on the event: what they are told is a DRAFT
  * email (email.ts) the member reads and sends.
  *
  * Feedback is private to the company's hiring team: nothing here sends it
@@ -266,7 +267,15 @@ export type InterviewConflicts = {
 };
 
 export type CalendarOutcome =
-  | { status: "invited"; eventLink: string | null; meetLink: string | null; invited: Person[]; notInvited: Person[] }
+  | {
+      status: "invited";
+      /** Whose calendar holds the event: Google's organizer. */
+      organizer: Person;
+      eventLink: string | null;
+      meetLink: string | null;
+      invited: Person[];
+      notInvited: Person[];
+    }
   /** Recorded in Tacit only. */
   | { status: "not_sent"; reason: "not_connected" | "not_set_up" | "not_asked" | "in_the_past"; connectUrl: string | null };
 
@@ -362,7 +371,7 @@ export async function scheduleInterview(
     interviewerIds: string[];
     locationOrLink?: string | null;
     step?: string | null;
-    /** Default: invite when the caller's calendar is connected. True = refuse unless it is; false = Tacit only. */
+    /** Default: invite when an interviewer's calendar or the caller's is connected. True = refuse unless one is; false = Tacit only. */
     sendInvites?: boolean;
     bookDespiteConflicts?: boolean;
     /** What the event is anchored in and the candidate's draft is written in. */
@@ -403,7 +412,9 @@ export async function scheduleInterview(
   const ids = await interviewers(db, input.interviewerIds);
 
   // The calendar side, decided before anything is written.
-  let invite: { token: string; avail: Availability; people: Array<{ id: string; name: string; email: string | null }>; detail: AppDetail } | null = null;
+  let invite: {
+    holder: string; organizer: Person; token: string; avail: Availability; people: Array<{ id: string; name: string; email: string | null }>; detail: AppDetail;
+  } | null = null;
   let notSent: CalendarOutcome = {
     status: "not_sent", reason: input.sendInvites === false ? "not_asked" : past ? "in_the_past" : "not_set_up", connectUrl: calendar?.connectUrl ?? null,
   };
@@ -411,19 +422,25 @@ export async function scheduleInterview(
   if (calendar && input.sendInvites !== false && !past) {
     const people = await interviewerDetails(db, ids);
     const avail = await availability(calendar, ctx, people, { startIso: startsAt, endIso: endsAt });
-    if (avail.callerExpired) {
-      throw new ClientToolError("forbidden", `Your Google connection has expired. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
+    // The event goes on an interviewer's calendar, so they organize it: the caller's when they interview, else the first connected.
+    const holder = [ctx.actorId, ...ids].find((id) => ids.includes(id) && avail.tokens.has(id)) ?? (avail.callerToken ? ctx.actorId : null);
+    if (!holder && avail.callerExpired) {
+      throw new ClientToolError("forbidden", `Your Google connection has expired, and no interviewer's calendar is connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
     }
-    if (!avail.callerToken) {
+    if (!holder) {
       if (input.sendInvites === true) {
-        throw new ClientToolError("forbidden", `Your calendar is not connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
+        throw new ClientToolError("forbidden", `Neither your calendar nor any interviewer's is connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
       }
       notSent = { status: "not_sent", reason: "not_connected", connectUrl: calendar.connectUrl };
     } else {
       const busy = busyIn(avail, Date.parse(startsAt), Date.parse(endsAt));
       conflicts = conflictsOf(avail, busy, people);
       if (busy.length && !input.bookDespiteConflicts) return { outcome: "conflicts", interviewId: null, startsAt, endsAt, conflicts };
-      invite = { token: avail.callerToken, avail, people, detail: await applicationDetail(db, app.id) };
+      const organizer = people.find((p) => p.id === holder) ?? (await interviewerDetails(db, [holder]))[0];
+      invite = {
+        holder, organizer: { userId: holder, name: organizer.name }, token: avail.tokens.get(holder)!, avail, people,
+        detail: await applicationDetail(db, app.id),
+      };
     }
   }
 
@@ -432,7 +449,7 @@ export async function scheduleInterview(
     const row = {
       id: interviewId, application_id: app.id, starts_at: startsAt, ends_at: endsAt,
       interviewer_actor_ids: ids, location_or_link: location, step,
-      ...(invite ? { calendar_actor_id: ctx.actorId } : {}),
+      ...(invite ? { calendar_actor_id: invite.holder } : {}),
     };
     const { error: insertError } = await db.from("interviews").insert(row);
     // interviews_one_active_per_step: one scheduled interview per step of an application.
@@ -442,7 +459,7 @@ export async function scheduleInterview(
     if (insertError) throw new Error(insertError.message);
     if (!invite) return { result: { interviewId, calendar: notSent }, entityId: interviewId, after: row, changed: true };
 
-    const to = inviteesOf(invite.people, invite.avail, ctx.actorId);
+    const to = inviteesOf(invite.people, invite.avail, invite.holder);
     let event: connector.CreatedCalendarEvent;
     try {
       event = await connector.createInterviewEvent(calendar!.google, invite.token, {
@@ -468,7 +485,8 @@ export async function scheduleInterview(
     const { error: linkError } = await db.from("interviews").update(links).eq("id", interviewId);
     if (linkError) console.error(`[client-tools interviews] booked interview ${interviewId}, but could not save its event`, linkError);
     const outcome: CalendarOutcome = {
-      status: "invited", eventLink: event.link, meetLink: event.meetLink, invited: to.invited, notInvited: to.notInvited,
+      status: "invited", organizer: invite.organizer,
+      eventLink: event.link, meetLink: event.meetLink, invited: to.invited, notInvited: to.notInvited,
     };
     return { result: { interviewId, calendar: outcome }, entityId: interviewId, after: { ...row, ...links }, changed: true };
   });

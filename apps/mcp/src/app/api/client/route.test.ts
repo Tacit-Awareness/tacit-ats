@@ -393,7 +393,8 @@ describe("calendar scheduling", () => {
   test("the scheduling tools say what they do with a calendar and with the candidate", async () => {
     const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
     const byName = Object.fromEntries(tools.map((t: { name: string; description: string }) => [t.name, t.description]));
-    expect(byName.schedule_interview).toMatch(/Google sends the interviewers invites/);
+    expect(byName.schedule_interview).toMatch(/on an interviewer's calendar, so they organize it/);
+    expect(byName.schedule_interview).toMatch(/Google sends the other interviewers invites/);
     expect(byName.schedule_interview).toMatch(/candidate is never invited/);
     expect(byName.update_interview).toMatch(/cancelled deletes the event/);
     expect(byName.find_interview_times).toMatch(/busy times only/);

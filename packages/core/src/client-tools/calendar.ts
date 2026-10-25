@@ -110,6 +110,8 @@ export type Availability = {
   /** Whether the caller's connection exists but would not refresh. */
   callerExpired: boolean;
   connections: Map<string, CalendarConnection>;
+  /** Access tokens that refreshed, by member: the caller's (or the holder's) and each connected interviewer's. */
+  tokens: Map<string, string>;
 };
 
 export async function accessToken(calendar: ClientCalendar, conn: CalendarConnection): Promise<string | null> {
@@ -141,12 +143,14 @@ export async function availability(
   const callerToken = callerConnection ? await accessToken(calendar, callerConnection) : null;
   const checked: Availability["checked"] = new Map();
   const unknown: Availability["unknown"] = new Map();
+  const tokens: Availability["tokens"] = new Map(callerToken ? [[via, callerToken]] : []);
 
   // One free/busy call per access token: each connected interviewer's own, and the caller's for the rest.
   const byToken = new Map<string, Array<{ id: string; email: string; via: "their_calendar" | "your_calendar"; ownExpired: boolean }>>();
   for (const i of interviewers) {
     const own = connections.get(i.id);
     const ownToken = own ? (i.id === via ? callerToken : await accessToken(calendar, own)) : null;
+    if (ownToken) tokens.set(i.id, ownToken);
     if (own && ownToken) {
       byToken.set(ownToken, [...(byToken.get(ownToken) ?? []), { id: i.id, email: own.accountEmail, via: "their_calendar", ownExpired: false }]);
     } else if (callerToken && i.email) {
@@ -172,7 +176,7 @@ export async function availability(
     }
   }
   return {
-    checked, unknown, callerToken, callerConnection, callerExpired: !!callerConnection && !callerToken, connections,
+    checked, unknown, callerToken, callerConnection, callerExpired: !!callerConnection && !callerToken, connections, tokens,
   };
 }
 

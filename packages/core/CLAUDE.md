@@ -446,11 +446,15 @@ src/
                         starts, round-robin across days; zonedInstant /
                         wallClock do the zone math with Intl only).
                         interviews.ts books with it: scheduleInterview
-                        checks conflicts before any write, inserts the row
-                        with calendar_actor_id, creates the event under the
-                        row's id without dashes (connector.createInterviewEvent,
-                        Meet unless a location), deletes the row if Google
-                        refuses; updateInterview moves / re-invites /
+                        checks conflicts before any write, picks the holder
+                        (an interviewer, so they organize the event: the
+                        caller if interviewing and connected, else the first
+                        connected interviewer, else the caller; 2026-10-25,
+                        tacit-internal 20261025120000), inserts the row with
+                        calendar_actor_id = the holder, creates the event
+                        with the holder's grant under the row's id without
+                        dashes (connector.createInterviewEvent, Meet unless
+                        a location), deletes the row if Google refuses; updateInterview moves / re-invites /
                         cancels the event with the HOLDER's grant after the
                         row's conditional update, putting the row back if
                         Google refuses; update_calendar false = record only.
