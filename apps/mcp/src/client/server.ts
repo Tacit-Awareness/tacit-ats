@@ -924,11 +924,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             "books nothing and returns outcome conflicts (book_despite_conflicts: true books anyway). Otherwise " +
             "it puts the event on an interviewer's calendar, so they organize it (yours if you interview, else " +
             "the first interviewer listed who is connected; yours when none is), Google sends the other " +
-            "interviewers invites, and a Meet link is added unless you give location_or_link. None connected: " +
-            "it is recorded in Tacit only and the result says where to connect; send_invites: true refuses " +
-            "instead, send_invites: false never touches a calendar. The " +
-            "candidate is never invited: a draft email to them is returned (draft_candidate_email: false skips " +
-            "it), which you show the user and send with send_email only after their yes. When the job has an " +
+            "interviewers and the candidate (at their email on file) invites, and a Meet link is added unless " +
+            "you give location_or_link. None connected: it is recorded in Tacit only and the result says where " +
+            "to connect; send_invites: true refuses instead, send_invites: false never touches a calendar. A " +
+            "draft email to the candidate is also returned (draft_candidate_email: false skips it), which you " +
+            "show the user and send with send_email only after their yes. When the job has an " +
             "interview plan, step must be one of its steps (get_interview_plan). Needs the right to schedule on " +
             "that job. Confirm the time and interviewers with the user first. " + TIMEZONE_HELP,
           inputSchema: z.object({
@@ -963,8 +963,9 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const calendarSentence =
               cal.status === "invited"
                 ? `${cal.organizer.userId === ctx.actorId ? "On your calendar" : `On ${cal.organizer.name}'s calendar, the event's organizer`}; ` +
-                  `Google sent invitations to ${cal.invited.map((p) => p.name).join(", ") || "nobody else"}.` +
-                  (cal.notInvited.length ? ` No address to invite ${cal.notInvited.map((p) => p.name).join(", ")}.` : "")
+                  `Google sent invitations to ${[...cal.invited.map((p) => p.name), ...(cal.candidateInvited ? ["the candidate"] : [])].join(", ") || "nobody else"}.` +
+                  (cal.notInvited.length ? ` No address to invite ${cal.notInvited.map((p) => p.name).join(", ")}.` : "") +
+                  (cal.candidateInvited ? "" : " The candidate has no email on file, so they were not invited.")
                 : cal.reason === "not_connected"
                   ? `Recorded in Tacit only: neither your calendar nor any interviewer's is connected${cal.connectUrl ? ` (connect at ${cal.connectUrl})` : ""}, so nobody was invited.`
                   : "Recorded in Tacit only; nobody was sent an invitation.";
@@ -978,6 +979,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                   ? {
                       status: cal.status, event_link: cal.eventLink, meet_link: cal.meetLink,
                       organizer: { user_id: cal.organizer.userId, name: cal.organizer.name },
+                      candidate_invited: cal.candidateInvited,
                       invited: cal.invited.map((p) => ({ user_id: p.userId, name: p.name })),
                       not_invited: cal.notInvited.map((p) => ({ user_id: p.userId, name: p.name })),
                     }

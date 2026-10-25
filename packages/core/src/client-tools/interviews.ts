@@ -26,8 +26,11 @@ import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js
  * caller's own when no interviewer is), under an id derived from the
  * interview's, with the other interviewers invited by Google and a Meet link
  * unless a place is given; a move, a change of interviewers or a
- * cancellation follows to the event, with the grant of whoever holds it. The candidate is never on the event: what they are told is a DRAFT
- * email (email.ts) the member reads and sends.
+ * cancellation follows to the event, with the grant of whoever holds it.
+ * The organizer is on the event's guest list too, and so is the candidate, at
+ * the address on file (2026-10-25): Google sends them the invite, the move
+ * and the cancellation. A DRAFT email (email.ts) is written for them as well,
+ * which the member reads and sends.
  *
  * Feedback is private to the company's hiring team: nothing here sends it
  * anywhere, and its notes and the ratings' notes are kept out of the audit row.
@@ -271,6 +274,8 @@ export type CalendarOutcome =
       status: "invited";
       /** Whose calendar holds the event: Google's organizer. */
       organizer: Person;
+      /** The candidate is on the event at their address on file; false = no usable address. */
+      candidateInvited: boolean;
       eventLink: string | null;
       meetLink: string | null;
       invited: Person[];
@@ -328,24 +333,36 @@ async function draftToCandidate(
   }
 }
 
-type AppDetail = { personId: string; candidateName: string | null; jobTitle: string };
+type AppDetail = { personId: string; candidateName: string | null; candidateEmail: string | null; jobTitle: string };
 
 async function applicationDetail(db: Db, applicationId: string): Promise<AppDetail> {
   const { data, error } = await db
-    .from("applications").select("person_id, people(display_name), roles(title)").eq("id", applicationId).maybeSingle();
+    .from("applications").select("person_id, people(display_name, email), roles(title)").eq("id", applicationId).maybeSingle();
   if (error) throw new Error(error.message);
-  const app = data as unknown as { person_id: string; people: { display_name: string | null } | null; roles: { title: string } | null } | null;
+  const app = data as unknown as {
+    person_id: string; people: { display_name: string | null; email: string | null } | null; roles: { title: string } | null;
+  } | null;
   if (!app) throw new ClientToolError("not_found", "No application with that id that you can see.");
-  return { personId: app.person_id, candidateName: app.people?.display_name ?? null, jobTitle: app.roles?.title ?? "the job" };
+  const email = app.people?.email?.trim().toLowerCase() ?? null;
+  return {
+    personId: app.person_id, candidateName: app.people?.display_name ?? null,
+    candidateEmail: email && connector.isPlainEmail(email) ? email : null, jobTitle: app.roles?.title ?? "the job",
+  };
 }
 
-/** Who gets Google's invite: the interviewers other than whoever holds the event, at their calendar's address. */
+/**
+ * Who is on the event: the organizer (whoever holds it, so Google lists them
+ * even with no one else), the other interviewers at their calendar's address,
+ * and the candidate. `invited` and `notInvited` are the other interviewers.
+ */
 function inviteesOf(
   people: Array<{ id: string; name: string; email: string | null }>,
   avail: Pick<Availability, "connections">,
   holder: string,
+  candidateEmail: string | null,
 ): { emails: string[]; invited: Person[]; notInvited: Person[] } {
-  const emails: string[] = [];
+  const own = avail.connections.get(holder)?.accountEmail ?? null;
+  const emails: string[] = own && connector.isPlainEmail(own) ? [own] : [];
   const invited: Person[] = [];
   const notInvited: Person[] = [];
   for (const p of people) {
@@ -358,6 +375,7 @@ function inviteesOf(
       notInvited.push({ userId: p.id, name: p.name });
     }
   }
+  if (candidateEmail) emails.push(candidateEmail);
   return { emails: [...new Set(emails)], invited, notInvited };
 }
 
@@ -459,7 +477,7 @@ export async function scheduleInterview(
     if (insertError) throw new Error(insertError.message);
     if (!invite) return { result: { interviewId, calendar: notSent }, entityId: interviewId, after: row, changed: true };
 
-    const to = inviteesOf(invite.people, invite.avail, invite.holder);
+    const to = inviteesOf(invite.people, invite.avail, invite.holder, invite.detail.candidateEmail);
     let event: connector.CreatedCalendarEvent;
     try {
       event = await connector.createInterviewEvent(calendar!.google, invite.token, {
@@ -485,7 +503,7 @@ export async function scheduleInterview(
     const { error: linkError } = await db.from("interviews").update(links).eq("id", interviewId);
     if (linkError) console.error(`[client-tools interviews] booked interview ${interviewId}, but could not save its event`, linkError);
     const outcome: CalendarOutcome = {
-      status: "invited", organizer: invite.organizer,
+      status: "invited", organizer: invite.organizer, candidateInvited: !!invite.detail.candidateEmail,
       eventLink: event.link, meetLink: event.meetLink, invited: to.invited, notInvited: to.notInvited,
     };
     return { result: { interviewId, calendar: outcome }, entityId: interviewId, after: { ...row, ...links }, changed: true };
@@ -590,7 +608,11 @@ export async function updateInterview(
   // or cancelled with the grant of whoever holds it.
   const eventId = current.google_event_id;
   const touchesEvent = !!eventId && current.status === "scheduled" && (cancelling || (next.status === undefined && (moved || reinvite)));
-  let google: { token: string; holder: string; people: Array<{ id: string; name: string; email: string | null }>; avail: Pick<Availability, "connections"> } | null = null;
+  let google: {
+    token: string; holder: string; people: Array<{ id: string; name: string; email: string | null }>; avail: Pick<Availability, "connections">;
+  } | null = null;
+  // New interviewers replace the event's guest list, which keeps the candidate on it.
+  let candidateEmail: string | null = null;
   let conflicts: InterviewConflicts = { busy: [], unknown: [] };
   if (touchesEvent && input.updateCalendar !== false) {
     const calendar = deps.calendar ?? null;
@@ -615,6 +637,7 @@ export async function updateInterview(
       const token = conn ? await accessToken(calendar, conn) : null;
       if (token) google = { token, holder, people: interviewing, avail: { connections } };
     }
+    if (google && reinvite && !cancelling) candidateEmail = (await applicationDetail(db, current.application_id)).candidateEmail;
     if (!google) {
       const name = people.find((p) => p.id === holder)?.name ?? "the member who booked it";
       throw new ClientToolError(
@@ -641,7 +664,7 @@ export async function updateInterview(
         } else {
           if (moved) await connector.moveInterviewEvent(deps.calendar!.google, google.token, eventId, { startIso: startsAt, endIso: endsAt, timezone: tz });
           if (reinvite) {
-            await connector.setInterviewEventAttendees(deps.calendar!.google, google.token, eventId, inviteesOf(google.people, google.avail, google.holder).emails);
+            await connector.setInterviewEventAttendees(deps.calendar!.google, google.token, eventId, inviteesOf(google.people, google.avail, google.holder, candidateEmail).emails);
           }
           cal = moved ? "moved" : "updated";
         }
