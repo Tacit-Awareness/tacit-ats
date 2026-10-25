@@ -291,9 +291,9 @@ A job's **interview plan** is its interview steps in order, such as *Recruiter s
 
 \`schedule_interview\` schedules an interview on one application with your company's interviewers. Times include their timezone offset.
 
-**With your Google Calendar connected** (the Calendar page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on your calendar, Google sends the interviewers their invitations, and a Google Meet link is added unless you give a place.
+**With a Google Calendar connected** (an interviewer's or yours, on the Integrations page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on an interviewer's calendar, so the interviewer is its organizer: yours if you are interviewing, else the first interviewer you named who has connected. Google sends the other interviewers their invitations, and a Google Meet link is added unless you give a place. When no interviewer has connected, the event goes on your calendar instead.
 
-**Without a connected calendar** it is recorded in Tacit only, and nobody is invited.
+**With no calendar connected**, neither yours nor an interviewer's, it is recorded in Tacit only, and nobody is invited.
 
 The candidate is never put on the calendar invite. Instead Claude drafts an email to them with the time and the link, shows it to you, and sends it only after your yes.
 

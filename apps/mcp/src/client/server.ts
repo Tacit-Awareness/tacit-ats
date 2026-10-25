@@ -919,12 +919,14 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
           title: "Schedule an interview",
           description:
             "Schedules an interview on one application (application_id) with your company's interviewers " +
-            "(user_ids from list_team). Times are ISO 8601 with their offset. When your Google Calendar is " +
-            "connected, it first checks the interviewers' calendars: if anyone is busy it books nothing and " +
-            "returns outcome conflicts (book_despite_conflicts: true books anyway). Otherwise it puts the event " +
-            "on your calendar, Google sends the interviewers invites, and a Meet link is added unless you give " +
-            "location_or_link. Not connected: it is recorded in Tacit only and the result says where to " +
-            "connect; send_invites: true refuses instead, send_invites: false never touches a calendar. The " +
+            "(user_ids from list_team). Times are ISO 8601 with their offset. When an interviewer's Google " +
+            "Calendar or yours is connected, it first checks the interviewers' calendars: if anyone is busy it " +
+            "books nothing and returns outcome conflicts (book_despite_conflicts: true books anyway). Otherwise " +
+            "it puts the event on an interviewer's calendar, so they organize it (yours if you interview, else " +
+            "the first interviewer listed who is connected; yours when none is), Google sends the other " +
+            "interviewers invites, and a Meet link is added unless you give location_or_link. None connected: " +
+            "it is recorded in Tacit only and the result says where to connect; send_invites: true refuses " +
+            "instead, send_invites: false never touches a calendar. The " +
             "candidate is never invited: a draft email to them is returned (draft_candidate_email: false skips " +
             "it), which you show the user and send with send_email only after their yes. When the job has an " +
             "interview plan, step must be one of its steps (get_interview_plan). Needs the right to schedule on " +
@@ -960,10 +962,11 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
             const cal = r.calendar;
             const calendarSentence =
               cal.status === "invited"
-                ? `On your calendar; Google sent invitations to ${cal.invited.map((p) => p.name).join(", ") || "nobody else"}.` +
+                ? `${cal.organizer.userId === ctx.actorId ? "On your calendar" : `On ${cal.organizer.name}'s calendar, the event's organizer`}; ` +
+                  `Google sent invitations to ${cal.invited.map((p) => p.name).join(", ") || "nobody else"}.` +
                   (cal.notInvited.length ? ` No address to invite ${cal.notInvited.map((p) => p.name).join(", ")}.` : "")
                 : cal.reason === "not_connected"
-                  ? `Recorded in Tacit only: your calendar is not connected${cal.connectUrl ? ` (connect it at ${cal.connectUrl})` : ""}, so nobody was invited.`
+                  ? `Recorded in Tacit only: neither your calendar nor any interviewer's is connected${cal.connectUrl ? ` (connect at ${cal.connectUrl})` : ""}, so nobody was invited.`
                   : "Recorded in Tacit only; nobody was sent an invitation.";
             return {
               summary: `Interview scheduled. ${calendarSentence}${draftSentence(r.candidateDraft)}`,
@@ -974,6 +977,7 @@ export function buildClientHandler(member: ClientMember, source: "claude" | "cha
                 calendar: cal.status === "invited"
                   ? {
                       status: cal.status, event_link: cal.eventLink, meet_link: cal.meetLink,
+                      organizer: { user_id: cal.organizer.userId, name: cal.organizer.name },
                       invited: cal.invited.map((p) => ({ user_id: p.userId, name: p.name })),
                       not_invited: cal.notInvited.map((p) => ({ user_id: p.userId, name: p.name })),
                     }

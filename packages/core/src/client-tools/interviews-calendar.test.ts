@@ -18,6 +18,7 @@ async function refusal(promise: Promise<unknown>): Promise<ClientToolError> {
 }
 
 const ME = { accountEmail: "me@co.test", refreshToken: "rt-me" };
+const ALICE = { accountEmail: "alice@co.test", refreshToken: "rt-alice" };
 const base = {
   applicationId: "app-1", startsAt: "2026-10-21T15:00:00-04:00", endsAt: "2026-10-21T16:00:00-04:00",
   interviewerIds: ["actor-1", "actor-2"], timezone: "America/New_York",
@@ -41,7 +42,8 @@ describe("scheduleInterview on a calendar", () => {
     });
     if (r.outcome !== "scheduled") throw new Error("expected scheduled");
     expect(r.calendar).toMatchObject({
-      status: "invited", meetLink: "https://meet.google.com/abc-defg-hij", invited: [{ userId: "actor-2", name: "Alice" }], notInvited: [],
+      status: "invited", organizer: { userId: "actor-1", name: "Me" },
+      meetLink: "https://meet.google.com/abc-defg-hij", invited: [{ userId: "actor-2", name: "Alice" }], notInvited: [],
     });
     expect(fake.calls.find((c) => c.op === "insert")?.args).toMatchObject({ id: r.interviewId, calendar_actor_id: "actor-1" });
     const [created] = google.eventCalls();
@@ -58,6 +60,43 @@ describe("scheduleInterview on a calendar", () => {
     const linked = fake.calls.find((c) => c.op === "update");
     expect(linked?.args).toMatchObject({ google_event_id: r.interviewId.replace(/-/g, ""), location_or_link: "https://meet.google.com/abc-defg-hij" });
     expect(r.noDraftBecause).toMatch(/turned off/);
+  });
+
+  test("an interviewer's calendar holds the event when the caller is not interviewing: they organize it", async () => {
+    const people = [PEOPLE[1], { id: "actor-3", display_name: "Bob", email: "bob@co.test" }];
+    const google = fakeGoogle({ busy: { "at-alice": { "alice@co.test": [] }, "at-me": { "bob@co.test": [] } } });
+    const fake = new FakeSupabase([
+      { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: [{ id: "actor-2" }, { id: "actor-3" }] }, { data: people },
+      APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null },
+    ]);
+    const r = await scheduleInterview(fake.asDb(), ctx, { ...base, interviewerIds: ["actor-3", "actor-2"] }, {
+      calendar: google.calendarWith({ "actor-1": ME, "actor-2": ALICE }), mailer: null, now,
+    });
+    if (r.outcome !== "scheduled") throw new Error("expected scheduled");
+    expect(r.calendar).toMatchObject({
+      status: "invited", organizer: { userId: "actor-2", name: "Alice" }, invited: [{ userId: "actor-3", name: "Bob" }], notInvited: [],
+    });
+    expect(fake.calls.find((c) => c.op === "insert")?.args).toMatchObject({ calendar_actor_id: "actor-2" });
+    const [created] = google.eventCalls();
+    expect(created).toMatchObject({ method: "POST", token: "at-alice", body: { attendees: [{ email: "bob@co.test" }] } });
+  });
+
+  test("an interviewing caller holds the event when connected; when not, a connected interviewer does", async () => {
+    const both = fakeGoogle({ busy: { "at-me": { "me@co.test": [] }, "at-alice": { "alice@co.test": [] } } });
+    await scheduleInterview(before(APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null }).asDb(), ctx, base, {
+      calendar: both.calendarWith({ "actor-1": ME, "actor-2": ALICE }), now,
+    });
+    expect(both.eventCalls()[0]).toMatchObject({ token: "at-me", body: { attendees: [{ email: "alice@co.test" }] } });
+
+    const aliceOnly = fakeGoogle({ busy: { "at-alice": { "alice@co.test": [] } } });
+    const fake = before(APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null });
+    const r = await scheduleInterview(fake.asDb(), ctx, base, { calendar: aliceOnly.calendarWith({ "actor-2": ALICE }), now });
+    expect(r).toMatchObject({
+      outcome: "scheduled", conflicts: { unknown: [{ userId: "actor-1", reason: "not_connected" }] },
+      calendar: { status: "invited", organizer: { userId: "actor-2" }, invited: [{ userId: "actor-1", name: "Me" }] },
+    });
+    expect(fake.calls.find((c) => c.op === "insert")?.args).toMatchObject({ calendar_actor_id: "actor-2" });
+    expect(aliceOnly.eventCalls()[0]).toMatchObject({ token: "at-alice", body: { attendees: [{ email: "me@co.test" }] } });
   });
 
   test("the candidate gets a draft with the time in the zone given and the Meet link, never an invite", async () => {
@@ -118,7 +157,7 @@ describe("scheduleInterview on a calendar", () => {
 
     const strict = before();
     const err = await refusal(scheduleInterview(strict.asDb(), ctx, { ...base, sendInvites: true }, { calendar: google.calendarWith({}), now }));
-    expect(err.message).toMatch(/Your calendar is not connected. Connect it at https:\/\/app.test\/client\/calendar/);
+    expect(err.message).toMatch(/Neither your calendar nor any interviewer's is connected. Connect it at https:\/\/app.test\/client\/calendar/);
     expect(strict.calls.map((c) => c.table)).not.toContain("client_claim_write");
   });
 
