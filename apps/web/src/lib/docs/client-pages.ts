@@ -291,11 +291,11 @@ A job's **interview plan** is its interview steps in order, such as *Recruiter s
 
 \`schedule_interview\` schedules an interview on one application with your company's interviewers. Times include their timezone offset.
 
-**With a Google Calendar connected** (an interviewer's or yours, on the Integrations page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on an interviewer's calendar, so the interviewer is its organizer: yours if you are interviewing, else the first interviewer you named who has connected. Google sends the other interviewers their invitations, and a Google Meet link is added unless you give a place. When no interviewer has connected, the event goes on your calendar instead.
+**With a Google Calendar connected** (an interviewer's or yours, on the Integrations page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on an interviewer's calendar, so the interviewer is its organizer: yours if you are interviewing, else the first interviewer you named who has connected. Google sends the other interviewers and the candidate (at their email on file) their invitations, and a Google Meet link is added unless you give a place. Moving or cancelling the interview updates everyone on the invite. When no interviewer has connected, the event goes on your calendar instead.
 
 **With no calendar connected**, neither yours nor an interviewer's, it is recorded in Tacit only, and nobody is invited.
 
-The candidate is never put on the calendar invite. Instead Claude drafts an email to them with the time and the link, shows it to you, and sends it only after your yes.
+Claude also drafts an email to the candidate with the time and the link, shows it to you, and sends it only after your yes.
 
 When the job has an interview plan, the step must be one of its steps. Scheduling needs the right to schedule on that job; Claude confirms the time and interviewers first.
 

@@ -31,7 +31,7 @@ const before = (...more: Array<{ data?: unknown; error?: unknown }>) => new Fake
   { data: { id: "app-1", role_id: "role-1" } }, { data: true }, { data: [{ id: "actor-1" }, { id: "actor-2" }] }, { data: PEOPLE },
   ...more,
 ]);
-const APP = { data: { person_id: "p-1", people: { display_name: "Pat Lee" }, roles: { title: "Engineer" } } };
+const APP = { data: { person_id: "p-1", people: { display_name: "Pat Lee", email: "Pat@Example.com" }, roles: { title: "Engineer" } } };
 
 describe("scheduleInterview on a calendar", () => {
   test("books on the caller's calendar: the row names it, the event invites the others and has a Meet link", async () => {
@@ -52,11 +52,11 @@ describe("scheduleInterview on a calendar", () => {
     expect(created.body).toMatchObject({
       id: r.interviewId.replace(/-/g, ""),
       summary: "Interview: Pat Lee for Engineer",
-      attendees: [{ email: "alice@co.test" }],
+      // The organizer, so Google lists them; the other interviewer; the candidate at their address on file.
+      attendees: [{ email: "me@co.test" }, { email: "alice@co.test" }, { email: "pat@example.com" }],
       start: { dateTime: "2026-10-21T19:00:00.000Z", timeZone: "America/New_York" },
     });
-    // The candidate is on nothing Google sends.
-    expect(JSON.stringify(created.body)).not.toMatch(/p-1/);
+    expect(r.calendar).toMatchObject({ candidateInvited: true });
     const linked = fake.calls.find((c) => c.op === "update");
     expect(linked?.args).toMatchObject({ google_event_id: r.interviewId.replace(/-/g, ""), location_or_link: "https://meet.google.com/abc-defg-hij" });
     expect(r.noDraftBecause).toMatch(/turned off/);
@@ -78,7 +78,19 @@ describe("scheduleInterview on a calendar", () => {
     });
     expect(fake.calls.find((c) => c.op === "insert")?.args).toMatchObject({ calendar_actor_id: "actor-2" });
     const [created] = google.eventCalls();
-    expect(created).toMatchObject({ method: "POST", token: "at-alice", body: { attendees: [{ email: "bob@co.test" }] } });
+    expect(created).toMatchObject({
+      method: "POST", token: "at-alice", body: { attendees: [{ email: "alice@co.test" }, { email: "bob@co.test" }, { email: "pat@example.com" }] },
+    });
+  });
+
+  test("a candidate with no usable address on file is not on the event, and the result says so", async () => {
+    const google = fakeGoogle({ busy: { "at-me": { "me@co.test": [], "alice@co.test": [] } } });
+    const noEmail = { data: { person_id: "p-1", people: { display_name: "Pat Lee", email: null }, roles: { title: "Engineer" } } };
+    const r = await scheduleInterview(before(noEmail, { data: "audit-1" }, { data: null }, { data: null }, { data: null }).asDb(), ctx, base, {
+      calendar: google.calendarWith({ "actor-1": ME }), now,
+    });
+    expect(r).toMatchObject({ outcome: "scheduled", calendar: { status: "invited", candidateInvited: false } });
+    expect(google.eventCalls()[0].body).toMatchObject({ attendees: [{ email: "me@co.test" }, { email: "alice@co.test" }] });
   });
 
   test("an interviewing caller holds the event when connected; when not, a connected interviewer does", async () => {
@@ -86,7 +98,9 @@ describe("scheduleInterview on a calendar", () => {
     await scheduleInterview(before(APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null }).asDb(), ctx, base, {
       calendar: both.calendarWith({ "actor-1": ME, "actor-2": ALICE }), now,
     });
-    expect(both.eventCalls()[0]).toMatchObject({ token: "at-me", body: { attendees: [{ email: "alice@co.test" }] } });
+    expect(both.eventCalls()[0]).toMatchObject({
+      token: "at-me", body: { attendees: [{ email: "me@co.test" }, { email: "alice@co.test" }, { email: "pat@example.com" }] },
+    });
 
     const aliceOnly = fakeGoogle({ busy: { "at-alice": { "alice@co.test": [] } } });
     const fake = before(APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null });
@@ -96,10 +110,12 @@ describe("scheduleInterview on a calendar", () => {
       calendar: { status: "invited", organizer: { userId: "actor-2" }, invited: [{ userId: "actor-1", name: "Me" }] },
     });
     expect(fake.calls.find((c) => c.op === "insert")?.args).toMatchObject({ calendar_actor_id: "actor-2" });
-    expect(aliceOnly.eventCalls()[0]).toMatchObject({ token: "at-alice", body: { attendees: [{ email: "me@co.test" }] } });
+    expect(aliceOnly.eventCalls()[0]).toMatchObject({
+      token: "at-alice", body: { attendees: [{ email: "alice@co.test" }, { email: "me@co.test" }, { email: "pat@example.com" }] },
+    });
   });
 
-  test("the candidate gets a draft with the time in the zone given and the Meet link, never an invite", async () => {
+  test("the candidate also gets a draft with the time in the zone given and the Meet link, never sent", async () => {
     const google = fakeGoogle({ busy: { "at-me": { "me@co.test": [], "alice@co.test": [] } } });
     const fake = before(
       APP, { data: "audit-1" }, { data: null }, { data: null }, { data: null },
@@ -261,15 +277,19 @@ describe("updateInterview on a calendar", () => {
     expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
   });
 
-  test("new interviewers are set on the event, the holder left off", async () => {
+  test("new interviewers are set on the event, keeping the organizer and the candidate on it", async () => {
     const google = fakeGoogle();
     const more = [...people, { id: "actor-3", display_name: "Bo", email: "bo@co.test" }];
-    const fake = loaded({ data: [{ id: "actor-2" }, { id: "actor-3" }] }, { data: more }, { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null });
+    const fake = loaded(
+      { data: [{ id: "actor-2" }, { id: "actor-3" }] }, { data: more }, APP, { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null },
+    );
     const r = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", interviewerIds: ["actor-2", "actor-3"] }, {
       calendar: google.calendarWith({ "actor-9": HOLDER, "actor-3": { accountEmail: "bo@gmail.test", refreshToken: "rt-bo" } }), now,
     });
     expect(r).toMatchObject({ calendar: "updated", changed: ["interviewer_actor_ids"] });
-    expect(google.eventCalls()).toMatchObject([{ method: "PATCH", body: { attendees: [{ email: "alice@co.test" }, { email: "bo@gmail.test" }] } }]);
+    expect(google.eventCalls()).toMatchObject([{ method: "PATCH", body: {
+      attendees: [{ email: "hana@co.test" }, { email: "alice@co.test" }, { email: "bo@gmail.test" }, { email: "pat@example.com" }],
+    } }]);
   });
 
   test("Google refuses the move: the row is put back and the claim given back", async () => {

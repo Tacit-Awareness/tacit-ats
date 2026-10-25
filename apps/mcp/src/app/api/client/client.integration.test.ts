@@ -651,7 +651,7 @@ describe("calendar scheduling against real Postgres", () => {
       candidate_draft: { to: "pat@cand.test" },
     });
     const eventId = (booked.interview_id as string).replace(/-/g, "");
-    expect(events()).toMatchObject([{ method: "POST", token: "at-ada", body: { id: eventId, attendees: [{ email: "ivan@acme.test" }] } }]);
+    expect(events()).toMatchObject([{ method: "POST", token: "at-ada", body: { id: eventId, attendees: [{ email: "ada@acme.test" }, { email: "ivan@acme.test" }, { email: "pat@cand.test" }] } }]);
     const { data: row } = await db().from("interviews")
       .select("calendar_actor_id, google_event_id, location_or_link").eq("id", booked.interview_id).single();
     expect(row).toEqual({ calendar_actor_id: ADMIN, google_event_id: eventId, location_or_link: "https://meet.google.com/itest" });

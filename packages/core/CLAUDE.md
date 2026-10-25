@@ -458,8 +458,13 @@ src/
                         cancels the event with the HOLDER's grant after the
                         row's conditional update, putting the row back if
                         Google refuses; update_calendar false = record only.
-                        The candidate gets a draftEmail draft for a booking,
-                        a move or a cancellation, never an invite; a draft
+                        The event's guests are the holder (so Google shows
+                        an organizer), the other interviewers and, since
+                        2026-10-25, the candidate at people.email (not
+                        invited without one: candidateInvited); new
+                        interviewers keep both on. The candidate also gets a
+                        draftEmail draft for a booking, a move or a
+                        cancellation; a draft
                         that cannot be written is reported, not thrown.
                         Without a ClientCalendar both behave as before
                         granola.ts (2026-10-19, 20261019200000):
