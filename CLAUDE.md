@@ -41,6 +41,10 @@ See each folder's own `CLAUDE.md`.
 - **Interview feedback and offer terms stay private.** Feedback notes, rating notes, email subjects and bodies, filenames and source details are kept out of `audit_log` and `mcp_calls`; candidate text comes back fenced.
 - **`packages/*` never depends on `apps/*`**, and `@tacit-ats/core` never reads `process.env` or builds a client at module load.
 
+## Testing in production
+
+**Tacit Test Co** is a permanent client company in production for trying the client side end to end after a change merges: its admin is Ryan, its bot is his Grok bot in a test Slack. Setup, the interview notifications run, and where to look: `docs/client-sandbox.md`.
+
 ## Commands
 
 Run from the repo root:
