@@ -424,7 +424,7 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
     title: "Your team's bot",
     category: "Administration",
     description: "Have Tacit tell your own Slack bot about every interview: a hello before, a check-in after.",
-    body: `Tacit can send your company's own bot (for example a Grok team bot in your Slack) each interview's moments, so the bot talks to your interviewer:
+    body: `Tacit can send your company's own bot (for example a Grok team bot in your Slack: [Set up a Grok bot in Slack](/docs/grok-bot)) each interview's moments, so the bot talks to your interviewer:
 
 | Event | When | What your bot does with it |
 | --- | --- | --- |
@@ -458,6 +458,97 @@ The body names the interview (\`interviewId\`, \`startsAt\` and \`endsAt\` in th
 ## Threads
 
 Answer the reminder with \`{"slack": {"channel": "D...", "threadTs": "123.456"}}\` and later events about that interview carry the thread, so the check-in lands in it. If you open the thread later, POST the same with \`interviewId\` and \`interviewerUserId\` to \`/api/agents/interview-thread\` on this site, with the same Bearer secret.`,
+  },
+  {
+    slug: "grok-bot",
+    title: "Set up a Grok bot in Slack",
+    category: "Administration",
+    description: "A Grok routine as your team's bot: the instruction to give it, connecting it in Tacit, and trying it.",
+    body: `This page sets up a **Grok bot** as [your team's bot](/docs/team-bot), so that five minutes before every interview it says hi to the interviewer in Slack with a short brief, checks in after the interview, and notes a cancellation. Tacit sends the events; the Grok bot does the talking, in your own Slack.
+
+You need:
+
+- **Admin access** in Tacit, to set your company's bot.
+- **A Grok bot connected to your Slack workspace**, able to look people up by email and send them direct messages. Interviewers are matched by the email they use in Tacit, so their Slack accounts should use the same address.
+- **Google Calendar connected** (on **Integrations**) by whoever books interviews, so a move or deletion in their calendar reaches Tacit, and the bot.
+
+## 1. Create the routine
+
+In your Grok bot, create a new **routine**:
+
+1. **When to run**: when a webhook fires.
+2. **Webhook**: Grok shows the URL to POST to and a **key**. Senders authenticate with \`Authorization: Bearer <key>\`, which Grok checks before the routine runs. Keep both for step 3.
+3. **Instruction**: paste the text below. Replace \`{Your company}\` with your company's name. If the routine can use the Tacit connector for your company (\`https://ats-mcp.tacitawareness.com/api/client\`, signed in to your company), it reads each candidate for the brief; without it, the brief uses only what the event says.
+
+\`\`\`text
+Instruction
+Handle a Tacit interview webhook for {Your company} only. Use the {Your company} Tacit connector for any ATS reads. Discover live Slack and Tacit tools each run before calling them.
+
+Body fields to read when present: event, eventId, interviewId, candidateId, applicationId, startsAt, endsAt, timezone, meetLink, candidateName, roleTitle, companyName, step, text, interviewer.userId, interviewer.name, interviewer.email, slack.channel, slack.threadTs. slack.channel and slack.threadTs are usually null: your own thread map below is the source of truth. startsAt and endsAt are ISO times already in the interviewer's time zone.
+
+If event is url_verification: this is Tacit checking the connection. Do nothing and stay quiet.
+
+Never act twice on the same eventId. Keep handled eventIds in /workspace/tacit-interviews/events.jsonl (append one JSON object per line with at least eventId and when handled). If eventId is already there, skip and stay quiet. Tacit retries with the same eventId when it gets no answer.
+
+Finding the interviewer: there is no Slack user id in the payload. Look up the Slack user whose email is interviewer.email. If nobody has that email, do nothing for this event.
+
+Threading: after any new top-level DM, read that DM via Slack, find the message you just posted, and save its conversation id (D…) and ts. Persist interviewId + interviewer.userId → channel + thread_ts in /workspace/tacit-interviews/threads.jsonl. All later messages for that interview and interviewer go in that thread (use slack.channel / slack.threadTs only if the map has nothing and the payload does). Never post a second top-level DM for the same interview.
+
+interview.reminder_t5m (five minutes before):
+1. Find the interviewer by email.
+2. If no thread is saved for this interview and interviewer, post exactly once at the DM root: the payload's text (it reads like "Saying hi! {interviewer} <> {candidate} @ {local time}"). Save channel and thread_ts.
+3. Reply in that thread with a short brief: candidateName, roleTitle and step, the meetLink, at most 3 bullets. Prefer reading the candidate with the Tacit connector's get_candidate (candidateId) for those bullets; otherwise use only the payload. Never invent details.
+
+interview.finished (after the interview if feedback is missing):
+1. Load the saved thread from the map (or slack.channel / slack.threadTs). If none, start one at the DM root with "How was your interview with {candidateName}?" and save it.
+2. Ask these questions ONE AT A TIME in that thread, waiting for each answer before the next: (1) How was your interview with {candidateName}? (2) Would you move them to the next round? (3) Anything else?
+3. Do not list the questions together. Do not open a new thread if one exists.
+
+interview.cancelled:
+1. In the saved thread from the map (or slack.channel / slack.threadTs), post the payload's text (like "This interview with {candidate} ({time}) was cancelled."). One line, nothing else.
+2. If no thread exists, do nothing.
+
+If this run cannot post to Slack itself, hand off to the parent with the exact text and the known channel/thread_ts so the parent posts as this bot and updates the map. Parent handoffs must also ask one question at a time.
+Deliver only via Slack to the interviewer. Message no one else. When nothing is actionable, stay quiet.
+\`\`\`
+
+Save the routine.
+
+## 2. What the instruction relies on
+
+- **The key is checked by Grok**, so the instruction has no secret in it. Never paste the key into the instruction.
+- **Grok answers Tacit before the routine runs**, so the routine's own reply never reaches Tacit. That is why it keeps its own map of each interview's Slack thread (\`threads.jsonl\`): the check-in and a cancellation go to the thread the reminder started.
+- **Each event comes once per interviewer**, with the same \`eventId\` on every retry, which is why the routine skips an \`eventId\` it has handled.
+- **Events never carry interview feedback.** What the bot learns about a candidate beyond the event, it reads through the Tacit connector, as whoever the connector is signed in as.
+
+## 3. Connect it in Tacit
+
+On **Integrations**, under **Your team's bot** (admins only):
+
+1. **Your bot's address**: the routine's webhook URL.
+2. **Your bot's key**: the key from the routine's webhook panel. Tacit sends it with every event and never shows it again.
+3. Press **Save**, then **Verify**. Tacit sends the routine a signed \`url_verification\` request; Grok accepting it (a success answer) verifies the bot. Until then nothing is sent to it.
+
+To change the key later, create a new one in the routine's webhook panel and save the address again with the new key, then **Verify**. **Turn off** stops all sending without forgetting the bot.
+
+## 4. Try it
+
+Book an interview at least eight minutes out with yourself as an interviewer (with Claude: *"Schedule a 30 minute interview with Priya for the Backend job at 3pm today, with me interviewing"*). Then:
+
+| When | What you should see in Slack |
+| --- | --- |
+| Five minutes before | A DM: *Saying hi! You <> Priya @ 3:00 PM*, and a short brief in its thread |
+| About five minutes after it ends | *How was your interview with Priya?* in the same thread, then the next question after you answer |
+| If it is cancelled (in Tacit, or deleted from the calendar) | *This interview with Priya (3:00 PM) was cancelled.* in the thread |
+
+Moving the interview (in Tacit, or by dragging it in Google Calendar) moves the hello to five minutes before the new time; nothing is sent at the old one.
+
+## If nothing arrives
+
+- **Not verified**: on **Integrations**, the bot must say **Verified**. Press **Verify** again after any change of address or key.
+- **No DM but the routine ran**: the interviewer's Slack email must match their email in Tacit.
+- **Booked less than about seven minutes ahead**: the hello still comes, but up to two minutes late.
+- **The check-in never came**: it is only sent while the interviewer has not filed feedback.`,
   },
   {
     slug: "client-tools",
