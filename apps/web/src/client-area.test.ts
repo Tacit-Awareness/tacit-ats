@@ -45,8 +45,12 @@ function resolveLocal(from: string, spec: string): string | null {
 
 /** Names that hand back a database client which is not the signed-in user's. */
 const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createServiceClient|createTacitClient)\b/;
-/** The one client-area module allowed a privileged client: first sign-in binding. */
-const ALLOWED = new Set([join(SRC, "lib/client/bind.ts")]);
+/**
+ * The client-area modules allowed a privileged client: first sign-in binding,
+ * and the signed challenge to the company's bot (its secret is never granted
+ * to a member's token).
+ */
+const ALLOWED = new Set([join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts")]);
 
 describe("the client area never holds a privileged database client", () => {
   const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
@@ -82,10 +86,11 @@ describe("the client area never holds a privileged database client", () => {
     ).toEqual([]);
   });
 
-  test("the allowed module exports a verdict, not a client", () => {
-    const text = readFileSync(join(SRC, "lib/client/bind.ts"), "utf8");
-    const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
-    expect(exported).toEqual(["bindInvitedActor"]);
+  test("the allowed modules export a verdict, not a client", () => {
+    const exportsOf = (file: string) =>
+      [...readFileSync(join(SRC, file), "utf8").matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
+    expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedActor"]);
+    expect(exportsOf("lib/client/bot.ts")).toEqual(["verifyCompanyBot"]);
   });
 });
 

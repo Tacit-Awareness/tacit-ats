@@ -151,9 +151,10 @@ describe("addCandidate", () => {
   test("the source and its detail go on the new application; the audit row keeps the source only", async () => {
     const fake = new FakeSupabase([
       { data: true }, { data: true }, { data: "audit-1" },
-      // A new person (no email to look up), the application, its event, the funnel's org check.
+      // A new person (no email to look up), the application, its event, the funnel's org check,
+      // and the submission's (a client org's own job is never sent on to anyone).
       { data: null }, { data: { id: "app-1" } }, { data: null }, { data: null },
-      { data: null },
+      { data: null }, { data: { org_id: "org-acme" } },
     ]);
     const r = await addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", source: "agency", sourceDetail: "  Hunt & Co  " });
     expect(r).toMatchObject({ outcome: "added", applicationId: "app-1" });

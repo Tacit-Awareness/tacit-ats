@@ -4,7 +4,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
 import { disconnectGranolaAction } from "./actions";
-import { INTEGRATION_ERRORS, INTEGRATION_NOTICES, isIntegrationError, isIntegrationNotice } from "./messages";
+import { BotSection, type CompanyBot } from "./bot";
+import {
+  BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
+} from "./messages";
 
 // /client/integrations, laid out like the Connectors card on Tacit's internal
 // home (tacit-internal apps/internal (workspace)/page.tsx): one row per
@@ -16,17 +19,28 @@ export function IntegrationsView({
   calendar,
   granola,
   calendarConfigured,
+  bot,
+  orgName,
+  botCallbackUrl,
   notice,
   error,
 }: {
   calendar: { accountEmail: string } | null;
   granola: { accountEmail: string | null } | null;
   calendarConfigured: boolean;
+  /** Null for anyone but an admin, who gets the company's bot section. */
+  bot: { set: CompanyBot | null } | null;
+  orgName: string;
+  botCallbackUrl: string | null;
   notice?: string;
   error?: string;
 }) {
-  const noticeText = isIntegrationNotice(notice) ? INTEGRATION_NOTICES[notice] : isCalendarNotice(notice) ? CALENDAR_NOTICES[notice] : null;
-  const errorText = isIntegrationError(error) ? INTEGRATION_ERRORS[error] : isCalendarError(error) ? CALENDAR_ERRORS[error] : null;
+  const noticeText = isIntegrationNotice(notice) ? INTEGRATION_NOTICES[notice]
+    : isCalendarNotice(notice) ? CALENDAR_NOTICES[notice]
+      : isBotNotice(notice) ? BOT_NOTICES[notice] : null;
+  const errorText = isIntegrationError(error) ? INTEGRATION_ERRORS[error]
+    : isCalendarError(error) ? CALENDAR_ERRORS[error]
+      : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
     <Page narrow>
@@ -78,6 +92,7 @@ export function IntegrationsView({
           </div>
         </Rows>
       </Section>
+      {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} /> : null}
     </Page>
   );
 }
