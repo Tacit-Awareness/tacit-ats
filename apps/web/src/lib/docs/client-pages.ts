@@ -420,6 +420,46 @@ Claude picks the matching reason, calls \`update_stage\` with it and your note, 
 Once someone accepts and signs in, they appear in \`list_team\` and can [connect Claude](/docs/connect) themselves.`,
   },
   {
+    slug: "team-bot",
+    title: "Your team's bot",
+    category: "Administration",
+    description: "Have Tacit tell your own Slack bot about every interview: a hello before, a check-in after.",
+    body: `Tacit can send your company's own bot (for example a Grok team bot in your Slack) each interview's moments, so the bot talks to your interviewer:
+
+| Event | When | What your bot does with it |
+| --- | --- | --- |
+| \`interview.reminder_t5m\` | Five minutes before it starts | Says hi to the interviewer, with who they are meeting |
+| \`interview.finished\` | A few minutes after it ends, if they have not filed feedback | Asks how it went |
+| \`interview.cancelled\` | When an interview the bot opened a thread about is cancelled | Says so in that thread |
+
+The reminder goes at exactly five minutes before. An interview moved or deleted in the organizer's Google Calendar follows within a couple of minutes, and a reminder is never sent for a time that is no longer right.
+
+## Setting it up
+
+An admin sets it once, for the whole company, on **Integrations**:
+
+1. Enter your bot's **https** address and save. Tacit shows the bot's **secret** once: put it in your bot.
+2. Press **Verify**. Tacit sends your bot \`{"event": "url_verification", "challenge": "..."}\`; it must answer with \`{"challenge": "<the same>"}\`. Nothing else is sent until it does.
+
+**New secret** replaces it (verify again), **Turn off** stops all sending, and **Remove** forgets the bot. A new address is a new secret. Every change is in your audit log.
+
+## What your bot receives
+
+Each event is a POST of JSON with:
+
+- \`Authorization: Bearer <secret>\`
+- \`X-Tacit-Event\`, \`X-Tacit-Event-Id\` and \`X-Tacit-Timestamp\` (unix seconds)
+- \`X-Tacit-Signature: v1=<hex>\`, an HMAC-SHA256 with the secret over \`<timestamp>.<raw body>\`. Check it, and refuse an old timestamp.
+
+The body names the interview (\`interviewId\`, \`startsAt\` and \`endsAt\` in the interviewer's time zone, \`meetLink\`), the candidate (\`candidateName\`), the job (\`roleTitle\`, \`step\`) and the interviewer (\`interviewer.userId\`, \`name\`, \`email\`: find them in your Slack by email), plus \`text\`, a line your bot may post as is. Never feedback.
+
+\`eventId\` is the same on every retry: treat a repeat as done. An answer that is not a 2xx is retried a few times.
+
+## Threads
+
+Answer the reminder with \`{"slack": {"channel": "D...", "threadTs": "123.456"}}\` and later events about that interview carry the thread, so the check-in lands in it. If you open the thread later, POST the same with \`interviewId\` and \`interviewerUserId\` to \`/api/agents/interview-thread\` on this site, with the same Bearer secret.`,
+  },
+  {
     slug: "client-tools",
     title: "Tool reference",
     category: "Reference",

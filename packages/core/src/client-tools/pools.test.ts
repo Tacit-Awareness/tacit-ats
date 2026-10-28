@@ -252,6 +252,8 @@ describe("prospects", () => {
     const script = () => [
       { data: { id: PERSON, prospect_source: "referral", prospect_source_detail: "Ada" } }, { data: true },
       { data: "audit-1" }, { data: { id: "app-1" } }, { data: null }, { data: null }, { data: null },
+      // addToPipeline's submission check: a client org's own job is never sent on.
+      { data: { org_id: "org-acme" } },
     ];
     const kept = new FakeSupabase(script());
     expect(await convertProspect(kept.asDb(), ctx(), { candidateId: PERSON, jobId: JOB }))

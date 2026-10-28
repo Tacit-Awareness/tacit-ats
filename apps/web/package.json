@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@tacit-ats/core": "workspace:^",
-    "@tacit/core": "file:../../vendor/tacit-core-acad2b4.tgz",
-    "@tacit/db": "file:../../vendor/tacit-db-acad2b4.tgz",
+    "@tacit/core": "file:../../vendor/tacit-core-5ee952d.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db-5ee952d.tgz",
     "@workos-inc/authkit-nextjs": "4.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -21,7 +21,8 @@
     "react-dom": "19.2.8",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "workflow": "5.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
