@@ -27,7 +27,8 @@ and its interviews are real events on Ryan's calendar.
 4. **Integrations > Your team's bot**: the Grok routine's webhook URL and, as
    **Your bot's key**, the key from the routine's webhook panel (the Bearer key
    Grok checks). Save, then **Verify**: a success answer from Grok verifies it.
-   (The contract: the client docs page "Your team's bot".)
+   (The routine's instruction and the steps: the client docs page "Set up a
+   Grok bot in Slack"; the contract: "Your team's bot".)
 5. In Claude, connect the client connector (https://ats-mcp.tacitawareness.com/api/client)
    and sign in as Tacit Test Co, so Claude can book and move interviews as the admin.
 
