@@ -24,6 +24,7 @@ export const BOT_NOTICES = {
 
 export const BOT_ERRORS = {
   bot_bad_url: "That isn't an https address Tacit can call (no port, no username or password in it).",
+  bot_bad_key: "That key can't be used: it has to be 16 to 512 characters with no spaces.",
   bot_not_admin: "Only an admin can change your company's bot.",
   bot_missing: "Your company has no bot set yet.",
   bot_unreachable: "Tacit couldn't reach your bot at that address, or it didn't answer with a success. Nothing was verified.",

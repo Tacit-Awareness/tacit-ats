@@ -24,10 +24,10 @@ and its interviews are real events on Ryan's calendar.
 2. **Integrations**: connect Google Calendar.
 3. Create a job (in the client area or with the client connector's
    `create_job`) and add rhuang53jp@gmail.com as a candidate.
-4. **Integrations > Your team's bot**: the Grok bot's https address, Save,
-   put the secret shown into the bot, then **Verify**. The bot must answer
-   `{"event":"url_verification","challenge":"..."}` with `{"challenge":"<same>"}`
-   (the contract: the client docs page "Your team's bot").
+4. **Integrations > Your team's bot**: the Grok routine's webhook URL and, as
+   **Your bot's key**, the key from the routine's webhook panel (the Bearer key
+   Grok checks). Save, then **Verify**: a success answer from Grok verifies it.
+   (The contract: the client docs page "Your team's bot".)
 5. In Claude, connect the client connector (https://ats-mcp.tacitawareness.com/api/client)
    and sign in as Tacit Test Co, so Claude can book and move interviews as the admin.
 

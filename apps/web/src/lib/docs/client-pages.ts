@@ -438,16 +438,16 @@ The reminder goes at exactly five minutes before. An interview moved or deleted 
 
 An admin sets it once, for the whole company, on **Integrations**:
 
-1. Enter your bot's **https** address and save. Tacit shows the bot's **secret** once: put it in your bot.
-2. Press **Verify**. Tacit sends your bot \`{"event": "url_verification", "challenge": "..."}\`; it must answer with \`{"challenge": "<the same>"}\`. Nothing else is sent until it does.
+1. Enter your bot's **https** address. If your bot's platform gives its webhook a key (a Grok routine's "Authorization: Bearer" key), paste it as **Your bot's key**: Tacit sends it with every event and never shows it again. Otherwise leave it empty, and Tacit makes a **secret** and shows it once: put it in your bot.
+2. Press **Verify**. Tacit sends your bot a signed \`{"event": "url_verification", "challenge": "..."}\`. Any success answer (2xx) verifies it; a bot that can answer may echo \`{"challenge": "<the same>"}\`, and a different challenge back fails. Nothing else is sent until it is verified.
 
-**New secret** replaces it (verify again), **Turn off** stops all sending, and **Remove** forgets the bot. A new address is a new secret. Every change is in your audit log.
+**New secret** makes a new one for you to put in your bot (verify again); to change your bot's own key, save the address again with the new key. **Turn off** stops all sending, and **Remove** forgets the bot. Every change is in your audit log; a key never is.
 
 ## What your bot receives
 
 Each event is a POST of JSON with:
 
-- \`Authorization: Bearer <secret>\`
+- \`Authorization: Bearer <secret>\` (your bot's own key, or the secret Tacit made)
 - \`X-Tacit-Event\`, \`X-Tacit-Event-Id\` and \`X-Tacit-Timestamp\` (unix seconds)
 - \`X-Tacit-Signature: v1=<hex>\`, an HMAC-SHA256 with the secret over \`<timestamp>.<raw body>\`. Check it, and refuse an old timestamp.
 
