@@ -21,6 +21,7 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
   const [setState, set] = useActionState<SecretResult, FormData>(setBotAction, {});
   const [rotateState, rotate] = useActionState<SecretResult>(rotateBotSecretAction, {});
   const fresh = rotateState.secret ?? setState.secret;
+  const keptOwnKey = setState.saved && !rotateState.secret;
   const error = rotateState.error ?? setState.error;
 
   return (
@@ -46,6 +47,7 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
             </Notice>
           ) : null}
 
+          {keptOwnKey ? <Notice>Saved with your bot&apos;s own key. Now press Verify.</Notice> : null}
           {bot ? (
             <Rows>
               <Row
@@ -87,11 +89,19 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
               <Label htmlFor="bot-url">{bot ? "Change its address" : "Your bot's address"}</Label>
               <Input id="bot-url" name="url" type="url" required maxLength={2000} placeholder="https://" autoComplete="off" />
             </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="bot-key">Your bot&apos;s key (optional)</Label>
+              <Input id="bot-key" name="key" type="password" maxLength={512} autoComplete="off" />
+              <p className="m-0 text-xs text-faint">
+                If your bot&apos;s platform gives its webhook a key (a Grok routine&apos;s &quot;Authorization: Bearer&quot; key), paste it here and
+                Tacit sends it with every event. Leave it empty and Tacit makes one for you to put into your bot.
+              </p>
+            </div>
             <SubmitButton pendingLabel="Saving…" className="justify-self-start">
               {bot ? "Change address" : "Save"}
             </SubmitButton>
             <p className="m-0 text-xs text-faint">
-              A new address gets a new secret, and needs verifying again.
+              Saving again replaces the address and the key, and needs verifying again.
               {callbackUrl ? <> Your bot tells Tacit which Slack thread it opened at <code className="font-mono">{callbackUrl}</code>, or in its answer.</> : null}
             </p>
           </form>

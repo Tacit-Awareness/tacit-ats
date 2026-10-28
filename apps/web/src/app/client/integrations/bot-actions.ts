@@ -12,11 +12,12 @@ import type { BotError, BotNotice } from "./messages";
 // challenge (lib/client/bot.ts). The secret comes back from set and rotate,
 // once, as this action's result for the page to show; it never rides in a URL.
 
-export type SecretResult = { secret?: string; error?: BotError };
+/** `secret` only when Tacit made it; `saved` when the bot's own key was kept, which is never shown back. */
+export type SecretResult = { secret?: string; saved?: boolean; error?: BotError };
 
 function botError(error: { code?: string; message: string }): BotError {
   if (error.code === "42501") return "bot_not_admin";
-  if (error.code === "22023") return "bot_bad_url";
+  if (error.code === "22023") return /key/i.test(error.message) ? "bot_bad_key" : "bot_bad_url";
   if (error.code === "P0002") return "bot_missing";
   console.error("[client-bot] failed:", error.message);
   return "bot_failed";
@@ -25,6 +26,8 @@ function botError(error: { code?: string; message: string }): BotError {
 export async function setBotAction(_prev: SecretResult, form: FormData): Promise<SecretResult> {
   const { db } = await requireClient();
   const url = String(form.get("url") ?? "").trim();
+  // The bot's own key, when its platform issues one (a Grok routine's webhook key); empty = Tacit makes one.
+  const key = String(form.get("key") ?? "").trim();
   let parsed: URL | null = null;
   try {
     parsed = new URL(url);
@@ -32,9 +35,9 @@ export async function setBotAction(_prev: SecretResult, form: FormData): Promise
     parsed = null;
   }
   if (!parsed || parsed.protocol !== "https:" || parsed.port || parsed.username || parsed.password) return { error: "bot_bad_url" };
-  const { data, error } = await db.rpc("client_set_agent_destination", { p_url: url });
+  const { data, error } = await db.rpc("client_set_agent_destination", key ? { p_url: url, p_key: key } : { p_url: url });
   if (error) return { error: botError(error) };
-  return { secret: data };
+  return data ? { secret: data } : { saved: true };
 }
 
 export async function rotateBotSecretAction(_prev: SecretResult): Promise<SecretResult> {
