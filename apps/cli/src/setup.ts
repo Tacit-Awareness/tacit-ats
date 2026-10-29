@@ -5,11 +5,14 @@ import { dirname, join } from "node:path";
 import { PACKAGE, VERSION } from "./version.js";
 
 /**
- * `tats setup`: tells the coding agents on this machine that tats exists, by
- * writing a skill they load on their own (Google's agents-cli does the same).
- * A skill costs an agent one line of context until a hiring question comes
- * up; then it reads the body, which sends it to `tats agent` for the rules,
- * so the skill itself never goes stale. Running it again refreshes it.
+ * `tats agent setup` (also `tats setup`): tells the coding agents on this
+ * machine that tats exists, by writing a skill they load on their own. The
+ * command's shape follows `stripe agent setup` (detected clients, --client,
+ * --skills-scope, --status, --json as the plan, -y); Stripe also installs its
+ * plugin and MCP server, which tats deliberately does not: the point of tats
+ * is not running an MCP server in every session. A skill costs an agent one
+ * line of context until a hiring question comes up; then it reads the body,
+ * which sends it to `tats agent` for the rules, so it never goes stale.
  * cli.ts runs the steps around it: the global install under npx, and login.
  */
 
@@ -44,47 +47,68 @@ If \`tats\` is not found, ask the user to install it with
 `;
 
 /**
- * The coding agents tats knows how to give a skill to: where each reads a
- * user's skills, and a project's (committed with the repo, for a whole team).
+ * The coding agents (Stripe's "clients") tats gives a skill to: the folder
+ * that says it is installed, where it reads a user's skills (global), and a
+ * project's (local, committed with the repo for a whole team).
  */
-export const AGENTS = [
-  { name: "Claude Code", home: ".claude", skills: ".claude/skills", project: ".claude/skills" },
-  { name: "Codex", home: ".codex", skills: ".codex/skills", project: ".agents/skills" },
+export const CLIENTS = [
+  { id: "claude-code", name: "Claude Code", home: ".claude", global: ".claude/skills", local: ".claude/skills" },
+  { id: "codex", name: "Codex", home: ".codex", global: ".codex/skills", local: ".agents/skills" },
+  { id: "cursor", name: "Cursor", home: ".cursor", global: ".cursor/skills", local: ".cursor/skills" },
 ] as const;
 
+export type ClientId = (typeof CLIENTS)[number]["id"];
+export const CLIENT_IDS = CLIENTS.map((c) => c.id) as ClientId[];
+
+export type Scope = "global" | "local";
 export type Outcome = "written" | "updated" | "kept" | "removed" | "absent";
-export type SetupResult = { agent: string; path: string; outcome: Outcome };
+export type SetupResult = { client: ClientId; agent: string; path: string; outcome: Outcome };
 
 export type SetupOptions = {
+  /** Only these clients, detected or not. Absent: every detected one (Claude Code when none is). */
+  clients?: ClientId[];
+  /** global: the user's home (the default, since hiring is not one project's); local: `dir`, for a team to commit. */
+  scope?: Scope;
+  dir?: string;
   remove?: boolean;
   force?: boolean;
-  /** Write into this project folder instead of the user's home: every agent, for the team. */
-  workspace?: string | null;
-  /** Say what would happen; write nothing. */
+  /** Work out what would happen; write nothing. */
   dryRun?: boolean;
 };
 
 const exists = (path: string) => stat(path).then(() => true, () => false);
+const homeOf = (env: NodeJS.ProcessEnv) => env.HOME || homedir();
 
-async function targets(env: NodeJS.ProcessEnv, workspace: string | null | undefined) {
-  if (workspace) return AGENTS.map((a) => ({ name: a.name, dir: join(workspace, a.project) }));
-  const home = env.HOME || homedir();
-  const found = [];
-  for (const agent of AGENTS) if (await exists(join(home, agent.home))) found.push(agent);
-  // Claude Code gets it even when ~/.claude is missing and no other agent is found.
-  return (found.length ? found : [AGENTS[0]]).map((a) => ({ name: a.name, dir: join(home, a.skills) }));
+export async function detectClients(env: NodeJS.ProcessEnv): Promise<ClientId[]> {
+  const found: ClientId[] = [];
+  for (const c of CLIENTS) if (await exists(join(homeOf(env), c.home))) found.push(c.id);
+  return found;
 }
 
+/** Which clients setup acts on, before asking: the named ones, else the detected ones, else Claude Code. */
+export async function chooseClients(env: NodeJS.ProcessEnv, named?: ClientId[]): Promise<ClientId[]> {
+  if (named?.length) return named;
+  const found = await detectClients(env);
+  return found.length ? found : ["claude-code"];
+}
+
+function skillPath(env: NodeJS.ProcessEnv, client: ClientId, scope: Scope, dir?: string): string {
+  const c = CLIENTS.find((x) => x.id === client)!;
+  return scope === "local" ? join(dir ?? process.cwd(), c.local, "tats", "SKILL.md") : join(homeOf(env), c.global, "tats", "SKILL.md");
+}
+
+const read = (path: string) => readFile(path, "utf8").catch(() => null);
+
 /**
- * Writes (or with `remove`, deletes) the skill for every agent whose home
- * directory exists, or for every agent in a workspace. A SKILL.md at that
- * path that tats did not write is kept, unless `force`.
+ * Writes (or with `remove`, deletes) the skill for each chosen client. A
+ * SKILL.md at that path that tats did not write is kept, unless `force`.
  */
 export async function setup(env: NodeJS.ProcessEnv, opts: SetupOptions = {}): Promise<SetupResult[]> {
+  const scope = opts.scope ?? "global";
   const results: SetupResult[] = [];
-  for (const target of await targets(env, opts.workspace)) {
-    const path = join(target.dir, "tats", "SKILL.md");
-    const current = await readFile(path, "utf8").catch(() => null);
+  for (const client of await chooseClients(env, opts.clients)) {
+    const path = skillPath(env, client, scope, opts.dir);
+    const current = await read(path);
     const ours = current !== null && current.includes(MARKER);
     const outcome: Outcome = opts.remove
       ? current === null ? "absent" : !ours && !opts.force ? "kept" : "removed"
@@ -96,9 +120,35 @@ export async function setup(env: NodeJS.ProcessEnv, opts: SetupOptions = {}): Pr
         await writeFile(path, SKILL);
       }
     }
-    results.push({ agent: target.name, path, outcome });
+    results.push({ client, agent: CLIENTS.find((c) => c.id === client)!.name, path, outcome });
   }
   return results;
+}
+
+export type ClientStatus = {
+  client: ClientId;
+  agent: string;
+  detected: boolean;
+  /** The skill in the user's home: tats's own (with the version that wrote it), someone else's, or none. */
+  skill: { path: string; state: "installed" | "not_tats" | "missing"; version: string | null };
+};
+
+/** `--status`: per client, whether it is here and whether it has the skill. */
+export async function clientStatus(env: NodeJS.ProcessEnv): Promise<ClientStatus[]> {
+  const detected = new Set(await detectClients(env));
+  const out: ClientStatus[] = [];
+  for (const c of CLIENTS) {
+    const path = skillPath(env, c.id, "global");
+    const current = await read(path);
+    const version = current?.match(/written by tats setup (\S+?);/)?.[1] ?? null;
+    out.push({
+      client: c.id,
+      agent: c.name,
+      detected: detected.has(c.id),
+      skill: { path, state: current === null ? "missing" : current.includes(MARKER) ? "installed" : "not_tats", version },
+    });
+  }
+  return out;
 }
 
 const VERBS: Record<Outcome, [string, string]> = {
@@ -109,7 +159,7 @@ const VERBS: Record<Outcome, [string, string]> = {
   kept: ["was not written by tats, so it was left alone (--force replaces it):", "was not written by tats, so it would be left alone (--force replaces it):"],
 };
 
-export function describeSetup(results: SetupResult[], opts: { dryRun?: boolean; workspace?: string | null } = {}): string {
+export function describeSetup(results: SetupResult[], opts: { dryRun?: boolean; scope?: Scope } = {}): string {
   const lines = results.map((r) => {
     const mark = r.outcome === "kept" ? "!" : r.outcome === "absent" ? "-" : opts.dryRun ? "·" : "✓";
     return `${mark} ${r.agent}: ${VERBS[r.outcome][opts.dryRun ? 1 : 0]} ${r.path}`;
@@ -117,10 +167,27 @@ export function describeSetup(results: SetupResult[], opts: { dryRun?: boolean; 
   if (!opts.dryRun && results.some((r) => r.outcome === "written" || r.outcome === "updated")) {
     lines.push(
       "",
-      opts.workspace
+      opts.scope === "local"
         ? "Commit these so everyone's agents in this project use tats. Each person still installs tats and runs tats login."
         : "New agent sessions will use tats for hiring questions; sessions already open need a restart.",
     );
   }
   return lines.join("\n");
+}
+
+export function describeStatus(clients: ClientStatus[], tats: { onPath: string | null; signedIn: boolean }): string {
+  const rows = clients.map((c) => {
+    const skill =
+      c.skill.state === "installed" ? `skill installed (tats ${c.skill.version ?? "?"})` :
+      c.skill.state === "not_tats" ? "a tats skill not written by tats" :
+      "no skill";
+    return `  ${c.agent.padEnd(12)} ${(c.detected ? "detected" : "not found").padEnd(10)} ${skill}`;
+  });
+  return [
+    `tats:      ${tats.onPath ? `${tats.onPath}, on your PATH` : "not on your PATH"}`,
+    `sign-in:   ${tats.signedIn ? "signed in" : "not signed in (tats login)"}`,
+    "",
+    "Agents:",
+    ...rows,
+  ].join("\n");
 }

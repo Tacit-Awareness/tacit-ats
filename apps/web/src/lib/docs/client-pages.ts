@@ -47,7 +47,7 @@ claude mcp add --transport http tacit ${CLIENT_CONNECTOR_URL}
 
 Then run \`/mcp\` in Claude Code, choose **tacit** and sign in in the browser it opens.
 
-Or skip the connector in Claude Code and Codex: [the tats command line](/docs/cli) gives them every tool through the terminal, with nothing to configure.
+Or skip the connector in Claude Code, Codex and Cursor: [the tats command line](/docs/cli) gives them every tool through the terminal, with nothing to configure.
 
 ## Check it works
 
@@ -71,7 +71,7 @@ Remove the connector in **Settings → Connectors**. That stops Claude from acti
   },
   {
     slug: "cli",
-    title: "Use Tacit from Claude Code and Codex",
+    title: "Use Tacit from Claude Code, Codex and Cursor",
     category: "Get started",
     description: "Install the tats command line so coding agents work your hiring through the terminal.",
     body: `\`tats\` is the Tacit connector as a command line. Every tool you get in Claude is a \`tats\` command, so a coding agent that can run commands (Claude Code, Codex, Cursor) can work your hiring through your terminal, with no connector to add. You can run it yourself too. It acts as you, so it sees and changes only what your access in Tacit allows, exactly like the connector.
@@ -84,15 +84,15 @@ You need Node 20 or later and an invitation to your company's workspace.
 
 \`\`\`sh
 npm i -g @tacitawareness/tats
-tats setup
+tats agent setup
 \`\`\`
 
-\`tats setup\` does two things:
+\`tats agent setup\` (or just \`tats setup\`) does two things, after asking you once:
 
-1. **Teaches your agents.** It installs a short skill for Claude Code and for Codex, if you have it, so they reach for \`tats\` when you ask about jobs, candidates or interviews, without you mentioning it. Agent sessions already open need a restart.
+1. **Teaches your agents.** It finds Claude Code, Codex and Cursor on your computer and installs a short skill for each, so they reach for \`tats\` when you ask about jobs, candidates or interviews, without you mentioning it. Agent sessions already open need a restart.
 2. **Signs you in.** A Tacit sign-in page opens in your browser; sign in with the email you were invited at. You stay signed in on this computer.
 
-\`npx @tacitawareness/tats setup\` does the same in one line and installs \`tats\` for you.
+\`npx @tacitawareness/tats agent setup\` does the same in one line and installs \`tats\` for you.
 
 ## Check it works
 
@@ -120,9 +120,12 @@ Commands that change something that matters (moving a candidate, sending an emai
 | \`tats <tool> --json\` | Any tool, with machine-readable output |
 | \`tats status\` | Which account, and whether the sign-in is current |
 | \`tats logout\` | Sign out on this computer |
-| \`tats setup --workspace\` | Put the skill in the current project instead, to commit for your whole team |
-| \`tats setup --remove\` | Take the skill out of your agents |
-| \`tats setup --print\` | The skill's text, for another agent's skills folder or its AGENTS.md |
+| \`tats agent setup --status\` | Which agents are on this computer and which have the skill |
+| \`tats agent setup --client cursor\` | Set up one agent only: \`claude-code\`, \`codex\` or \`cursor\` |
+| \`tats agent setup --skills-scope local\` | Put the skill in the current project instead, to commit for your whole team |
+| \`tats agent setup --json\` | What setup would do, without doing it |
+| \`tats agent setup --remove\` | Take the skill out of your agents |
+| \`tats agent setup --print\` | The skill's text, for another agent's skills folder or its AGENTS.md |
 
 The tools are the [same as the connector's](/docs/client-tools), written with dashes (\`search-candidates\`) or underscores (\`search_candidates\`).
 

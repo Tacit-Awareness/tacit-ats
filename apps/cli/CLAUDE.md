@@ -20,30 +20,32 @@ src/
               repeated or JSON, objects JSON, nullable "null", text-or-JSON values (set_custom_field) unquoted;
               --input <json|@file|->; --<x>-file reads a file into x_base64 (add_file's name and type follow)
   guide.ts    tats help, tats agent (the connector's own instructions, live), tats tools, tats help <tool>
-  setup.ts    tats setup's skill: into each coding agent found (~/.claude/skills, ~/.codex/skills; Claude Code when
-              none is), or with --workspace into a project (.claude/skills, .agents/skills); --remove, --force,
-              --dry-run, --print. cli.ts runs it in order: npm i -g itself when run from npx's cache (setup stops
-              there if that fails, so no skill points at a missing command), the skill, then the browser sign-in
-              when a person is at the terminal (a cancelled one keeps the skill)
+  setup.ts    `tats agent setup` (alias `tats setup`), shaped after `stripe agent setup`: clients claude-code, codex,
+              cursor, detected by their home folders (Claude Code when none is), or named with --client; the skill
+              in ~/.claude/skills, ~/.codex/skills, ~/.cursor/skills, or with --skills-scope local (--workspace) in a
+              project's .claude/skills, .agents/skills, .cursor/skills; --status, --json (the plan, nothing changed,
+              as Stripe's), --dry-run, -y, --force, --remove, --print. cli.ts runs it in order: one Y/n question at a
+              terminal (-y skips), npm i -g itself when run from npx's cache (setup stops there if that fails, so no
+              skill points at a missing command), the skill, then the browser sign-in (a cancelled one keeps the skill)
   store.ts    ~/.config/tats/credentials.json (0600; the session per server, and the registered client, which a
               logout keeps) and ~/.cache/tats/ (the catalog); XDG_CONFIG_HOME / XDG_CACHE_HOME honoured
 ```
 
 - **Commands are generated** from the server's `tools/list`, so a tool added to the connector is a command the next time the cache refreshes (or with `--refresh`), with no CLI release. Hand-written aliases only if the generated ones prove clunky.
-- **How an agent finds tats**: a skill, as Google's agents-cli does (`setup` installs its skills into coding agents). Nothing else tells Claude Code a new CLI exists. The skill is short on purpose: its description says when (hiring work), its body sends the agent to `tats agent`, so the rules come from the server and the skill never goes stale. `tats setup` overwrites only a SKILL.md carrying its own marker comment.
+- **How an agent finds tats**: a skill, as Google's agents-cli and `stripe agent setup` do. Stripe's also installs its plugin and MCP server; tats's does not, on purpose: an MCP server in every session is what tats exists to avoid. Global is the default scope (Stripe's is local) because hiring is not one project's. Nothing else tells Claude Code a new CLI exists. The skill is short on purpose: its description says when (hiring work), its body sends the agent to `tats agent`, so the rules come from the server and the skill never goes stale. `tats setup` overwrites only a SKILL.md carrying its own marker comment.
 - **Confirm-first.** In chat the server instructions make the model ask before a change; a terminal agent never sees them unless it runs `tats agent`, so the CLI enforces it: every `destructiveHint` tool, plus `invite_member`, `create_offer` and `convert_prospect` (the rest of the instructions' list, `guide.ts`'s `CONFIRM_ALSO`), exits 3 without `--yes`, or asks y/N at a terminal. `tats agent` says to pass `--yes` only after the user's yes. Keep `CONFIRM_ALSO` in step with the instructions in apps/mcp `client/server.ts`.
 - **Output.** `--json` prints `structuredContent` alone, and `{"error": ...}` on any failure; otherwise the connector's sentence and the data indented. Candidate text stays fenced as the server sent it. Exit codes: 0, 1 the tool refused, 2 not signed in or the account refused, 3 needs `--yes`, 64 bad flags.
 - **Sign-in facts checked 2026-10-29** against production's AuthKit (`keen-sketch-56-staging.authkit.app`): dynamic registration on, public clients (`none`) allowed, `offline_access` listed, so tats asks for `openid profile email offline_access` and gets a refresh token. The device-code grant is also listed, on the same issuer: a `tats login --device` for SSH machines would need no server change. The first real login (2026-10-29, Ryan at Tacit Test Co) confirmed the rest: AuthKit took `http://localhost:33418/callback`, gave a refresh token, and `whoami` came back as the member.
 
 ## Tests
 
-`flags.test.ts` maps flags against `test-helpers/tools.json`, a trimmed copy of the real connector's `tools/list` (dumped from `buildClientHandler`; regenerate it when the schemas it covers change). `cli.test.ts` runs `run()` against `test-helpers/fake-tacit.ts`, a fetch-level stand-in for the connector and AuthKit that checks PKCE and the `resource`: help and the agent guide, a call, the cache, refusals, the `--yes` gate and the prompt, refresh before and after a 401, a refused refresh, a 403, and a whole browser login through a real loopback listener, twice, reusing the registered client. `setup.test.ts` writes, refreshes, keeps, forces and removes the skill in a temporary home, and runs `tats setup` through its order: the npx install and its failure, a missing PATH, sign-in after, a failed sign-in, `--workspace`, `--dry-run`. `version.test.ts` keeps `version.ts` equal to package.json. apps/mcp's `src/cli-confirm.test.ts` fails when the connector's instructions name a tool to confirm that `--yes` does not guard (`guide.ts`'s `CONFIRM_ALSO`).
+`flags.test.ts` maps flags against `test-helpers/tools.json`, a trimmed copy of the real connector's `tools/list` (dumped from `buildClientHandler`; regenerate it when the schemas it covers change). `cli.test.ts` runs `run()` against `test-helpers/fake-tacit.ts`, a fetch-level stand-in for the connector and AuthKit that checks PKCE and the `resource`: help and the agent guide, a call, the cache, refusals, the `--yes` gate and the prompt, refresh before and after a 401, a refused refresh, a 403, and a whole browser login through a real loopback listener, twice, reusing the registered client. `setup.test.ts` writes, refreshes, keeps, forces and removes the skill in a temporary home, finds Cursor, reports `--status`, and runs `tats agent setup` through its order: the question and `-y`, the npx install and its failure, a missing PATH, sign-in after, a failed sign-in, `--client`, the local scope, `--json`'s plan, `--dry-run`. `version.test.ts` keeps `version.ts` equal to package.json. apps/mcp's `src/cli-confirm.test.ts` fails when the connector's instructions name a tool to confirm that `--yes` does not guard (`guide.ts`'s `CONFIRM_ALSO`).
 
 ## Trying it
 
 ```
 pnpm --filter @tacitawareness/tats build
-npm link ./apps/cli && tats setup        # or: node apps/cli/dist/main.js <command>
+npm link ./apps/cli && tats agent setup        # or: node apps/cli/dist/main.js <command>
 TATS_URL=http://localhost:3101/api/client tats whoami
 ```
 
@@ -52,7 +54,7 @@ TATS_URL=http://localhost:3101/api/client tats whoami
 ```
 cd apps/cli && npm pack --pack-destination /tmp/tats
 HOME=/tmp/tats/home npm_config_prefix=/tmp/tats/g TATS_INSTALL_SPEC=/tmp/tats/tacitawareness-tats-0.1.0.tgz \
-  npx -y --package=/tmp/tats/tacitawareness-tats-0.1.0.tgz tats setup
+  npx -y --package=/tmp/tats/tacitawareness-tats-0.1.0.tgz tats agent setup -y
 ```
 
 ## Publishing

@@ -36,8 +36,8 @@ export function parseArgv(argv: string[], isBoolean: (name: string) => boolean):
       out.positionals.push(...argv.slice(i + 1));
       break;
     }
-    if (arg === "-h") {
-      out.flags.push({ name: "help", value: null });
+    if (arg === "-h" || arg === "-y") {
+      out.flags.push({ name: arg === "-h" ? "help" : "yes", value: null });
       continue;
     }
     if (!arg.startsWith("--") || arg === "--") {
