@@ -87,6 +87,7 @@ const LABELS = {
   "Relocating": "#8f9198",
   "Referral": "#5e6ad2",
   "Tacit": "#1f2023",
+  "Applied before": "#8f9198",
 };
 
 // States. `court` says whose move it is.

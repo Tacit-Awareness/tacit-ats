@@ -3922,6 +3922,75 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .iv-key b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 .iv-gh { display: flex; align-items: center; gap: 8px; padding: 14px 18px 4px; font-size: 13px; font-weight: 500; color: var(--ink); }
 .iv-gh span { color: var(--faint); font-weight: 400; }
+/* v49 Inbox: operational issues, each with who it's about and its one action */
+.ib.iss { grid-template-columns: 32px minmax(0, 1fr) auto; grid-template-rows: auto auto; padding: 11px 16px 11px 18px; }
+.ib.iss .ib-av { grid-column: 1; grid-row: 1 / 3; }
+.ib.iss .ib-l1 { grid-column: 2; grid-row: 1; }
+.ib.iss .ib-l2 { grid-column: 2; grid-row: 2; display: flex; align-items: center; gap: 0; color: var(--muted); }
+.ib.iss .ib-l2 i { font-style: normal; margin: 0 6px; color: var(--faint); }
+.ib.iss .ib-l2 b { font-weight: 400; color: var(--muted); }
+.ib-who { display: inline-flex; align-items: center; gap: 5px; color: var(--ink); flex-shrink: 0; }
+.ib-who .av, .ib-who .bot .av { width: 16px; height: 16px; font-size: 7px; }
+.ib-who .bot > i, .ib-who .stackav > :not(:first-child) { display: none; }
+.ib-act { grid-column: 3; grid-row: 1 / 3; display: flex; align-items: center; gap: 6px; padding-left: 8px; }
+.ib-act .btn.sm { height: 28px; white-space: nowrap; }
+.ib-how { color: var(--faint); font-size: 12.5px; white-space: nowrap; }
+.ib-k.invite { background: var(--amber-soft); color: var(--amber); }
+.ib-k.late { background: var(--amber-soft); color: var(--amber); }
+.ib-k.decide { background: var(--soft); color: var(--ink); }
+.ib-gh.bot { color: var(--red); }
+.draft-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.dc-head { display: flex; gap: 12px; align-items: center; }
+.dc-head .ib-k { width: 32px; height: 32px; display: grid; place-items: center; flex-shrink: 0; }
+.dc-head b { display: block; font-size: 14.5px; font-weight: 500; }
+.dc-head span { color: var(--muted); font-size: 13px; }
+.dc-mail { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; margin: 0; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 13px; }
+.dc-mail dt { color: var(--faint); }
+.dc-mail dd { margin: 0; color: var(--ink); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-body { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.draft-card .blk-acts { justify-content: flex-end; display: flex; gap: 8px; }
+.blk.ok .blk-ico { background: var(--ok-soft); color: var(--ok); }
+/* v49 Pipeline at scale: Active and History tabs, capped columns, a paged history table */
+.pp-tabs { margin-left: 10px; }
+.pp-tabs a span { margin-left: 6px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.col-more, .grp-more { margin: 2px 0 4px; height: 30px; border-radius: 6px; color: var(--muted); font-size: 12.5px; text-align: center; }
+.col-more:hover, .grp-more:hover { background: var(--hover); color: var(--ink); }
+.grp-more { display: block; width: 100%; text-align: left; padding: 0 20px 0 52px; }
+.also { display: flex; align-items: center; gap: 8px; margin: 0 16px 8px; padding: 8px 12px; border-radius: 8px; background: var(--soft); color: var(--muted); font-size: 13px; }
+.also:hover { color: var(--ink); }
+.also .ico { width: 13px; height: 13px; }
+.also.in { margin: 0; padding: 4px 10px; background: transparent; }
+.h-filters { display: flex; align-items: center; gap: 6px; padding: 0 16px 10px; }
+.h-filters .chip.on { background: var(--sel); color: var(--ink); border-color: transparent; }
+.htable { display: grid; padding: 0 8px 12px; }
+.h-row { display: grid; grid-template-columns: minmax(220px, 2.2fr) minmax(150px, 1.4fr) minmax(170px, 1.3fr) 90px 80px 110px; gap: 12px; align-items: center; min-height: 44px; padding: 4px 12px; border-radius: 8px; font-size: 13.5px; cursor: pointer; }
+.h-row:not(.h-head):hover { background: var(--hover); }
+.h-head { position: sticky; top: 0; z-index: 1; min-height: 34px; background: var(--paper); border-bottom: 1px solid var(--line); border-radius: 0; cursor: default; }
+.h-head button { display: flex; align-items: center; gap: 4px; color: var(--faint); font-size: 12.5px; text-align: left; }
+.h-head button.on, .h-head button:hover { color: var(--ink); }
+.h-head button i { font-style: normal; }
+.h-name { display: grid; min-width: 0; }
+.h-name b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-name span, .h-role { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-muted { color: var(--muted); white-space: nowrap; }
+.h-out { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 11px; background: var(--soft); color: var(--muted); font-size: 12px; white-space: nowrap; }
+.h-out.ok { background: var(--ok-soft); color: var(--ok); }
+.h-out.wait { background: var(--amber-soft); color: var(--amber); }
+.h-again { margin-left: 6px; font-size: 12px; color: var(--accent); }
+.h-again:hover { text-decoration: underline; }
+.h-foot { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.h-foot span { margin-right: 8px; }
+.h-foot .icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+.h-detail { border-top: 0; }
+.h-note { margin: 4px 0 0; font-size: 13.5px; color: var(--muted); }
+.h-note a { color: var(--accent); }
+.plan-row .h-out { justify-self: end; }
+.past-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 12px; border-radius: 8px; text-align: left; }
+.past-row:hover { background: var(--hover); }
+.past-row .what { display: grid; gap: 2px; min-width: 0; }
+.past-row .what b { font-weight: 500; font-size: 14px; }
+.past-row .what span { color: var(--muted); font-size: 13px; }
+.h-detail { grid-template-columns: 92px minmax(0, 1fr); }
 
 </style>
 
@@ -4035,6 +4104,7 @@ const LABELS = {
   "Relocating": "#8f9198",
   "Referral": "#5e6ad2",
   "Tacit": "#1f2023",
+  "Applied before": "#8f9198",
 };
 
 // States. `court` says whose move it is.
@@ -4625,6 +4695,58 @@ function profile(a) {
 const srcTag = (a) => (a.src.startsWith("Referral") ? "Referral" : a.src === "Tacit" ? "Tacit" : "Cold");
 const srcLong = (a) => (a.src.startsWith("Referral") ? `Referred by ${a.src.split("· ")[1]}` : a.src === "Tacit" ? "Sent by Tacit" : "Applied cold");
 // Days since they applied: how long this person has been waiting on us.
+/* ---------------- scale: hundreds of active applicants, thousands of past applications ---------------- */
+// Generated the same way on every load. Active ones live in Pipeline only (the Inbox, Tickets and
+// Interviews keep the hand-written applicants). Past applications are records, one per closed application.
+function rng(n) { return () => { n = (n + 0x6d2b79f5) | 0; let t = Math.imul(n ^ (n >>> 15), 1 | n); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const rnd = rng(49);
+const pickOne = (xs) => xs[Math.floor(rnd() * xs.length)];
+const weighted = (pairs) => { let x = rnd() * pairs.reduce((s, p) => s + p[1], 0); for (const [v, w] of pairs) { if ((x -= w) < 0) return v; } return pairs[0][0]; };
+const FIRSTS = ["Ava", "Noah", "Mia", "Leo", "Zoe", "Eli", "Ivy", "Owen", "Lila", "Kai", "Nora", "Ezra", "Ruby", "Finn", "Maya", "Jude", "Isla", "Theo", "Ada", "Milo", "Hana", "Ravi", "Sofia", "Tariq", "Yuki", "Amara", "Diego", "Priyanka", "Lucas", "Mei", "Omar", "Freya", "Arash", "Chen", "Nina", "Sami", "Elif", "Jonas", "Leila", "Mateo", "Anya", "Bilal", "Clara", "Dev", "Esme", "Felix", "Gia", "Hugo", "Inez", "Jae", "Kofi", "Lin", "Marta", "Nikhil", "Oona", "Pavel", "Quinn", "Rosa", "Sven", "Tess"];
+const LASTS = ["Abara", "Becker", "Castillo", "Dang", "Eklund", "Farouk", "Garcia", "Hoang", "Iyer", "Jensen", "Kowalski", "Lindgren", "Moreau", "Nakamura", "Okoro", "Petrov", "Quiroga", "Rahman", "Silva", "Tanaka", "Ueda", "Varga", "Weber", "Xu", "Yilmaz", "Zhou", "Adeyemi", "Brennan", "Chowdhury", "Delgado", "Esposito", "Fischer", "Grant", "Haddad", "Ibrahim", "Joshi", "Kim", "Lopez", "Mendes", "Novak", "Ortega", "Park", "Rossi", "Sato", "Tran", "Usman", "Volkov", "Wong", "Yamada", "Zielinski"];
+const COS = ["Stripe", "Datadog", "Cloudflare", "Snowflake", "Databricks", "Vercel", "Figma", "Notion", "Ramp", "Plaid", "Airbnb", "Uber", "Shopify", "Twilio", "MongoDB", "Confluent", "HashiCorp", "GitLab", "Robinhood", "Instacart", "a seed-stage startup", "a Series B startup", "Google", "Meta", "Amazon", "Microsoft", "Apple", "Netflix", "Spotify", "Dropbox"];
+const HL_ROLE = { eng: ["Infrastructure engineer", "SRE", "Backend engineer", "Platform engineer"], inf: ["Systems engineer", "Performance engineer", "ML infra engineer"], res: ["Research scientist", "ML researcher", "Research engineer"], evals: ["ML engineer", "Research engineer", "Data scientist"], pe: ["Product engineer", "Full-stack engineer", "Frontend engineer"], des: ["Product designer", "Design engineer"] };
+const CITIES = ["San Francisco", "New York", "Seattle", "Austin", "Remote", "London", "Toronto", "Boston", "Berlin", "Los Angeles"];
+const ROLE_KEYS = Object.keys(ROLES);
+const roleOf = () => weighted([["eng", 26], ["res", 22], ["pe", 20], ["inf", 14], ["evals", 12], ["des", 6]]);
+const srcOf = (role) => weighted([["Applied", 55], ["Tacit", 25], [`Referral · ${first(pickOne(TEAMS[ROLES[role].team].members))}`, 20]]);
+const usedNames = new Set(APPLICANTS.map((a) => a.name));
+function personName() { for (let i = 0; i < 20; i++) { const n = `${pickOne(FIRSTS)} ${pickOne(LASTS)}`; if (!usedNames.has(n) || i === 19) { usedNames.add(n); return n; } } }
+const BULK = [];
+for (let i = 0; i < 264; i++) {
+  const role = roleOf(), team = ROLES[role].team, st = weighted([["testbench", 22], ["routing", 6], ["asked", 10], ["scheduling", 12], ["scheduled", 22], ["debrief", 8], ["judgment", 10]]);
+  const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * 18 * DAY) - HR;
+  const score = 55 + Math.floor(rnd() * 44);
+  const a = { id: `APP-${2001 + i}`, bulk: true, pri: weighted([[0, 3], [1, 1], [2, 3], [3, 4], [4, 2]]), name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, src: srcOf(role), loc: pickOne(CITIES), yrs: 1 + Math.floor(rnd() * 12), links: [], state: st, when, sum: [], exp: [],
+    labels: rnd() < 0.08 ? ["Competing offer"] : rnd() < 0.08 ? ["Relocating"] : [] };
+  if (st === "testbench") { a.tbSent = when; a.tb = { state: rnd() < 0.5 ? "running" : "sent", progress: 0.4 }; }
+  else { a.team = team; a.iv = iv; a.tb = TB(score, "", "2h 30m", Math.min(99, score), [4, 4, 4, 4], ""); if (score >= 90) a.labels = [...a.labels, "Top Testbench"]; }
+  if (st === "scheduled") a.at = NOW + Math.floor(1 + rnd() * 8) * DAY + (9 + Math.floor(rnd() * 8)) * HR - new Date(NOW).getHours() * HR;
+  if (st === "scheduling") a.slots = ["Thu 10:00 AM", "Fri 2:00 PM"];
+  if (st === "judgment") { const v = weighted([["Yes", 4], ["Mixed", 3], ["No", 2]]); a.read = { verdict: v, senti: v === "Yes" ? 0.7 : v === "Mixed" ? 0.4 : 0.15, by: iv, notes: [], quote: v === "Yes" ? "Strong. Yes." : v === "Mixed" ? "Good, not sure about the fit." : "Not this time." }; }
+  BULK.push(a);
+  A[a.id] = a;
+  ev(a, when - 6 * DAY, "orch", `${esc(srcLong(a))} for ${esc(ROLES[role].title)}`);
+  ev(a, when, "orch", esc(STATES[st].name));
+}
+// Every closed application, newest first. `a` links one we have a ticket for.
+const OUTCOMES = [["Rejected", 44, "Applied"], ["Passed at Testbench", 20, "Testbench"], ["Rejected after interview", 16, "Round 1"], ["Withdrew", 10, "Round 1"], ["Hired", 4, "Offer"], ["Offer declined", 2, "Offer"], ["Not now", 4, "Round 2"]];
+const HISTORY = [];
+for (let i = 0; i < 2412; i++) {
+  const role = roleOf(), team = ROLES[role].team, o = weighted(OUTCOMES.map((x) => [x, x[1]]));
+  const closed = NOW - Math.floor(14 + rnd() * 1050) * DAY, applied = closed - Math.floor(5 + rnd() * 40) * DAY;
+  HISTORY.push({ id: `H-${10000 + i}`, name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, team, src: srcOf(role), outcome: o[0], reached: o[2], applied, closed,
+    iv: o[2].startsWith("Round") || o[2] === "Offer" ? pickOne(TEAMS[team].members) : null, score: o[2] === "Applied" ? null : 50 + Math.floor(rnd() * 48) });
+}
+// A few people in the active pipeline applied before.
+[["APP-109", "inf", "Not now", "Round 2", 410, "noor"], ["APP-120", "pe", "Withdrew", "Round 1", 230, "jonah"], ["APP-126", "eng", "Passed at Testbench", "Testbench", 600, null]].forEach(([id, role, outcome, reached, daysAgo, iv]) => {
+  const a = A[id];
+  HISTORY.push({ id: `H-${id}`, name: a.name, hl: a.hl, role, team: ROLES[role].team, src: "Applied", outcome, reached, applied: NOW - (daysAgo + 21) * DAY, closed: NOW - daysAgo * DAY, iv, score: 71, again: id });
+});
+APPLICANTS.concat(BULK).filter((a) => !isOpen(a)).forEach((a) => HISTORY.push({ id: `H-${a.id}`, name: a.name, hl: a.hl, role: a.role, team: a.team || ROLES[a.role].team, src: a.src, outcome: { offer: "Hired", rejected: "Rejected after interview", passed: "Rejected" }[a.state], reached: a.state === "offer" ? "Offer" : a.iv ? "Round 1" : "Applied", applied: (TRACE[a.id] || [])[0]?.at || a.when, closed: a.when, iv: a.iv || null, score: a.tb && a.tb.score, a: a.id }));
+HISTORY.sort((x, y) => y.closed - x.closed);
+const pastOf = (a) => HISTORY.filter((h) => h.again === a.id);
+const everyone = () => APPLICANTS.concat(BULK);
 const dayN = (a) => { const evs = TRACE[a.id] || []; const end = isOpen(a) ? Date.now() : evs.at(-1).at; return Math.max(1, Math.ceil((end - evs[0].at) / DAY)); };
 const handle = (a) => `<span class="handle s-${srcTag(a).toLowerCase()}" title="${esc(srcLong(a))} · day ${dayN(a)}">${srcTag(a)}</span>`;
 const emailOf = (a) => `${a.name.toLowerCase().split(" ").join(".")}@gmail.com`;
@@ -4635,7 +4757,7 @@ function priIcon(p, cls = "pri") {
   return `<svg class="${cls}" viewBox="0 0 14 14" aria-label="${PRIORITIES[p].name}">${[0, 1, 2].map((i) => `<rect x="${2 + i * 3.8}" y="${9 - i * 3}" width="2.4" height="${3 + i * 3}" rx="0.8" fill="${i < n ? "var(--muted)" : "var(--line-strong)"}"/>`).join("")}</svg>`;
 }
 function labelsOf(a) {
-  return [...new Set(a.labels || [])];
+  return [...new Set([...(a.labels || []), ...(a.bulk || !pastOf(a).length ? [] : ["Applied before"])])];
 }
 const labelChip = (n) => `<span class="label"><i style="background:${LABELS[n] || "var(--faint)"}"></i>${esc(n)}</span>`;
 
@@ -4692,8 +4814,61 @@ function card(a) {
 }
 function scoped() {
   const tk = state.team, q = (state.q || "").toLowerCase().trim(), sv = state.savedView && viewById(state.savedView);
-  return APPLICANTS.filter((a) => (!sv || viewMatch(sv, a)) && (tk === "all" || a.team === tk || (!a.team && ROLES[a.role].team === tk)) && (!q || `${a.name} ${a.hl} ${srcLong(a)} ${labelsOf(a).join(" ")}`.toLowerCase().includes(q)))
-    .sort((x, y) => ((x.pri || 9) - (y.pri || 9)) || (y.when - x.when));
+  return everyone().filter((a) => isOpen(a) && (!sv || viewMatch(sv, a)) && (tk === "all" || a.team === tk || (!a.team && ROLES[a.role].team === tk)) && (!q || `${a.name} ${a.hl} ${srcLong(a)} ${labelsOf(a).join(" ")}`.toLowerCase().includes(q)))
+    .sort((x, y) => y.when - x.when);
+}
+// Active and History are two tabs of one Pipeline. Active is every open application; History is every
+// closed one, as a record. One person can be in both: a past application links to the open one.
+const pipeTabs = (on) => `<div class="cx-seg pp-tabs"><a class="${on === "active" ? "on" : ""}" href="#all">Active<span>${scoped().length.toLocaleString()}</span></a><a class="${on === "history" ? "on" : ""}" href="#history">History<span>${hscoped().length.toLocaleString()}</span></a></div>`;
+const H_PERIODS = [["all", "Any time"], ["90", "Last 90 days"], ["365", "Last 12 months"], ["730", "Last 2 years"]];
+const H_OUTCOMES = OUTCOMES.map((o) => o[0]);
+const hSrc = (h) => (h.src.startsWith("Referral") ? "Referral" : h.src === "Tacit" ? "Tacit" : "Cold");
+function hscoped() {
+  const f = (state.hf ||= {}), tk = state.team, q = (state.q || "").toLowerCase().trim();
+  return HISTORY.filter((h) => (tk === "all" || h.team === tk) && (!f.outcome || h.outcome === f.outcome) && (!f.role || h.role === f.role) && (!f.src || hSrc(h) === f.src)
+    && (!f.period || f.period === "all" || NOW - h.closed < +f.period * DAY) && (!q || `${h.name} ${h.hl} ${h.outcome}`.toLowerCase().includes(q)));
+}
+const H_COLS = [["name", "Name"], ["role", "Role"], ["outcome", "Outcome"], ["reached", "Got to"], ["src", "Source"], ["closed", "Closed"]];
+const H_REACH = ["Applied", "Testbench", "Round 1", "Round 2", "Offer"];
+const outcomeTone = (o) => (o === "Hired" ? "ok" : o === "Not now" || o === "Withdrew" || o === "Offer declined" ? "wait" : "");
+const fmtDate = (t) => { const d = new Date(t); return `${MO[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
+function historyPage() {
+  const f = (state.hf ||= {}), sort = (state.hsort ||= { k: "closed", dir: -1 });
+  const key = { name: (h) => h.name, role: (h) => ROLES[h.role].title, outcome: (h) => h.outcome, reached: (h) => H_REACH.indexOf(h.reached), src: hSrc, closed: (h) => h.closed }[sort.k];
+  const xs = hscoped().sort((x, y) => (key(x) > key(y) ? 1 : key(x) < key(y) ? -1 : 0) * sort.dir);
+  const per = 50, pages = Math.max(1, Math.ceil(xs.length / per)), pg = Math.min(state.hpage || 0, pages - 1);
+  const rows = xs.slice(pg * per, pg * per + per);
+  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="hFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
+  const any = Object.values(f).some((v) => v && v !== "all");
+  const q = (state.q || "").trim(), act = q ? everyone().filter((a) => isOpen(a) && a.name.toLowerCase().includes(q.toLowerCase())).length : 0;
+  return `<div class="bar"><div class="crumbs">${ico("people")}<b>Pipeline</b></div>${pipeTabs("history", xs.length)}<span class="spacer"></span><a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
+  <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<button class="tab ${state.team === k ? "on" : ""}" data-act="hTeam" data-v="${k}">${n}</button>`).join("")}</div>
+    <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
+  <div class="h-filters">${chip("outcome", "Outcome", f.outcome)}${chip("role", "Role", f.role && ROLES[f.role].title)}${chip("src", "Source", f.src)}${chip("period", "Any time", f.period && f.period !== "all" ? H_PERIODS.find((p) => p[0] === f.period)[1] : "")}
+    ${any ? `<button class="linkish" data-act="hClear">Clear</button>` : ""}<span class="grow"></span>${act ? `<a class="also in" href="#all">${act} active ${act === 1 ? "match" : "matches"}</a>` : ""}</div>
+  <div class="scroll" id="scroller"><div class="htable" role="table">
+    <div class="h-row h-head" role="row">${H_COLS.map(([k, n]) => `<button role="columnheader" data-act="hSort" data-k="${k}" class="${sort.k === k ? "on" : ""}">${n}${sort.k === k ? `<i>${sort.dir < 0 ? "↓" : "↑"}</i>` : ""}</button>`).join("")}</div>
+    ${rows.map((h) => `<div class="h-row" role="row" tabindex="0" data-act="openHist" data-id="${h.id}" data-tid="${h.id}">
+      <span class="h-name"><b>${esc(h.name)}</b><span>${esc(h.hl)}</span></span>
+      <span class="h-role">${esc(ROLES[h.role].title)}</span>
+      <span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span>${h.again ? `<a class="h-again" href="#t~${h.again}" title="Open the active application">Active again</a>` : ""}</span>
+      <span class="h-muted">${esc(h.reached)}</span><span class="h-muted">${esc(hSrc(h))}</span><span class="h-muted">${fmtDate(h.closed)}</span></div>`).join("") || `<div class="empty">No past applications match</div>`}
+  </div></div>
+  <div class="h-foot"><span>${xs.length ? `${(pg * per + 1).toLocaleString()}–${Math.min(xs.length, pg * per + per).toLocaleString()} of ${xs.length.toLocaleString()}` : "0"}</span>
+    <button class="icon-btn" data-act="hPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="hPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>`;
+}
+function openHist(id) {
+  const h = HISTORY.find((x) => x.id === id);
+  if (!h) return;
+  if (h.a) return go(`t~${h.a}`);
+  openForm({ title: h.name, sub: `${esc(ROLES[h.role].title)} · ${esc(h.outcome)}`, body: `<dl class="dc-mail h-detail">
+      <dt>Applied</dt><dd>${fmtDate(h.applied)} · ${esc(h.src.startsWith("Referral") ? `Referred by ${h.src.split("· ")[1]}` : h.src === "Tacit" ? "Sent by Tacit" : "Applied cold")}</dd>
+      <dt>Background</dt><dd>${esc(h.hl)}</dd>
+      <dt>Got to</dt><dd>${esc(h.reached)}${h.iv ? ` with ${esc(PEOPLE[h.iv].name)}` : ""}</dd>
+      ${h.score ? `<dt>Testbench</dt><dd>${h.score}/100</dd>` : ""}
+      <dt>Closed</dt><dd>${fmtDate(h.closed)} · ${esc(h.outcome)}</dd></dl>
+      ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
+    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
 }
 function applicantsPage() {
   const tk = state.team;
@@ -4703,22 +4878,25 @@ function applicantsPage() {
   let body;
   if (view === "board") {
     state.lastList = list.map((a) => a.id);
-    body = `<div class="scroll" id="scroller"><div class="board">${COLS.map((col) => { const items = list.filter(col.f); return `<div class="col ${col.k === "closed" ? "closed" : ""}" data-drop="${col.k}"><div class="col-head">${col.name}<span class="n">${items.length}</span></div>${items.map(card).join("")}</div>`; }).join("")}</div></div>`;
+    const more = (state.colAll ||= new Set());
+    body = `<div class="scroll" id="scroller"><div class="board">${COLS.filter((c) => c.k !== "closed").map((col) => { const items = list.filter(col.f), cap = more.has(col.k) ? items.length : 12; return `<div class="col" data-drop="${col.k}"><div class="col-head">${col.name}<span class="n">${items.length}</span></div>${items.slice(0, cap).map(card).join("")}${items.length > cap ? `<button class="col-more" data-act="colAll" data-k="${col.k}">Show all ${items.length}</button>` : ""}</div>`; }).join("")}</div></div>`;
   } else {
-    const groups = GROUPINGS[by].map((g) => ({ ...g, items: list.filter(g.f) })).filter((g) => g.items.length);
+    const groups = GROUPINGS[by].filter((g) => !g.closed).map((g) => ({ ...g, items: list.filter(g.f) })).filter((g) => g.items.length);
+    const more = (state.grpAll ||= new Set());
     const open = (g) => (g.closed ? state.closedOpen : !(state.shut || new Set()).has(`${by}:${g.k}`));
     state.lastList = groups.filter(open).flatMap((g) => g.items.map((a) => a.id));
     body = `<div class="scroll" id="scroller"><div class="list">${groups.map((g) => `
       <div class="group-head ${open(g) ? "" : "collapsed"}"><button class="toggle" data-act="toggleGroup" data-k="${by}:${g.k}" data-closed="${g.closed ? 1 : ""}"${g.desc ? ` title="${esc(g.desc)}"` : ""}><svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg>${g.icon || ""}${esc(g.name)}<span class="n">${g.items.length}</span></button></div>
-      ${open(g) ? g.items.map(arow).join("") : ""}`).join("") || `<div class="empty">No applicants match</div>`}</div></div>`;
+      ${open(g) ? g.items.slice(0, more.has(g.k) ? g.items.length : 25).map(arow).join("") + (g.items.length > 25 && !more.has(g.k) ? `<button class="grp-more" data-act="grpAll" data-k="${g.k}">Show ${g.items.length - 25} more</button>` : "") : ""}`).join("") || `<div class="empty">No applicants match</div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : team ? `${teamKey(tk)}<b>${team.name}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${list.length}</span></div><span class="spacer"></span>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}</div>${pipeTabs("active", list.length)}<span class="spacer"></span>
     <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" title="Board (B)">${ico("board")}</button></div>
     <a class="btn ghost sm" href="#views">${ico("layers")}Views</a><button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
+  ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#history">${ico("search")}${n.toLocaleString()} past application${n === 1 ? "" : "s"} also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
   ${picked.size ? `<div class="bulk"><span class="n">${picked.size} selected</span>
     <button class="btn ghost sm" data-act="bulkTeam" title="Send to team (A)">Send to team…</button>
@@ -4920,6 +5098,7 @@ function ticketPage(id) {
       </div>
       ${nowPanel(a)}
       ${roundsBlock(a)}
+      ${pastOf(a).length ? `<div class="block"><div class="block-head">Past applications<span class="n">${pastOf(a).length}</span></div><div class="plan">${pastOf(a).map((h) => `<button class="past-row" data-act="openHist" data-id="${h.id}"><span class="what"><b>${esc(ROLES[h.role].title)}</b><span>${fmtDate(h.applied)} to ${fmtDate(h.closed)} · got to ${esc(h.reached)}</span></span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span></button>`).join("")}</div></div>` : ""}
       <div class="block">${tbPanel(a)}</div>
       <div class="block"><div class="block-head">Profile</div>${profile(a)}</div>
       <div class="block"><div class="block-head">Activity<button class="aside linkish" data-act="rawLog">${state.rawLog ? "Show summary" : "Show all steps"}</button></div>${state.rawLog ? traceView(a) : storyView(a)}
@@ -5781,7 +5960,7 @@ function renderSide() {
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
     </nav>
     <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
+      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views" || r.name === "history")}
       ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
       ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
@@ -5812,6 +5991,51 @@ const seen = new Map(), archived = new Map();
 const attnRun = (a) => RUNS.find((r) => r.a === a.id && needsAttention(r));
 // Only a decision or a stuck Grokbot needs you. New applicants have their own page, Applicant Tickets.
 const needsYou = (a) => a.state === "judgment" || !!attnRun(a);
+// The Inbox is a queue of operational issues, not of applicants. An applicant has at most one open
+// issue: a Grokbot that broke, an invite drafted but not sent, someone who hasn't answered, or a
+// decision that's yours. Each says what's wrong, who it's about, and the one action that fixes it.
+const LATE = { invite: 2 * HR, cand: 36 * HR };
+const ISSUE_KINDS = { bot: "Bot failures", invite: "Unsent invites", late: "Overdue replies", decide: "Decisions" };
+const ISSUE_ICON = { bot: "alert", invite: "mail", late: "clock", decide: "flag" };
+function issueOf(a) {
+  if (!a || a.bulk) return null;
+  const mine = RUNS.filter((r) => r.a === a.id);
+  const fail = mine.find((r) => runState(r) === "failed");
+  if (fail) return { k: "bot", key: fail.id, at: fail.end || fail.start, run: fail,
+    what: `${botName(fail)} couldn't ${fail.kind.toLowerCase()}`, why: fail.error, who: runBot(fail).av, whoName: botName(fail),
+    act: { a: "retryRun", id: fail.id, label: fail.ch === "slack" ? "Retry by email" : "Retry" } };
+  const stuck = mine.find((r) => runState(r) === "stuck");
+  if (stuck) return { k: "late", key: stuck.id, at: stuck.start, run: stuck, late: Date.now() - stuck.start,
+    what: stuck.kind === "Get the read" ? `${first(stuck.on)} hasn't sent the read` : `${first(stuck.on)} hasn't replied`, why: `Asked ${dur(Date.now() - stuck.start)} ago`, who: personAv(stuck.on), whoName: PEOPLE[stuck.on].name,
+    act: { a: "nudgeRun", id: stuck.id, label: `Nudge ${first(stuck.on)}` } };
+  const sch = mine.find((r) => r.kind === "Schedule the interview" && r.status === "waiting" && !r.sent);
+  if (sch && Date.now() - sch.start > LATE.invite) return { k: "invite", key: sch.id, at: sch.start, run: sch, late: Date.now() - sch.start,
+    what: "Interview invite drafted, not sent", why: `In ${possessive(first(a.iv))} Gmail for ${dur(Date.now() - sch.start)}`, who: personAv(a.iv), whoName: PEOPLE[a.iv].name,
+    act: { a: "sendInvite", id: a.id, label: "Send invite" } };
+  if (a.state === "testbench" && a.tb.state === "sent" && Date.now() - Math.max(a.tbSent, a.candNudged || 0) > LATE.cand) return { k: "late", key: `tb-${a.id}`, at: a.tbSent, late: Date.now() - a.tbSent,
+    what: `${first2(a)} hasn't started the Testbench`, why: `Sent ${dur(Date.now() - a.tbSent)} ago${a.candNudged ? ", reminded once" : ""}`, who: candAv(a), whoName: a.name,
+    act: { a: "nudgeCand", id: a.id, label: `Remind ${first2(a)}` } };
+  if (a.state === "judgment") return { k: "decide", key: `dec-${a.id}`, at: (TRACE[a.id] || []).at(-1).at,
+    what: `Decide on ${a.name}`, why: a.read ? `${first(a.read.by)}'s read: ${a.read.verdict}` : "The read is in", who: a.read ? personAv(a.read.by) : candAv(a), whoName: a.read ? PEOPLE[a.read.by].name : a.name,
+    act: { a: "ibSel", id: a.id, label: "Decide" } };
+  return null;
+}
+// Send the drafted invite from the interviewer's Gmail, on your OK.
+function sendInvite(a) {
+  const r = RUNS.find((x) => x.a === a.id && x.kind === "Schedule the interview" && x.status === "waiting");
+  if (!r) return;
+  r.sent = true;
+  ev(a, Date.now(), `bot:${a.iv}`, `Sent the invite from ${possessive(nm(a.iv))} Gmail, on your OK`, { ch: "gmail", run: r });
+  waitOn(r, "cand");
+  touch(a);
+  toast(`Invite sent to ${a.name}`);
+}
+function nudgeCand(a) {
+  a.candNudged = Date.now();
+  ev(a, Date.now(), `bot:${ME}`, `Reminded ${esc(first2(a))} about the Testbench`, { ch: "gmail" });
+  touch(a);
+  toast(`Reminded ${first2(a)} about the Testbench`);
+}
 // The latest thing that happened, said the way a person would.
 function headline(a) {
   const r = attnRun(a);
@@ -5849,40 +6073,33 @@ function inboxAv(a) {
   return [candAv(a, "lg"), "done"];
 }
 const BADGE = { warn: "!", read: ico("quote"), new: ico("plus"), tb: ico("code"), cal: ico("cal"), bot: SPARK, done: ico("check") };
-// An applicant is in the Inbox only while something changed that you haven't seen, or a decision
-// is waiting on you. Once read or done it moves to Done; everyone is always in Pipeline too.
+// An applicant is in the Inbox only while it has an open issue you haven't dismissed. Resolved and
+// dismissed issues are listed under Done, as they were when they left.
+const cleared = new Map();
+const agoText = (t) => { const g = ago(t); return g === "now" ? "just now" : `${g} ago`; };
 function inboxRows() {
   return APPLICANTS.map((a) => {
-    const evs = TRACE[a.id] || [];
-    const o = evs.filter((e) => e.actor !== "me").at(-1) || evs.at(-1);
-    const you = needsYou(a), unread = o.at > (seen.get(a.id) || 0);
-    const dismissed = archived.has(a.id) && archived.get(a.id) >= o.at;
-    return { a, at: evs.at(-1).at, oat: o.at, you, unread, inInbox: !dismissed && (you || unread) };
+    const iss = issueOf(a);
+    const dismissed = iss && archived.has(a.id) && archived.get(a.id) >= iss.at;
+    return { a, iss, at: iss ? iss.at : 0, you: !!iss, unread: false, inInbox: !!iss && !dismissed };
   });
 }
 const isCleared = (x) => !x.inInbox;
-// What kind of issue a row is: a Grokbot that's blocked, a decision that's yours, or an update.
-const ibKind = (x) => (attnRun(x.a) ? "blocked" : x.you ? "call" : "update");
-const IB_KINDS = { blocked: "Blocked", call: "Your call", update: "Updates" };
-const IB_RANK = { blocked: 0, call: 1, update: 2 };
-const IB_ICON = { new: "ticket", tb: "code", cal: "cal", bot: "route", read: "quote", done: "check", warn: "alert" };
+const ISSUE_RANK = { bot: 0, invite: 1, late: 2, decide: 3 };
 function inboxItems(f = state.ibFilter || "all") {
-  return inboxRows().filter((x) => x.a.id === state.ibSel || (f === "done" ? !x.inInbox : x.inInbox))
-    .sort((x, y) => (f === "done" ? 0 : IB_RANK[ibKind(x)] - IB_RANK[ibKind(y)]) || y.at - x.at);
+  if (f === "done") return [...cleared.entries()].map(([id, c]) => ({ a: A[id], iss: c.iss, at: c.at, how: c.how, inInbox: false })).sort((x, y) => y.at - x.at);
+  return inboxRows().filter((x) => x.inInbox || (x.a.id === state.ibSel && x.iss)).sort((x, y) => ISSUE_RANK[x.iss.k] - ISSUE_RANK[y.iss.k] || y.iss.at - x.iss.at);
 }
 const unreadCount = () => inboxRows().filter((x) => x.inInbox && x.unread).length;
 const inboxLeft = () => inboxRows().filter((x) => x.inInbox).length;
 function ibRow(x, sel) {
-  const a = x.a;
-  const done = state.ibFilter === "done";
-  return `<div class="ib ${sel ? "sel" : ""} ${x.unread && !done ? "unread" : ""} ${x.you && !done ? "you" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
-    <span class="ib-av ib-k ${ibKind(x)}">${ico(ibKind(x) === "blocked" ? "alert" : ibKind(x) === "call" ? "flag" : IB_ICON[inboxAv(a)[1]] || "check")}</span>
-    <span class="ib-l1"><span class="trunc ib-what">${esc(headline(a))}</span></span>
-    <span class="ib-t">${ago(x.at)}</span>
-    <span class="ib-l2 trunc"><b data-hc="a:${a.id}">${esc(a.name)}</b> · ${esc(ROLES[a.role].title)}</span>
-    <span class="ib-u">${x.unread && !done ? `<i class="ib-dot" aria-label="Unread"></i>` : ""}</span>
-    ${done ? `<button class="ib-check back" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move ${esc(a.name)} back to Inbox">${ico("inbox")}</button>`
-      : `<button class="ib-check" data-act="ibDone" data-id="${a.id}" title="Done (E)" aria-label="Mark ${esc(a.name)} done">${ico("check")}</button>`}
+  const a = x.a, i = x.iss, done = state.ibFilter === "done";
+  return `<div class="ib iss ${i.k} ${sel ? "sel" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
+    <span class="ib-av ib-k ${i.k}">${ico(ISSUE_ICON[i.k])}</span>
+    <span class="ib-l1"><span class="trunc ib-what">${esc(i.what)}</span></span>
+    <span class="ib-l2 trunc"><span class="ib-who">${i.who}${esc(i.whoName)}</span>${i.whoName === a.name || i.k === "decide" ? "" : `<i>·</i><b data-hc="a:${a.id}">${esc(a.name)}</b>`}<i>·</i><span class="trunc">${esc(i.why || "")}</span></span>
+    <span class="ib-act">${done ? `<span class="ib-how">${esc(x.how || "Done")} ${agoText(x.at)}</span><button class="icon-btn" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move back to Inbox">${ico("inbox")}</button>`
+      : `<button class="btn sm ${i.k === "decide" ? "" : "primary"}" data-act="${i.act.a}" data-id="${i.act.id}">${esc(i.act.label)}</button>`}</span>
   </div>`;
 }
 const TRAY = `<svg class="ib-tray" viewBox="0 0 64 64" aria-hidden="true"><rect x="9" y="6" width="46" height="46" rx="10"/><path d="M9 34h13.5c1.4 0 2.5 1.1 2.5 2.5v.5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-.5c0-1.4 1.1-2.5 2.5-2.5H55"/><path d="M14 52.5c0 3 2.2 5.5 5 5.5h26c2.8 0 5-2.5 5-5.5"/></svg>`;
@@ -5899,18 +6116,32 @@ function blockCard(r, withRun = true) {
     <div class="blk-main"><b>Waiting on ${esc(possessive(first(iv)))} read</b><span>Asked ${dur(Date.now() - r.start)} ago · ${nudges ? `nudged ${nudges === 1 ? "once" : `${nudges} times`}` : "not nudged yet"}</span></div>
     <div class="blk-acts">${view}<button class="btn sm primary" data-act="nudgeRun" data-id="${r.id}" title="Reminds ${esc(first(iv))} in Slack${lead !== iv ? ` and copies ${esc(PEOPLE[lead].name)}, the team lead` : ""}">${lead !== iv ? `Nudge and copy ${esc(first(lead))}` : "Nudge again"}</button></div></section>`;
 }
+// The issue's fix comes first: the broken step, the unsent draft, the reminder, or the decision.
+function issueCard(a, i) {
+  if (i.run && (i.k === "bot" || (i.k === "late" && i.run.kind === "Get the read"))) return blockCard(i.run);
+  if (i.k === "invite") {
+    const iv = PEOPLE[a.iv];
+    return `<section class="draft-card"><div class="dc-head"><span class="ib-k invite">${ico("mail")}</span><div><b>Invite drafted in ${esc(possessive(first(a.iv)))} Gmail</b><span>Waiting for ${esc(first(a.iv))} to send it · ${dur(i.late)}</span></div></div>
+      <dl class="dc-mail"><dt>From</dt><dd>${esc(iv.name)} &lt;${esc(first(a.iv).toLowerCase())}@meridian.com&gt;</dd><dt>To</dt><dd>${esc(a.name)} &lt;${esc(emailOf(a))}&gt;</dd><dt>Subject</dt><dd>Interview with Meridian: ${esc(ROLES[a.role].title)}</dd></dl>
+      <p class="dc-body">Hi ${esc(first2(a))}, would either of these work for a first conversation with me? ${esc((a.slots || []).join(" or "))}. Pick one and it goes on both calendars.</p>
+      <div class="blk-acts"><button class="btn sm ghost" data-act="remindIv" data-id="${a.id}">Remind ${esc(first(a.iv))}</button><button class="btn sm primary" data-act="sendInvite" data-id="${a.id}">Send invite</button></div></section>`;
+  }
+  if (i.k === "late") return `<section class="blk wait"><span class="blk-ico">${ico("clock")}</span>
+    <div class="blk-main"><b>No start on the Testbench</b><span>${esc(i.why)}</span></div>
+    <div class="blk-acts"><button class="btn sm primary" data-act="nudgeCand" data-id="${a.id}">Remind ${esc(first2(a))}</button></div></section>`;
+  return nowPanel(a);
+}
 function ibReader(a) {
-  const r = attnRun(a), s = r && runState(r);
-  const team = a.team && TEAMS[a.team];
+  const done = state.ibFilter === "done", c = done && cleared.get(a.id);
+  const i = done ? c && c.iss : issueOf(a);
   return `<div class="ib-top"><button class="icon-btn ib-back" data-act="ibBack" aria-label="Back to Inbox">${ico("chevL")}</button>
       <span class="ib-crumb"><span class="trunc">${esc(a.name)}</span></span><span class="spacer"></span>
-      <button class="icon-btn" data-act="ibUnread" data-id="${a.id}" title="Mark unread (U)" aria-label="Mark unread">${ico("mail")}</button>
-      ${state.ibFilter === "done" ? `<button class="cx-btn" data-act="ibRestore" data-id="${a.id}">${ico("inbox")}Move back to Inbox</button>`
-        : `<button class="cx-btn ib-donebtn" data-act="ibDone" data-id="${a.id}" title="Move to Done (E). It stays in Pipeline.">${ico("check")}Done</button>`}
+      ${done ? `<button class="cx-btn" data-act="ibRestore" data-id="${a.id}">${ico("inbox")}Move back to Inbox</button>`
+        : `<button class="cx-btn ib-donebtn" data-act="ibDone" data-id="${a.id}" title="Dismiss (E). The applicant stays in Pipeline.">${ico("check")}Dismiss</button>`}
       <a class="icon-btn" href="#t~${a.id}" title="Open the ticket (↵)" aria-label="Open the ticket">${ico("arrowR")}</a></div>
     <div class="r-scroll" id="scroller"><div class="ib-read">
-      <header class="ib-head"><div class="grow"><h1>${esc(a.name)}</h1><p>${esc(ROLES[a.role].title)} · ${esc(a.hl)}</p></div></header>
-      ${s === "failed" ? `${blockCard(r)}${nowPanel(a)}` : s === "stuck" ? blockCard(r) : nowPanel(a)}
+      <header class="ib-head"><div class="grow"><h1>${esc(i ? i.what : a.name)}</h1><p><span data-hc="a:${a.id}">${esc(a.name)}</span> · ${esc(ROLES[a.role].title)}</p></div></header>
+      ${done ? `<section class="blk ok"><span class="blk-ico">${ico("check")}</span><div class="blk-main"><b>${esc(c.how)}</b><span>${agoText(c.at)}</span></div></section>` : i ? issueCard(a, i) : nowPanel(a)}
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
@@ -5919,15 +6150,15 @@ function inboxPage() {
   const xs = inboxItems(f);
   const sel = state.ibSel && A[state.ibSel];
   const left = inboxLeft();
-  const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done" title="Everyone not in your Inbox right now">Done</button></div>`;
+  const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done">Done</button></div>`;
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
-  if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Applicants show up here when something changes or a decision needs you.</p>
+  if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
   return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
     <div class="ib-col">
-      ${f === "done" ? `<p class="ib-note">Everyone not in your Inbox right now. Open one to look again, or move it back.</p>` : ""}
+      ${f === "done" ? `` : ""}
       <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
-        : Object.keys(IB_KINDS).map((k) => { const g = xs.filter((x) => ibKind(x) === k); return g.length ? `<div class="ib-gh ${k}" data-tid="gh-${k}">${IB_KINDS[k]}<span>${g.length}</span></div>${g.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")}` : ""; }).join("")}
+        : Object.keys(ISSUE_KINDS).map((k) => { const g = xs.filter((x) => x.iss.k === k); return g.length ? `<div class="ib-gh ${k}" data-tid="gh-${k}">${ISSUE_KINDS[k]}<span>${g.length}</span></div>${g.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")}` : ""; }).join("")}
         ${xs.length ? "" : `<p class="ib-none">Nothing here yet.</p>`}</div>
     </div>
     <div class="ib-reader">${sel ? ibReader(sel) : ""}</div>
@@ -5944,6 +6175,7 @@ function ibMove(d) {
 }
 function ibRestore(id) {
   archived.delete(id);
+  cleared.delete(id);
   seen.set(id, 0);
   state.ibFilter = "all";
   render();
@@ -5954,18 +6186,21 @@ function autoClear(id) {
   const xs = inboxItems().filter((x) => x.inInbox || x.a.id === id);
   const i = xs.findIndex((x) => x.a.id === id);
   const nx = xs[i + 1] || xs[i - 1];
+  if (state.ibIss) cleared.set(id, { iss: state.ibIss, at: Date.now(), how: "Resolved" });
   archived.set(id, Date.now());
   state.ibSel = nx && nx.a.id !== id ? nx.a.id : null;
-  setTimeout(() => toast(`${A[id].name} moved to Done. ${state.ibSel ? `Next: ${A[state.ibSel].name}` : "You're all caught up."}`, { undo: () => { archived.delete(id); state.ibSel = id; } }), 0);
+  setTimeout(() => toast(`${A[id].name} moved to Done. ${state.ibSel ? `Next: ${A[state.ibSel].name}` : "You're all caught up."}`, { undo: () => { archived.delete(id); cleared.delete(id); state.ibSel = id; } }), 0);
 }
 function ibDone(id) {
   const xs = inboxItems();
   const i = xs.findIndex((x) => x.a.id === id);
   const prev = archived.get(id), wasSel = state.ibSel;
+  const iss = issueOf(A[id]);
+  if (iss) cleared.set(id, { iss, at: Date.now(), how: "Dismissed" });
   archived.set(id, Date.now());
   if (state.ibSel === id) { const nx = xs[i + 1] || xs[i - 1]; state.ibSel = nx ? nx.a.id : null; }
   render();
-  toast(`${A[id].name} moved to Done`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); state.ibSel = wasSel; } });
+  toast(`${A[id].name} moved to Done`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
 }
 
 /* ---------------- Applicant Tickets: one email each, a reply ready ---------------- */
@@ -6734,6 +6969,7 @@ function parseHash() {
   if (name === "all") { state.team = "all"; state.savedView = null; return { name: "all" }; }
   if (name === "view" && viewById(a)) { const v = viewById(a); if (v.href) { location.replace(v.href); return { name: "views" }; } state.team = "all"; state.savedView = a; return { name: "all" }; }
   if (name === "views") return { name };
+  if (name === "history") { state.savedView = null; return { name }; }
   if (name === "bots" && a === "rules") return { name: "settings" };
   if (name === "bots") return { name, id: a === "people" ? a : "runs" };
   if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks"))) return { name: "bots", id: a === "checks" ? "checks" : "runs" };
@@ -6754,8 +6990,9 @@ function render() {
   const r = state.route;
   if (r.name === "inbox") {
     if (!state.ibSel && innerWidth >= 768) { const first = inboxItems()[0]; if (first) state.ibSel = first.a.id; }
-    if (state.ibNeed && state.ibNeed === state.ibSel && !needsYou(A[state.ibNeed])) autoClear(state.ibNeed);
-    state.ibNeed = state.ibSel && needsYou(A[state.ibSel]) ? state.ibSel : null;
+    if (state.ibNeed && state.ibNeed === state.ibSel && !issueOf(A[state.ibNeed])) autoClear(state.ibNeed);
+    state.ibIss = state.ibSel && state.ibFilter !== "done" ? issueOf(A[state.ibSel]) : null;
+    state.ibNeed = state.ibIss ? state.ibSel : null;
     if (state.ibSel) seen.set(state.ibSel, Date.now());
   }
   renderSide();
@@ -6764,7 +7001,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "history" ? historyPage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   if (r.name === "interviews" && r.id) $(".ivr.sel")?.scrollIntoView({ block: "nearest" });
@@ -7033,6 +7270,20 @@ const ACT = {
   openRec: (el) => go(`interviews~${el.dataset.k}`),
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
+  colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
+  grpAll: (el) => { state.grpAll.add(el.dataset.k); render(); },
+  openHist: (el) => openHist(el.dataset.id),
+  hTeam: (el) => { state.team = el.dataset.v; state.hpage = 0; render(); },
+  hSort: (el) => { const s = state.hsort; s.dir = s.k === el.dataset.k ? -s.dir : el.dataset.k === "closed" ? -1 : 1; s.k = el.dataset.k; state.hpage = 0; render(); },
+  hPage: (el) => { state.hpage = (state.hpage || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
+  hClear: () => { state.hf = {}; state.hpage = 0; render(); },
+  hFilter: (el) => {
+    const k = el.dataset.k, f = state.hf, opts = { outcome: H_OUTCOMES.map((o) => [o, o]), role: Object.entries(ROLES).map(([k2, r]) => [k2, r.title]), src: [["Referral", "Referral"], ["Tacit", "Tacit"], ["Cold", "Cold"]], period: H_PERIODS }[k];
+    openMenu(el, [{ id: "", label: k === "period" ? "Any time" : "Any", checked: !f[k] }, ...opts.map(([v, n]) => ({ id: v, label: n, checked: f[k] === v }))], (o) => { f[k] = o.id || null; state.hpage = 0; render(); });
+  },
+  sendInvite: (el) => sendInvite(A[el.dataset.id]),
+  nudgeCand: (el) => nudgeCand(A[el.dataset.id]),
+  remindIv: (el) => { const a = A[el.dataset.id]; ev(a, Date.now(), `bot:${a.iv}`, `Reminded ${nm(a.iv)} to send the invite`, { ch: chOf(a.iv) }); touch(a); toast(`Reminded ${first(a.iv)} to send the invite`); },
   ibBack: () => { state.ibSel = null; render(); },
   ibDone: (el) => ibDone(el.dataset.id),
   ibUnread: (el) => { seen.set(el.dataset.id, 0); state.ibSel = null; render(); },
@@ -7066,7 +7317,7 @@ document.addEventListener("click", (e) => {
   ACT[el.dataset.act](el, e);
 });
 document.addEventListener("input", (e) => {
-  if (e.target.id === "filter") { state.q = e.target.value; render(); }
+  if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; render(); }
   if (e.target.id === "actq") { state.actQ = e.target.value; render(); }
   if (e.target.id === "calq") { state.calQ = e.target.value; render(); }
   if (e.target.id === "tri-draft") { e.target.dataset.dirty = 1; state.tri.draft = e.target.value; }
