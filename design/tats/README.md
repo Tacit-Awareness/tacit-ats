@@ -16,11 +16,12 @@ To change it, edit `src/` and run `python3 design/tats/build.py`, which inlines 
 
 ## What's in it
 
-- **Inbox** (`#inbox`): only updates and decisions. Open and Done tabs; the first item opens on its own. A decision has its read card (the interviewer's words, a transcript summary and the questions asked) and the next step, such as picking the next round's interviewer.
-- **Applicant Tickets** (`#triage`): new applicants, each opened as one document (resume, research statement, anything else they sent) with the Testbench result as `84/100`.
-- **Pipeline** (`#all`): every applicant in a Linear-style list, grouped by who has the next move (you, the Grokbots, booked, closed). Hover a row for a profile card.
-- **Interviews** (`#interviews`): a list to check off. Each interview shows the interviewer's read after the call, the Granola summary, every question and answer in order, and the full transcript (from the Granola icon).
-- **Views** (`#views`): Calendar, Interviewers and Grokbot Activity, plus saved Pipeline filters you can pin to the sidebar.
-- **Grokbot Activity** (`#activity`): "Needs you" first (only failed or stuck tasks, each with its fix), then a searchable log of what every Grokbot did.
-- **External Facing**: Job Postings (styled like the careers page, see `design/careers`) and Analytics.
+The sidebar follows the funnel: Inbox, then **Top of Funnel** (Job Postings, Applicant Tickets, Analytics), then **Routing & Tracking** (Pipeline, Interviews, Calendar, Interviewers, Grokbot Activity). Each of the four daily pages has its own shape, so you can tell them apart before reading a row:
+
+- **Inbox** (`#inbox`): an issue queue grouped Blocked, Your call, Updates. Each row leads with what happened, and the reader on the right has the fix or the decision. Open and Done tabs.
+- **Applicant Tickets** (`#triage`): new, unrouted applicants one at a time. A queue strip on top ("2 of 6"), their whole application as one document, and the reply and routing bar below.
+- **Pipeline** (`#all`): a board of every candidate by stage (New, Testbench, With Grokbots, Interview booked, Your call, Closed). A list layout and saved Views are in the header.
+- **Interviews** (`#interviews`): feedback and sentiment. A bar of how interviews went, the list grouped Pass, Mixed, Fail, Read pending, and a reader with the interviewer's read, the Granola summary, every question and answer, and the transcript. Check each one off.
+- **Grokbot Activity** (`#activity`): "Needs you" first (only failed or stuck tasks, each with its fix), then a searchable log.
+- **Job Postings** and **Analytics**: the careers page as applicants see it (see `design/careers`), and how postings perform.
 - The sidebar resizes by dragging its edge and collapses with `[`. Routing rules live in Settings.

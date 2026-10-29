@@ -3881,6 +3881,48 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .af-l1 { font-size: 14.5px; line-height: 1.4; color: var(--muted); }
 .af-t { padding-top: 0; }
 
+/* v48: four pages, four shapes. Pipeline = stage board that fits the window */
+.board { width: auto; min-width: 100%; }
+.board .col { flex: 1 1 0; width: auto; min-width: 184px; }
+.board .card .row { flex-wrap: wrap; }
+/* Applicant Tickets = one applicant at a time: a queue strip on top, their document below */
+.tk-solo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.tk-solo .reader { min-height: 0; border-left: 0; }
+.tq { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.tq-n { min-width: 56px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.tq-n b { color: var(--ink); font-weight: 500; }
+.tq .icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+.tq-strip { display: flex; gap: 2px; min-width: 0; margin-left: 10px; overflow-x: auto; scrollbar-width: none; }
+.tq-c { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 4px; border-radius: 16px; color: var(--muted); font-size: 13.5px; white-space: nowrap; transition: background 0.12s, color 0.12s, opacity 0.18s; }
+.tq-c .av { width: 24px; height: 24px; font-size: 9.5px; }
+.tq-c:hover { background: var(--hover); color: var(--ink); }
+.tq-c.on { background: var(--sel); color: var(--ink); font-weight: 500; }
+.tq-c.leaving { opacity: 0; }
+.tk.dv-full .tq { display: none; }
+/* Inbox = an issue queue: grouped by kind, each row led by what happened, not who */
+.ib-gh { display: flex; align-items: center; gap: 8px; padding: 14px 20px 6px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.ib-gh span { color: var(--faint); font-weight: 400; font-variant-numeric: tabular-nums; }
+.ib-k { border-radius: 8px; background: var(--soft); color: var(--muted); }
+.ib-k .ico, .ib-k svg { width: 15px; height: 15px; }
+.ib-k.blocked { background: var(--red-soft); color: var(--red); }
+.ib-k.call { background: var(--accent-soft, var(--sel)); color: var(--accent); }
+.ib-what { color: var(--ink); font-weight: 500; font-size: 14px; }
+.ib-l2 b { font-weight: 400; color: var(--muted); }
+/* Interviews = sentiment first: a bar of how interviews went, then the list grouped by verdict */
+.iv-sent { display: grid; gap: 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
+.iv-bar { display: flex; gap: 2px; height: 8px; }
+.iv-bar i { border-radius: 4px; min-width: 8px; }
+.iv-bar i.pass, .iv-key i.pass, .iv-gh i.pass { background: var(--ok); }
+.iv-bar i.mixed, .iv-key i.mixed, .iv-gh i.mixed { background: var(--amber); }
+.iv-bar i.fail, .iv-key i.fail, .iv-gh i.fail { background: var(--red); }
+.iv-bar i.pending, .iv-key i.pending, .iv-gh i.pending { background: var(--line-strong); }
+.iv-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.iv-key span { display: inline-flex; align-items: center; gap: 6px; }
+.iv-key i, .iv-gh i { width: 8px; height: 8px; border-radius: 50%; }
+.iv-key b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.iv-gh { display: flex; align-items: center; gap: 8px; padding: 14px 18px 4px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.iv-gh span { color: var(--faint); font-weight: 400; }
+
 </style>
 
 <div class="app" id="app">
@@ -4614,7 +4656,7 @@ const GROUPINGS = {
   role: Object.entries(ROLES).map(([k, r]) => ({ k, name: r.title, f: (a) => a.role === k })),
 };
 const COLS = [
-  { k: "new", name: "Applicant Tickets", f: (a) => a.state === "new" },
+  { k: "new", name: "New", f: (a) => a.state === "new" },
   { k: "testbench", name: "Testbench", f: (a) => a.state === "testbench" },
   { k: "bots", name: "With Grokbots", f: (a) => ["routing", "asked", "scheduling", "debrief"].includes(a.state) },
   { k: "iv", name: "Interview booked", f: (a) => a.state === "scheduled" },
@@ -4641,7 +4683,7 @@ function arow(a) {
 function card(a) {
   const c = court(a);
   return `<div class="card" draggable="true" data-tid="${a.id}" data-ctx="${a.id}" data-act="openRow" data-id="${a.id}">
-    <div class="top"><span class="tid">${handle(a)} <span class="faint">· day ${dayN(a)}</span></span><span class="grow"></span><button class="prop-btn" data-act="menuPri" data-id="${a.id}" title="Priority: ${PRIORITIES[a.pri || 0].name}" aria-label="Priority">${priIcon(a.pri)}</button><span title="With ${esc(c.label || "nobody")}">${c.av}</span></div>
+    <div class="top"><span class="tid">${handle(a)}</span><span class="grow"></span><button class="prop-btn" data-act="menuPri" data-id="${a.id}" title="Priority: ${PRIORITIES[a.pri || 0].name}" aria-label="Priority">${priIcon(a.pri)}</button><span title="With ${esc(c.label || "nobody")}">${c.av}</span></div>
     <span class="name" data-hc="a:${a.id}">${esc(a.name)}</span>
     <div class="hl">${esc(a.hl)}</div>
     <div class="row">${a.team ? `<span class="label">${teamDot(a.team)}${TEAMS[a.team].name}</span>` : ""}${labelsOf(a).slice(0, 1).map(labelChip).join("")}${a.tb && a.tb.state === "done" ? `<span class="label" title="Testbench score">${CH.testbench}${tbScore(a)}</span>` : ""}</div>
@@ -4656,7 +4698,7 @@ function scoped() {
 function applicantsPage() {
   const tk = state.team;
   const list = scoped();
-  const view = state.view || "list", by = state.groupBy || "court";
+  const view = state.view || "board", by = state.groupBy || "court";
   const team = TEAMS[tk];
   let body;
   if (view === "board") {
@@ -4673,7 +4715,7 @@ function applicantsPage() {
   const sv = state.savedView && viewById(state.savedView);
   return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : team ? `${teamKey(tk)}<b>${team.name}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${list.length}</span></div><span class="spacer"></span>
     <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" title="Board (B)">${ico("board")}</button></div>
-    <button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
+    <a class="btn ghost sm" href="#views">${ico("layers")}Views</a><button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
@@ -5730,22 +5772,21 @@ function renderSide() {
     <div class="sb-ws"><button class="sb-org" data-act="palette"><span class="ws-logo">${ORG.initials}</span><b class="trunc">${ORG.name}</b><svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
       <button class="icon-btn" data-act="palette" title="Search (⌘K)" aria-label="Search">${ico("search")}</button>
       <button class="icon-btn sb-toggle" data-act="sbToggle" title="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar ([)" aria-label="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!state.sbCollapsed}">${ico("sidebar")}</button></div>
-    <nav class="sb-group" aria-label="Daily">
+    <nav class="sb-group" aria-label="Inbox">
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", inboxLeft(), "", `${inboxLeft()} left to clear`)}
-      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", nQ, "", `${nQ} new applicants waiting on a reply`)}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && state.team === "all" && !state.savedView) || r.name === "t")}
-      ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
     </nav>
-    <nav class="sb-group" aria-label="Views">
-      ${item("#views", ico("layers"), "Views", r.name === "views" || (r.name === "all" && !!state.savedView))}
-      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar").replace('class="sb-item', 'class="sb-item sub')}
-      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people").replace('class="sb-item', 'class="sb-item sub')}
-      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), attn, "red", `${attn} Grokbot tasks stuck or failed`).replace('class="sb-item', 'class="sb-item sub')}
-      ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
-    </nav>
-    <nav class="sb-group ${shut("ext")}" aria-label="External Facing">${sec("ext", "External Facing", "What applicants see")}
+    <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
+      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", nQ, "", `${nQ} new applicants waiting on a reply`)}
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
+    </nav>
+    <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
+      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
+      ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
+      ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
+      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
+      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), attn, "red", `${attn} Grokbot tasks stuck or failed`)}
     </nav>
     <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
     <div class="sb-foot"><button class="sb-help" data-act="help" aria-label="Keyboard Shortcuts" title="Keyboard Shortcuts (?)">?</button><a class="sb-help ${on(r.name === "settings")}" href="#settings" aria-label="Settings" title="Settings">${ico("gear")}</a><span class="grow"></span><button class="sb-agent" data-act="palette">${ico("search")}Search or ask</button></div>
@@ -5820,8 +5861,14 @@ function inboxRows() {
   });
 }
 const isCleared = (x) => !x.inInbox;
+// What kind of issue a row is: a Grokbot that's blocked, a decision that's yours, or an update.
+const ibKind = (x) => (attnRun(x.a) ? "blocked" : x.you ? "call" : "update");
+const IB_KINDS = { blocked: "Blocked", call: "Your call", update: "Updates" };
+const IB_RANK = { blocked: 0, call: 1, update: 2 };
+const IB_ICON = { new: "ticket", tb: "code", cal: "cal", bot: "route", read: "quote", done: "check", warn: "alert" };
 function inboxItems(f = state.ibFilter || "all") {
-  return inboxRows().filter((x) => x.a.id === state.ibSel || (f === "done" ? !x.inInbox : x.inInbox)).sort((x, y) => y.at - x.at);
+  return inboxRows().filter((x) => x.a.id === state.ibSel || (f === "done" ? !x.inInbox : x.inInbox))
+    .sort((x, y) => (f === "done" ? 0 : IB_RANK[ibKind(x)] - IB_RANK[ibKind(y)]) || y.at - x.at);
 }
 const unreadCount = () => inboxRows().filter((x) => x.inInbox && x.unread).length;
 const inboxLeft = () => inboxRows().filter((x) => x.inInbox).length;
@@ -5829,10 +5876,10 @@ function ibRow(x, sel) {
   const a = x.a;
   const done = state.ibFilter === "done";
   return `<div class="ib ${sel ? "sel" : ""} ${x.unread && !done ? "unread" : ""} ${x.you && !done ? "you" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
-    <span class="ib-av">${candAv(a, "lg")}</span>
-    <span class="ib-l1"><span class="trunc"><b data-hc="a:${a.id}">${esc(a.name)}</b><span class="ib-role">${esc(ROLES[a.role].title)}</span></span></span>
+    <span class="ib-av ib-k ${ibKind(x)}">${ico(ibKind(x) === "blocked" ? "alert" : ibKind(x) === "call" ? "flag" : IB_ICON[inboxAv(a)[1]] || "check")}</span>
+    <span class="ib-l1"><span class="trunc ib-what">${esc(headline(a))}</span></span>
     <span class="ib-t">${ago(x.at)}</span>
-    <span class="ib-l2 trunc">${esc(headline(a))}</span>
+    <span class="ib-l2 trunc"><b data-hc="a:${a.id}">${esc(a.name)}</b> · ${esc(ROLES[a.role].title)}</span>
     <span class="ib-u">${x.unread && !done ? `<i class="ib-dot" aria-label="Unread"></i>` : ""}</span>
     ${done ? `<button class="ib-check back" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move ${esc(a.name)} back to Inbox">${ico("inbox")}</button>`
       : `<button class="ib-check" data-act="ibDone" data-id="${a.id}" title="Done (E)" aria-label="Mark ${esc(a.name)} done">${ico("check")}</button>`}
@@ -5879,7 +5926,9 @@ function inboxPage() {
   return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
     <div class="ib-col">
       ${f === "done" ? `<p class="ib-note">Everyone not in your Inbox right now. Open one to look again, or move it back.</p>` : ""}
-      <div class="ib-list" id="mlist">${xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("") || `<p class="ib-none">Nothing here yet.</p>`}</div>
+      <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
+        : Object.keys(IB_KINDS).map((k) => { const g = xs.filter((x) => ibKind(x) === k); return g.length ? `<div class="ib-gh ${k}" data-tid="gh-${k}">${IB_KINDS[k]}<span>${g.length}</span></div>${g.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")}` : ""; }).join("")}
+        ${xs.length ? "" : `<p class="ib-none">Nothing here yet.</p>`}</div>
     </div>
     <div class="ib-reader">${sel ? ibReader(sel) : ""}</div>
   </div>`;
@@ -6024,15 +6073,19 @@ function triagePage() {
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
   return `${head}
-  <div class="inbox2 tk ${state.dvFull ? "dv-full" : ""}">
-    <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
+  <div class="inbox2 tk tk-solo ${state.dvFull ? "dv-full" : ""}">
+    <div class="tq" id="mlist">
+      <span class="tq-n"><b>${q.indexOf(a) + 1}</b> of ${q.length}</span>
+      <button class="icon-btn" data-act="triStep" data-d="-1" title="Previous (K)" aria-label="Previous applicant" ${q.indexOf(a) ? "" : "disabled"}>${ico("chevL")}</button><button class="icon-btn" data-act="triStep" data-d="1" title="Next (J)" aria-label="Next applicant" ${q.indexOf(a) < q.length - 1 ? "" : "disabled"}>${ico("chevR")}</button>
+      <div class="tq-strip">${q.map((x) => `<button class="tq-c ${x.id === a.id ? "on" : ""}" data-act="triSel" data-id="${x.id}" id="m-${x.id}" title="${esc(x.name)}, ${esc(ROLES[x.role].title)}">${candAv(x)}<span>${esc(x.name.split(" ")[0])}</span></button>`).join("")}</div>
+    </div>
     <div class="reader" id="reader">
       <header class="tk-top">${candAv(a, "xl")}
         <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
         <div class="tk-acts"><button class="cx-btn" data-act="emailCand" data-id="${a.id}">${ico("mail")}Email</button><button class="cx-btn" data-act="menuStatus" data-id="${a.id}">Move to<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
       </header>
       <div class="tk-meta"><span class="label">${esc(ROLES[a.role].title)}</span>${labelsOf(a).map(labelChip).join("")}<button class="label add" data-act="menuLabels" data-id="${a.id}">${ico("plus")}Tag</button>
-        <span class="grow"></span><div class="tk-steps">${stepsOf(a).map((s) => `<span class="tk-step ${s.s}">${s.s === "done" ? ico("check") : `<i></i>`}${esc(s.n)}</span>`).join(`<span class="tk-line"></span>`)}</div></div>
+</div>
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
@@ -6317,23 +6370,33 @@ function recordings() {
 const recByKey = (k) => recordings().find((x) => x.key === k);
 const vPill = (v) => `<span class="vpill ${v}">${VERDICT_NAME[v]}</span>`;
 // Interviews opens straight into the list and the newest interview, like the Inbox.
+// Interviews are sorted by how they went, so the page reads as sentiment before any one name.
+const V_ORDER = ["pass", "mixed", "fail", "pending"];
+const ivList = () => recordings().slice().sort((x, y) => V_ORDER.indexOf(x.v) - V_ORDER.indexOf(y.v) || y.start - x.start);
+function sentBar(xs) {
+  const n = (v) => xs.filter((x) => x.v === v).length;
+  const vs = V_ORDER.filter(n);
+  return `<div class="iv-sent" role="img" aria-label="${vs.map((v) => `${n(v)} ${VERDICT_NAME[v]}`).join(", ")}">
+    <div class="iv-bar">${vs.map((v) => `<i class="${v}" style="flex:${n(v)}" title="${n(v)} ${VERDICT_NAME[v]}"></i>`).join("")}</div>
+    <div class="iv-key">${vs.map((v) => `<span><i class="${v}"></i>${VERDICT_NAME[v]}<b>${n(v)}</b></span>`).join("")}</div></div>`;
+}
 function interviewsPage(selKey) {
-  const xs = recordings();
+  const xs = ivList();
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
   const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
   return `${head}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
-    <div class="ivw-list" id="mlist">${xs.map((x) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
+    <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
         <span class="ivr-av">${candAv(x.a, "lg")}</span>
-        <span class="ivr-l1"><b>${esc(x.a.name)}</b></span><span class="ivr-v">${vPill(x.v)}</span>
+        <span class="ivr-l1"><b>${esc(x.a.name)}</b></span>
         <span class="ivr-l2">Round ${x.round} · ${esc(first(x.iv))} · ${esc(`${MO[new Date(x.start).getMonth()]} ${new Date(x.start).getDate()}`)}</span>
         <button class="ivr-check ${rv ? "on" : ""}" data-act="ivReview" data-k="${x.key}" title="${rv ? "Mark not reviewed" : "Mark reviewed (E)"}" aria-label="${rv ? "Mark not reviewed" : "Mark reviewed"}" aria-pressed="${rv}">${ico("check")}</button></div>`; }).join("") || `<p class="ib-none">No interviews yet.</p>`}</div>
     ${sel ? `<div class="ivw-read" id="scroller">${recReader(sel)}</div>` : ""}
   </div>`;
 }
 function ivStep(d) {
-  const xs = recordings(), cur = state.route.id || (xs[0] && xs[0].key);
+  const xs = ivList(), cur = state.route.id || (xs[0] && xs[0].key);
   let i = xs.findIndex((x) => x.key === cur);
   i = Math.max(0, Math.min(xs.length - 1, i + d));
   if (xs[i] && xs[i].key !== cur) go(`interviews~${xs[i].key}`);
@@ -6896,7 +6959,7 @@ const ACT = {
   triOpen: (el) => { state.tri = { sel: el.dataset.id }; go("triage"); },
   toggleGroup: (el) => { if (el.dataset.closed) state.closedOpen = !state.closedOpen; else { const s = (state.shut ||= new Set()); s.has(el.dataset.k) ? s.delete(el.dataset.k) : s.add(el.dataset.k); } render(); },
   setView: (el) => { state.view = el.dataset.v; render(); },
-  display: (el) => openMenu(el, [{ sec: "Layout" }, { id: "v:list", label: "List", icon: ico("list"), checked: (state.view || "list") === "list" }, { id: "v:board", label: "Board", icon: ico("board"), checked: state.view === "board" }, { sec: "Group the list by" }, ...[["court", "Court"], ["team", "Team"], ["priority", "Priority"], ["role", "Role"]].map(([k, n]) => ({ id: `g:${k}`, label: n, checked: (state.groupBy || "court") === k }))], (o) => { const [t, v] = o.id.split(":"); if (t === "v") state.view = v; else { state.groupBy = v; state.view = "list"; } render(); }),
+  display: (el) => openMenu(el, [{ sec: "Layout" }, { id: "v:list", label: "List", icon: ico("list"), checked: (state.view || "board") === "list" }, { id: "v:board", label: "Board", icon: ico("board"), checked: (state.view || "board") === "board" }, { sec: "Group the list by" }, ...[["court", "Court"], ["team", "Team"], ["priority", "Priority"], ["role", "Role"]].map(([k, n]) => ({ id: `g:${k}`, label: n, checked: (state.groupBy || "court") === k }))], (o) => { const [t, v] = o.id.split(":"); if (t === "v") state.view = v; else { state.groupBy = v; state.view = "list"; } render(); }),
   pick: (el) => { const id = el.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); render(); },
   clearPick: () => { picked.clear(); render(); },
   bulkTeam: (el) => teamPick(el, [...picked]),
@@ -7130,7 +7193,7 @@ document.addEventListener("keydown", (e) => {
     if (lk === "j" || k === "ArrowDown") { e.preventDefault(); stepTicket(1); return; }
     if (lk === "k" || k === "ArrowUp") { e.preventDefault(); stepTicket(-1); return; }
     if (lk === "f" || k === "/") { e.preventDefault(); $("#filter")?.focus(); return; }
-    if (lk === "b") { e.preventDefault(); state.view = state.view === "board" ? "list" : "board"; render(); return; }
+    if (lk === "b") { e.preventDefault(); state.view = (state.view || "board") === "board" ? "list" : "board"; render(); return; }
     if (k === "Escape" && picked.size) { picked.clear(); render(); return; }
     const a = A[state.focus];
     if (!a) return;

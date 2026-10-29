@@ -3873,3 +3873,45 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .af-r::before { top: 46px; bottom: -10px; }
 .af-l1 { font-size: 14.5px; line-height: 1.4; color: var(--muted); }
 .af-t { padding-top: 0; }
+
+/* v48: four pages, four shapes. Pipeline = stage board that fits the window */
+.board { width: auto; min-width: 100%; }
+.board .col { flex: 1 1 0; width: auto; min-width: 184px; }
+.board .card .row { flex-wrap: wrap; }
+/* Applicant Tickets = one applicant at a time: a queue strip on top, their document below */
+.tk-solo { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.tk-solo .reader { min-height: 0; border-left: 0; }
+.tq { display: flex; align-items: center; gap: 4px; padding: 8px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.tq-n { min-width: 56px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.tq-n b { color: var(--ink); font-weight: 500; }
+.tq .icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+.tq-strip { display: flex; gap: 2px; min-width: 0; margin-left: 10px; overflow-x: auto; scrollbar-width: none; }
+.tq-c { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 4px; border-radius: 16px; color: var(--muted); font-size: 13.5px; white-space: nowrap; transition: background 0.12s, color 0.12s, opacity 0.18s; }
+.tq-c .av { width: 24px; height: 24px; font-size: 9.5px; }
+.tq-c:hover { background: var(--hover); color: var(--ink); }
+.tq-c.on { background: var(--sel); color: var(--ink); font-weight: 500; }
+.tq-c.leaving { opacity: 0; }
+.tk.dv-full .tq { display: none; }
+/* Inbox = an issue queue: grouped by kind, each row led by what happened, not who */
+.ib-gh { display: flex; align-items: center; gap: 8px; padding: 14px 20px 6px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.ib-gh span { color: var(--faint); font-weight: 400; font-variant-numeric: tabular-nums; }
+.ib-k { border-radius: 8px; background: var(--soft); color: var(--muted); }
+.ib-k .ico, .ib-k svg { width: 15px; height: 15px; }
+.ib-k.blocked { background: var(--red-soft); color: var(--red); }
+.ib-k.call { background: var(--accent-soft, var(--sel)); color: var(--accent); }
+.ib-what { color: var(--ink); font-weight: 500; font-size: 14px; }
+.ib-l2 b { font-weight: 400; color: var(--muted); }
+/* Interviews = sentiment first: a bar of how interviews went, then the list grouped by verdict */
+.iv-sent { display: grid; gap: 10px; padding: 14px 18px 12px; border-bottom: 1px solid var(--line); }
+.iv-bar { display: flex; gap: 2px; height: 8px; }
+.iv-bar i { border-radius: 4px; min-width: 8px; }
+.iv-bar i.pass, .iv-key i.pass, .iv-gh i.pass { background: var(--ok); }
+.iv-bar i.mixed, .iv-key i.mixed, .iv-gh i.mixed { background: var(--amber); }
+.iv-bar i.fail, .iv-key i.fail, .iv-gh i.fail { background: var(--red); }
+.iv-bar i.pending, .iv-key i.pending, .iv-gh i.pending { background: var(--line-strong); }
+.iv-key { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+.iv-key span { display: inline-flex; align-items: center; gap: 6px; }
+.iv-key i, .iv-gh i { width: 8px; height: 8px; border-radius: 50%; }
+.iv-key b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.iv-gh { display: flex; align-items: center; gap: 8px; padding: 14px 18px 4px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.iv-gh span { color: var(--faint); font-weight: 400; }
