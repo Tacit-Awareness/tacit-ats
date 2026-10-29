@@ -4500,3 +4500,66 @@ a.hm-li:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .tour-card p { margin: var(--s2) 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
 .tour-acts { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s5); }
 @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card { transition: none; } }
+
+/* v61 Overview: KPI row, the stuck view, a secondary grid */
+.hm-sec { margin: var(--s2) 0 calc(-1 * var(--s1)); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.hm-row.stuck { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+.hm-card.link { cursor: pointer; }
+.hm-card.link:hover { border-color: var(--line-strong); }
+.hm-load { display: grid; gap: 6px; margin-top: var(--s2); }
+.hm-load > div { display: grid; grid-template-columns: 64px minmax(0, 1fr) 40px; gap: var(--s2); align-items: center; font-size: 12.5px; color: var(--muted); }
+.hm-load i { height: 8px; border-radius: 4px; background: var(--ink); opacity: 0.75; min-width: 2px; }
+.hm-load b { text-align: right; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-est { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: var(--s2); padding: 8px 10px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--muted); font-size: 12.5px; cursor: help; }
+.hm-est .tag { padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.01em; }
+.hm-est b { color: var(--ink); font-weight: 500; }
+.hm-eff { display: grid; gap: 6px; padding: 6px 0; }
+.hm-eff > div { display: flex; justify-content: space-between; font-size: 13.5px; }
+.hm-eff b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-eff > i { display: block; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.hm-eff > i > i { display: block; height: 100%; border-radius: 4px; background: var(--muted); }
+.hm-eff-n { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); margin-top: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.hm-eff-n div { display: grid; gap: 2px; }
+.hm-eff-n b { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.hm-eff-n span { color: var(--muted); font-size: 12.5px; }
+/* Settings: the interview process */
+.set-proc { display: grid; gap: 2px; padding: var(--s2); margin-bottom: var(--s6); }
+.proc-r { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--s2); align-items: center; }
+.proc-n { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12px; }
+.proc-in { height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; color: var(--ink); }
+.proc-in:hover { border-color: var(--line); }
+.proc-in:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); background: var(--raised); }
+
+/* Compare styles: the same Overview twice, scaled to sit side by side */
+.cmp { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); padding: var(--s4) var(--s6) var(--s6); overflow: auto; }
+.cmp-col { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); min-width: 0; }
+.cmp-h { display: flex; align-items: center; justify-content: space-between; }
+.cmp-h b { font-size: 14px; font-weight: 600; }
+.cmp-frame { border: 1px solid var(--line-strong); border-radius: 12px; overflow: auto; background: var(--paper); max-height: calc(100vh - 160px); }
+.cmp-inner { width: 1180px; zoom: 0.52; pointer-events: none; }
+.cmp-inner .bar, .cmp-inner .hm-nav { pointer-events: none; }
+.cmp-inner .scroll { overflow: visible; }
+
+/* The previous palette, with refined shading. Applies to the whole app (html.pal-prev) or one compare column (.pal-prev). */
+.pal-prev .av:not(.cand), .pal-prev .team-key, .pal-prev .tdot, .pal-prev .label i, .pal-prev .handle, .pal-prev .st-ico, .pal-prev .doing, .pal-prev .readpill, .pal-prev .stackav { filter: none; }
+.pal-prev .hm { background: linear-gradient(180deg, #f6f7fb 0, var(--paper) 420px); }
+html.pal-prev .hm { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--paper)) 0, var(--paper) 420px); }
+.pal-prev .hm-card, .pal-prev .hm-box { border-color: color-mix(in srgb, var(--accent) 10%, var(--line)); box-shadow: 0 1px 2px rgba(30, 34, 70, 0.04), 0 6px 16px -8px rgba(30, 34, 70, 0.12); }
+.pal-prev .hm-hist i { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.pal-prev .hm-hist > span:last-child i, .pal-prev .hm-hist > span:hover i { background: var(--accent); }
+.pal-prev .hm-hist i.over { background: var(--red); }
+.pal-prev .s0 { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.pal-prev .s1 { background: color-mix(in srgb, var(--accent) 55%, var(--paper)); }
+.pal-prev .s2 { background: var(--accent); }
+.pal-prev .hm-load i, .pal-prev .hm-iv-b i, .pal-prev .hm-eff > i > i { background: var(--accent); opacity: 1; }
+.pal-prev .hm-ic { background: var(--blue-soft); color: var(--blue); }
+.pal-prev .hm-bn.k-sched .hm-ic { background: var(--amber-soft); color: var(--amber); }
+.pal-prev .hm-bn.k-cards .hm-ic { background: var(--accent-soft); color: var(--accent); }
+.pal-prev .hm-bn.k-decide .hm-ic { background: var(--ok-soft); color: var(--ok); }
+.pal-prev .hm-bn.over .hm-ic { background: var(--red-soft); color: var(--red); }
+.pal-prev .hm-sec { color: var(--ink); }
+.pal-prev .hm-est { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); background: color-mix(in srgb, var(--accent) 4%, var(--raised)); }
+.pal-prev .hm-est .tag { background: var(--accent-soft); color: var(--accent); }
+.hm-card { display: flex; flex-direction: column; gap: var(--s2); }
+.hm-card .hm-f { margin-top: auto; }
+.hm-card .hm-hist { flex: none; }

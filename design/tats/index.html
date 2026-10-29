@@ -4508,6 +4508,69 @@ a.hm-li:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .tour-acts { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s5); }
 @media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card { transition: none; } }
 
+/* v61 Overview: KPI row, the stuck view, a secondary grid */
+.hm-sec { margin: var(--s2) 0 calc(-1 * var(--s1)); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.hm-row.stuck { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+.hm-card.link { cursor: pointer; }
+.hm-card.link:hover { border-color: var(--line-strong); }
+.hm-load { display: grid; gap: 6px; margin-top: var(--s2); }
+.hm-load > div { display: grid; grid-template-columns: 64px minmax(0, 1fr) 40px; gap: var(--s2); align-items: center; font-size: 12.5px; color: var(--muted); }
+.hm-load i { height: 8px; border-radius: 4px; background: var(--ink); opacity: 0.75; min-width: 2px; }
+.hm-load b { text-align: right; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-est { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: var(--s2); padding: 8px 10px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--muted); font-size: 12.5px; cursor: help; }
+.hm-est .tag { padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.01em; }
+.hm-est b { color: var(--ink); font-weight: 500; }
+.hm-eff { display: grid; gap: 6px; padding: 6px 0; }
+.hm-eff > div { display: flex; justify-content: space-between; font-size: 13.5px; }
+.hm-eff b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-eff > i { display: block; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.hm-eff > i > i { display: block; height: 100%; border-radius: 4px; background: var(--muted); }
+.hm-eff-n { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); margin-top: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.hm-eff-n div { display: grid; gap: 2px; }
+.hm-eff-n b { font-size: 22px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.hm-eff-n span { color: var(--muted); font-size: 12.5px; }
+/* Settings: the interview process */
+.set-proc { display: grid; gap: 2px; padding: var(--s2); margin-bottom: var(--s6); }
+.proc-r { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: var(--s2); align-items: center; }
+.proc-n { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12px; }
+.proc-in { height: 36px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; font: inherit; font-size: 14px; color: var(--ink); }
+.proc-in:hover { border-color: var(--line); }
+.proc-in:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); background: var(--raised); }
+
+/* Compare styles: the same Overview twice, scaled to sit side by side */
+.cmp { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); padding: var(--s4) var(--s6) var(--s6); overflow: auto; }
+.cmp-col { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); min-width: 0; }
+.cmp-h { display: flex; align-items: center; justify-content: space-between; }
+.cmp-h b { font-size: 14px; font-weight: 600; }
+.cmp-frame { border: 1px solid var(--line-strong); border-radius: 12px; overflow: auto; background: var(--paper); max-height: calc(100vh - 160px); }
+.cmp-inner { width: 1180px; zoom: 0.52; pointer-events: none; }
+.cmp-inner .bar, .cmp-inner .hm-nav { pointer-events: none; }
+.cmp-inner .scroll { overflow: visible; }
+
+/* The previous palette, with refined shading. Applies to the whole app (html.pal-prev) or one compare column (.pal-prev). */
+.pal-prev .av:not(.cand), .pal-prev .team-key, .pal-prev .tdot, .pal-prev .label i, .pal-prev .handle, .pal-prev .st-ico, .pal-prev .doing, .pal-prev .readpill, .pal-prev .stackav { filter: none; }
+.pal-prev .hm { background: linear-gradient(180deg, #f6f7fb 0, var(--paper) 420px); }
+html.pal-prev .hm { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 5%, var(--paper)) 0, var(--paper) 420px); }
+.pal-prev .hm-card, .pal-prev .hm-box { border-color: color-mix(in srgb, var(--accent) 10%, var(--line)); box-shadow: 0 1px 2px rgba(30, 34, 70, 0.04), 0 6px 16px -8px rgba(30, 34, 70, 0.12); }
+.pal-prev .hm-hist i { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.pal-prev .hm-hist > span:last-child i, .pal-prev .hm-hist > span:hover i { background: var(--accent); }
+.pal-prev .hm-hist i.over { background: var(--red); }
+.pal-prev .s0 { background: color-mix(in srgb, var(--accent) 22%, var(--paper)); }
+.pal-prev .s1 { background: color-mix(in srgb, var(--accent) 55%, var(--paper)); }
+.pal-prev .s2 { background: var(--accent); }
+.pal-prev .hm-load i, .pal-prev .hm-iv-b i, .pal-prev .hm-eff > i > i { background: var(--accent); opacity: 1; }
+.pal-prev .hm-ic { background: var(--blue-soft); color: var(--blue); }
+.pal-prev .hm-bn.k-sched .hm-ic { background: var(--amber-soft); color: var(--amber); }
+.pal-prev .hm-bn.k-cards .hm-ic { background: var(--accent-soft); color: var(--accent); }
+.pal-prev .hm-bn.k-decide .hm-ic { background: var(--ok-soft); color: var(--ok); }
+.pal-prev .hm-bn.over .hm-ic { background: var(--red-soft); color: var(--red); }
+.pal-prev .hm-sec { color: var(--ink); }
+.pal-prev .hm-est { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); background: color-mix(in srgb, var(--accent) 4%, var(--raised)); }
+.pal-prev .hm-est .tag { background: var(--accent-soft); color: var(--accent); }
+.hm-card { display: flex; flex-direction: column; gap: var(--s2); }
+.hm-card .hm-f { margin-top: auto; }
+.hm-card .hm-hist { flex: none; }
+
 </style>
 
 <div class="app" id="app">
@@ -5341,6 +5404,7 @@ function hscoped() {
 const outcomeTone = (o) => (o === "Hired" ? "ok" : o === "Not now" || o === "Withdrew" || o === "Offer declined" ? "wait" : "");
 const fmtDate = (t) => { const d = new Date(t); return `${MO[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
 function openHist(id) {
+  if (id.startsWith("A-")) return go(`t~${id.slice(2)}`);
   const h = HISTORY.find((x) => x.id === id);
   if (!h) return;
   if (h.a) return go(`t~${h.a}`);
@@ -5357,6 +5421,7 @@ function openHist(id) {
 // One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
 const CRM_VIEWS = [
   ["all", "All candidates", () => true],
+  ["active", "In process", (h) => h.active],
   ["hired", "Hired", (h) => h.outcome === "Hired"],
   ["silver", "Silver medalists", (h) => ["Rejected after interview", "Not now", "Offer declined"].includes(h.outcome) && (h.score || 0) >= 80],
   ["rejected", "Rejected", (h) => h.outcome.startsWith("Rejected") || h.outcome === "Passed at Testbench"],
@@ -5366,9 +5431,12 @@ const relDay = (t) => { const d = Math.round((dayStart(Date.now()) - dayStart(t)
 const profileOf = (h) => `in/${h.name.toLowerCase().replace(/[^a-z]+/g, "")}`;
 const ownerOf = (h) => h.iv || ME;
 const CRM_COLS = [["name", "Candidate", "people"], ["role", "Role", "brief"], ["profile", "Profile", "link"], ["owner", "Owner", "users"], ["score", "Testbench", "code"], ["outcome", "Outcome", "flag"], ["last", "Last contact", "cal"]];
+// Everyone with an open application, as CRM rows: their stage in place of an outcome.
+const activeRows = () => everyone().filter(isOpen).map((a) => ({ id: `A-${a.id}`, a: a.id, name: a.name, hl: a.hl, role: a.role, team: a.team || ROLES[a.role].team, src: a.src, outcome: procName(stageOf(a)), reached: "", applied: ((TRACE[a.id] || [])[0] || {}).at || a.when, closed: a.when, iv: a.iv || null, score: a.tb && a.tb.state === "done" ? a.tb.score : null, active: true }));
+const crmBase = () => activeRows().concat(HISTORY);
 function crmRows() {
   const v = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all")), q = (state.q || "").toLowerCase().trim();
-  return HISTORY.filter((h) => v[2](h) && (!q || `${h.name} ${h.hl} ${ROLES[h.role].title} ${h.outcome}`.toLowerCase().includes(q)));
+  return crmBase().filter((h) => v[2](h) && (!q || `${h.name} ${h.hl} ${ROLES[h.role].title} ${h.outcome}`.toLowerCase().includes(q)));
 }
 function crmPage() {
   const sort = (state.crmSort ||= { k: "last", dir: -1 }), pick = (state.crmPick ||= new Set());
@@ -5378,7 +5446,7 @@ function crmPage() {
   const view = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all"));
   return `<div class="bar"><div class="crumbs">${ico("db")}<b>CRM</b></div><span class="spacer"></span>
     <label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  <div class="crm-tabs">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${HISTORY.filter(f).length.toLocaleString()}</span></button>`).join("")}</div>
+  <div class="crm-tabs">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div>
   <div class="crm">
     <div class="crm-head">${ico("db")}<b>${view[1]}</b><span class="faint">${xs.length.toLocaleString()}</span><span class="grow"></span>
       <form class="crm-ask" id="crmAskForm">${botAv(ME)}<input id="crmask" placeholder="${pick.size ? `Ask Grokbot about these ${pick.size}` : "Ask Grokbot for a list"}" autocomplete="off"><button class="btn sm" type="submit">${pick.size ? `Send ${pick.size} to Slack` : "Get the list"}</button></form></div>
@@ -5392,7 +5460,7 @@ function crmPage() {
         <span class="crm-link">${profileOf(h)}</span>
         <span class="crm-own">${esc(PEOPLE[ownerOf(h)].name)}</span>
         <span class="crm-num">${h.score ? `${h.score}/100` : `<span class="faint">None</span>`}</span>
-        <span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span></span>
+        <span><span class="h-out ${h.active ? "live" : outcomeTone(h.outcome)}">${esc(h.outcome)}</span></span>
         <span class="crm-day">${relDay(h.closed)}</span></div>`).join("") || `<div class="empty">No candidates match</div>`}
     </div></div>
     <div class="crm-foot"><span>${pick.size ? `${pick.size} selected · <button class="linkish" data-act="crmClear">Clear</button>` : ""}</span><span class="grow"></span><span>${xs.length ? `${(pg * per + 1).toLocaleString()}–${Math.min(xs.length, pg * per + per).toLocaleString()} of ${xs.length.toLocaleString()}` : "0"}</span>
@@ -5447,6 +5515,23 @@ function appsByDay(days) {
 }
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
+// The company's interview process, as set in Settings. Stage timing reads in these words.
+const PROCESS_KEY = "tats.process.v2";
+const PROCESS_DEFAULT = [["review", "Application review"], ["tb", "Testbench"], ["r1", "Team interview"], ["r2", "Cross-team interview"], ["r3", "Final with the CTO"], ["offer", "Offer"]];
+try { state.process = JSON.parse(localStorage.getItem(PROCESS_KEY) || "null"); } catch {}
+if (!Array.isArray(state.process) || state.process.length !== PROCESS_DEFAULT.length) state.process = PROCESS_DEFAULT.map((x) => x[1]);
+const procName = (k) => state.process[PROCESS_DEFAULT.findIndex((x) => x[0] === k)];
+const saveProcess = () => { try { localStorage.setItem(PROCESS_KEY, JSON.stringify(state.process)); } catch {} };
+// Which round a candidate is in: hand-written ones from their earlier rounds, generated ones spread 60/30/10.
+const roundOf = (a) => (a.bulk ? (((+a.id.slice(4) * 7) % 10) < 6 ? 1 : ((+a.id.slice(4) * 7) % 10) < 9 ? 2 : 3) : Math.min(3, (PRIOR[a.id] || []).length + 1));
+const isOfferOut = (a) => OFFERS.some((o) => o.a === a);
+function stageOf(a) {
+  if (a.state === "new") return "review";
+  if (a.state === "testbench") return "tb";
+  if (isOfferOut(a)) return "offer";
+  return `r${roundOf(a)}`;
+}
+const IV_MIN = { r1: 60, r2: 60, r3: 45 };
 function homeMetrics() {
   const act = everyone().filter((a) => isOpen(a) && homeScope(a));
   const runsOf = (kind) => RUNS.filter((r) => r.kind === kind && homeScope(A[r.a]));
@@ -5454,117 +5539,146 @@ function homeMetrics() {
   const review = queue().filter(homeScope).map((a) => hrs(Date.now() - a.when));
   const sched = took(runsOf("Schedule the interview")).concat(act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)));
   const cards = took(runsOf("Get the read")).concat(act.filter((a) => a.state === "debrief" && a.bulk).map((a) => hrs(Date.now() - a.when)));
-  const offers = OFFERS.filter((o) => homeScope(o.a)).map((o) => hrs(Date.now() - o.since)).concat([20, 31, 14]);
-  const stage = act.map((a) => hrs(Date.now() - a.when));
-  const from = NOW - homeDays() * DAY;
-  const apps = everyone().filter((a) => homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
+  const from = NOW - homeDays() * DAY, prevFrom = from - homeDays() * DAY;
+  const appliedAt = (a) => ((TRACE[a.id] || [])[0] || {}).at;
+  const apps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
+  const prevApps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= prevFrom && appliedAt(a) < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= prevFrom && h.applied < from).length;
   return [
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
+    { k: "active", label: "Candidates in process", def: "Everyone with an open application, by stage of your interview process", v: act.length, unit: "active", act, go: ["#crm~active", "Open in CRM"] },
     { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in Applicant Tickets"] },
     { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "cards", label: "Time to submit scorecards", def: "From the interview ending to the interviewer's read coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "scorecard", go: ["#interviews", "Open Interviews"] },
-    { k: "stage", label: "Time in stage", def: "How long active candidates have sat in their current stage", v: median(stage), unit: "h", open: stage, noun: "candidate", go: ["#home~stages", "See waits by stage"] },
-    { k: "offers", label: "Time to approve offers", def: "From an offer being drafted to it being approved", v: median(offers), unit: "h", open: OFFERS.filter((o) => homeScope(o.a)).map((o) => hrs(Date.now() - o.since)), noun: "offer", go: ["#home~offers", "See pending approvals"] },
-    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, unit: "n", prev: everyone().filter((a) => homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from - homeDays() * DAY && ((TRACE[a.id] || [])[0] || {}).at < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from - homeDays() * DAY && h.applied < from).length, go: ["#triage", "Review in Applicant Tickets"] },
+    { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interviews"] },
+    { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Calendar"] },
   ];
+}
+// Interview hours by team: booked interviews in the window ahead, plus ones already held awaiting feedback.
+function workload(act) {
+  const end = NOW + homeDays() * DAY;
+  const ivs = act.filter((a) => (a.state === "scheduled" && a.at && a.at < end) || a.state === "debrief");
+  const byTeam = Object.keys(TEAMS).map((k) => ({ k, h: ivs.filter((a) => a.team === k).reduce((n, a) => n + IV_MIN[`r${roundOf(a)}`] / 60, 0) }));
+  const r1 = ivs.filter((a) => roundOf(a) === 1).length;
+  return { n: ivs.length, h: byTeam.reduce((n, t) => n + t.h, 0), byTeam, r1 };
 }
 function metricCard(m) {
   const t = state.thr[m.k];
-  const over = t != null && (m.unit === "n" ? m.v < t : m.v > t);
-  let chart, sub;
+  let value, sub, chart, over = false;
   if (m.unit === "n") {
-    // Applications per day, against the period before.
+    over = t != null && m.v < t;
     const days = appsByDay(homeDays()), max = Math.max(...days.map((d) => d.n), 1), d = m.prev ? (m.v - m.prev) / m.prev : 0;
+    value = m.v.toLocaleString();
     sub = `<span class="hm-d ${d >= 0 ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span><span class="hm-sub">vs the ${homeDays()} days before</span>`;
-    chart = `<div class="hm-hist">${days.map((x) => `<span title="${x.n} on ${esc(x.full)}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%" class="${t != null && x.n < t / days.length ? "low" : ""}"></i><em>${esc(x.l)}</em></span>`).join("")}</div>`;
+    chart = `<div class="hm-hist">${days.map((x) => `<span title="${x.n} on ${esc(x.full)}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${esc(x.l)}</em></span>`).join("")}</div>`;
+  } else if (m.unit === "active") {
+    // Where the active candidates are, in the company's own stage names.
+    const st = PROCESS_DEFAULT.map(([k]) => ({ k, n: m.act.filter((a) => stageOf(a) === k).length })), max = Math.max(...st.map((x) => x.n), 1);
+    value = m.v.toLocaleString();
+    sub = `<span class="hm-sub">across ${st.filter((x) => x.n).length} stages</span>`;
+    chart = `<div class="hm-hist">${st.map((x, i) => `<span title="${x.n} in ${esc(procName(x.k))}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${["Rev", "TB", "R1", "R2", "Fin", "Off"][i]}</em></span>`).join("")}</div>`;
+  } else if (m.unit === "load") {
+    // Actual hours are solid; the Testbench saving is an estimate and looks like one.
+    const w = workload(m.act), max = Math.max(...w.byTeam.map((x) => x.h), 1);
+    value = `${Math.round(w.h)}h`;
+    over = t != null && w.h > t;
+    sub = `<span class="hm-sub">${w.n} interviews booked or awaiting feedback</span>`;
+    chart = `<div class="hm-load">${w.byTeam.map((x) => `<div><span>${esc(TEAMS[x.k].name)}</span><i style="width:${(x.h / max) * 100}%"></i><b>${Math.round(x.h)}h</b></div>`).join("")}</div>
+      <div class="hm-est" title="An estimate, not booked time: moving each first-round live technical to the Testbench saves 30 to 60 minutes of interviewer time."><span class="tag">Estimate</span>Testbench as round 1 could free <b>${Math.round(w.r1 * 0.5)}–${w.r1}h</b></div>`;
   } else {
-    // How long the ones still open have been waiting. Past your target, the bars turn red.
-    const bs = ageBuckets(m.open), max = Math.max(...bs.map((b) => b.n), 1), oldest = Math.max(0, ...m.open);
-    sub = m.open.length ? `<span class="hm-sub">${m.open.length} ${m.noun}${m.open.length === 1 ? "" : "s"} waiting · oldest ${fmtHrs(oldest)}</span>` : `<span class="hm-sub">Nothing waiting</span>`;
-    chart = `<div class="hm-hist">${bs.map((b) => `<span title="${b.n} ${m.noun}${b.n === 1 ? "" : "s"} waiting ${b.l.replace("<", "under ").replace("+", " or more")}"><i style="height:${b.n ? Math.max(6, (b.n / max) * 100) : 0}%" class="${t != null && b.lo >= t ? "over" : ""}"></i><em>${b.l}</em></span>`).join("")}</div>`;
+    // How long the open ones have waited. Past your target, the bars turn red.
+    over = t != null && m.v > t;
+    const bs = ageBuckets(m.open), max = Math.max(...bs.map((b) => b.n), 1), oldest = Math.max(0, ...m.open), nn = m.open.length;
+    const noun = m.nounOf ? `${m.noun}${nn === 1 ? "" : "s"} of ${m.nounOf}` : `${m.noun}${nn === 1 ? "" : "s"}`;
+    value = fmtHrs(m.v);
+    sub = nn ? `<span class="hm-sub">${nn} ${noun} waiting · oldest ${fmtHrs(oldest)}</span>` : `<span class="hm-sub">Nothing waiting</span>`;
+    chart = `<div class="hm-hist">${bs.map((b) => `<span title="${b.n} waiting ${b.l.replace("<", "under ").replace("+", " or more")}"><i style="height:${b.n ? Math.max(6, (b.n / max) * 100) : 0}%" class="${t != null && b.lo >= t ? "over" : ""}"></i><em>${b.l}</em></span>`).join("")}</div>`;
   }
-  return `<section class="hm-card ${over ? "over" : ""}">
+  const thrLabel = m.unit === "n" ? "Alert below" : m.unit === "load" ? "Cap" : "Target";
+  const thrVal = t == null ? "" : m.unit === "n" ? t : m.unit === "load" ? `${t}h` : fmtHrs(t);
+  return `<section class="hm-card ${over ? "over" : ""} ${m.k === "active" ? "link" : ""}" ${m.k === "active" ? `data-act="goCrmActive"` : ""}>
     <div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div>
-    <div class="hm-v"><b>${m.unit === "n" ? m.v.toLocaleString() : fmtHrs(m.v)}</b>${m.unit === "n" ? "" : `<span class="hm-sub">typical</span>`}</div>
+    <div class="hm-v"><b>${value}</b>${m.unit === "h" ? `<span class="hm-sub">typical</span>` : ""}</div>
     <div class="hm-ctx">${sub}</div>
     ${chart}
-    <div class="hm-f"><button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${m.unit === "n" ? "Alert below" : "Target"} ${m.unit === "n" ? t : fmtHrs(t)}` : "Set a target"}</button>
+    <div class="hm-f">${m.unit === "active" ? `<span></span>` : `<button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${thrLabel} ${thrVal}` : "Set a target"}</button>`}
       <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
   </section>`;
 }
-const H_STAGES = [["new", "Applied", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"], ["routing", "Finding an interviewer", (a) => a.state === "routing"], ["sched", "Scheduling", (a) => ["asked", "scheduling"].includes(a.state)], ["booked", "Interview booked", (a) => a.state === "scheduled"], ["debrief", "Waiting on a scorecard", (a) => a.state === "debrief"], ["judgment", "Your call", (a) => a.state === "judgment"]];
-function homePage(sub) {
+function homePage() {
   const ms = homeMetrics(), act = everyone().filter((a) => isOpen(a) && homeScope(a));
   const wait = (a) => Date.now() - a.when;
   const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
   // Bottlenecks: real waits, oldest first, each with the page that clears it.
-  const q = queue().filter(homeScope), sch = act.filter((a) => ["asked", "scheduling"].includes(a.state)), deb = act.filter((a) => a.state === "debrief"), yc = act.filter((a) => a.state === "judgment");
+  const q = queue().filter(homeScope), sch = act.filter((a) => ["asked", "scheduling"].includes(a.state)), deb = act.filter((a) => a.state === "debrief"), yc = act.filter((a) => a.state === "judgment" && !isOfferOut(a));
   const unsent = inboxRows().filter((x) => x.inInbox && x.iss.k === "invite" && homeScope(x.a));
   const oldest = (xs) => xs.reduce((m, a) => Math.max(m, wait(a)), 0);
   const bn = [
     q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in Applicant Tickets"] },
     sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in Applicant Tickets"] },
-    deb.length && { k: "cards", ico: "quote", what: `${deb.length} scorecard${deb.length === 1 ? "" : "s"} not submitted`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
-    yc.length && { k: "stage", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
-    OFFERS.length && { k: "offers", ico: "check", what: `${OFFERS.length} offer${OFFERS.length === 1 ? "" : "s"} waiting for approval`, why: `Oldest ${dur(Date.now() - Math.min(...OFFERS.map((o) => o.since)))}`, w: Date.now() - Math.min(...OFFERS.map((o) => o.since)), go: ["#home~offers", "See approvals"] },
+    deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
+    yc.length && { k: "decide", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
   ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
-  // Stages: how many, the typical wait, and who's waited longest.
-  const stages = H_STAGES.map(([k, n, f]) => { const xs = act.filter(f).sort((x, y) => wait(y) - wait(x)); return { k, n, xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
-  const maxN = Math.max(...stages.map((x) => x.xs.length), 1), open = state.homeStage;
+  // Stage timing, in the company's process: how many, how long they've waited, and who's waited longest.
   const SEG = [[0, 24, "Under a day"], [24, 72, "1 to 3 days"], [72, Infinity, "Over 3 days"]];
   const segs = (xs) => SEG.map(([lo, hi, l], i) => ({ i, l, n: xs.filter((a) => hrs(wait(a)) >= lo && hrs(wait(a)) < hi).length }));
-  // Follow-through: scorecards still out, and how fast each interviewer tends to submit.
-  const outCards = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
+  const stages = PROCESS_DEFAULT.map(([k]) => { const xs = act.filter((a) => stageOf(a) === k).sort((x, y) => wait(y) - wait(x)); return { k, n: procName(k), xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
+  const maxN = Math.max(...stages.map((x) => x.xs.length), 1), open = state.homeStage;
+  // Interviewer follow-through.
+  const outFb = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
   const ivs = Object.keys(PEOPLE).filter((id) => PEOPLE[id].team && (!state.homeTeam || PEOPLE[id].team === state.homeTeam)).map((id) => {
     const mine = RUNS.filter((r) => r.kind === "Get the read" && r.bot === id).map((r) => hrs((r.end || Date.now()) - r.start));
     const h = [...id].reduce((n, c) => n + c.charCodeAt(0), 0);
-    const med = mine.length ? median(mine.concat([(h % 30) + 4])) : (h % 30) + 4;
-    return { id, med, out: outCards.filter((o) => o.iv === id).length };
+    return { id, med: mine.length ? median(mine.concat([(h % 30) + 4])) : (h % 30) + 4, out: outFb.filter((o) => o.iv === id).length };
   }).sort((x, y) => y.med - x.med);
   const maxIv = Math.max(...ivs.map((x) => x.med), 1);
-  // Outcomes: passed, not passed, mixed (your call), and evaluations still pending, which are not failures.
-  const from = NOW - homeDays() * DAY;
-  const reads = everyone().filter((a) => homeScope(a) && a.read && a.when >= from - 3 * DAY);
-  const passed = reads.filter((a) => /yes|hire|strong/i.test(a.read.verdict)).length, mixed = reads.filter((a) => /mixed/i.test(a.read.verdict)).length;
-  const failed = reads.filter((a) => /^no/i.test(a.read.verdict)).length + HISTORY.filter((h) => homeScope(h) && h.outcome === "Rejected after interview" && h.closed >= from).length;
-  const pending = deb.length;
-  const oc = [["pass", "Passed", passed], ["mixed", "Mixed, your call", mixed], ["fail", "Not passed", failed], ["pending", "Pending evaluation", pending]];
-  const ocTotal = oc.reduce((n, x) => n + x[2], 0) || 1;
-  const offers = OFFERS.filter((o) => homeScope(o.a));
-  const roleCounts = Object.entries(ROLES).map(([k, r]) => [r.title, everyone().filter((a) => a.role === k && homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from).length + HISTORY.filter((h) => h.role === k && homeScope(h) && h.applied >= from).length]).filter((x) => x[1]).sort((x, y) => y[1] - x[1]);
-  const maxRole = Math.max(...roleCounts.map((x) => x[1]), 1);
+  // Interview efficiency, from closed applications: how many get through each round, and what a hire costs in interviews.
+  const H = HISTORY.filter((h) => homeScope(h) && h.closed >= NOW - 365 * DAY);
+  const rank = { Applied: 0, Testbench: 0, "Round 1": 1, "Round 2": 2, Offer: 3 };
+  const reached = (n) => H.filter((h) => rank[h.reached] >= n).length;
+  const hires = H.filter((h) => h.outcome === "Hired").length || 1;
+  const ivCount = H.reduce((n, h) => n + rank[h.reached], 0);
+  const eff = [
+    ["Round 1 to round 2", reached(2) / (reached(1) || 1)],
+    ["Round 2 to the final", reached(3) / (reached(2) || 1)],
+  ];
+  const perHire = ivCount / hires;
   return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
-    ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}</div>
+    ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
+    <a class="btn sm ghost" href="#compare" title="The same layout in both styles, side by side">Compare styles</a></div>
   <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div>
   <div class="scroll" id="scroller"><div class="hm">
     <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
-    <div class="hm-row two">
+    <h2 class="hm-sec">Where are candidates getting stuck?</h2>
+    <div class="hm-row stuck">
       <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
-        ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
-      <section class="hm-box"><div class="hm-h"><b title="Applications that came in during the period, by role">New applications by role</b></div>
-        ${roleCounts.map(([n, c]) => `<div class="hm-role"><div><span>${esc(n)}</span><b>${c}</b></div><i style="width:${(c / maxRole) * 100}%"></i></div>`).join("") || `<p class="hm-none">None in this period.</p>`}</section>
-    </div>
-    <div class="hm-row two">
-      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage, the typical wait and the longest">Time in stage</b><span>${act.length} active</span></div>
+        ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
+      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from Settings.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#settings" title="Rename stages in Settings">Edit stages${ico("arrowR")}</a></div>
         <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
         <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
         ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
             <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / maxN) * 100}%">${segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
-          ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#all">All ${x.xs.length} in Pipeline${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
-      <section class="hm-box hm-quiet" id="hm-offers"><div class="hm-h"><b title="Drafted offers waiting for approval">Offer approvals</b><span>${offers.length} pending</span></div>
-        ${offers.map((o) => `<a class="hm-li" href="#t~${o.a.id}">${candAv(o.a)}<span><b>${esc(o.a.name)}</b><span>${esc(ROLES[o.a.role].title)} · ${esc(PEOPLE[o.by].name)}</span></span><em>${dur(Date.now() - o.since)}</em></a>`).join("") || `<p class="hm-none">No offers waiting.</p>`}</section>
+          ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#crm~active">All ${x.xs.length} in CRM${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
     </div>
     <div class="hm-row three">
-      <section class="hm-box"><div class="hm-h"><b title="Interviews whose scorecard hasn't come in">Outstanding scorecards</b><span>${outCards.length}</span></div>
-        ${outCards.slice(0, 6).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">Every scorecard is in.</p>`}
-        ${outCards.length > 6 ? `<a class="hm-more" href="#interviews">All ${outCards.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
-      <section class="hm-box"><div class="hm-h"><b title="Typical time from interview to scorecard, slowest first">Time to submit, by interviewer</b></div>
+      <section class="hm-box"><div class="hm-h"><b title="Typical time from interview to feedback, slowest first">Time to submit, by interviewer</b></div>
         ${ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")}</section>
-      <section class="hm-box"><div class="hm-h"><b title="Reads in the period. Pending isn't a fail: the scorecard hasn't come in yet.">Interview outcomes</b><a class="hm-go" href="#interviews">Interviews${ico("arrowR")}</a></div>
-        <div class="hm-oc-bar">${oc.filter((x) => x[2]).map(([k, , n]) => `<i class="${k}" style="flex:${n}"></i>`).join("")}</div>
-        ${oc.map(([k, n, c]) => `<div class="hm-oc"><span class="hm-oc-k ${k}">${k === "pending" ? ico("clock") : ""}</span><span>${n}</span><b>${c}</b><em>${Math.round((c / ocTotal) * 100)}%</em></div>`).join("")}</section>
+      <section class="hm-box"><div class="hm-h"><b title="From applications closed in the last 12 months">Interview efficiency</b></div>
+        ${eff.map(([l, r]) => `<div class="hm-eff"><div><span>${l}</span><b>${Math.round(r * 100)}%</b></div><i><i style="width:${r * 100}%"></i></i></div>`).join("")}
+        <div class="hm-eff-n"><div><b>${perHire.toFixed(1)}</b><span>interviews per hire</span></div><div><b>${(perHire * 0.95).toFixed(1)}h</b><span>interviewer time per hire</span></div></div></section>
+      <section class="hm-box"><div class="hm-h"><b title="Interviews whose feedback hasn't come in">Outstanding feedback</b><span>${outFb.length}</span></div>
+        ${outFb.slice(0, 5).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">All feedback is in.</p>`}
+        ${outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${outFb.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
     </div>
   </div></div>`;
 }
+// Two treatments of the same layout, side by side, so the styling can be judged on its own.
+function comparePage() {
+  const html = homePage().replace(/id="[^"]*"/g, "");
+  return `<div class="bar"><div class="crumbs">${ico("home")}<a href="#home">Recruiting Overview</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>Compare styles</b></div><span class="spacer"></span><a class="btn sm" href="#home">Back</a></div>
+  <div class="cmp">${[["cur", "Current"], ["prev", "Previous palette, refined shading"]].map(([k, l]) => `<section class="cmp-col"><div class="cmp-h"><b>${l}</b><button class="btn sm ghost" data-act="usePal" data-v="${k}">Use everywhere</button></div><div class="cmp-frame ${k === "prev" ? "pal-prev" : "pal-cur"}"><div class="cmp-inner">${html}</div></div></section>`).join("")}</div>`;
+}
+// Styling treatments: "cur" is the current calm grey; "prev" is the earlier palette with refined shading.
+function setPal(v) { document.documentElement.classList.toggle("pal-prev", v === "prev"); try { localStorage.setItem("tats.pal", v); } catch {} }
+try { const qp = new URLSearchParams(location.search).get("pal"); setPal(qp || localStorage.getItem("tats.pal") || "cur"); } catch {}
 /* ---------------- Referrals: who referred whom, where they are now, and adding one ---------------- */
 const refBy = (src) => { const n = (src.split("· ")[1] || "").trim(); return Object.keys(PEOPLE).find((id) => first(id) === n) || null; };
 const REF_TABS = [["all", "All"], ["open", "In process"], ["hired", "Hired"], ["closed", "Closed"]];
@@ -5699,8 +5813,8 @@ function chatSend(text) {
 /* ---------------- Tutorial: a walk through every page, one spotlight at a time ---------------- */
 const TOUR = [
   ["home", '.sb-item[href="#home"]', "Home", "Start here. Recruiting Overview shows where hiring is slow, and links each delay to the page that clears it."],
-  ["home", ".hm-grid6", "How long each step takes", "Each card is a step in hiring. Set your own targets, and anything past one turns red."],
-  ["home", ".hm-row.two > .hm-box", "Bottlenecks", "Every delay, oldest first, with a link to where it gets fixed."],
+  ["home", ".hm-grid6", "The numbers that matter", "Applications coming in, who's in process, how long each step takes, and how much interviewing the team is doing. Set your own targets."],
+  ["home", ".hm-row.stuck", "Where candidates are stuck", "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it."],
   ["inbox", ".ib-col", "Inbox", "Only what's broken or waiting on you: bot failures, unsent invites, overdue replies and decisions."],
   ["inbox", ".kb-bar", "One key per action", "F runs the fix, E dismisses, / asks your Grokbot. J and K move between issues."],
   ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
@@ -7628,7 +7742,7 @@ function drawTrees() {
     svg.innerHTML = lines.sort((p, q) => (p[0] === "hot") - (q[0] === "hot")).map((l) => l[1]).join("");
   });
 }
-addEventListener("resize", () => drawTrees());
+addEventListener("resize", () => { drawTrees(); $$(".cmp-inner").forEach((el) => { el.style.zoom = (el.parentElement.clientWidth - 2) / 1180; }); });
 function recReader(x) {
   const a = x.a, r = x.read, key = x.key, len = x.dur * 60;
   const steps = nextSteps(x), done = (state.nsDone ||= new Set());
@@ -7879,7 +7993,9 @@ function botsPage(tab = "runs") {
   }
   const title = tab === "people" ? "Interviewers" : tab === "rules" ? "Settings" : "Grokbot Activity";
   if (tab === "checks") tab = "runs";
-  if (tab === "rules") body = `<div class="set-h"><h2>Routing Rules</h2></div>${body}`;
+  if (tab === "rules") body = `<div class="set-h"><h2>Interview Process</h2></div>
+    <section class="cardbox set-proc">${PROCESS_DEFAULT.map(([k], i) => `<label class="proc-r"><span class="proc-n">${i + 1}</span><input class="proc-in" data-i="${i}" value="${esc(state.process[i])}" aria-label="Stage ${i + 1}"></label>`).join("")}</section>
+    <div class="set-h"><h2>Routing Rules</h2></div>${body}`;
   return `<div class="bar cx-bar"><h1 class="cx-title">${title}</h1><span class="spacer"></span>${tab === "people" ? `<button class="cx-btn" data-act="addBot">${ico("plus")}Add a Grokbot</button>` : ""}
     </div>
   <div class="scroll" id="scroller"><div class="page obs obs-${tab}">
@@ -7900,7 +8016,8 @@ function parseHash() {
   if (name === "view" && viewById(a)) { const v = viewById(a); if (v.href) { location.replace(v.href); return { name: "views" }; } state.team = "all"; state.savedView = a; return { name: "all" }; }
   if (name === "views") return { name };
   if (name === "history") { location.replace("#crm"); return { name: "crm" }; }
-  if (name === "crm") return { name };
+  if (name === "crm") { if (a && CRM_VIEWS.some((v) => v[0] === a)) { state.crmView = a; state.crmPg = 0; } return { name }; }
+  if (name === "compare") return { name };
   if (name === "chat") return { name };
   if (name === "bots" && a === "rules") return { name: "settings" };
   if (name === "bots") return { name, id: a === "people" ? a : "runs" };
@@ -7933,10 +8050,11 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "chat" ? chatPage() : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420);
+  $$(".cmp-inner").forEach((el) => { el.style.zoom = (el.parentElement.clientWidth - 2) / 1180; });
   if (r.name === "interviews" && r.id) $(".ivr.sel")?.scrollIntoView({ block: "nearest" });
   animateIvOpen();
   if (state.keepScroll) { if ($("#scroller")) $("#scroller").scrollTop = scroll; if ($("#mlist")) $("#mlist").scrollTop = ml; }
@@ -8213,6 +8331,9 @@ const ACT = {
   goChat: () => go("chat"),
   goInbox: () => go("inbox"),
   goCrm: () => go("crm"),
+  goCrmActive: (el, e) => { if (e && e.target.closest("a, button") && e.target.closest("a, button") !== el) return; go("crm~active"); },
+  usePal: (el) => { setPal(el.dataset.v); toast(el.dataset.v === "prev" ? "Using the previous palette with refined shading" : "Using the current styling"); go("home"); },
+  procName: () => {},
   tour: () => startTour(),
   chatRef: (el) => openRefForm(parseReferral(decodeURIComponent(el.dataset.id))),
   chatPost: (el) => toast(`Posted ${(+el.dataset.id).toLocaleString()} candidates to #hiring`),
@@ -8287,6 +8408,7 @@ document.addEventListener("submit", (e) => {
 });
 document.addEventListener("input", (e) => {
   if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; state.crmPg = 0; render(); }
+  if (e.target.classList && e.target.classList.contains("proc-in")) { state.process[+e.target.dataset.i] = e.target.value; saveProcess(); return; }
   if (e.target.id === "actq") { state.actQ = e.target.value; render(); }
   if (e.target.id === "calq") { state.calQ = e.target.value; render(); }
   if (e.target.id === "tri-draft") { e.target.dataset.dirty = 1; state.tri.draft = e.target.value; }
