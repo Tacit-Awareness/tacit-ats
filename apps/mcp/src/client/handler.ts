@@ -63,9 +63,15 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
     return Response.json({ error: "forbidden", error_description: REFUSAL_TEXT[gate.reason] }, { status: 403 });
   }
   // The handler is stateless, so a tool call does not carry initialize's clientInfo: the User-Agent decides.
-  const source = connector.sourceFromClient(null, request.headers.get("user-agent")) === "chatgpt" ? "chatgpt" : "claude";
+  const source = clientSource(request.headers.get("user-agent"));
   const invitations = deps.invitations !== undefined ? deps.invitations : apiKey ? clientInvitations(apiKey, deps.workosFetch) : null;
   return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth, invitations, files: deps.files ?? null, email: deps.email ?? null,
     jobsOrigin: config.jobsOrigin ?? null, calendar: deps.calendar ?? null, granola: deps.granola ?? null,
   })(request);
+}
+
+/** tats (apps/cli) sends `tats/<version>`; anything else is Claude unless it says ChatGPT. */
+export function clientSource(userAgent: string | null): clientTools.ClientToolCtx["source"] {
+  if (userAgent?.startsWith("tats/")) return "cli";
+  return connector.sourceFromClient(null, userAgent) === "chatgpt" ? "chatgpt" : "claude";
 }

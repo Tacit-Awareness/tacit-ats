@@ -25,6 +25,8 @@ const fakeDb = {
   approvals: [] as Array<Record<string, unknown>>,
   /** The org's admin made the connector read-only: client_claim_write refuses. */
   readOnly: false,
+  /** The arguments of every client_claim_write. */
+  claims: [] as Array<Record<string, unknown>>,
   /** The interviews row a member's read returns, and its application's person. */
   interview: null as Record<string, unknown> | null,
 };
@@ -44,8 +46,8 @@ vi.mock("@tacit/db", async (importOriginal) => ({
       applications: fakeDb.interview ? { person_id: "44444444-4444-4444-8444-444444444444" } : null,
     };
     return {
-      rpc: (fn: string) =>
-        fn === "client_claim_write" && fakeDb.readOnly
+      rpc: (fn: string, args?: Record<string, unknown>) =>
+        (fn === "client_claim_write" && fakeDb.claims.push(args ?? {}), fn === "client_claim_write" && fakeDb.readOnly)
           ? withToken({ data: null, error: { code: "42501", message: "the client connector is read-only for this org" } })
           : withToken({
           data: fn === "current_actor_id" ? fakeDb.actorId : fn === "my_interview_candidates" ? fakeDb.interviewing
@@ -617,6 +619,20 @@ describe("a read-only connector", () => {
     expect(audits.map((a) => [a.tool, a.ok])).toEqual([["create_job", false]]);
     const { tools } = await result(await handleClientRequest(await rpc("tools/list"), deps()));
     expect(tools.map((t: { name: string }) => t.name)).toContain("create_job");
+  });
+
+  test("a write's audit row says where it came from: tats by its User-Agent, else Claude", async () => {
+    fakeDb.readOnly = true;
+    fakeDb.claims.length = 0;
+    const from = async (ua: string | null) => {
+      const req = await rpc("tools/call", { name: "create_job", arguments: { title: "Staff Engineer" } });
+      if (ua) req.headers.set("user-agent", ua);
+      await result(await handleClientRequest(req, deps()));
+    };
+    await from("tats/0.1.0");
+    await from(null);
+    await from("openai-mcp/1.0 (ChatGPT)");
+    expect(fakeDb.claims.map((c) => c.p_source)).toEqual(["cli", "claude", "chatgpt"]);
   });
 
   test("reads still work", async () => {
