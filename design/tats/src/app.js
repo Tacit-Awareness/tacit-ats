@@ -1950,8 +1950,7 @@ function inboxPage() {
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
   if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
-  const kp = f === "all" ? statStrip([{ n: left, label: "Need you", tone: left ? "" : "ok" }, { n: queue().length, label: "New applicants" }, { n: everyone().filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: RUNS.filter((r) => r.end && r.status === "done" && r.end >= dayStart(Date.now())).length, label: "Grokbot tasks done today" }]) : "";
-  return `${head}${kp}<div class="ib-wrap ${sel ? "has-sel" : ""}">
+  return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
     <div class="ib-col">
       ${f === "done" ? `` : ""}
       <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")

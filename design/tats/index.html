@@ -4038,6 +4038,20 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .rc-talk i.c { background: var(--ink) !important; }
 .rc-talk i.v { background: var(--line-strong) !important; }
 .sugg { background: var(--soft) !important; color: var(--muted) !important; }
+/* v51 Inbox: up to the top, more air between issues */
+.ib-list { padding: 6px 8px 24px; }
+.ib-gh { padding: 22px 12px 8px; font-size: 12.5px; color: var(--muted); }
+.ib-gh:first-child { padding-top: 10px; }
+.ib-gh span { margin-left: -2px; }
+.ib.iss { padding: 14px 12px; row-gap: 5px; column-gap: 14px; border-radius: 10px; }
+.ib.iss + .ib.iss { margin-top: 2px; }
+.ib.iss .ib-what { font-size: 14.5px; }
+.ib.iss .ib-l2 { font-size: 13px; }
+.ib-k { width: 34px; height: 34px; border-radius: 9px; }
+.ib-read { padding-top: 32px; }
+.ib-head { margin-bottom: 20px; }
+.ib-read > .blk, .ib-read > .draft-card { margin-bottom: 4px; }
+.ib-read .askbar { margin: 14px 0 28px; }
 
 </style>
 
@@ -6201,8 +6215,7 @@ function inboxPage() {
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
   if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
-  const kp = f === "all" ? statStrip([{ n: left, label: "Need you", tone: left ? "" : "ok" }, { n: queue().length, label: "New applicants" }, { n: everyone().filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: RUNS.filter((r) => r.end && r.status === "done" && r.end >= dayStart(Date.now())).length, label: "Grokbot tasks done today" }]) : "";
-  return `${head}${kp}<div class="ib-wrap ${sel ? "has-sel" : ""}">
+  return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
     <div class="ib-col">
       ${f === "done" ? `` : ""}
       <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
