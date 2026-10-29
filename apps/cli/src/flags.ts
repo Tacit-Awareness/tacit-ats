@@ -19,7 +19,7 @@ import type { JsonSchema, Tool } from "./store.js";
 export class UsageError extends Error {}
 
 /** tats's own flags, never a tool's. */
-export const GLOBAL_FLAGS = { boolean: ["json", "yes", "help", "refresh"], value: ["input", "url"] } as const;
+export const GLOBAL_FLAGS = { boolean: ["json", "yes", "help", "refresh"], value: ["input", "url", "jq"] } as const;
 
 export type Parsed = {
   positionals: string[];

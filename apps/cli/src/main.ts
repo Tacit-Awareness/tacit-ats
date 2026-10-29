@@ -4,7 +4,7 @@ import { sep } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 
-import { run } from "./cli.js";
+import { run, type JqResult } from "./cli.js";
 import { realArgsDeps } from "./flags.js";
 import { fileStore } from "./store.js";
 
@@ -37,6 +37,21 @@ function runCommand(cmd: string, args: string[], capture = false): Promise<{ ok:
   });
 }
 
+/** jq -r over stdin; "missing" when there is no jq to run. */
+function runJq(expr: string, input: string): Promise<JqResult> {
+  return new Promise((resolve) => {
+    let out = "";
+    let err = "";
+    const child = spawn("jq", ["-r", expr], { stdio: ["pipe", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk) => (out += chunk));
+    child.stderr.on("data", (chunk) => (err += chunk));
+    child.once("error", () => resolve({ status: "missing", out: "", err: "" }));
+    child.once("close", (code) => resolve({ status: code === 0 ? "ok" : "failed", out, err }));
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
+  });
+}
+
 // Coding agents run commands without a terminal, but some hand them one: never prompt them.
 const agent = Boolean(process.env.CLAUDECODE || process.env.CI || process.env.TATS_NO_PROMPT);
 
@@ -58,6 +73,7 @@ const code = await run(process.argv.slice(2), {
     }
   },
   args: realArgsDeps,
+  jq: runJq,
   cwd: process.cwd(),
   install: {
     fromNpx: fileURLToPath(import.meta.url).includes(`${sep}_npx${sep}`),

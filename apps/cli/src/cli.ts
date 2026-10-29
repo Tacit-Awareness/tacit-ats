@@ -30,7 +30,11 @@ export type Io = {
   args: ArgsDeps;
   cwd: string;
   install: Installer;
+  /** Runs jq -r <expr> over the input (main.ts: the jq on the PATH). */
+  jq: (expr: string, input: string) => Promise<JqResult>;
 };
+
+export type JqResult = { status: "ok" | "failed" | "missing"; out: string; err: string };
 
 /** Putting tats on the PATH, for a `tats setup` run through npx (main.ts does the real thing). */
 export type Installer = {
@@ -89,7 +93,8 @@ export async function run(argv: string[], io: Io): Promise<number> {
       }
       case "tools": {
         const catalog = await loadCatalog(server, deps, flag(first, "refresh"));
-        io.out(json ? JSON.stringify(catalog.tools) : toolList(catalog));
+        if (json || flag(first, "jq")) return await emit(io, catalog.tools, flagValue(first, "jq"));
+        io.out(toolList(catalog));
         return EXIT.ok;
       }
       default:
@@ -281,7 +286,10 @@ async function runTool(name: string, argv: string[], server: string, deps: AuthD
   if (parsed.positionals.length > 1) {
     throw new UsageError(`Unexpected "${parsed.positionals[1]}". Every argument is a flag: see tats help ${tool.name.replace(/_/g, "-")}`);
   }
-  const json = flag(parsed, "json");
+  // --jq answers in JSON too, filtered.
+  const jq = flag(parsed, "jq") ? flagValue(parsed, "jq") : undefined;
+  const json = flag(parsed, "json") || jq !== undefined;
+  if (jq === null) throw new UsageError('--jq takes a jq expression, e.g. --jq ".candidates[].stage"');
   const args = await toolArguments(tool, parsed, io.args);
 
   if (needsConfirm(tool) && !flag(parsed, "yes")) {
@@ -309,11 +317,26 @@ async function runTool(name: string, argv: string[], server: string, deps: AuthD
     io.err(text);
     return EXIT.refused;
   }
-  if (json) {
-    io.out(JSON.stringify(result.structuredContent ?? { text }));
+  if (json) return await emit(io, result.structuredContent ?? { text }, jq);
+  io.out(human(text, result.structuredContent));
+  return EXIT.ok;
+}
+
+/**
+ * A JSON answer, or with --jq what jq -r makes of it, as gh's --jq does. jq
+ * comes from the PATH (macOS ships it); tats bundles none.
+ */
+async function emit(io: Io, value: unknown, jq: string | null | undefined): Promise<number> {
+  const json = JSON.stringify(value);
+  if (jq === undefined) {
+    io.out(json);
     return EXIT.ok;
   }
-  io.out(human(text, result.structuredContent));
+  if (jq === null) throw new UsageError('--jq takes a jq expression, e.g. --jq ".candidates[].stage"');
+  const r = await io.jq(jq, json);
+  if (r.status === "missing") throw new Error("--jq needs jq on your PATH (https://jqlang.org/download). Without it, pass --json and filter the output yourself.");
+  if (r.status === "failed") throw new UsageError(`--jq: ${r.err.trim() || "jq could not run that expression."}`);
+  if (r.out) io.out(r.out.replace(/\n$/, ""));
   return EXIT.ok;
 }
 

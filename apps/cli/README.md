@@ -24,7 +24,7 @@ tats help update-stage
 tats tools
 ```
 
-Add `--json` for machine-readable output. Commands that change something important (moving a candidate, sending email, offers, approvals) refuse to run without `--yes`; at a terminal they ask instead.
+Add `--json` for machine-readable output, or `--jq '<expr>'` to filter it with jq, as `gh` does: `tats get-pipeline --job-id <id> --jq '.candidates[] | {candidate, stage}'`. Commands that change something important (moving a candidate, sending email, offers, approvals) refuse to run without `--yes`; at a terminal they ask instead.
 
 ## For AI agents
 

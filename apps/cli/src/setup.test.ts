@@ -120,6 +120,7 @@ describe("tats setup, from the command line", () => {
     ask: async () => "",
     args: { readFile: async () => Buffer.from(""), readStdin: async () => "" },
     cwd: join(home, "repo"),
+    jq: async () => ({ status: "missing", out: "", err: "" }),
     install: {
       fromNpx: false,
       installGlobal: async (spec) => (installs.push(spec), true),
