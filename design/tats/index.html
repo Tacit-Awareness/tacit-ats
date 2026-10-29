@@ -4191,6 +4191,87 @@ a.pt-n:hover { border-color: var(--line-strong); }
 .tk .mrow .m1, .tk .mrow .m2 { grid-column: 2; }
 .tk .mrow.sel { background: var(--sel); }
 
+/* v57 spacing: one scale everywhere.
+   4  helper text under its control
+   8  title → subtitle, label → control, stacked buttons and cards
+   12/16  padding inside rows and cards
+   20  between related fields and groups
+   24  between sections, and the gutter of every page */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; }
+
+/* page headers and the bar under them */
+.bar, .cx-bar { min-height: 52px; padding-left: var(--s6); padding-right: var(--s4); gap: var(--s2); }
+.subbar { padding: var(--s3) var(--s6); }
+
+/* sheets and forms */
+.fm-head { padding: var(--s6) var(--s6) 0; gap: var(--s4); }
+.fm-head p { margin-top: var(--s2); }
+.fm-body { padding: var(--s6); gap: var(--s5); }
+.fm-f { gap: var(--s2); }
+.fm-row { gap: var(--s4); }
+.modal-foot { padding: var(--s4) var(--s6); gap: var(--s2); }
+
+/* sidebar: 24 between groups, 8 under a group's label */
+.sb-ws { margin-bottom: var(--s6); }
+.sb-group + .sb-group { margin-top: var(--s6); }
+.sb-sec { margin-bottom: 6px; }
+
+/* Inbox */
+.ib-list { padding: var(--s2) var(--s2) var(--s6); }
+.ib-gh { padding: var(--s6) var(--s3) var(--s2); }
+.ib-gh:first-child { padding-top: var(--s2); }
+.ib.iss { padding: var(--s3); row-gap: var(--s1); }
+.ib.iss + .ib.iss { margin-top: 2px; }
+.ib-read { padding: var(--s6) var(--s6) 40px; }
+.ib-read > * { margin-top: 0; margin-bottom: 0; }
+.ib-read > * + * { margin-top: var(--s6); }
+.ib-read > .askbar { margin-top: var(--s2); }
+.ib-head { margin-bottom: 0; }
+.ib-head p { margin: var(--s2) 0 0; }
+.ib-top { padding: 0 var(--s4) 0 var(--s6); }
+
+/* Applicant Tickets */
+.tk .mlist { padding: var(--s2); gap: 2px; }
+.tk .mrow { padding: var(--s3); }
+
+/* ticket page: 24 between blocks, 20 from the title to its properties */
+.body > * { margin-top: 0; margin-bottom: 0; }
+.body > * + * { margin-top: var(--s6); }
+.body > .t-head + .chips { margin-top: var(--s5); }
+.block-head { margin-bottom: var(--s2); }
+
+/* Pipeline board: 8 between cards, 4 from a name to its line, 8 to the footer */
+.board { gap: var(--s2); padding: 0 var(--s6) var(--s6); }
+.board .col { gap: var(--s2); padding: var(--s1); }
+.board .card.calm { gap: var(--s1); padding: var(--s3); }
+.cfoot { margin-top: var(--s1); }
+.list { padding-bottom: var(--s6); }
+
+/* Interviews */
+.ivw-list { padding: var(--s2) 0 var(--s6); }
+.iv-sent { padding: var(--s4) var(--s6) var(--s4); gap: var(--s2); }
+.iv-gh { padding: var(--s6) var(--s6) var(--s2); }
+.ivr { padding: var(--s3) var(--s6); }
+.ivw-read { padding: var(--s4); }
+.pt { padding: var(--s6); row-gap: var(--s2); }
+.pt-left { gap: var(--s2); }
+.rc-sec { padding: var(--s5) var(--s6); gap: var(--s3); }
+
+/* Grokbot Activity */
+.af-h { padding: var(--s6) var(--s6) var(--s2); gap: var(--s2); }
+.af-h.log { padding: var(--s4) var(--s6); }
+.td-r { margin: 0 var(--s3); padding: var(--s3); }
+.af-r { padding: var(--s3) var(--s6); }
+.af-day { padding: var(--s6) var(--s6) var(--s2); }
+
+/* CRM */
+.crm-tabs { padding: var(--s3) var(--s6); gap: var(--s1); }
+.crm { margin: var(--s5) var(--s6) var(--s6); }
+.crm-head { padding: 0 var(--s3) 0 var(--s5); gap: var(--s2); }
+.crm-foot { padding: 0 var(--s3) 0 var(--s5); }
+.ib-read > .askbar.askbar { margin: var(--s2) 0 0; }
+.ib-read > .block.ib-story { margin-top: var(--s6); }
+
 </style>
 
 <div class="app" id="app">
