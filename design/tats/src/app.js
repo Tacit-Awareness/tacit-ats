@@ -2158,7 +2158,7 @@ function triagePage() {
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
-        <div class="c-row"><div class="cx-seg sm">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
+        <div class="c-row"><div class="cx-seg sm act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
           ${t.mode === "interview" ? `<button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>` : ""}
           ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}
           <button class="c-msg" data-act="triEdit" title="${state.triEdit ? "Hide the message" : "Read or edit the message"}">${state.triEdit ? "Hide message" : `<span class="trunc">${esc(draft.split("\n").filter(Boolean)[1] || draft)}</span><b>Edit</b>`}</button>

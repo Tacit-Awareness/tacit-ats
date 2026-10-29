@@ -4143,6 +4143,24 @@ a.pt-n:hover { border-color: var(--line-strong); }
 .slk-m .bot > i { display: none; }
 .crm-r { grid-template-columns: 44px minmax(170px, 1.5fr) minmax(150px, 1.2fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) 100px minmax(178px, 1.1fr) 124px; }
 
+/* v55: the next move on an applicant ticket glows, so it reads as the thing to do */
+.act-glow { --glow: #f5b83d; position: relative; border-radius: 10px; background: color-mix(in srgb, var(--glow) 10%, var(--paper)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 70%, transparent), 0 0 0 4px color-mix(in srgb, var(--glow) 18%, transparent), 0 0 18px 2px color-mix(in srgb, var(--glow) 35%, transparent); }
+.act-glow button.on { background: var(--paper); box-shadow: 0 1px 2px rgba(120, 80, 0, 0.18), 0 0 0 1px color-mix(in srgb, var(--glow) 55%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .act-glow { animation: actGlow 2.4s ease-in-out infinite; }
+  @keyframes actGlow {
+    0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 70%, transparent), 0 0 0 4px color-mix(in srgb, var(--glow) 16%, transparent), 0 0 14px 1px color-mix(in srgb, var(--glow) 28%, transparent); }
+    50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 24%, transparent), 0 0 24px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
+  }
+}
+.act-glow { --glow: #f2b01e; background: color-mix(in srgb, var(--glow) 14%, var(--paper)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 22%, transparent), 0 0 26px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes actGlow {
+    0%, 100% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 80%, transparent), 0 0 0 4px color-mix(in srgb, var(--glow) 20%, transparent), 0 0 18px 2px color-mix(in srgb, var(--glow) 38%, transparent); }
+    50% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 95%, transparent), 0 0 0 6px color-mix(in srgb, var(--glow) 28%, transparent), 0 0 32px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
+  }
+}
+
 </style>
 
 <div class="app" id="app">
@@ -6513,7 +6531,7 @@ function triagePage() {
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
-        <div class="c-row"><div class="cx-seg sm">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
+        <div class="c-row"><div class="cx-seg sm act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
           ${t.mode === "interview" ? `<button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>` : ""}
           ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}
           <button class="c-msg" data-act="triEdit" title="${state.triEdit ? "Hide the message" : "Read or edit the message"}">${state.triEdit ? "Hide message" : `<span class="trunc">${esc(draft.split("\n").filter(Boolean)[1] || draft)}</span><b>Edit</b>`}</button>
