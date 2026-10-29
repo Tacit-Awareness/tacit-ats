@@ -3760,7 +3760,7 @@ b[data-hc]:hover, .card .name[data-hc]:hover { text-decoration: underline; text-
 
 /* ================= v41: read card with transcript summary and playable highlights ================= */
 .cc-quote { margin: 2px 0 0; font-size: 16px; line-height: 1.5; color: var(--ink); }
-.hl { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.iv-hl { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .hl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .hl-h b { font-size: 13.5px; font-weight: 500; }
 .hl-h a { color: var(--muted); font-size: 12.5px; }
@@ -3812,7 +3812,7 @@ b[data-hc]:hover, .card .name[data-hc]:hover { text-decoration: underline; text-
 .qa-a { margin: 0 0 0 26px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 .qa-k { color: var(--faint); font-size: 12px; padding-top: 2px; white-space: nowrap; }
 .qa-r.k-concern .qa-k { color: var(--amber); }
-.hl .qa { margin: 0 -8px; }
+.iv-hl .qa { margin: 0 -8px; }
 .rc-col > .grow-sec .qa { flex: 1; overflow-y: auto; }
 
 /* ================= v45: transcript, full Q&A, a clean list to check off ================= */
