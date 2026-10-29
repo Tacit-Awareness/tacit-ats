@@ -1,0 +1,534 @@
+[
+ {
+  "name": "whoami",
+  "title": "Who am I in Tacit",
+  "description": "Your company's Tacit workspace: the company, your name and access level, and the jobs you can see (each with a job_id). Call this first to learn what you can do. An interviewer sees only the jobs they interview for, the hiring team the jobs they are on, an admin every job.",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {}
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "list_jobs",
+  "title": "List jobs",
+  "description": "Your company's jobs that you can see, newest first, each with a job_id and (for the hiring team and admins) how many candidates are in it, its department, its offices and its openings (open, filled, closed). status narrows to one status, e.g. open; department (a name or id, including the departments",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "status": {
+     "type": "string",
+     "maxLength": 40
+    },
+    "department": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    },
+    "office": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "search_candidates",
+  "title": "Search candidates",
+  "description": "Find candidates you can see by name, email, company or title (query), optionally only those in one job (job_id) or carrying one tag (tag: its name or tag_id, from list_tags). Returns candidate_id and the jobs each is in, with application_id and stage. An interviewer finds only the people they interv",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "query": {
+     "type": "string",
+     "maxLength": 200
+    },
+    "job_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "tag": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    },
+    "pool": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    },
+    "prospects_only": {
+     "type": "boolean"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 50
+    }
+   }
+  },
+  "annotations": {
+   "readOnlyHint": true
+  }
+ },
+ {
+  "name": "update_stage",
+  "title": "Move a candidate to another stage",
+  "description": "Moves one application (application_id) to another stage: sourced, contacted, screening, interviewing, offer, hired, rejected, withdrawn. Pass expected_stage, the stage you last saw: if someone moved them since, nothing changes and you get the current stage back. Moving to rejected or withdrawn needs",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "application_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "stage": {
+     "type": "string",
+     "enum": [
+      "sourced",
+      "contacted",
+      "screening",
+      "interviewing",
+      "offer",
+      "hired",
+      "rejected",
+      "withdrawn"
+     ]
+    },
+    "expected_stage": {
+     "type": "string",
+     "enum": [
+      "sourced",
+      "contacted",
+      "screening",
+      "interviewing",
+      "offer",
+      "hired",
+      "rejected",
+      "withdrawn"
+     ]
+    },
+    "rejection_reason_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "rejection_note": {
+     "type": "string",
+     "maxLength": 2000
+    }
+   },
+   "required": [
+    "application_id",
+    "stage"
+   ]
+  },
+  "annotations": {
+   "destructiveHint": true
+  }
+ },
+ {
+  "name": "update_job",
+  "title": "Update a job",
+  "description": "Changes a job's title, status (open, paused, filled, closed), location, level, description, department (a name or id, null for none) or offices (names or ids: the job's whole set, [] for none). Only what you pass changes. Needs the right to manage that job. When the job has a job_open approval flow,",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "job_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "title": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "status": {
+     "type": "string",
+     "enum": [
+      "open",
+      "paused",
+      "filled",
+      "closed"
+     ]
+    },
+    "location": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 200
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "level": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 200
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "description": {
+     "anyOf": [
+      {
+       "type": "string",
+       "maxLength": 20000
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "department": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 100
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "offices": {
+     "maxItems": 20,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+     }
+    }
+   },
+   "required": [
+    "job_id"
+   ]
+  },
+  "annotations": {
+   "destructiveHint": true
+  }
+ },
+ {
+  "name": "invite_member",
+  "title": "Invite someone to your company's workspace",
+  "description": "Invites a colleague by email: they get an email from WorkOS to join. Access is interviewer (their own interviews and a short card on each candidate), hiring team (the jobs they are on, through the hiring team) or admin (every job, the team and invitations). Inviting an address already invited sends ",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "email": {
+     "type": "string",
+     "minLength": 3,
+     "maxLength": 320
+    },
+    "name": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 120
+    },
+    "access": {
+     "type": "string",
+     "enum": [
+      "interviewer",
+      "hiring team",
+      "admin"
+     ]
+    }
+   },
+   "required": [
+    "email",
+    "name",
+    "access"
+   ]
+  }
+ },
+ {
+  "name": "schedule_interview",
+  "title": "Schedule an interview",
+  "description": "Schedules an interview on one application (application_id) with your company's interviewers (user_ids from list_team). Times are ISO 8601 with their offset. When an interviewer's Google Calendar or yours is connected, it first checks the interviewers' calendars: if anyone is busy it books nothing an",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "application_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "starts_at": {
+     "type": "string",
+     "maxLength": 40
+    },
+    "ends_at": {
+     "type": "string",
+     "maxLength": 40
+    },
+    "interviewer_user_ids": {
+     "minItems": 1,
+     "maxItems": 10,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+     }
+    },
+    "location_or_link": {
+     "type": "string",
+     "maxLength": 500
+    },
+    "step": {
+     "type": "string",
+     "maxLength": 120
+    },
+    "send_invites": {
+     "type": "boolean"
+    },
+    "book_despite_conflicts": {
+     "type": "boolean"
+    },
+    "timezone": {
+     "type": "string",
+     "maxLength": 60
+    },
+    "draft_candidate_email": {
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "application_id",
+    "starts_at",
+    "ends_at",
+    "interviewer_user_ids"
+   ]
+  }
+ },
+ {
+  "name": "submit_feedback",
+  "title": "Submit interview feedback",
+  "description": "Files your feedback on an interview you were an interviewer on, once it has started: a recommendation (strong_yes, yes, no, strong_no), an optional rating from 1 to 4, notes, and optionally a 1-4 rating with a short note for each attribute on the job's scorecard (attribute_ids from get_scorecard). F",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "interview_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "recommendation": {
+     "type": "string",
+     "enum": [
+      "strong_yes",
+      "yes",
+      "no",
+      "strong_no"
+     ]
+    },
+    "rating": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 4
+    },
+    "notes": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 10000
+    },
+    "ratings": {
+     "maxItems": 25,
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "attribute_id": {
+        "type": "string",
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+       },
+       "rating": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 4
+       },
+       "note": {
+        "type": "string",
+        "maxLength": 500
+       }
+      },
+      "required": [
+       "attribute_id",
+       "rating"
+      ]
+     }
+    }
+   },
+   "required": [
+    "interview_id",
+    "recommendation",
+    "notes"
+   ]
+  }
+ },
+ {
+  "name": "set_interview_plan",
+  "title": "Set a job's interview plan",
+  "description": "Replaces a job's whole interview plan with the steps you pass, in order (at most 15, each a distinct name of up to 120 characters). [] clears it. Once a job has a plan, schedule_interview takes only its steps. Interviews already on a step you remove keep that step's name and show as off the plan; th",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "job_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "steps": {
+     "maxItems": 15,
+     "type": "array",
+     "items": {
+      "type": "string",
+      "maxLength": 120
+     }
+    }
+   },
+   "required": [
+    "job_id",
+    "steps"
+   ]
+  },
+  "annotations": {
+   "destructiveHint": true
+  }
+ },
+ {
+  "name": "add_file",
+  "title": "Add a resume or attachment",
+  "description": "Attaches a file to a candidate (candidate_id): kind resume or attachment, the filename (letters, digits, spaces and . _ - ( ) & , + ' with the type's extension), content_type (application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, text/plain, im",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "candidate_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "resume",
+      "attachment"
+     ]
+    },
+    "filename": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "content_type": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 100
+    },
+    "content_base64": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 4404019
+    }
+   },
+   "required": [
+    "candidate_id",
+    "kind",
+    "filename",
+    "content_type",
+    "content_base64"
+   ]
+  }
+ },
+ {
+  "name": "set_custom_field",
+  "title": "Set a custom field",
+  "description": "Sets one custom field (field: its field_id or name) on one candidate, job or offer (object, and object_id: a candidate_id, job_id or offer_id). value is text, a number, true or false, a date YYYY-MM-DD, an http(s) link, an option's name or option_id, or a list of them for multi_select; null clears i",
+  "inputSchema": {
+   "type": "object",
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "properties": {
+    "object": {
+     "type": "string",
+     "enum": [
+      "candidate",
+      "job",
+      "offer"
+     ]
+    },
+    "object_id": {
+     "type": "string",
+     "format": "uuid",
+     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+    },
+    "field": {
+     "type": "string",
+     "minLength": 1,
+     "maxLength": 200
+    },
+    "value": {
+     "anyOf": [
+      {
+       "anyOf": [
+        {
+         "type": "string",
+         "maxLength": 10000
+        },
+        {
+         "type": "number"
+        },
+        {
+         "type": "boolean"
+        },
+        {
+         "maxItems": 50,
+         "type": "array",
+         "items": {
+          "type": "string",
+          "maxLength": 200
+         }
+        }
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "required": [
+    "object",
+    "object_id",
+    "field",
+    "value"
+   ]
+  }
+ }
+]

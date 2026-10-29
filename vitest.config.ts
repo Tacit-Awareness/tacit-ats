@@ -31,7 +31,7 @@ export default defineConfig({
         resolve: { alias: [...packageAliases, serverOnlyStub] },
         test: {
           name: "rest",
-          include: ["apps/mcp/src/**/*.test.{ts,tsx}", "packages/*/src/**/*.test.ts"],
+          include: ["apps/mcp/src/**/*.test.{ts,tsx}", "apps/cli/src/**/*.test.ts", "packages/*/src/**/*.test.ts"],
           exclude,
         },
       },
