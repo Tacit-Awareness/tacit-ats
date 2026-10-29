@@ -4395,6 +4395,119 @@ a.hm-li:hover b { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 1100px) { .hm-grid6, .hm-row.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hm-row.two { grid-template-columns: minmax(0, 1fr); } }
 .hm-st-list a.hm-more { display: inline-flex; grid-template-columns: none; width: fit-content; }
 
+/* v60 Inbox: letter-key buttons, like Superhuman. The label, then the key that does the same. */
+.kb { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 6px 0 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); font-size: 13px; font-weight: 500; white-space: nowrap; transition: background 0.12s, border-color 0.12s; }
+.kb:hover { background: var(--soft); }
+.kb kbd, .btn kbd, .cx-primary kbd { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 4px; background: var(--soft); color: var(--muted); font: 500 11px/1 var(--sans); box-shadow: inset 0 -1px 0 var(--line-strong); }
+.btn kbd { margin-left: 6px; }
+.kb.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.kb.primary:hover { filter: brightness(1.05); }
+.kb.primary kbd, .btn.primary kbd { background: rgba(255, 255, 255, 0.2); color: #fff; box-shadow: none; }
+.kb-bar { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ib-read > .kb-bar { margin-top: var(--s5); }
+.ib-read .blk .blk-acts, .ib-read .draft-card .blk-acts { display: none; }
+.ib-keys { display: none; gap: 6px; }
+.ib-keys .kb { height: 26px; padding: 0 4px 0 9px; font-size: 12.5px; gap: 6px; }
+.ib-keys .kb kbd { min-width: 16px; height: 16px; font-size: 10.5px; }
+.ib.iss:hover .ib-keys, .ib.iss.sel .ib-keys { display: inline-flex; }
+.ib.iss:hover .ib-t2, .ib.iss.sel .ib-t2 { display: none; }
+
+/* v60 Overview charts: every bar is real. Card histograms of how long open items have waited; daily applications. */
+.hm-ctx { display: flex; align-items: baseline; gap: var(--s2); margin-top: -4px; }
+.hm-sub { color: var(--muted); font-size: 12.5px; }
+.hm-v .hm-sub { margin-left: 2px; }
+.hm-hist { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; height: 64px; margin-top: var(--s2); }
+.hm-hist > span { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 4px; min-width: 0; cursor: default; }
+.hm-hist i { align-self: end; width: 100%; border-radius: 3px 3px 1px 1px; background: var(--soft-strong); transition: background 0.12s; }
+.hm-hist > span:hover i { background: var(--muted); }
+.hm-hist i.over, .hm-hist i.low { background: color-mix(in srgb, var(--red) 70%, var(--paper)); }
+.hm-hist em { font-style: normal; color: var(--faint); font-size: 11px; text-align: center; white-space: nowrap; }
+.hm-bars { display: none; }
+.hm-st-key { display: flex; gap: var(--s4); margin: -4px 0 var(--s1); color: var(--muted); font-size: 12.5px; }
+.hm-st-key span { display: inline-flex; align-items: center; gap: 6px; }
+.hm-st-key i, .hm-st-bar i { display: block; }
+.hm-st-key i { width: 10px; height: 10px; border-radius: 3px; }
+.s0 { background: var(--soft-strong); }
+.s1 { background: color-mix(in srgb, var(--ink) 45%, var(--paper)); }
+.s2 { background: var(--ink); }
+.hm-st-bar { display: flex; gap: 2px; height: 10px; min-width: 4px; }
+.hm-st-bar i { height: 100%; border-radius: 2px; min-width: 3px; }
+.hm-st-w { display: flex; align-items: center; gap: var(--s3); }
+
+/* v60 Referrals */
+.ref-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s4); padding: var(--s5) var(--s6) var(--s6); }
+.ref-wrap .crm { margin: 0; }
+.rf-r { grid-template-columns: minmax(200px, 1.5fr) minmax(170px, 1.2fr) minmax(170px, 1.2fr) minmax(150px, 1fr) 110px; }
+.rf-r > :first-child { justify-content: flex-start; padding: 0 14px; border-left: 0; }
+.ref-t .crm-t { min-width: 760px; }
+.crm-own .av { width: 22px; height: 22px; font-size: 8.5px; margin-right: 8px; flex-shrink: 0; }
+.h-out.live { background: var(--sel); color: var(--ink); }
+.ref-side { align-self: start; }
+.ref-lb-h, .ref-lb { display: grid; grid-template-columns: 26px minmax(0, 1fr) 54px 64px 40px; gap: var(--s2); align-items: center; }
+.ref-lb-h { color: var(--faint); font-size: 12px; padding-bottom: var(--s1); border-bottom: 1px solid var(--line); }
+.ref-lb-h span:not(:first-child) { text-align: right; }
+.ref-lb { padding: 6px 0; font-size: 13.5px; }
+.ref-lb .av { width: 26px; height: 26px; font-size: 9.5px; }
+.ref-lb-n { display: grid; gap: 4px; min-width: 0; }
+.ref-lb-n b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ref-lb-n i { display: block; height: 4px; border-radius: 2px; background: var(--soft-strong); }
+.ref-lb em { font-style: normal; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ref-lb em.hired { color: var(--ok); font-weight: 500; }
+.bar .btn .bot .av { width: 18px; height: 18px; font-size: 7px; }
+.bar .btn .bot > i { display: none; }
+.bar .btn.sm { gap: 6px; }
+.ref-wrap { grid-template-columns: minmax(0, 1fr) 300px; }
+.rf-r { grid-template-columns: minmax(170px, 1.4fr) minmax(150px, 1.2fr) minmax(140px, 1.1fr) minmax(130px, 1fr) 96px; }
+.ref-t .crm-t { min-width: 700px; }
+.ref-lb-h, .ref-lb { grid-template-columns: 26px minmax(0, 1fr) 40px 50px 34px; gap: 6px; }
+
+/* v60 sidebar foot: chat with your Grokbot, and the tutorial */
+.sb-chat { display: flex; align-items: center; gap: 10px; width: 100%; height: 40px; margin: var(--s2) 0; padding: 0 12px 0 8px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); font-size: 13.5px; font-weight: 500; text-align: left; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+.sb-chat:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong)); }
+.sb-chat.on { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.sb-chat .bot .av { width: 24px; height: 24px; font-size: 9px; }
+.sb-tour { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 8px; color: var(--muted); font-size: 13px; }
+.sb-tour:hover { background: var(--hover); color: var(--ink); }
+.sb-tour .ico { width: 14px; height: 14px; }
+.sb-collapsed .sb-chat span, .sb-collapsed .sb-tour { font-size: 0; gap: 0; }
+
+/* Chat: a Slack DM */
+.chat-bar .crumbs .bot .av { width: 22px; height: 22px; font-size: 8.5px; }
+.chat-slack { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: var(--soft); color: var(--muted); font-size: 12.5px; }
+.chat-slack svg { width: 13px; height: 13px; }
+.chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s4) var(--s6) var(--s6); }
+.chat-day { display: flex; align-items: center; gap: var(--s3); margin: var(--s4) 0 var(--s2); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.chat-day::before, .chat-day::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.chat-m { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: var(--s3); padding: var(--s2) var(--s2); margin: 0 calc(-1 * var(--s2)); border-radius: 8px; max-width: 760px; }
+.chat-m:hover { background: var(--hover); }
+.chat-m.cont { padding-top: 2px; }
+.chat-m > .av, .chat-m > .bot .av { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; }
+.chat-m > .bot > i { display: none; }
+.chat-n { display: flex; align-items: baseline; gap: 6px; font-size: 14px; }
+.chat-n .app { padding: 0 4px; border-radius: 3px; background: var(--soft); color: var(--muted); font-size: 10.5px; font-weight: 600; }
+.chat-n time { color: var(--faint); font-size: 12px; }
+.chat-t { font-size: 14.5px; line-height: 1.5; color: var(--ink); }
+.chat-b ul { margin: 4px 0 0; padding-left: 20px; font-size: 14px; line-height: 1.65; }
+.chat-btns { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+.slk-btn { height: 30px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--raised); color: var(--ink); font-size: 13px; font-weight: 600; }
+.slk-btn:hover { background: var(--soft); }
+.slk-btn.primary { background: #007a5a; border-color: #007a5a; color: #fff; }
+.chat-compose { display: flex; align-items: flex-end; gap: var(--s2); margin: 0 var(--s6) var(--s6); padding: var(--s2) var(--s2) var(--s2) var(--s4); border: 1px solid var(--line-strong); border-radius: 12px; background: var(--raised); }
+.chat-compose:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-strong)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
+.chat-compose textarea { flex: 1; min-height: 24px; max-height: 160px; padding: 6px 0; border: 0; outline: none; resize: none; background: transparent; font: inherit; font-size: 14.5px; color: var(--ink); field-sizing: content; }
+
+/* Tutorial: shade everything but the part being explained */
+#tour { position: fixed; inset: 0; z-index: 300; }
+.tour-block { position: absolute; inset: 0; }
+.tour-spot { position: absolute; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(18, 18, 22, 0.55), 0 0 0 2px #fff, 0 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent); transition: left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none; }
+.tour-card { position: absolute; width: 320px; padding: var(--s5); border-radius: 14px; background: var(--raised); box-shadow: var(--pop-shadow); transition: left 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.tour-step { color: var(--accent); font-size: 12.5px; font-weight: 500; }
+.tour-card h3 { margin: var(--s2) 0 0; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.tour-card p { margin: var(--s2) 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.tour-acts { display: flex; align-items: center; gap: var(--s2); margin-top: var(--s5); }
+@media (prefers-reduced-motion: reduce) { .tour-spot, .tour-card { transition: none; } }
+
 </style>
 
 <div class="app" id="app">
@@ -5120,7 +5233,7 @@ function personName() { for (let i = 0; i < 20; i++) { const n = `${pickOne(FIRS
 const BULK = [];
 for (let i = 0; i < 264; i++) {
   const role = roleOf(), team = ROLES[role].team, st = weighted([["testbench", 22], ["routing", 6], ["asked", 10], ["scheduling", 12], ["scheduled", 22], ["debrief", 8], ["judgment", 10]]);
-  const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * { testbench: 6, routing: 2, asked: 2, scheduling: 3, scheduled: 9, debrief: 4, judgment: 5 }[st] * DAY) - HR;
+  const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * { testbench: 2.5, routing: 2, asked: 2, scheduling: 3, scheduled: 9, debrief: 4, judgment: 5 }[st] * DAY) - HR;
   const score = 55 + Math.floor(rnd() * 44);
   const a = { id: `APP-${2001 + i}`, bulk: true, pri: weighted([[0, 3], [1, 1], [2, 3], [3, 4], [4, 2]]), name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, src: srcOf(role), loc: pickOne(CITIES), yrs: 1 + Math.floor(rnd() * 12), links: [], state: st, when, sum: [], exp: [],
     labels: rnd() < 0.08 ? ["Competing offer"] : rnd() < 0.08 ? ["Relocating"] : [] };
@@ -5131,7 +5244,9 @@ for (let i = 0; i < 264; i++) {
   if (st === "judgment") { const v = weighted([["Yes", 4], ["Mixed", 3], ["No", 2]]); a.read = { verdict: v, senti: v === "Yes" ? 0.7 : v === "Mixed" ? 0.4 : 0.15, by: iv, notes: [], quote: v === "Yes" ? "Strong. Yes." : v === "Mixed" ? "Good, not sure about the fit." : "Not this time." }; }
   BULK.push(a);
   A[a.id] = a;
-  ev(a, when - 6 * DAY, "orch", `${esc(srcLong(a))} for ${esc(ROLES[role].title)}`);
+  // Applied some days before reaching this stage: further along, longer ago.
+  const [lo, hi] = { testbench: [0.1, 1.2], routing: [0.5, 3], asked: [1, 4], scheduling: [1.5, 5], scheduled: [3, 8], debrief: [5, 10], judgment: [6, 12] }[st];
+  ev(a, when - (lo + ((i * 37) % 100) / 100 * (hi - lo)) * DAY, "orch", `${esc(srcLong(a))} for ${esc(ROLES[role].title)}`);
   ev(a, when, "orch", esc(STATES[st].name));
 }
 // Every closed application, newest first. `a` links one we have a ticket for.
@@ -5320,8 +5435,16 @@ const homeDays = () => +(state.homeRange || 7);
 const homeScope = (a) => (!state.homeTeam || (a.team || ROLES[a.role].team) === state.homeTeam) && (!state.homeRole || a.role === state.homeRole);
 const hrs = (ms) => ms / HR;
 const fmtHrs = (h) => (h >= 48 ? `${(h / 24).toFixed(1).replace(/\.0$/, "")}d` : h >= 1 ? `${Math.round(h)}h` : `${Math.max(1, Math.round(h * 60))}m`);
-// Seven points ending on today's value, the same on every load.
-function trend(k, v) { let h = [...k].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) >>> 0; return Array.from({ length: 7 }, (_, i) => (i === 6 ? v : Math.max(0, v * (1 + 0.28 * Math.sin(i * 1.7 + (h % 9)) - 0.1 * ((6 - i) / 6) * ((h % 3) - 1))))); }
+// Waits bucketed the way people talk about them, so a bar reads as "12 waiting 1 to 2 days".
+const AGE_EDGES = [[0, 24, "<1d"], [24, 48, "1–2d"], [48, 72, "2–3d"], [72, 120, "3–5d"], [120, Infinity, "5d+"]];
+const ageBuckets = (hs) => AGE_EDGES.map(([lo, hi, l]) => ({ lo, hi, l, n: hs.filter((h) => h >= lo && h < hi).length }));
+// Applications per day (or per week past a month), from when each one came in.
+function appsByDay(days) {
+  const step = days > 30 ? 7 : 1, n = Math.ceil(days / step), end = dayStart(Date.now()) + DAY;
+  const ats = everyone().filter(homeScope).map((a) => ((TRACE[a.id] || [])[0] || {}).at).concat(HISTORY.filter(homeScope).map((h) => h.applied)).filter(Boolean);
+  return Array.from({ length: n }, (_, i) => { const hi = end - (n - 1 - i) * step * DAY, lo = hi - step * DAY, d = new Date(lo);
+    return { l: step === 1 ? WD[d.getDay()].slice(0, 2) : `${MO[d.getMonth()]} ${d.getDate()}`, full: step === 1 ? `${WD[d.getDay()]} ${MO[d.getMonth()]} ${d.getDate()}` : `Week of ${MO[d.getMonth()]} ${d.getDate()}`, n: ats.filter((t) => t >= lo && t < hi).length }; });
+}
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
 function homeMetrics() {
@@ -5336,23 +5459,34 @@ function homeMetrics() {
   const from = NOW - homeDays() * DAY;
   const apps = everyone().filter((a) => homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
   return [
-    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "cards", label: "Time to submit scorecards", def: "From the interview ending to the interviewer's read coming in", v: median(cards), unit: "h", go: ["#interviews", "Open Interviews"] },
-    { k: "stage", label: "Time in stage", def: "How long active candidates have sat in their current stage", v: median(stage), unit: "h", go: ["#home~stages", "See waits by stage"] },
-    { k: "offers", label: "Time to approve offers", def: "From an offer being drafted to it being approved", v: median(offers), unit: "h", go: ["#home~offers", "See pending approvals"] },
-    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
+    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in Applicant Tickets"] },
+    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in Applicant Tickets"] },
+    { k: "cards", label: "Time to submit scorecards", def: "From the interview ending to the interviewer's read coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "scorecard", go: ["#interviews", "Open Interviews"] },
+    { k: "stage", label: "Time in stage", def: "How long active candidates have sat in their current stage", v: median(stage), unit: "h", open: stage, noun: "candidate", go: ["#home~stages", "See waits by stage"] },
+    { k: "offers", label: "Time to approve offers", def: "From an offer being drafted to it being approved", v: median(offers), unit: "h", open: OFFERS.filter((o) => homeScope(o.a)).map((o) => hrs(Date.now() - o.since)), noun: "offer", go: ["#home~offers", "See pending approvals"] },
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, unit: "n", prev: everyone().filter((a) => homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from - homeDays() * DAY && ((TRACE[a.id] || [])[0] || {}).at < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from - homeDays() * DAY && h.applied < from).length, go: ["#triage", "Review in Applicant Tickets"] },
   ];
 }
 function metricCard(m) {
-  const t = state.thr[m.k], series = trend(m.k, m.v), prev = series[0] || 1, d = prev ? (m.v - prev) / prev : 0;
-  const good = m.unit === "n" ? d >= 0 : d <= 0;
+  const t = state.thr[m.k];
   const over = t != null && (m.unit === "n" ? m.v < t : m.v > t);
-  const max = Math.max(...series, 1);
+  let chart, sub;
+  if (m.unit === "n") {
+    // Applications per day, against the period before.
+    const days = appsByDay(homeDays()), max = Math.max(...days.map((d) => d.n), 1), d = m.prev ? (m.v - m.prev) / m.prev : 0;
+    sub = `<span class="hm-d ${d >= 0 ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span><span class="hm-sub">vs the ${homeDays()} days before</span>`;
+    chart = `<div class="hm-hist">${days.map((x) => `<span title="${x.n} on ${esc(x.full)}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%" class="${t != null && x.n < t / days.length ? "low" : ""}"></i><em>${esc(x.l)}</em></span>`).join("")}</div>`;
+  } else {
+    // How long the ones still open have been waiting. Past your target, the bars turn red.
+    const bs = ageBuckets(m.open), max = Math.max(...bs.map((b) => b.n), 1), oldest = Math.max(0, ...m.open);
+    sub = m.open.length ? `<span class="hm-sub">${m.open.length} ${m.noun}${m.open.length === 1 ? "" : "s"} waiting · oldest ${fmtHrs(oldest)}</span>` : `<span class="hm-sub">Nothing waiting</span>`;
+    chart = `<div class="hm-hist">${bs.map((b) => `<span title="${b.n} ${m.noun}${b.n === 1 ? "" : "s"} waiting ${b.l.replace("<", "under ").replace("+", " or more")}"><i style="height:${b.n ? Math.max(6, (b.n / max) * 100) : 0}%" class="${t != null && b.lo >= t ? "over" : ""}"></i><em>${b.l}</em></span>`).join("")}</div>`;
+  }
   return `<section class="hm-card ${over ? "over" : ""}">
     <div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div>
-    <div class="hm-v"><b>${m.unit === "n" ? m.v.toLocaleString() : fmtHrs(m.v)}</b><span class="hm-d ${good ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span>
-      <span class="hm-bars" aria-hidden="true">${series.map((x, i) => `<i style="height:${Math.max(12, (x / max) * 100)}%" class="${i === 6 ? "now" : ""}"></i>`).join("")}</span></div>
+    <div class="hm-v"><b>${m.unit === "n" ? m.v.toLocaleString() : fmtHrs(m.v)}</b>${m.unit === "n" ? "" : `<span class="hm-sub">typical</span>`}</div>
+    <div class="hm-ctx">${sub}</div>
+    ${chart}
     <div class="hm-f"><button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${m.unit === "n" ? "Alert below" : "Target"} ${m.unit === "n" ? t : fmtHrs(t)}` : "Set a target"}</button>
       <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
   </section>`;
@@ -5375,7 +5509,9 @@ function homePage(sub) {
   ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
   // Stages: how many, the typical wait, and who's waited longest.
   const stages = H_STAGES.map(([k, n, f]) => { const xs = act.filter(f).sort((x, y) => wait(y) - wait(x)); return { k, n, xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
-  const maxMed = Math.max(...stages.map((x) => x.med), 1), open = state.homeStage;
+  const maxN = Math.max(...stages.map((x) => x.xs.length), 1), open = state.homeStage;
+  const SEG = [[0, 24, "Under a day"], [24, 72, "1 to 3 days"], [72, Infinity, "Over 3 days"]];
+  const segs = (xs) => SEG.map(([lo, hi, l], i) => ({ i, l, n: xs.filter((a) => hrs(wait(a)) >= lo && hrs(wait(a)) < hi).length }));
   // Follow-through: scorecards still out, and how fast each interviewer tends to submit.
   const outCards = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
   const ivs = Object.keys(PEOPLE).filter((id) => PEOPLE[id].team && (!state.homeTeam || PEOPLE[id].team === state.homeTeam)).map((id) => {
@@ -5398,7 +5534,7 @@ function homePage(sub) {
   const maxRole = Math.max(...roleCounts.map((x) => x[1]), 1);
   return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
     ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}</div>
-  <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#view~referrals">Referrals</a></div>
+  <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div>
   <div class="scroll" id="scroller"><div class="hm">
     <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
     <div class="hm-row two">
@@ -5409,9 +5545,10 @@ function homePage(sub) {
     </div>
     <div class="hm-row two">
       <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage, the typical wait and the longest">Time in stage</b><span>${act.length} active</span></div>
-        <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Typical wait</span><span>Longest</span></div>
+        <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
+        <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
         ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
-            <span class="hm-st-w"><i style="width:${(x.med / maxMed) * 100}%"></i><em>${x.xs.length ? dur(x.med) : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
+            <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / maxN) * 100}%">${segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
           ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#all">All ${x.xs.length} in Pipeline${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
       <section class="hm-box hm-quiet" id="hm-offers"><div class="hm-h"><b title="Drafted offers waiting for approval">Offer approvals</b><span>${offers.length} pending</span></div>
         ${offers.map((o) => `<a class="hm-li" href="#t~${o.a.id}">${candAv(o.a)}<span><b>${esc(o.a.name)}</b><span>${esc(ROLES[o.a.role].title)} · ${esc(PEOPLE[o.by].name)}</span></span><em>${dur(Date.now() - o.since)}</em></a>`).join("") || `<p class="hm-none">No offers waiting.</p>`}</section>
@@ -5428,6 +5565,196 @@ function homePage(sub) {
     </div>
   </div></div>`;
 }
+/* ---------------- Referrals: who referred whom, where they are now, and adding one ---------------- */
+const refBy = (src) => { const n = (src.split("· ")[1] || "").trim(); return Object.keys(PEOPLE).find((id) => first(id) === n) || null; };
+const REF_TABS = [["all", "All"], ["open", "In process"], ["hired", "Hired"], ["closed", "Closed"]];
+function refRows() {
+  const act = everyone().filter((a) => a.src.startsWith("Referral")).map((a) => ({ id: a.id, a, name: a.name, by: refBy(a.src), role: a.role, at: ((TRACE[a.id] || [])[0] || {}).at || a.when, status: isOpen(a) ? STATES[a.state].name : a.state === "offer" ? "Hired" : "Closed", open: isOpen(a), hired: a.state === "offer" }));
+  const past = HISTORY.filter((h) => h.src.startsWith("Referral") && !h.a).map((h) => ({ id: h.id, h, name: h.name, by: refBy(h.src), role: h.role, at: h.applied, status: h.outcome, open: false, hired: h.outcome === "Hired" }));
+  return act.concat(past).sort((x, y) => y.at - x.at);
+}
+function referralsPage() {
+  const tab = state.refTab || "all", q = (state.q || "").toLowerCase().trim(), all = refRows();
+  const f = { all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[tab];
+  const xs = all.filter((r) => f(r) && (!q || `${r.name} ${r.by ? PEOPLE[r.by].name : ""}`.toLowerCase().includes(q)));
+  const per = 50, pages = Math.max(1, Math.ceil(xs.length / per)), pg = Math.min(state.refPg || 0, pages - 1), rows = xs.slice(pg * per, pg * per + per);
+  const people = Object.keys(PEOPLE).filter((id) => id !== ME).map((id) => { const mine = all.filter((r) => r.by === id); return { id, n: mine.length, open: mine.filter((r) => r.open).length, hired: mine.filter((r) => r.hired).length }; }).filter((p) => p.n).sort((x, y) => y.hired - x.hired || y.n - x.n);
+  const maxN = Math.max(...people.map((p) => p.n), 1);
+  return `<div class="bar"><div class="crumbs">${ico("users")}<b>Referrals</b><span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
+    <button class="btn sm ghost" data-act="refGrok">${botAv(ME)}Add with Grokbot</button><button class="btn sm primary" data-act="refAdd">${ico("plus")}Add referral</button></div>
+  <div class="crm-tabs">${REF_TABS.map(([k, n]) => `<button class="crm-tab ${tab === k ? "on" : ""}" data-act="refTab" data-v="${k}">${n}<span>${all.filter({ all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[k]).length.toLocaleString()}</span></button>`).join("")}
+    <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"></label></div>
+  <div class="ref-wrap">
+    <div class="crm ref-t">
+      <div class="scroll" id="scroller"><div class="crm-t" role="table">
+        <div class="crm-r rf-r crm-h" role="row"><span class="crm-hc">${ico("people")}Candidate</span><span class="crm-hc">${ico("users")}Referred by</span><span class="crm-hc">${ico("brief")}Role</span><span class="crm-hc">${ico("flag")}Where they are</span><span class="crm-hc">${ico("cal")}Referred</span></div>
+        ${rows.map((r) => `<div class="crm-r rf-r" role="row" data-tid="rf-${r.id}" ${r.a ? `data-act="openRow" data-id="${r.a.id}"` : `data-act="openHist" data-id="${r.id}"`}>
+          <span class="crm-name"><span class="av cand">${initials(r.name)}</span><b>${esc(r.name)}</b></span>
+          <span class="crm-own">${r.by ? `${personAv(r.by)}${esc(PEOPLE[r.by].name)}` : `<span class="faint">Unknown</span>`}</span>
+          <span><span class="crm-tag">${esc(ROLES[r.role].title)}</span></span>
+          <span><span class="h-out ${r.hired ? "ok" : r.open ? "live" : ""}">${esc(r.status)}</span></span>
+          <span class="crm-day">${relDay(r.at)}</span></div>`).join("") || `<div class="empty">No referrals match</div>`}
+      </div></div>
+      <div class="crm-foot"><span class="grow"></span><span>${xs.length ? `${(pg * per + 1).toLocaleString()}–${Math.min(xs.length, pg * per + per).toLocaleString()} of ${xs.length.toLocaleString()}` : "0"}</span>
+        <button class="icon-btn" data-act="refPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="refPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>
+    </div>
+    <section class="hm-box ref-side"><div class="hm-h"><b>Top referrers</b></div>
+      <div class="ref-lb-h"><span></span><span>Referred</span><span>In process</span><span>Hired</span></div>
+      ${people.map((p) => `<div class="ref-lb">${personAv(p.id)}<span class="ref-lb-n"><b>${esc(PEOPLE[p.id].name)}</b><i style="width:${(p.n / maxN) * 100}%"></i></span><em>${p.n}</em><em>${p.open}</em><em class="${p.hired ? "hired" : ""}">${p.hired}</em></div>`).join("")}</section>
+  </div>`;
+}
+// Add a referral by hand. It becomes an Applicant Ticket, sourced to whoever referred them.
+function openRefForm(pre = {}) {
+  const opt = (sel, xs) => xs.map(([v, n]) => `<option value="${v}" ${sel === v ? "selected" : ""}>${esc(n)}</option>`).join("");
+  openForm({ title: "Add referral", sub: pre.from ? "Your Grokbot filled this in. Check it, then add." : "", submit: "Add referral",
+    body: `<div class="fm-row"><label class="fm-f"><span>Candidate</span><input name="name" value="${esc(pre.name || "")}" placeholder="Full name" autocomplete="off"></label>
+        <label class="fm-f"><span>Email or LinkedIn</span><input name="link" value="${esc(pre.link || "")}" placeholder="name@company.com or linkedin.com/in/…" autocomplete="off"></label></div>
+      <div class="fm-row"><label class="fm-f"><span>Role</span><select name="role">${opt(pre.role || "eng", Object.entries(ROLES).map(([k, r]) => [k, r.title]))}</select></label>
+        <label class="fm-f"><span>Referred by</span><select name="by">${opt(pre.by || ME, Object.keys(PEOPLE).map((id) => [id, PEOPLE[id].name]))}</select></label></div>
+      <label class="fm-f"><span>Why they're a fit</span><textarea name="note" rows="3" placeholder="How they know them, and what they'd be great at">${esc(pre.note || "")}</textarea></label>`,
+    onSubmit: (v) => {
+      const name = (v.name || "").trim().replace(/\s+/g, " ");
+      if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
+      const a = { id: `APP-${140 + APPLICANTS.length}`, pri: 3, labels: [], name, hl: v.link ? v.link.replace(/^https?:\/\/(www\.)?/, "") : `Referred by ${first(v.by)}`, role: v.role, src: `Referral · ${first(v.by)}`, loc: "", yrs: 0, links: v.link ? [v.link.replace(/^https?:\/\/(www\.)?/, "")] : [], state: "new", when: Date.now(), sum: v.note ? [v.note] : [], exp: [], tb: null, note: v.note ? `${v.note}\n\n${first(v.by)}` : "" };
+      APPLICANTS.push(a); A[a.id] = a; seed(a); touch(a);
+      toast(`${name} is in Applicant Tickets, referred by ${first(v.by)}`);
+    } });
+}
+// Add with Grokbot: paste what you have (a Slack message, an email, a link) and it fills the form.
+function openRefGrok(text = "") {
+  openForm({ title: "Add a referral with Grokbot", submit: "Fill the form",
+    body: `<label class="fm-f"><span>What did you get?</span><textarea name="t" rows="5" placeholder="Paste a Slack message, an email or a LinkedIn link">${esc(text)}</textarea></label>`,
+    onSubmit: (v) => { setTimeout(() => openRefForm(parseReferral(v.t || "")), 0); } });
+}
+function parseReferral(t) {
+  const link = (t.match(/(https?:\/\/\S+|linkedin\.com\/in\/\S+|[\w.+-]+@[\w-]+\.[\w.]+)/) || [])[0] || "";
+  const by = Object.keys(PEOPLE).find((id) => new RegExp(`\\b${first(id)}\\b`, "i").test(t)) || ME;
+  const names = (t.replace(link, "").match(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g) || []).filter((n) => !Object.values(PEOPLE).some((p) => p.name === n) && !/^(Hi|Hey|Hello|Founding|Product|Research|Staff)\b/.test(n));
+  const role = /design/i.test(t) ? "des" : /inference|latency|gpu/i.test(t) ? "inf" : /eval/i.test(t) ? "evals" : /research|rl\b|post-?training/i.test(t) ? "res" : /product|frontend|full.?stack/i.test(t) ? "pe" : "eng";
+  return { name: names[0] || "", link, by, role, note: t.trim().slice(0, 280), from: "grok" };
+}
+/* ---------------- Chat with your Grokbot: the same DM as in Slack ---------------- */
+// tATS is Slack-native. You talk to your Grokbot here or in Slack; the dashboard is for checking in.
+const chatT = (h, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.getTime(); };
+function chatSeed() {
+  if (state.chat) return state.chat;
+  const iss = inboxRows().filter((x) => x.inInbox && x.iss.k !== "decide").slice(0, 3);
+  const dec = inboxRows().filter((x) => x.inInbox && x.iss.k === "decide").length;
+  return (state.chat = [
+    { me: false, at: chatT(9, 0), html: `Morning, ${esc(first(ME))}. ${iss.length} thing${iss.length === 1 ? "" : "s"} need${iss.length === 1 ? "s" : ""} you, and ${dec} read${dec === 1 ? " is" : "s are"} back for a decision.`,
+      list: iss.map((x) => `<b>${esc(x.iss.what)}</b> · ${esc(x.a.name)}`), btns: iss.map((x) => [x.iss.act.label, x.iss.act.a, x.iss.act.id]).concat([["Open Inbox", "goInbox", ""]]) },
+    { me: true, at: chatT(9, 4), html: "who still owes a scorecard?" },
+    { me: false, at: chatT(9, 4), html: grokOwes() },
+  ]);
+}
+function grokOwes() {
+  const deb = everyone().filter((a) => a.state === "debrief").sort((x, y) => x.when - y.when).slice(0, 4);
+  return `${deb.length ? `Oldest first: ${deb.map((a) => `<b>${esc(first(a.iv))}</b> for ${esc(a.name)} (${dur(Date.now() - a.when)})`).join(", ")}. Say "nudge" and a name and I'll remind them.` : "Every scorecard is in."}`;
+}
+// What the Grokbot can do from a sentence. Anything else it takes on and reports back in Grokbot Activity.
+function grokReply(text) {
+  const t = text.toLowerCase();
+  if (/refer/.test(t)) { const r = parseReferral(text); return { html: r.name ? `Got it: <b>${esc(r.name)}</b> for ${esc(ROLES[r.role].title)}, referred by ${esc(PEOPLE[r.by].name)}. Want me to add them?` : "Who's the referral? Send their name, the role, and a link if you have one.", btns: r.name ? [["Add referral", "chatRef", encodeURIComponent(text)]] : [] }; }
+  const nudge = t.match(/nudge (\w+)/);
+  if (nudge) { const id = Object.keys(PEOPLE).find((k) => first(k).toLowerCase() === nudge[1]); const r = id && RUNS.find((x) => x.on === id && runState(x) === "stuck"); if (r) { nudgeRun(r); return { html: `Nudged <b>${esc(first(id))}</b> in Slack about ${esc(A[r.a].name)}.` }; } return { html: id ? `${esc(first(id))} doesn't owe anything overdue right now.` : "Who should I nudge?" }; }
+  if (/invite/.test(t)) { const x = inboxRows().find((r) => r.inInbox && r.iss.k === "invite"); if (x) { sendInvite(x.a); return { html: `Sent ${esc(possessive(x.a.name))} invite from ${esc(possessive(first(x.a.iv)))} Gmail.` }; } return { html: "No invites are waiting to go out." }; }
+  if (/scorecard|owe/.test(t)) return { html: grokOwes() };
+  if (/silver|hired|rejected|withdr|list/.test(t)) {
+    const view = t.includes("silver") ? "silver" : /hired/.test(t) ? "hired" : /withdr/.test(t) ? "withdrew" : "rejected";
+    const team = Object.keys(TEAMS).find((k) => t.includes(k));
+    const xs = HISTORY.filter((h) => CRM_VIEWS.find((v) => v[0] === view)[2](h) && (!team || h.team === team)).sort((x, y) => (y.score || 0) - (x.score || 0));
+    return { html: `${xs.length.toLocaleString()} ${CRM_VIEWS.find((v) => v[0] === view)[1].toLowerCase()}${team ? ` on ${TEAMS[team].name}` : ""}, best Testbench first:`, list: xs.slice(0, 5).map((h) => `<b>${esc(h.name)}</b> · ${esc(ROLES[h.role].title)}${h.score ? ` · ${h.score}/100` : ""}`), btns: [["Post to #hiring", "chatPost", String(xs.length)], ["Open CRM", "goCrm", ""]] };
+  }
+  if (/stuck|need|today|status|morning|what/.test(t)) { const iss = inboxRows().filter((x) => x.inInbox); return { html: iss.length ? `${iss.length} open:` : "Nothing needs you right now.", list: iss.slice(0, 5).map((x) => `<b>${esc(x.iss.what)}</b> · ${esc(x.a.name)}`), btns: iss.length ? [["Open Inbox", "goInbox", ""]] : [] }; }
+  return { html: "On it. I'll post here when it's done, and it'll show in Grokbot Activity." };
+}
+function chatPage() {
+  const msgs = chatSeed();
+  let day = "";
+  return `<div class="bar chat-bar"><div class="crumbs">${botAv(ME)}<b>${esc(possessive(first(ME)))} Grokbot</b></div><span class="chat-slack">${CH.slack}Synced with Slack</span><span class="spacer"></span></div>
+  <div class="chat">
+    <div class="chat-log" id="scroller">${msgs.map((m, i) => {
+      const d = dayStart(m.at) === dayStart(Date.now()) ? "Today" : fmtDay(m.at);
+      const head = d !== day ? `<div class="chat-day"><span>${(day = d)}</span></div>` : "";
+      const same = i && msgs[i - 1].me === m.me && m.at - msgs[i - 1].at < 5 * MIN && !head;
+      return `${head}<div class="chat-m ${same ? "cont" : ""}" data-tid="cm-${i}">${same ? `<span></span>` : m.me ? personAv(ME) : botAv(ME, "lg")}
+        <div class="chat-b">${same ? "" : `<div class="chat-n"><b>${m.me ? esc(PEOPLE[ME].name) : `${esc(possessive(first(ME)))} Grokbot`}</b>${m.me ? "" : `<span class="app">APP</span>`}<time>${fmtTime(m.at)}</time></div>`}
+          <div class="chat-t">${m.html}</div>${m.list && m.list.length ? `<ul>${m.list.map((l) => `<li>${l}</li>`).join("")}</ul>` : ""}
+          ${m.btns && m.btns.length ? `<div class="chat-btns">${m.btns.map(([l, a, id], j) => `<button class="slk-btn ${j === 0 ? "primary" : ""}" data-act="${a}" data-id="${esc(id)}">${esc(l)}</button>`).join("")}</div>` : ""}</div></div>`;
+    }).join("")}</div>
+    <form class="chat-compose" id="chatForm"><textarea id="chatIn" rows="1" placeholder="Message your Grokbot" autocomplete="off"></textarea><button class="btn sm primary" type="submit">Send</button></form>
+  </div>`;
+}
+function chatSend(text) {
+  text = text.trim(); if (!text) return;
+  const msgs = chatSeed();
+  msgs.push({ me: true, at: Date.now(), html: esc(text) });
+  const box = $("#chatIn"); if (box) box.value = "";
+  render();
+  const sc = () => { const l = $(".chat-log"); if (l) l.scrollTop = l.scrollHeight; };
+  sc();
+  setTimeout(() => { msgs.push({ me: false, at: Date.now(), ...grokReply(text) }); render(); sc(); }, 650);
+}
+
+/* ---------------- Tutorial: a walk through every page, one spotlight at a time ---------------- */
+const TOUR = [
+  ["home", '.sb-item[href="#home"]', "Home", "Start here. Recruiting Overview shows where hiring is slow, and links each delay to the page that clears it."],
+  ["home", ".hm-grid6", "How long each step takes", "Each card is a step in hiring. Set your own targets, and anything past one turns red."],
+  ["home", ".hm-row.two > .hm-box", "Bottlenecks", "Every delay, oldest first, with a link to where it gets fixed."],
+  ["inbox", ".ib-col", "Inbox", "Only what's broken or waiting on you: bot failures, unsent invites, overdue replies and decisions."],
+  ["inbox", ".kb-bar", "One key per action", "F runs the fix, E dismisses, / asks your Grokbot. J and K move between issues."],
+  ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
+  ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
+  ["all", ".board", "Pipeline", "Every open candidate, by stage."],
+  ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
+  ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
+  ["activity", ".af-todo", "Grokbot Activity", "What the Grokbots did, and the few things they couldn't finish without you."],
+  ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Ask, delegate and assign here or there; this dashboard is for checking in."],
+];
+let tour = null;
+function startTour() { tour = { i: 0 }; tourShow(); }
+function tourEnd() { tour = null; $("#tour")?.remove(); }
+function tourShow() {
+  const [hash] = TOUR[tour.i];
+  const cur = location.hash.slice(1) || "home";
+  if (cur.split("~")[0] !== hash) go(hash);
+  setTimeout(tourPlace, cur.split("~")[0] === hash ? 60 : 520);
+}
+function tourPlace() {
+  if (!tour) return;
+  const [, sel, title, body] = TOUR[tour.i];
+  let root = $("#tour");
+  if (!root) { root = document.createElement("div"); root.id = "tour"; root.innerHTML = `<div class="tour-block"></div><div class="tour-spot"></div><div class="tour-card" role="dialog" aria-live="polite"></div>`; document.body.appendChild(root); }
+  const el = $(sel), spot = $(".tour-spot", root), card = $(".tour-card", root);
+  if (el) el.scrollIntoView({ block: "nearest" });
+  const r = el ? el.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0, height: 0, right: innerWidth / 2, bottom: innerHeight / 2 };
+  const pad = 8;
+  Object.assign(spot.style, { left: `${r.left - pad}px`, top: `${r.top - pad}px`, width: `${r.width + pad * 2}px`, height: `${r.height + pad * 2}px` });
+  card.innerHTML = `<div class="tour-step">${tour.i + 1} of ${TOUR.length}</div><h3>${esc(title)}</h3><p>${esc(body)}</p>
+    <div class="tour-acts"><button class="linkish" data-tour="end">Skip</button><span class="grow"></span>${tour.i ? `<button class="btn sm" data-tour="back">Back</button>` : ""}<button class="btn sm primary" data-tour="next">${tour.i === TOUR.length - 1 ? "Done" : "Next"}</button></div>`;
+  const cw = 320, ch = card.offsetHeight || 170, gap = 16;
+  let x = r.right + gap, y = r.top;
+  if (x + cw > innerWidth - 16) { x = Math.max(16, Math.min(r.left, innerWidth - cw - 16)); y = r.bottom + gap; }
+  if (y + ch > innerHeight - 16) y = Math.max(16, r.top - ch - gap);
+  if (y < 16) y = Math.max(16, Math.min(innerHeight - ch - 16, r.top + 16));
+  Object.assign(card.style, { left: `${x}px`, top: `${y}px` });
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tour]");
+  if (!b || !tour) return;
+  e.stopPropagation();
+  const d = b.dataset.tour;
+  if (d === "end" || (d === "next" && tour.i === TOUR.length - 1)) return tourEnd();
+  tour.i += d === "next" ? 1 : -1;
+  tourShow();
+}, true);
+addEventListener("resize", () => tour && tourPlace());
+document.addEventListener("keydown", (e) => {
+  if (!tour) return;
+  if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); return tourEnd(); }
+  if (e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); if (tour.i === TOUR.length - 1) return tourEnd(); tour.i++; tourShow(); }
+  if (e.key === "ArrowLeft" && tour.i) { e.preventDefault(); e.stopImmediatePropagation(); tour.i--; tourShow(); }
+}, true);
 function applicantsPage() {
   const tk = state.team;
   const list = scoped();
@@ -5614,9 +5941,9 @@ function nowPanel(a) {
       <p class="cc-quote">“${esc(r.quote)}”</p>
       ${x ? interviewHighlights(a, x, r) : `<ul class="notes">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>`}
       <div class="cc-acts">
-        <button class="btn primary" data-act="advance" data-id="${a.id}" title="Next round (A)">${ico("arrowR")}Next round</button>
-        <button class="btn" data-act="offer" data-id="${a.id}" title="Move to offer (O)">Move to offer</button>
-        <button class="btn" data-act="reject" data-id="${a.id}" title="Reject (R). The note goes out from ${esc(possessive(first(r.by)))} email after you approve it.">Reject</button>
+        <button class="btn primary" data-act="advance" data-id="${a.id}" title="Next round (A)">${ico("arrowR")}Next round<kbd>A</kbd></button>
+        <button class="btn" data-act="offer" data-id="${a.id}" title="Move to offer (O)">Move to offer<kbd>O</kbd></button>
+        <button class="btn" data-act="reject" data-id="${a.id}" title="Reject (R). The note goes out from ${esc(possessive(first(r.by)))} email after you approve it.">Reject<kbd>R</kbd></button>
       </div></section>`;
   }
   if (s === "judgment") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>Back with you</b><span>${esc(stripTags(lastEv(a).html))}</span></div></div>
@@ -6407,8 +6734,6 @@ function patch(el, html) {
       if (from.isEqualNode(to)) return false;
       // Never overwrite what someone is typing.
       if (from === document.activeElement && /^(INPUT|TEXTAREA)$/.test(from.tagName)) return false;
-      // Or a row that's mid-swipe.
-      if (from.classList.contains("sw") && (from === sw.el || (sw.drag && from === sw.drag.el) || from.classList.contains("go-l") || from.classList.contains("go-r"))) return false;
       if (from.classList.contains("sb-count") && from.textContent !== to.textContent) bumped.push(from);
       return true;
     },
@@ -6526,10 +6851,12 @@ function renderSide() {
       ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
       ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
       ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), attn, "red", `${attn} Grokbot tasks stuck or failed`)}
     </nav>
     <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
-    <div class="sb-foot"><button class="sb-help" data-act="help" aria-label="Keyboard Shortcuts" title="Keyboard Shortcuts (?)">?</button><a class="sb-help ${on(r.name === "settings")}" href="#settings" aria-label="Settings" title="Settings">${ico("gear")}</a><span class="grow"></span><button class="sb-agent" data-act="palette">${ico("search")}Search or ask</button></div>
+    <button class="sb-chat ${on(r.name === "chat")}" data-act="goChat">${botAv(ME)}<span class="trunc">Chat with your Grokbot</span></button>
+    <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><span class="grow"></span><a class="sb-help ${on(r.name === "settings")}" href="#settings" aria-label="Settings" title="Settings">${ico("gear")}</a></div>
   </div>`);
 }
 
@@ -6653,6 +6980,13 @@ function inboxItems(f = state.ibFilter || "all") {
 }
 const unreadCount = () => inboxRows().filter((x) => x.inInbox && x.unread).length;
 const inboxLeft = () => inboxRows().filter((x) => x.inInbox).length;
+// A button that says its key, like Superhuman: the label, then the letter that does the same thing.
+const kb = (label, key, act, id, primary) => `<button class="kb ${primary ? "primary" : ""}" data-act="${act}" data-id="${id}" title="${esc(label)} (${key})">${esc(label)}<kbd>${key}</kbd></button>`;
+function issueKeys(a, i) {
+  if (!i) return "";
+  const fix = i.k === "decide" ? "" : kb(i.act.label, "F", i.act.a, i.act.id, true);
+  return `<div class="kb-bar">${fix}${kb("Dismiss", "E", "ibDone", a.id)}${kb("Ask Grokbot", "/", "askGrok", a.id)}<a class="kb" href="#t~${a.id}" title="Open the ticket (Enter)">Open ticket<kbd>↵</kbd></a></div>`;
+}
 function ibRow(x, sel) {
   const a = x.a, i = x.iss, done = state.ibFilter === "done";
   const row = `<div class="ib iss ${i.k} ${sel ? "sel" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
@@ -6660,10 +6994,9 @@ function ibRow(x, sel) {
     <span class="ib-l1"><span class="trunc ib-what">${esc(i.what)}</span></span>
     <span class="ib-l2 trunc"><span class="ib-who">${i.who}${esc(i.whoName)}</span>${i.whoName === a.name || i.k === "decide" ? "" : `<i>·</i><b data-hc="a:${a.id}">${esc(a.name)}</b>`}<i>·</i><span class="trunc">${esc(i.why || "")}</span></span>
     <span class="ib-act">${done ? `<span class="ib-how">${esc(x.how || "Done")} ${agoText(x.at)}</span><button class="icon-btn" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move back to Inbox">${ico("inbox")}</button>`
-: `<span class="ib-t2">${ago(i.at)}</span>`}</span>
+: `<span class="ib-t2">${ago(i.at)}</span><span class="ib-keys">${kb(i.k === "decide" ? "Decide" : i.act.label, "F", i.k === "decide" ? "ibSel" : i.act.a, i.act.id)}${kb("Dismiss", "E", "ibDone", a.id)}</span>`}</span>
   </div>`;
-  if (done) return row;
-  return `<div class="sw" data-sw="${a.id}" data-tid="sw-${a.id}"><div class="sw-bg" aria-hidden="true"><span class="sw-l">${ico(i.k === "decide" ? "arrowR" : "check")}${esc(i.act.label)}</span><span class="sw-r">Dismiss${ico("x")}</span></div>${row}</div>`;
+  return row;
 }
 const TRAY = `<svg class="ib-tray" viewBox="0 0 64 64" aria-hidden="true"><rect x="9" y="6" width="46" height="46" rx="10"/><path d="M9 34h13.5c1.4 0 2.5 1.1 2.5 2.5v.5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-.5c0-1.4 1.1-2.5 2.5-2.5H55"/><path d="M14 52.5c0 3 2.2 5.5 5 5.5h26c2.8 0 5-2.5 5-5.5"/></svg>`;
 // A stuck or failed Grokbot step: the facts in one line, and the one action that fixes it.
@@ -6702,69 +7035,18 @@ function ibReader(a) {
       ${done ? `<button class="cx-btn" data-act="ibRestore" data-id="${a.id}">${ico("inbox")}Move back to Inbox</button>` : ""}</div>
     <div class="r-scroll" id="scroller"><div class="ib-read">
       <header class="ib-head"><div class="grow"><h1>${esc(i ? i.what : a.name)}</h1><p><span data-hc="a:${a.id}">${esc(a.name)}</span> · ${esc(ROLES[a.role].title)}</p></div></header>
+      ${done ? "" : issueKeys(a, i)}
       ${done ? `<section class="blk ok"><span class="blk-ico">${ico("check")}</span><div class="blk-main"><b>${esc(c.how)}</b><span>${agoText(c.at)}</span></div></section>` : i ? issueCard(a, i) : nowPanel(a)}
-      ${done ? "" : `<button class="askbar" data-act="askGrok" data-id="${a.id}">${botAv(ME)}<span>Ask your Grokbot to do something else for ${esc(first2(a))}</span></button>`}
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
-// Superhuman-style gestures on Inbox rows: swipe or drag right to run the fix, left to dismiss.
-// Trackpads send horizontal wheel deltas; mice and touch drag. Past the line, the row commits.
-const SWIPE_AT = 96;
-const sw = { el: null, dx: 0, t: 0, drag: null, moved: false };
-function swSet(el, dx) {
-  const row = el.querySelector(".ib"), w = el.clientWidth;
-  dx = Math.max(-w, Math.min(w, dx));
-  row.style.transform = `translateX(${dx}px)`;
-  el.classList.toggle("go-l", dx > 0); el.classList.toggle("go-r", dx < 0);
-  el.classList.toggle("armed", Math.abs(dx) > SWIPE_AT);
-  return dx;
-}
-function swEnd(el, dx) {
-  const row = el.querySelector(".ib"), id = el.dataset.sw, x = inboxRows().find((r) => r.a.id === id);
-  if (Math.abs(dx) <= SWIPE_AT || !x || !x.iss) {
-    row.style.transition = "transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)"; row.style.transform = "";
-    setTimeout(() => { row.style.transition = ""; el.classList.remove("go-l", "go-r", "armed"); }, 230);
-    return;
-  }
-  row.style.transition = "transform 0.2s ease-in"; row.style.transform = `translateX(${dx > 0 ? "" : "-"}110%)`;
-  setTimeout(() => {
-    if (dx < 0) return ibDone(id);
-    state.ibSel = id;
-    if (x.iss.k === "decide") return render();
-    state.ibNeed = id; state.ibIss = x.iss;
-    ACT[x.iss.act.a]({ dataset: { id: x.iss.act.id } });
-  }, 200);
-}
-document.addEventListener("wheel", (e) => {
-  const el = e.target.closest && e.target.closest(".sw");
-  if (!el || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
-  e.preventDefault();
-  if (sw.el !== el) { sw.el = el; sw.dx = 0; }
-  sw.dx = swSet(el, sw.dx - e.deltaX);
-  clearTimeout(sw.t);
-  sw.t = setTimeout(() => { const d = sw.dx; sw.el = null; sw.dx = 0; swEnd(el, d); }, 140);
-}, { passive: false });
-document.addEventListener("pointerdown", (e) => {
-  const el = e.target.closest && e.target.closest(".sw");
-  if (!el || e.button !== 0 || e.target.closest("button, a")) return;
-  sw.drag = { el, x0: e.clientX, y0: e.clientY, dx: 0, on: false }; sw.moved = false;
-});
-document.addEventListener("pointermove", (e) => {
-  const d = sw.drag; if (!d) return;
-  const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
-  if (!d.on) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) d.on = true; else if (Math.abs(dy) > 8) { sw.drag = null; return; } else return; }
-  d.dx = swSet(d.el, dx); sw.moved = true;
-});
-document.addEventListener("pointerup", () => { const d = sw.drag; sw.drag = null; if (d && d.on) swEnd(d.el, d.dx); });
-// A drag that moved the row isn't a click.
-document.addEventListener("click", (e) => { if (sw.moved && e.target.closest(".sw")) { e.stopPropagation(); e.preventDefault(); sw.moved = false; } }, true);
 function inboxPage() {
   const f = state.ibFilter === "done" ? "done" : "all";
   const xs = inboxItems(f);
   const sel = state.ibSel && A[state.ibSel];
   const left = inboxLeft();
   const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done">Done</button></div>`;
-  if (!state.swHint && f === "all" && xs.length) { state.swHint = true; setTimeout(() => toast("Swipe an issue right to fix it, left to dismiss. E also dismisses."), 600); }
+  if (!state.kbHint && f === "all" && xs.length) { state.kbHint = true; setTimeout(() => toast("F fixes the issue, E dismisses it, J and K move between issues."), 600); }
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
   if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
@@ -7614,10 +7896,12 @@ function parseHash() {
   if (name === "inbox") { if (A[a]) state.ibSel = a; return { name }; }
   if (name === "team" && TEAMS[a]) { state.team = a; state.savedView = null; return { name: "all" }; }
   if (name === "all") { state.team = "all"; state.savedView = null; return { name: "all" }; }
+  if (name === "referrals" || (name === "view" && a === "referrals")) return { name: "referrals" };
   if (name === "view" && viewById(a)) { const v = viewById(a); if (v.href) { location.replace(v.href); return { name: "views" }; } state.team = "all"; state.savedView = a; return { name: "all" }; }
   if (name === "views") return { name };
   if (name === "history") { location.replace("#crm"); return { name: "crm" }; }
   if (name === "crm") return { name };
+  if (name === "chat") return { name };
   if (name === "bots" && a === "rules") return { name: "settings" };
   if (name === "bots") return { name, id: a === "people" ? a : "runs" };
   if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks"))) return { name: "bots", id: a === "checks" ? "checks" : "runs" };
@@ -7649,7 +7933,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "home" ? homePage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "chat" ? chatPage() : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420);
@@ -7784,6 +8068,7 @@ function openPalette(ctx) {
   palette.draw = () => {
     const q = input.value.toLowerCase().trim();
     palette.items = all.filter((x) => !q || `${x.label} ${x.sub || ""}`.toLowerCase().includes(q)).slice(0, q ? 11 : 16);
+    if (/^refer/.test(q)) palette.items.unshift({ sec: "Ask Grokbot", label: "Add this as a referral", sub: input.value.trim(), icon: botAv(ME), run: () => setTimeout(() => openRefForm(parseReferral(input.value)), 0) });
     if (q.length > 2) palette.items.push({ sec: "Ask Grokbot", label: `“${input.value.trim()}”`, sub: cur ? `for ${cur.name}` : "", icon: botAv(ME), run: () => { if (cur) ev(cur, Date.now(), `bot:${ME}`, `On it: ${esc(input.value.trim())}`); toast("Your Grokbot is on it. It'll show up in Grokbot Activity."); } });
     palette.hi = Math.min(palette.hi, Math.max(0, palette.items.length - 1));
     let sec = "";
@@ -7925,6 +8210,16 @@ const ACT = {
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
+  goChat: () => go("chat"),
+  goInbox: () => go("inbox"),
+  goCrm: () => go("crm"),
+  tour: () => startTour(),
+  chatRef: (el) => openRefForm(parseReferral(decodeURIComponent(el.dataset.id))),
+  chatPost: (el) => toast(`Posted ${(+el.dataset.id).toLocaleString()} candidates to #hiring`),
+  refTab: (el) => { state.refTab = el.dataset.v; state.refPg = 0; render(); },
+  refPage: (el) => { state.refPg = (state.refPg || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
+  refAdd: () => openRefForm(),
+  refGrok: () => openRefGrok(),
   homeStage: (el) => { state.homeStage = state.homeStage === el.dataset.k ? null : el.dataset.k; render(); },
   homeFilter: (el) => {
     const k = el.dataset.k;
@@ -7985,6 +8280,7 @@ document.addEventListener("click", (e) => {
   ACT[el.dataset.act](el, e);
 });
 document.addEventListener("submit", (e) => {
+  if (e.target.id === "chatForm") { e.preventDefault(); const t = $("#chatIn"); chatSend(t.value); return; }
   if (e.target.id !== "crmAskForm") return;
   e.preventDefault();
   crmAsk($("#crmask").value);
@@ -8048,6 +8344,7 @@ function stepTicket(d) {
 }
 let gPending = 0;
 document.addEventListener("keydown", (e) => {
+  if (e.target.id === "chatIn" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(e.target.value); return; }
   const k = e.key, lk = k.toLowerCase();
   const mod = e.metaKey || e.ctrlKey;
   if (mod && lk === "k") { e.preventDefault(); palette ? closeLayer() : openPalette(); return; }
@@ -8100,7 +8397,10 @@ document.addEventListener("keydown", (e) => {
     const id = state.ibSel;
     if (!id) return;
     if (lk === "e") { e.preventDefault(); ibDone(id); return; }
-    if (lk === "u") { e.preventDefault(); seen.set(id, 0); state.ibSel = null; render(); return; }
+    const iss = issueOf(A[id]);
+    if (lk === "f" && iss && iss.k !== "decide") { e.preventDefault(); ACT[iss.act.a]({ dataset: { id: iss.act.id } }); return; }
+    if (k === "/") { e.preventDefault(); openPalette(id); return; }
+    if (iss && iss.k === "decide" && ["a", "o", "r"].includes(lk)) { e.preventDefault(); ACT[{ a: "advance", o: "offer", r: "reject" }[lk]]({ dataset: { id } }); return; }
     if (k === "Enter") { e.preventDefault(); go(`t~${id}`); return; }
     return;
   }
