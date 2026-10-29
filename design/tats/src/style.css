@@ -2101,10 +2101,10 @@ button.pill2 { width: auto; text-align: left; border: 0; cursor: pointer; }
 }
 @media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .ana { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --q1: #1d2a3b; --q2: #224a7a; --q3: #2f6ab2; --q4: #4f95ea; } }
 :root[data-theme="dark"] .ana { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --q1: #1d2a3b; --q2: #224a7a; --q3: #2f6ab2; --q4: #4f95ea; }
-.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--paper); overflow: hidden; }
+.dk { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--paper); overflow: hidden; }
 .kpi { display: grid; gap: 4px; padding: 14px 16px; box-shadow: 1px 0 0 var(--line); }
-.kpi span { color: var(--muted); font-size: 12.5px; }
-.kpi b { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.dk-i span { color: var(--muted); font-size: 12.5px; }
+.dk-i b { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .kpi small { color: var(--faint); font-size: 12px; line-height: 1.35; }
 a.kpi:hover { background: var(--hover); }
 .kpi.alert b { color: var(--red); }
@@ -2302,7 +2302,7 @@ a.kpi:hover { background: var(--hover); }
 .calx .kpis { border-color: var(--cx-line); border-radius: 12px; }
 .calx .kpi { grid-template-columns: 40px minmax(0, 1fr); display: grid; gap: 14px; align-items: start; padding: 18px; box-shadow: 1px 0 0 var(--cx-line); }
 .calx .kpi > div { display: grid; gap: 2px; }
-.calx .kpi b { font-size: 24px; font-weight: 500; order: 0; }
+.calx .dk-i b { font-size: 24px; font-weight: 500; order: 0; }
 .calx .kpi span:not(.sico) { font-size: 14px; color: var(--cx-text); font-weight: 450; }
 .calx .kpi small { font-size: 13px; color: var(--cx-muted); }
 .calx .sico { width: 40px; height: 40px; border-radius: 12px; }
@@ -2899,7 +2899,7 @@ button.sy-main:hover { background: var(--hover); }
 .ana2 { --c1: #1baf7a; --c2: #2a78d6; --c3: #eb6834; display: grid; gap: 16px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ana2 { --c1: #199e70; --c2: #3987e5; --c3: #d95926; } }
 :root[data-theme="dark"] .ana2 { --c1: #199e70; --c2: #3987e5; --c3: #d95926; }
-.ana2 .kpi b { font-size: 24px; }
+.ana2 .dk-i b { font-size: 24px; }
 .ana2 .dotk.c1 { background: var(--c1); } .ana2 .dotk.c2 { background: var(--c2); } .ana2 .dotk.c3 { background: var(--c3); }
 .wchart { width: 100%; height: auto; display: block; }
 .wchart rect.c1 { fill: var(--c1); } .wchart rect.c2 { fill: var(--c2); } .wchart rect.c3 { fill: var(--c3); }
@@ -3984,3 +3984,50 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .past-row .what b { font-weight: 500; font-size: 14px; }
 .past-row .what span { color: var(--muted); font-size: 13px; }
 .h-detail { grid-template-columns: 92px minmax(0, 1fr); }
+
+/* v50: dashboard first, calm color. One accent for the primary action, red only for what's broken. */
+.av:not(.cand), .team-key, .tdot, .label i, .handle, .st-ico, .doing, .readpill, .stackav { filter: grayscale(1); }
+.qa-r.k-concern .qa-k { color: var(--muted); }
+:root { --gc-in: var(--ink); }
+.gc-bubble.in { box-shadow: none; }
+.vpill { background: var(--soft) !important; color: var(--ink) !important; gap: 6px; }
+.vpill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.vpill.pass::before { background: var(--ok); }
+.vpill.mixed::before { background: var(--amber); }
+.vpill.fail::before { background: var(--red); }
+.ib-k, .ib-k.invite, .ib-k.late, .ib-k.decide, .ib-k.call { background: var(--soft); color: var(--muted); }
+.ib-k.bot { background: var(--soft); color: var(--red); }
+.ib-gh.bot { color: var(--ink); }
+.blk.fail .blk-ico, .blk.wait .blk-ico { background: var(--soft); }
+.blk.wait .blk-ico { color: var(--muted); }
+
+/* the dashboard strip */
+.dk { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 4px 16px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); overflow: hidden; }
+.dk-i { display: grid; gap: 2px; padding: 12px 16px; border-left: 1px solid var(--line); }
+.dk-i:first-child { border-left: 0; }
+.dk-i b { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.dk-i span { color: var(--muted); font-size: 12.5px; }
+.cx-bar + .dk { margin-top: 12px; }
+
+/* calm rows and cards: name, what's happening, who has it */
+.trow.arow2.calm { grid-template-columns: 14px 16px minmax(0, 1fr) minmax(120px, 240px) 28px 36px; column-gap: 12px; }
+.trow.arow2.calm .st-ico { display: grid; place-items: center; }
+.doing-t { color: var(--muted); font-size: 13px; }
+.board .card.calm { display: grid; gap: 3px; padding: 11px 12px; }
+.board .card.calm .name { font-size: 14px; }
+.board .card.calm .hl { font-size: 12.5px; color: var(--muted); margin: 0; }
+.cfoot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+.cfoot .av, .cfoot .bot .av { width: 20px; height: 20px; font-size: 8px; }
+.cfoot .stackav > :not(:first-child) { display: none; }
+
+/* Inbox rows carry no buttons; the reader has the one action, and Grokbot does the rest */
+.ib-t2 { color: var(--faint); font-size: 12.5px; white-space: nowrap; }
+.askbar { display: flex; align-items: center; gap: 10px; width: 100%; height: 42px; margin: 12px 0 4px; padding: 0 14px 0 8px; border: 1px solid var(--line); border-radius: 21px; color: var(--faint); font-size: 13.5px; text-align: left; transition: border-color 0.12s, color 0.12s; }
+.askbar:hover { border-color: var(--line-strong); color: var(--muted); }
+.askbar .bot .av { width: 26px; height: 26px; font-size: 10px; }
+.tk-acts .cx-btn .bot .av { width: 18px; height: 18px; font-size: 7px; }
+.tk-acts .cx-btn .bot > i { display: none; }
+.gc { --gc-in: var(--ink); }
+.rc-talk i.c { background: var(--ink) !important; }
+.rc-talk i.v { background: var(--line-strong) !important; }
+.sugg { background: var(--soft) !important; color: var(--muted) !important; }

@@ -584,28 +584,22 @@ const COLS = [
 const picked = (state.picked = new Set());
 // A Pipeline row works like a Linear issue row: click anywhere to open it, or click a property to change it.
 function arow(a) {
-  const c = court(a), ls = labelsOf(a);
-  return `<div class="trow arow2 ${state.focus === a.id ? "focus" : ""} ${picked.has(a.id) ? "picked" : ""}" data-tid="${a.id}" data-ctx="${a.id}" data-act="openRow" data-id="${a.id}" role="link" tabindex="-1" aria-label="Open ${esc(a.name)}">
+  const c = court(a);
+  return `<div class="trow arow2 calm ${state.focus === a.id ? "focus" : ""} ${picked.has(a.id) ? "picked" : ""}" data-tid="${a.id}" data-ctx="${a.id}" data-act="openRow" data-id="${a.id}" role="link" tabindex="-1" aria-label="Open ${esc(a.name)}">
     <button class="check" data-act="pick" data-id="${a.id}" aria-label="Select ${esc(a.name)}" title="Select (X)"></button>
-    <button class="prop-btn" data-act="menuPri" data-id="${a.id}" aria-label="Priority: ${PRIORITIES[a.pri || 0].name}" title="Priority: ${PRIORITIES[a.pri || 0].name} (P)">${priIcon(a.pri)}</button>
-    <span class="tid">${handle(a)}</span>
-    <button class="prop-btn" data-act="menuStatus" data-id="${a.id}" aria-label="Status: ${STATES[a.state].name}" title="${STATES[a.state].name}. Change status (S)">${stIcon(a.state)}</button>
+    <span class="st-ico" title="${STATES[a.state].name}">${stIcon(a.state)}</span>
     <span class="title"><b data-hc="a:${a.id}">${esc(a.name)}</b><span class="hl">${esc(a.hl)}</span></span>
-    <button class="labels" data-act="menuLabels" data-id="${a.id}" title="Labels (L)" aria-label="Labels">${ls.length ? ls.slice(0, 2).map(labelChip).join("") : `<span class="label add">${ico("plus")}Label</span>`}</button>
-    <span class="doing ${STATES[a.state].tone}"><span class="trunc">${esc(doing(a))}</span></span>
-    <button class="prop-btn team" data-act="menuTeam" data-id="${a.id}" aria-label="Team: ${a.team ? TEAMS[a.team].name : "none"}" title="${a.team ? `Team: ${TEAMS[a.team].name}` : "Send to a team"} (A)">${a.team ? teamKey(a.team) : `<span class="team-key none"></span>`}</button>
+    <span class="doing-t trunc">${esc(doing(a))}</span>
     <span class="courtcell" title="With ${esc(c.label || "nobody")}">${c.av}</span>
     <span class="when" title="Last update ${esc(fmtWhen(a.when))}">${ago(a.when)}</span>
   </div>`;
 }
 function card(a) {
   const c = court(a);
-  return `<div class="card" draggable="true" data-tid="${a.id}" data-ctx="${a.id}" data-act="openRow" data-id="${a.id}">
-    <div class="top"><span class="tid">${handle(a)}</span><span class="grow"></span><button class="prop-btn" data-act="menuPri" data-id="${a.id}" title="Priority: ${PRIORITIES[a.pri || 0].name}" aria-label="Priority">${priIcon(a.pri)}</button><span title="With ${esc(c.label || "nobody")}">${c.av}</span></div>
+  return `<div class="card calm" draggable="true" data-tid="${a.id}" data-ctx="${a.id}" data-act="openRow" data-id="${a.id}">
     <span class="name" data-hc="a:${a.id}">${esc(a.name)}</span>
     <div class="hl">${esc(a.hl)}</div>
-    <div class="row">${a.team ? `<span class="label">${teamDot(a.team)}${TEAMS[a.team].name}</span>` : ""}${labelsOf(a).slice(0, 1).map(labelChip).join("")}${a.tb && a.tb.state === "done" ? `<span class="label" title="Testbench score">${CH.testbench}${tbScore(a)}</span>` : ""}</div>
-    ${a.state === "new" ? "" : `<div class="doing ${STATES[a.state].tone}"><span class="trunc">${esc(doing(a))}</span></div>`}
+    <div class="cfoot"><span class="trunc">${esc(doing(a))}</span><span title="With ${esc(c.label || "nobody")}">${c.av}</span></div>
   </div>`;
 }
 function scoped() {
@@ -640,6 +634,7 @@ function historyPage() {
   return `<div class="bar"><div class="crumbs">${ico("people")}<b>Pipeline</b></div>${pipeTabs("history", xs.length)}<span class="spacer"></span><a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<button class="tab ${state.team === k ? "on" : ""}" data-act="hTeam" data-v="${k}">${n}</button>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
+  ${(() => { const hired = xs.filter((h) => h.outcome === "Hired").length; return statStrip([{ n: xs.length.toLocaleString(), label: "Closed applications" }, { n: hired, label: "Hired" }, { n: `${xs.length ? ((hired / xs.length) * 100).toFixed(1) : 0}%`, label: "Hire rate" }, { n: `${median(xs.map((h) => Math.round((h.closed - h.applied) / DAY)))}d`, label: "Median time to close" }]); })()}
   <div class="h-filters">${chip("outcome", "Outcome", f.outcome)}${chip("role", "Role", f.role && ROLES[f.role].title)}${chip("src", "Source", f.src)}${chip("period", "Any time", f.period && f.period !== "all" ? H_PERIODS.find((p) => p[0] === f.period)[1] : "")}
     ${any ? `<button class="linkish" data-act="hClear">Clear</button>` : ""}<span class="grow"></span>${act ? `<a class="also in" href="#all">${act} active ${act === 1 ? "match" : "matches"}</a>` : ""}</div>
   <div class="scroll" id="scroller"><div class="htable" role="table">
@@ -666,6 +661,9 @@ function openHist(id) {
       ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
     submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
 }
+// A dashboard row of numbers: what's true right now, read at a glance.
+const statStrip = (xs) => `<div class="dk">${xs.map((x) => `<div class="dk-i ${x.tone || ""}"><b>${x.n}</b><span>${esc(x.label)}</span></div>`).join("")}</div>`;
+const thisWeek = (t) => t && t >= dayStart(Date.now()) - new Date().getDay() * DAY && t < dayStart(Date.now()) + (7 - new Date().getDay()) * DAY;
 function applicantsPage() {
   const tk = state.team;
   const list = scoped();
@@ -692,6 +690,7 @@ function applicantsPage() {
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
+  ${statStrip([{ n: list.length.toLocaleString(), label: "Active" }, { n: list.filter((a) => STATES[a.state].court === "you").length, label: "Waiting on you" }, { n: list.filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: `${median(list.map(dayN))}d`, label: "Median time open" }])}
   ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#history">${ico("search")}${n.toLocaleString()} past application${n === 1 ? "" : "s"} also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
   ${picked.size ? `<div class="bulk"><span class="n">${picked.size} selected</span>
@@ -1895,7 +1894,7 @@ function ibRow(x, sel) {
     <span class="ib-l1"><span class="trunc ib-what">${esc(i.what)}</span></span>
     <span class="ib-l2 trunc"><span class="ib-who">${i.who}${esc(i.whoName)}</span>${i.whoName === a.name || i.k === "decide" ? "" : `<i>·</i><b data-hc="a:${a.id}">${esc(a.name)}</b>`}<i>·</i><span class="trunc">${esc(i.why || "")}</span></span>
     <span class="ib-act">${done ? `<span class="ib-how">${esc(x.how || "Done")} ${agoText(x.at)}</span><button class="icon-btn" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move back to Inbox">${ico("inbox")}</button>`
-      : `<button class="btn sm ${i.k === "decide" ? "" : "primary"}" data-act="${i.act.a}" data-id="${i.act.id}">${esc(i.act.label)}</button>`}</span>
+: `<span class="ib-t2">${ago(i.at)}</span>`}</span>
   </div>`;
 }
 const TRAY = `<svg class="ib-tray" viewBox="0 0 64 64" aria-hidden="true"><rect x="9" y="6" width="46" height="46" rx="10"/><path d="M9 34h13.5c1.4 0 2.5 1.1 2.5 2.5v.5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-.5c0-1.4 1.1-2.5 2.5-2.5H55"/><path d="M14 52.5c0 3 2.2 5.5 5 5.5h26c2.8 0 5-2.5 5-5.5"/></svg>`;
@@ -1914,13 +1913,13 @@ function blockCard(r, withRun = true) {
 }
 // The issue's fix comes first: the broken step, the unsent draft, the reminder, or the decision.
 function issueCard(a, i) {
-  if (i.run && (i.k === "bot" || (i.k === "late" && i.run.kind === "Get the read"))) return blockCard(i.run);
+  if (i.run && (i.k === "bot" || (i.k === "late" && i.run.kind === "Get the read"))) return blockCard(i.run, false);
   if (i.k === "invite") {
     const iv = PEOPLE[a.iv];
     return `<section class="draft-card"><div class="dc-head"><span class="ib-k invite">${ico("mail")}</span><div><b>Invite drafted in ${esc(possessive(first(a.iv)))} Gmail</b><span>Waiting for ${esc(first(a.iv))} to send it · ${dur(i.late)}</span></div></div>
       <dl class="dc-mail"><dt>From</dt><dd>${esc(iv.name)} &lt;${esc(first(a.iv).toLowerCase())}@meridian.com&gt;</dd><dt>To</dt><dd>${esc(a.name)} &lt;${esc(emailOf(a))}&gt;</dd><dt>Subject</dt><dd>Interview with Meridian: ${esc(ROLES[a.role].title)}</dd></dl>
       <p class="dc-body">Hi ${esc(first2(a))}, would either of these work for a first conversation with me? ${esc((a.slots || []).join(" or "))}. Pick one and it goes on both calendars.</p>
-      <div class="blk-acts"><button class="btn sm ghost" data-act="remindIv" data-id="${a.id}">Remind ${esc(first(a.iv))}</button><button class="btn sm primary" data-act="sendInvite" data-id="${a.id}">Send invite</button></div></section>`;
+      <div class="blk-acts"><button class="btn sm primary" data-act="sendInvite" data-id="${a.id}">Send invite</button></div></section>`;
   }
   if (i.k === "late") return `<section class="blk wait"><span class="blk-ico">${ico("clock")}</span>
     <div class="blk-main"><b>No start on the Testbench</b><span>${esc(i.why)}</span></div>
@@ -1938,6 +1937,7 @@ function ibReader(a) {
     <div class="r-scroll" id="scroller"><div class="ib-read">
       <header class="ib-head"><div class="grow"><h1>${esc(i ? i.what : a.name)}</h1><p><span data-hc="a:${a.id}">${esc(a.name)}</span> · ${esc(ROLES[a.role].title)}</p></div></header>
       ${done ? `<section class="blk ok"><span class="blk-ico">${ico("check")}</span><div class="blk-main"><b>${esc(c.how)}</b><span>${agoText(c.at)}</span></div></section>` : i ? issueCard(a, i) : nowPanel(a)}
+      ${done ? "" : `<button class="askbar" data-act="askGrok" data-id="${a.id}">${botAv(ME)}<span>Ask your Grokbot to do something else for ${esc(first2(a))}</span></button>`}
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
@@ -1950,7 +1950,8 @@ function inboxPage() {
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
   if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
-  return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
+  const kp = f === "all" ? statStrip([{ n: left, label: "Need you", tone: left ? "" : "ok" }, { n: queue().length, label: "New applicants" }, { n: everyone().filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: RUNS.filter((r) => r.end && r.status === "done" && r.end >= dayStart(Date.now())).length, label: "Grokbot tasks done today" }]) : "";
+  return `${head}${kp}<div class="ib-wrap ${sel ? "has-sel" : ""}">
     <div class="ib-col">
       ${f === "done" ? `` : ""}
       <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
@@ -2113,7 +2114,7 @@ function triagePage() {
     <div class="reader" id="reader">
       <header class="tk-top">${candAv(a, "xl")}
         <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
-        <div class="tk-acts"><button class="cx-btn" data-act="emailCand" data-id="${a.id}">${ico("mail")}Email</button><button class="cx-btn" data-act="menuStatus" data-id="${a.id}">Move to<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
+        <div class="tk-acts"><button class="cx-btn" data-act="askGrok" data-id="${a.id}">${botAv(ME)}Ask Grokbot</button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
       </header>
       <div class="tk-meta"><span class="label">${esc(ROLES[a.role].title)}</span>${labelsOf(a).map(labelChip).join("")}<button class="label add" data-act="menuLabels" data-id="${a.id}">${ico("plus")}Tag</button>
 </div>
@@ -2416,7 +2417,9 @@ function interviewsPage(selKey) {
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
   const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
+  const reads = xs.filter((x) => x.v !== "pending");
   return `${head}
+  ${statStrip([{ n: xs.length, label: "Interviews" }, { n: reads.length, label: "Reads in" }, { n: `${reads.length ? Math.round((reads.filter((x) => x.v === "pass").length / reads.length) * 100) : 0}%`, label: "Pass rate" }, { n: xs.length - reads.length, label: "Waiting on a read" }])}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
     <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
         <span class="ivr-av">${candAv(x.a, "lg")}</span>
@@ -2892,15 +2895,18 @@ function toast(msg, { undo, open } = {}) {
   setTimeout(() => { if (toast.undo === fn) toast.undo = null; if (G && !calm() && el.isConnected) { G.to(el, { opacity: 0, y: 8, duration: 0.22, ease: "power2.in", onComplete: () => el.remove() }); setTimeout(() => el.remove(), 500); } else el.remove(); }, 6000);
 }
 // ⌘K: jump anywhere, find anyone, and act on the ticket you're on.
-function openPalette() {
+function openPalette(ctx) {
   closeLayer();
-  const cur = state.route.name === "t" ? A[state.route.id] : null;
+  const cur = ctx ? A[ctx] : state.route.name === "t" ? A[state.route.id] : null;
   const acts = cur ? [
     ...Object.keys(TEAMS).filter(() => isOpen(cur)).map((k) => ({ sec: "This applicant", label: `Send ${cur.name} to ${TEAMS[k].name}`, icon: teamKey(k), run: () => (cur.state === "judgment" && cur.read ? assign(cur, k, (cur.round || 1) + 1) : assign(cur, k)) })),
     ...[1, 2, 3, 4, 0].map((p) => ({ sec: "This applicant", label: `Set priority: ${PRIORITIES[p].name}`, icon: priIcon(p), run: () => setPri(cur, p) })),
     ...(cur.state === "judgment" ? [{ sec: "This applicant", label: "Move to offer…", icon: stIcon("offer"), run: () => openOffer(cur) }, { sec: "This applicant", label: "Reject…", icon: stIcon("rejected"), run: () => openReject(cur) }] : []),
   ] : [];
+  // Everything in the Inbox can be handed to a Grokbot from here.
+  const grok = inboxRows().filter((x) => x.inInbox && x.iss.k !== "decide" && (!cur || x.a.id === cur.id)).map((x) => ({ sec: "Ask Grokbot", label: `${x.iss.act.label}: ${x.a.name}`, sub: x.iss.what, icon: botAv(ME), run: () => ACT[x.iss.act.a]({ dataset: { id: x.iss.act.id } }) }));
   const all = [
+    ...grok,
     ...acts,
     { sec: "Go to", label: "Inbox", sub: `${unreadCount()} unread`, icon: ico("inbox"), hint: "G I", run: () => go("inbox") },
     { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
@@ -2921,13 +2927,14 @@ function openPalette() {
   ];
   const el = document.createElement("div");
   el.className = "overlay";
-  el.innerHTML = `<div class="palette">${cur ? `<div class="ctx"><span class="chip">${candAv(cur)}${esc(cur.name)}</span></div>` : ""}<input placeholder="Type a command or search" aria-label="Command menu"><div class="res"></div><div class="foot"><span><span class="kbd">↑</span><span class="kbd">↓</span> move</span><span><span class="kbd">↵</span> run</span><span><span class="kbd">esc</span> close</span></div></div>`;
+  el.innerHTML = `<div class="palette">${cur ? `<div class="ctx"><span class="chip">${candAv(cur)}${esc(cur.name)}</span></div>` : ""}<input placeholder="Search, or ask your Grokbot" aria-label="Command menu"><div class="res"></div><div class="foot"><span><span class="kbd">↑</span><span class="kbd">↓</span> move</span><span><span class="kbd">↵</span> run</span><span><span class="kbd">esc</span> close</span></div></div>`;
   $("#layer").appendChild(el);
   palette = { hi: 0, items: all };
   const input = $("input", el);
   palette.draw = () => {
     const q = input.value.toLowerCase().trim();
-    palette.items = all.filter((x) => !q || `${x.label} ${x.sub || ""}`.toLowerCase().includes(q)).slice(0, q ? 12 : 16);
+    palette.items = all.filter((x) => !q || `${x.label} ${x.sub || ""}`.toLowerCase().includes(q)).slice(0, q ? 11 : 16);
+    if (q.length > 2) palette.items.push({ sec: "Ask Grokbot", label: `“${input.value.trim()}”`, sub: cur ? `for ${cur.name}` : "", icon: botAv(ME), run: () => { if (cur) ev(cur, Date.now(), `bot:${ME}`, `On it: ${esc(input.value.trim())}`); toast("Your Grokbot is on it. It'll show up in Grokbot Activity."); } });
     palette.hi = Math.min(palette.hi, Math.max(0, palette.items.length - 1));
     let sec = "";
     $(".res", el).innerHTML = palette.items.map((x, i) => `${x.sec !== sec ? `<div class="sec">${esc((sec = x.sec))}</div>` : ""}<button class="opt ${i === palette.hi ? "hi" : ""}" data-i="${i}">${x.icon || ""}<span class="grow">${esc(x.label)} ${x.sub ? `<span class="faint">${esc(x.sub)}</span>` : ""}</span>${x.hint ? `<span class="hint">${esc(x.hint)}</span>` : ""}</button>`).join("") || `<div class="empty">Nothing found</div>`;
@@ -2974,6 +2981,7 @@ function openReject(a) {
 const idsFor = (el) => (picked.size && picked.has(el.dataset.id) ? [...picked] : [el.dataset.id]);
 const ACT = {
   palette: () => openPalette(),
+  askGrok: (el) => openPalette(el.dataset.id),
   help: () => openHelp(),
   openDrawer: () => $("#app").classList.add("drawer"),
   closeDrawer: () => $("#app").classList.remove("drawer"),
