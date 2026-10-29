@@ -4288,6 +4288,113 @@ a.pt-n:hover { border-color: var(--line-strong); }
 @media (min-width: 768px) { .ib-top:not(:has(.cx-btn)) { display: none; } }
 .sw { user-select: none; -webkit-user-select: none; }
 
+/* v59 Home: Recruiting Overview. White cards on the off-white page, one accent, red only past a target. */
+.hm-bar .chip { height: 32px; }
+.hm-bar .chip.on { background: var(--sel); color: var(--ink); border-color: transparent; }
+.hm-nav { display: flex; gap: var(--s1); padding: var(--s3) var(--s6); border-bottom: 1px solid var(--line); }
+.hm-nav a { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--muted); font-size: 13.5px; }
+.hm-nav a:hover { background: var(--hover); color: var(--ink); }
+.hm-nav a.on { background: var(--sel); color: var(--ink); font-weight: 500; }
+.hm { display: grid; gap: var(--s4); padding: var(--s6); }
+.hm-grid6 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
+.hm-row { display: grid; gap: var(--s4); align-items: start; }
+.hm-row.two { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.hm-row.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.hm-card, .hm-box { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; }
+.hm-card { display: grid; gap: var(--s2); padding: var(--s5); }
+.hm-l { width: fit-content; color: var(--muted); font-size: 13.5px; text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; cursor: help; }
+.hm-v { display: flex; align-items: baseline; gap: var(--s2); }
+.hm-v b { font-size: 28px; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.hm-d { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.hm-d.good { color: var(--ok); }
+.hm-d.bad { color: var(--red); }
+.hm-bars { margin-left: auto; align-self: flex-end; display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+.hm-bars i { width: 5px; border-radius: 2px; background: var(--soft-strong); }
+.hm-bars i.now { background: var(--muted); }
+.hm-card.over .hm-bars i.now { background: var(--red); }
+.hm-f { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-top: var(--s1); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.hm-t { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 13px; border: 1px dashed var(--line-strong); color: var(--faint); font-size: 12.5px; }
+.hm-t.set { border-style: solid; color: var(--muted); background: var(--soft); border-color: transparent; }
+.hm-t:hover { color: var(--ink); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+.hm-go { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.hm-go .ico { width: 13px; height: 13px; }
+.hm-go:hover { text-decoration: underline; text-underline-offset: 3px; }
+.hm-box { padding: var(--s5); display: grid; gap: var(--s2); }
+.hm-h { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s1); }
+.hm-h b { font-size: 14.5px; font-weight: 600; }
+.hm-h b[title] { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; cursor: help; }
+.hm-h > span { color: var(--faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.hm-h .hm-go { margin-left: auto; }
+.hm-none { margin: 0; color: var(--muted); font-size: 13.5px; }
+/* bottlenecks */
+.hm-bn { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: var(--s3); align-items: center; padding: var(--s3); margin: 0 calc(-1 * var(--s3)); border-radius: 10px; }
+.hm-bn:hover { background: var(--hover); }
+.hm-ic { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: var(--soft); color: var(--muted); }
+.hm-ic .ico { width: 15px; height: 15px; }
+.hm-bn.over .hm-ic { color: var(--red); }
+.hm-bn-m { display: grid; gap: 2px; min-width: 0; }
+.hm-bn-m b { font-size: 14px; font-weight: 500; }
+.hm-bn-m span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+/* new applications by role */
+.hm-role { display: grid; gap: 6px; padding: 6px 0; }
+.hm-role div { display: flex; justify-content: space-between; font-size: 13.5px; }
+.hm-role b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-role i { height: 6px; border-radius: 3px; background: var(--accent); }
+/* time in stage */
+.hm-st-head, .hm-st { display: grid; grid-template-columns: minmax(0, 1.4fr) 90px minmax(0, 1.6fr) 80px; gap: var(--s3); align-items: center; }
+.hm-st-head { padding: 0 var(--s2) var(--s1); color: var(--faint); font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.hm-st { min-height: 44px; padding: 0 var(--s2); border-radius: 8px; font-size: 13.5px; text-align: left; }
+.hm-st:not([disabled]):hover, .hm-st.on { background: var(--hover); }
+.hm-st[disabled] { color: var(--faint); cursor: default; }
+.hm-st > span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+.hm-st .ico { width: 13px; height: 13px; color: var(--faint); }
+.hm-st b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-st-w { display: flex; align-items: center; gap: var(--s2); }
+.hm-st-w i { height: 8px; min-width: 2px; border-radius: 4px; background: var(--ink); opacity: 0.75; }
+.hm-st-w em, .hm-st-max { font-style: normal; color: var(--muted); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hm-st-list { display: grid; margin: 0 0 var(--s2) 22px; padding-left: var(--s3); border-left: 1px solid var(--line); }
+.hm-st-list a { display: grid; grid-template-columns: 22px auto minmax(0, 1fr) auto; gap: var(--s2); align-items: center; padding: 6px var(--s2); border-radius: 6px; font-size: 13px; }
+.hm-st-list a:hover { background: var(--hover); }
+.hm-st-list .av { width: 22px; height: 22px; font-size: 8.5px; }
+.hm-st-list b { font-weight: 500; }
+.hm-st-list span { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-st-list em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hm-more { display: inline-flex; align-items: center; gap: 6px; padding: 6px var(--s2); color: var(--accent); font-size: 13px; }
+.hm-more .ico { width: 12px; height: 12px; }
+/* lists: offers, scorecards */
+.hm-li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; gap: var(--s3); align-items: center; padding: var(--s2) 0; font-size: 13.5px; }
+a.hm-li:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.hm-li .av { width: 28px; height: 28px; font-size: 10px; }
+.hm-li > span { display: grid; min-width: 0; }
+.hm-li b { font-weight: 500; }
+.hm-li > span > span { color: var(--muted); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-li em { font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hm-li .btn.sm { height: 26px; }
+.hm-quiet .hm-h b { font-weight: 500; color: var(--muted); }
+/* interviewers */
+.hm-iv { display: grid; grid-template-columns: 24px 64px minmax(0, 1fr) 44px 44px; gap: var(--s2); align-items: center; padding: 5px 0; font-size: 13.5px; }
+.hm-iv .av { width: 24px; height: 24px; font-size: 9px; }
+.hm-iv-b { height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.hm-iv-b i { display: block; height: 100%; border-radius: 4px; background: var(--muted); }
+.hm-iv em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.hm-iv-o { color: var(--red); font-size: 12px; text-align: right; }
+/* outcomes: pending is its own thing, not a fail */
+.hm-oc-bar { display: flex; gap: 2px; height: 10px; margin: var(--s1) 0 var(--s2); }
+.hm-oc-bar i { border-radius: 5px; min-width: 6px; }
+.hm-oc-bar i.pass, .hm-oc-k.pass { background: var(--ok); }
+.hm-oc-bar i.mixed, .hm-oc-k.mixed { background: var(--amber); }
+.hm-oc-bar i.fail, .hm-oc-k.fail { background: var(--red); }
+.hm-oc-bar i.pending { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.hm-oc { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 44px; gap: var(--s2); align-items: center; padding: 5px 0; font-size: 13.5px; }
+.hm-oc-k { width: 10px; height: 10px; border-radius: 50%; display: grid; place-items: center; }
+.hm-oc-k.pending { width: 16px; height: 16px; background: transparent; color: var(--muted); }
+.hm-oc-k.pending .ico { width: 13px; height: 13px; }
+.hm-oc b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.hm-oc em { font-style: normal; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .hm-grid6, .hm-row.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hm-row.two { grid-template-columns: minmax(0, 1fr); } }
+.hm-st-list a.hm-more { display: inline-flex; grid-template-columns: none; width: fit-content; }
+
 </style>
 
 <div class="app" id="app">
@@ -4563,6 +4670,7 @@ const P = {
   route: "M4 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM12 5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM4 10.5V8a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2",
   compose: "M9.5 3.5h-6v9h9v-6M7 9l.4-2L12.5 2l1.5 1.5L9 8.6Z",
   grid: "M2.5 2.5h4.5v4.5H2.5ZM9 2.5h4.5v4.5H9ZM2.5 9h4.5v4.5H2.5ZM9 9h4.5v4.5H9Z",
+  home: "M2.5 7.2 8 2.8l5.5 4.4V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5Z",
   db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
   chevU: "M4 10l4-4 4 4",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
@@ -5012,7 +5120,7 @@ function personName() { for (let i = 0; i < 20; i++) { const n = `${pickOne(FIRS
 const BULK = [];
 for (let i = 0; i < 264; i++) {
   const role = roleOf(), team = ROLES[role].team, st = weighted([["testbench", 22], ["routing", 6], ["asked", 10], ["scheduling", 12], ["scheduled", 22], ["debrief", 8], ["judgment", 10]]);
-  const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * 18 * DAY) - HR;
+  const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * { testbench: 6, routing: 2, asked: 2, scheduling: 3, scheduled: 9, debrief: 4, judgment: 5 }[st] * DAY) - HR;
   const score = 55 + Math.floor(rnd() * 44);
   const a = { id: `APP-${2001 + i}`, bulk: true, pri: weighted([[0, 3], [1, 1], [2, 3], [3, 4], [4, 2]]), name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, src: srcOf(role), loc: pickOne(CITIES), yrs: 1 + Math.floor(rnd() * 12), links: [], state: st, when, sum: [], exp: [],
     labels: rnd() < 0.08 ? ["Competing offer"] : rnd() < 0.08 ? ["Relocating"] : [] };
@@ -5201,6 +5309,124 @@ function crmAsk(text) {
         <ol>${show.map((h) => `<li><b>${esc(h.name)}</b> · ${esc(ROLES[h.role].title)} · ${esc(h.outcome)}${h.score ? ` · ${h.score}/100` : ""}</li>`).join("")}</ol>
         ${xs.length > show.length ? `<p class="slk-more">and ${(xs.length - show.length).toLocaleString()} more in the attached sheet · <u>Open in tATS</u></p>` : ""}</div></div></div>`,
     submit: "Post to Slack", onSubmit: (v) => { toast(`Posted ${xs.length.toLocaleString()} candidates to ${v.ch === "A DM to me" ? "your DMs" : v.ch}`); state.crmPick = new Set(); } });
+}
+/* ---------------- Home: Recruiting Overview. Where are we slow, and where do we go to fix it? ---------------- */
+// Every number links to the page where the work gets done. Targets are yours to set; none are assumed.
+const THR_KEY = "tats.thr.v1";
+try { state.thr = JSON.parse(localStorage.getItem(THR_KEY) || "{}"); } catch { state.thr = {}; }
+const saveThr = () => { try { localStorage.setItem(THR_KEY, JSON.stringify(state.thr)); } catch {} };
+const H_RANGES = [["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 90 days"]];
+const homeDays = () => +(state.homeRange || 7);
+const homeScope = (a) => (!state.homeTeam || (a.team || ROLES[a.role].team) === state.homeTeam) && (!state.homeRole || a.role === state.homeRole);
+const hrs = (ms) => ms / HR;
+const fmtHrs = (h) => (h >= 48 ? `${(h / 24).toFixed(1).replace(/\.0$/, "")}d` : h >= 1 ? `${Math.round(h)}h` : `${Math.max(1, Math.round(h * 60))}m`);
+// Seven points ending on today's value, the same on every load.
+function trend(k, v) { let h = [...k].reduce((n, c) => n * 31 + c.charCodeAt(0), 7) >>> 0; return Array.from({ length: 7 }, (_, i) => (i === 6 ? v : Math.max(0, v * (1 + 0.28 * Math.sin(i * 1.7 + (h % 9)) - 0.1 * ((6 - i) / 6) * ((h % 3) - 1))))); }
+// Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
+const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
+function homeMetrics() {
+  const act = everyone().filter((a) => isOpen(a) && homeScope(a));
+  const runsOf = (kind) => RUNS.filter((r) => r.kind === kind && homeScope(A[r.a]));
+  const took = (rs) => rs.map((r) => hrs((r.end || Date.now()) - r.start));
+  const review = queue().filter(homeScope).map((a) => hrs(Date.now() - a.when));
+  const sched = took(runsOf("Schedule the interview")).concat(act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)));
+  const cards = took(runsOf("Get the read")).concat(act.filter((a) => a.state === "debrief" && a.bulk).map((a) => hrs(Date.now() - a.when)));
+  const offers = OFFERS.filter((o) => homeScope(o.a)).map((o) => hrs(Date.now() - o.since)).concat([20, 31, 14]);
+  const stage = act.map((a) => hrs(Date.now() - a.when));
+  const from = NOW - homeDays() * DAY;
+  const apps = everyone().filter((a) => homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
+  return [
+    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", go: ["#triage", "Resolve in Applicant Tickets"] },
+    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", go: ["#triage", "Resolve in Applicant Tickets"] },
+    { k: "cards", label: "Time to submit scorecards", def: "From the interview ending to the interviewer's read coming in", v: median(cards), unit: "h", go: ["#interviews", "Open Interviews"] },
+    { k: "stage", label: "Time in stage", def: "How long active candidates have sat in their current stage", v: median(stage), unit: "h", go: ["#home~stages", "See waits by stage"] },
+    { k: "offers", label: "Time to approve offers", def: "From an offer being drafted to it being approved", v: median(offers), unit: "h", go: ["#home~offers", "See pending approvals"] },
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
+  ];
+}
+function metricCard(m) {
+  const t = state.thr[m.k], series = trend(m.k, m.v), prev = series[0] || 1, d = prev ? (m.v - prev) / prev : 0;
+  const good = m.unit === "n" ? d >= 0 : d <= 0;
+  const over = t != null && (m.unit === "n" ? m.v < t : m.v > t);
+  const max = Math.max(...series, 1);
+  return `<section class="hm-card ${over ? "over" : ""}">
+    <div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div>
+    <div class="hm-v"><b>${m.unit === "n" ? m.v.toLocaleString() : fmtHrs(m.v)}</b><span class="hm-d ${good ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span>
+      <span class="hm-bars" aria-hidden="true">${series.map((x, i) => `<i style="height:${Math.max(12, (x / max) * 100)}%" class="${i === 6 ? "now" : ""}"></i>`).join("")}</span></div>
+    <div class="hm-f"><button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${m.unit === "n" ? "Alert below" : "Target"} ${m.unit === "n" ? t : fmtHrs(t)}` : "Set a target"}</button>
+      <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
+  </section>`;
+}
+const H_STAGES = [["new", "Applied", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"], ["routing", "Finding an interviewer", (a) => a.state === "routing"], ["sched", "Scheduling", (a) => ["asked", "scheduling"].includes(a.state)], ["booked", "Interview booked", (a) => a.state === "scheduled"], ["debrief", "Waiting on a scorecard", (a) => a.state === "debrief"], ["judgment", "Your call", (a) => a.state === "judgment"]];
+function homePage(sub) {
+  const ms = homeMetrics(), act = everyone().filter((a) => isOpen(a) && homeScope(a));
+  const wait = (a) => Date.now() - a.when;
+  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
+  // Bottlenecks: real waits, oldest first, each with the page that clears it.
+  const q = queue().filter(homeScope), sch = act.filter((a) => ["asked", "scheduling"].includes(a.state)), deb = act.filter((a) => a.state === "debrief"), yc = act.filter((a) => a.state === "judgment");
+  const unsent = inboxRows().filter((x) => x.inInbox && x.iss.k === "invite" && homeScope(x.a));
+  const oldest = (xs) => xs.reduce((m, a) => Math.max(m, wait(a)), 0);
+  const bn = [
+    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in Applicant Tickets"] },
+    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in Applicant Tickets"] },
+    deb.length && { k: "cards", ico: "quote", what: `${deb.length} scorecard${deb.length === 1 ? "" : "s"} not submitted`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
+    yc.length && { k: "stage", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
+    OFFERS.length && { k: "offers", ico: "check", what: `${OFFERS.length} offer${OFFERS.length === 1 ? "" : "s"} waiting for approval`, why: `Oldest ${dur(Date.now() - Math.min(...OFFERS.map((o) => o.since)))}`, w: Date.now() - Math.min(...OFFERS.map((o) => o.since)), go: ["#home~offers", "See approvals"] },
+  ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
+  // Stages: how many, the typical wait, and who's waited longest.
+  const stages = H_STAGES.map(([k, n, f]) => { const xs = act.filter(f).sort((x, y) => wait(y) - wait(x)); return { k, n, xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
+  const maxMed = Math.max(...stages.map((x) => x.med), 1), open = state.homeStage;
+  // Follow-through: scorecards still out, and how fast each interviewer tends to submit.
+  const outCards = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
+  const ivs = Object.keys(PEOPLE).filter((id) => PEOPLE[id].team && (!state.homeTeam || PEOPLE[id].team === state.homeTeam)).map((id) => {
+    const mine = RUNS.filter((r) => r.kind === "Get the read" && r.bot === id).map((r) => hrs((r.end || Date.now()) - r.start));
+    const h = [...id].reduce((n, c) => n + c.charCodeAt(0), 0);
+    const med = mine.length ? median(mine.concat([(h % 30) + 4])) : (h % 30) + 4;
+    return { id, med, out: outCards.filter((o) => o.iv === id).length };
+  }).sort((x, y) => y.med - x.med);
+  const maxIv = Math.max(...ivs.map((x) => x.med), 1);
+  // Outcomes: passed, not passed, mixed (your call), and evaluations still pending, which are not failures.
+  const from = NOW - homeDays() * DAY;
+  const reads = everyone().filter((a) => homeScope(a) && a.read && a.when >= from - 3 * DAY);
+  const passed = reads.filter((a) => /yes|hire|strong/i.test(a.read.verdict)).length, mixed = reads.filter((a) => /mixed/i.test(a.read.verdict)).length;
+  const failed = reads.filter((a) => /^no/i.test(a.read.verdict)).length + HISTORY.filter((h) => homeScope(h) && h.outcome === "Rejected after interview" && h.closed >= from).length;
+  const pending = deb.length;
+  const oc = [["pass", "Passed", passed], ["mixed", "Mixed, your call", mixed], ["fail", "Not passed", failed], ["pending", "Pending evaluation", pending]];
+  const ocTotal = oc.reduce((n, x) => n + x[2], 0) || 1;
+  const offers = OFFERS.filter((o) => homeScope(o.a));
+  const roleCounts = Object.entries(ROLES).map(([k, r]) => [r.title, everyone().filter((a) => a.role === k && homeScope(a) && ((TRACE[a.id] || [])[0] || {}).at >= from).length + HISTORY.filter((h) => h.role === k && homeScope(h) && h.applied >= from).length]).filter((x) => x[1]).sort((x, y) => y[1] - x[1]);
+  const maxRole = Math.max(...roleCounts.map((x) => x[1]), 1);
+  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
+    ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}</div>
+  <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#view~referrals">Referrals</a></div>
+  <div class="scroll" id="scroller"><div class="hm">
+    <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
+    <div class="hm-row two">
+      <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
+        ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
+      <section class="hm-box"><div class="hm-h"><b title="Applications that came in during the period, by role">New applications by role</b></div>
+        ${roleCounts.map(([n, c]) => `<div class="hm-role"><div><span>${esc(n)}</span><b>${c}</b></div><i style="width:${(c / maxRole) * 100}%"></i></div>`).join("") || `<p class="hm-none">None in this period.</p>`}</section>
+    </div>
+    <div class="hm-row two">
+      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage, the typical wait and the longest">Time in stage</b><span>${act.length} active</span></div>
+        <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Typical wait</span><span>Longest</span></div>
+        ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
+            <span class="hm-st-w"><i style="width:${(x.med / maxMed) * 100}%"></i><em>${x.xs.length ? dur(x.med) : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
+          ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#all">All ${x.xs.length} in Pipeline${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
+      <section class="hm-box hm-quiet" id="hm-offers"><div class="hm-h"><b title="Drafted offers waiting for approval">Offer approvals</b><span>${offers.length} pending</span></div>
+        ${offers.map((o) => `<a class="hm-li" href="#t~${o.a.id}">${candAv(o.a)}<span><b>${esc(o.a.name)}</b><span>${esc(ROLES[o.a.role].title)} · ${esc(PEOPLE[o.by].name)}</span></span><em>${dur(Date.now() - o.since)}</em></a>`).join("") || `<p class="hm-none">No offers waiting.</p>`}</section>
+    </div>
+    <div class="hm-row three">
+      <section class="hm-box"><div class="hm-h"><b title="Interviews whose scorecard hasn't come in">Outstanding scorecards</b><span>${outCards.length}</span></div>
+        ${outCards.slice(0, 6).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">Every scorecard is in.</p>`}
+        ${outCards.length > 6 ? `<a class="hm-more" href="#interviews">All ${outCards.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
+      <section class="hm-box"><div class="hm-h"><b title="Typical time from interview to scorecard, slowest first">Time to submit, by interviewer</b></div>
+        ${ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")}</section>
+      <section class="hm-box"><div class="hm-h"><b title="Reads in the period. Pending isn't a fail: the scorecard hasn't come in yet.">Interview outcomes</b><a class="hm-go" href="#interviews">Interviews${ico("arrowR")}</a></div>
+        <div class="hm-oc-bar">${oc.filter((x) => x[2]).map(([k, , n]) => `<i class="${k}" style="flex:${n}"></i>`).join("")}</div>
+        ${oc.map(([k, n, c]) => `<div class="hm-oc"><span class="hm-oc-k ${k}">${k === "pending" ? ico("clock") : ""}</span><span>${n}</span><b>${c}</b><em>${Math.round((c / ocTotal) * 100)}%</em></div>`).join("")}</section>
+    </div>
+  </div></div>`;
 }
 function applicantsPage() {
   const tk = state.team;
@@ -6285,6 +6511,7 @@ function renderSide() {
       <button class="icon-btn" data-act="palette" title="Search (⌘K)" aria-label="Search">${ico("search")}</button>
       <button class="icon-btn sb-toggle" data-act="sbToggle" title="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar ([)" aria-label="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!state.sbCollapsed}">${ico("sidebar")}</button></div>
     <nav class="sb-group" aria-label="Inbox">
+      ${item("#home", ico("home"), "Home", r.name === "home")}
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", inboxLeft(), "", `${inboxLeft()} left to clear`)}
       ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
@@ -7381,7 +7608,8 @@ function botsPage(tab = "runs") {
 
 /* ---------------- routing, render ---------------- */
 function parseHash() {
-  const [name, a] = decodeURIComponent(location.hash.slice(1) || "inbox").split("~");
+  const [name, a] = decodeURIComponent(location.hash.slice(1) || "home").split("~");
+  if (name === "home") { if (a) setTimeout(() => $(`#hm-${a}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); return { name: "home" }; }
   if (name === "t" && A[a]) return { name: "t", id: a };
   if (name === "inbox") { if (A[a]) state.ibSel = a; return { name }; }
   if (name === "team" && TEAMS[a]) { state.team = a; state.savedView = null; return { name: "all" }; }
@@ -7421,7 +7649,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "home" ? homePage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420);
@@ -7697,6 +7925,21 @@ const ACT = {
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
+  homeStage: (el) => { state.homeStage = state.homeStage === el.dataset.k ? null : el.dataset.k; render(); },
+  homeFilter: (el) => {
+    const k = el.dataset.k;
+    const opts = k === "range" ? H_RANGES : k === "team" ? [["", "All teams"], ...Object.entries(TEAMS).map(([t, v]) => [t, v.name])] : [["", "All roles"], ...Object.entries(ROLES).map(([r, v]) => [r, v.title])];
+    const cur = k === "range" ? String(homeDays()) : k === "team" ? state.homeTeam || "" : state.homeRole || "";
+    openMenu(el, opts.map(([v, n]) => ({ id: v, label: n, checked: cur === v })), (o) => { if (k === "range") state.homeRange = o.id; else if (k === "team") state.homeTeam = o.id || null; else state.homeRole = o.id || null; render(); });
+  },
+  setThr: (el) => {
+    const k = el.dataset.k, m = homeMetrics().find((x) => x.k === k), cur = state.thr[k];
+    openForm({ title: m.label, sub: m.unit === "n" ? "Flag it when the count drops below this." : "Flag it when the typical time goes over this.", submit: "Save",
+      body: `<div class="fm-row"><label class="fm-f"><span>${m.unit === "n" ? "Alert below" : "Target"}</span><input name="v" type="number" min="0" step="any" value="${cur == null ? "" : m.unit === "n" ? cur : cur >= 48 ? +(cur / 24).toFixed(1) : +cur.toFixed(1)}" placeholder="${m.unit === "n" ? "e.g. 20" : "e.g. 2"}"></label>
+        ${m.unit === "n" ? "" : `<label class="fm-f"><span>Unit</span><select name="u"><option value="d" ${cur == null || cur >= 48 ? "selected" : ""}>Days</option><option value="h" ${cur != null && cur < 48 ? "selected" : ""}>Hours</option></select></label>`}</div>
+        ${cur != null ? `<label class="fm-check"><input type="checkbox" name="clear"> Remove this target</label>` : ""}`,
+      onSubmit: (v) => { if (v.clear || v.v === "") delete state.thr[k]; else state.thr[k] = m.unit === "n" ? +v.v : +v.v * (v.u === "h" ? 1 : 24); saveThr(); render(); } });
+  },
   crmView: (el) => { state.crmView = el.dataset.v; state.crmPg = 0; render(); },
   crmSort: (el) => { const s = state.crmSort; s.dir = s.k === el.dataset.k ? -s.dir : ["last", "score"].includes(el.dataset.k) ? -1 : 1; s.k = el.dataset.k; state.crmPg = 0; render(); },
   crmPage: (el) => { state.crmPg = (state.crmPg || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
