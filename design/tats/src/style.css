@@ -4153,3 +4153,33 @@ a.pt-n:hover { border-color: var(--line-strong); }
     50% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 95%, transparent), 0 0 0 6px color-mix(in srgb, var(--glow) 28%, transparent), 0 0 32px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
   }
 }
+
+/* v56: off-white surfaces, darker hairlines, and shading that says where one pane ends */
+:root {
+  --frame: #ededea;
+  --surface: #f7f7f4;
+  --paper: #fafaf8;
+  --raised: #ffffff;
+  --line: #e1e1dc;
+  --line-strong: #cfcfc9;
+  --soft: #efefeb;
+  --soft-strong: #e5e5e0;
+  --band: #f1f1ed;
+  --pane: #f3f3ef;
+  --hover: rgba(40, 35, 20, 0.045);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --pane: #18181b; } }
+:root[data-theme="dark"] { --pane: #18181b; }
+/* list on the left stays light; the reader is one shade down; cards inside it are white */
+.ib-col, .tk .mlist, .ivw-list { background: var(--paper); border-right: 1px solid var(--line-strong); }
+.ib-reader, .tk .reader, .ivw-read { background: var(--pane); }
+.ib-top { background: var(--pane); border-bottom-color: var(--line-strong); }
+.ib-read .blk, .ib-read .draft-card, .ib-read .askbar { background: var(--raised); }
+.ib-read .askbar { border-color: var(--line-strong); }
+.cx-bar, .bar { border-bottom: 1px solid var(--line); }
+.ib-bar { border-bottom-color: var(--line-strong); }
+/* Applicant Tickets: back to an email-style list */
+.tk .mrow { grid-template-columns: 36px minmax(0, 1fr); column-gap: 12px; row-gap: 2px; align-items: center; padding: 12px 12px; }
+.tk .mrow > .av { grid-row: 1 / 3; width: 36px; height: 36px; font-size: 12px; }
+.tk .mrow .m1, .tk .mrow .m2 { grid-column: 2; }
+.tk .mrow.sel { background: var(--sel); }

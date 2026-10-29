@@ -2060,6 +2060,7 @@ function triState(q) {
 function mrow(a, sel) {
   const tb = a.tb && a.tb.state === "done" ? ` · <span class="m-tb" title="Testbench score, better than ${a.tb.pct}% of applicants">Testbench ${tbScore(a)}</span>` : "";
   return `<button class="mrow ${sel ? "sel" : ""}" data-act="triSel" data-id="${a.id}" id="m-${a.id}">
+    ${candAv(a, "lg")}
     <span class="m1"><b class="trunc" data-hc="a:${a.id}">${esc(a.name)}</b><span class="mt">${ago(a.when)}</span></span>
     <span class="m2 trunc">${esc(ROLES[a.role].title)}${tb}</span>
   </button>`;
@@ -2142,12 +2143,8 @@ function triagePage() {
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
   return `${head}
-  <div class="inbox2 tk tk-solo ${state.dvFull ? "dv-full" : ""}">
-    <div class="tq" id="mlist">
-      <span class="tq-n"><b>${q.indexOf(a) + 1}</b> of ${q.length}</span>
-      <button class="icon-btn" data-act="triStep" data-d="-1" title="Previous (K)" aria-label="Previous applicant" ${q.indexOf(a) ? "" : "disabled"}>${ico("chevL")}</button><button class="icon-btn" data-act="triStep" data-d="1" title="Next (J)" aria-label="Next applicant" ${q.indexOf(a) < q.length - 1 ? "" : "disabled"}>${ico("chevR")}</button>
-      <div class="tq-strip">${q.map((x) => `<button class="tq-c ${x.id === a.id ? "on" : ""}" data-act="triSel" data-id="${x.id}" id="m-${x.id}" title="${esc(x.name)}, ${esc(ROLES[x.role].title)}">${candAv(x)}<span>${esc(x.name.split(" ")[0])}</span></button>`).join("")}</div>
-    </div>
+  <div class="inbox2 tk ${state.dvFull ? "dv-full" : ""}">
+    <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
     <div class="reader" id="reader">
       <header class="tk-top">${candAv(a, "xl")}
         <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
