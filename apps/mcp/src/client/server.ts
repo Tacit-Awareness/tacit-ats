@@ -90,7 +90,7 @@ const QUESTIONS_HELP =
   "uploads), and custom short_text, long_text, yes_no and select (with 2-50 options), each with a label " +
   "and required. Left out on a new post: name, email, and optional phone, LinkedIn and resume link.";
 
-export function buildClientHandler(member: ClientMember, source: "claude" | "chatgpt", deps: ClientHandlerDeps) {
+export function buildClientHandler(member: ClientMember, source: clientTools.ClientToolCtx["source"], deps: ClientHandlerDeps) {
   const db = member.db;
   const ctx: clientTools.ClientToolCtx = {
     actorId: member.actorId,

@@ -17,8 +17,11 @@ export type ClientToolCtx = {
   /** Tacit's id for the member's org (orgs.id). */
   orgId: string;
   accessLevel: AccessLevel;
-  /** Where the call came from, for the audit row. */
-  source: "claude" | "chatgpt";
+  /**
+   * Where the call came from, for the audit row: cli is tats, tacit-ats's
+   * command line (tacit-internal 20261029200000_client_cli_source).
+   */
+  source: "claude" | "chatgpt" | "cli";
 };
 
 export type ClientToolErrorCode = "not_found" | "forbidden" | "invalid" | "rate_limited";
