@@ -2393,7 +2393,7 @@ function recordings() {
       if (!last) read = { verdict: "Yes", senti: 0.7, by: r.bot, notes: ["Advanced to the next round"], quote: "Worth another round." };
       else if (r.end) read = a.read || (a.state === "rejected" ? { verdict: "No", senti: 0.28, by: r.bot, notes: ["Struggled to go past the first design", "Good communicator", "Not the depth this role needs"], quote: "Not the depth we need for this role." } : { verdict: "Yes", senti: 0.68, by: r.bot, notes: ["Clear, structured answers", "Owned past projects end to end", "Asked good questions about the team"], quote: "Solid. Yes." });
       const h = [...a.id].reduce((s, c) => s + c.charCodeAt(0), 0) + i;
-      out.push({ key: `${a.id}-${i + 1}`, a, iv: r.bot, round: i + 1, start, dur: 44 + (h % 12), read, v: verdictOf(read && read.verdict), run: r.id, cand: 52 + (h % 14) });
+      out.push({ key: `${a.id}-${i + 1}`, a, iv: r.bot, round: (PRIOR[a.id] || []).length + i + 1, start, dur: 44 + (h % 12), read, v: verdictOf(read && read.verdict), run: r.id, cand: 52 + (h % 14) });
     });
   }
   return out.sort((x, y) => y.start - x.start);
@@ -2416,9 +2416,7 @@ function interviewsPage(selKey) {
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
   const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
-  const reads = xs.filter((x) => x.v !== "pending");
   return `${head}
-  ${statStrip([{ n: xs.length, label: "Interviews" }, { n: reads.length, label: "Reads in" }, { n: `${reads.length ? Math.round((reads.filter((x) => x.v === "pass").length / reads.length) * 100) : 0}%`, label: "Pass rate" }, { n: xs.length - reads.length, label: "Waiting on a read" }])}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
     <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
         <span class="ivr-av">${candAv(x.a, "lg")}</span>
@@ -2485,6 +2483,55 @@ function readThread(x) {
   }
   return `<div class="gc" ${play ? "data-play" : ""}>${body}</div>`;
 }
+/* ---------------- the interview loop: where a candidate is, who met them, and how it went ---------------- */
+// Rounds before the one on file: [team, interviewer, verdict, days ago].
+const PRIOR = { "APP-109": [["infra", "sam", "pass", 9]], "APP-104": [["research", "marcus", "pass", 12], ["infra", "wei", "pass", 8]], "APP-101": [["infra", "noor", "pass", 14]], "APP-117": [["infra", "sam", "pass", 6]] };
+// Every loop is three rounds: their own team, a partner team, then a final with the CTO. Then the offer.
+const LOOP = 3, PARTNER = { infra: "research", research: "infra", product: "infra" };
+function loopOf(a) {
+  const own = a.team || ROLES[a.role].team;
+  const rs = (PRIOR[a.id] || []).map(([team, iv, v, d]) => ({ team, iv, v, at: NOW - d * DAY }));
+  recordings().filter((x) => x.a.id === a.id).sort((x, y) => x.round - y.round).forEach((x) => rs.push({ team: PEOPLE[x.iv].team, iv: x.iv, v: x.v, at: x.start, key: x.key }));
+  const out = rs.map((r, i) => ({ ...r, n: i + 1, st: "done" }));
+  if (isOpen(a)) for (let n = out.length + 1; n <= LOOP; n++) out.push({ n, team: n === LOOP ? "final" : n === 1 ? own : PARTNER[own], iv: n === LOOP ? "daniel" : null, st: "next" });
+  out.push({ n: out.length + 1, team: "offer", st: a.state === "offer" ? "done" : a.state === "rejected" || a.state === "passed" ? "closed" : "next" });
+  return out;
+}
+const loopName = (t) => (t === "final" ? "Final" : t === "offer" ? "Offer" : TEAMS[t].name);
+function processTree(x) {
+  const a = x.a, rs = loopOf(a), met = rs.filter((r) => r.st === "done" && r.iv);
+  const cur = rs.find((r) => r.key === x.key);
+  const names = [...new Set(met.map((r) => first(r.iv)))];
+  const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
+  const cls = (r) => `${r.st}${r === cur ? " cur" : ""}`;
+  const node = (r) => `<${r.key && r !== cur ? `a href="#interviews~${r.key}"` : "div"} class="pt-n round ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">
+      ${r.team === "offer" ? `<span class="pt-num">${ico(r.st === "closed" ? "x" : "check")}</span>` : `<span class="pt-num">${r.n}</span>`}<b>${loopName(r.team)}</b>${r === cur ? `<em>Now</em>` : r.st === "closed" ? `<em class="off">Closed</em>` : ""}</${r.key && r !== cur ? "a" : "div"}>
+    ${r.team === "offer" ? "" : `<div class="pt-n iv ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">${r.iv ? `${personAv(r.iv)}<span class="pt-who"><b>${esc(PEOPLE[r.iv].name)}</b>${r.st === "done" ? `<span class="pt-v ${r.v}">${VERDICT_NAME[r.v]}</span>` : `<span>Not booked</span>`}</span>${r.st === "done" ? `<span class="pt-d">${MO[new Date(r.at).getMonth()]} ${new Date(r.at).getDate()}</span>` : ""}` : `<span class="pt-who"><span>Not booked</span></span>`}</div>`}`;
+  return `<section class="pt" style="--rows:${rs.length}"><svg class="pt-lines" aria-hidden="true"></svg>
+    <div class="pt-left" style="grid-row:1 / span ${rs.length}"><span class="pt-tag">${a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : `Round ${cur ? cur.n : x.round} of ${Math.max(LOOP, cur ? cur.n : 0)}`}</span>
+      <div class="pt-card">${candAv(a, "lg")}<div><b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span></div><p>${esc(line)}</p></div></div>
+    ${rs.map(node).join("")}</section>`;
+}
+// Elbow lines from the candidate to each round, and from each round to who ran it. The current path is drawn last, in the accent.
+function drawTrees() {
+  $$(".pt").forEach((pt) => {
+    const svg = $(".pt-lines", pt), box = pt.getBoundingClientRect(), card = $(".pt-card", pt);
+    if (!card || !box.width) return;
+    const at = (el, side) => { const r = el.getBoundingClientRect(); return [(side === "r" ? r.right : r.left) - box.left, r.top + r.height / 2 - box.top]; };
+    const path = ([x1, y1], [x2, y2], c) => { const mx = x1 + (x2 - x1) / 2, dy = y2 - y1, r = Math.min(10, Math.abs(dy) / 2), s = Math.sign(dy);
+      return `<path class="${c}" d="${Math.abs(dy) < 1 ? `M${x1} ${y1}H${x2}` : `M${x1} ${y1}H${mx - r}Q${mx} ${y1} ${mx} ${y1 + s * r}V${y2 - s * r}Q${mx} ${y2} ${mx + r} ${y2}H${x2}`}"/>`; };
+    const lines = [];
+    $$(".pt-n.round", pt).forEach((n) => {
+      const c = n.classList.contains("cur") ? "hot" : n.classList.contains("done") ? "" : "ghost";
+      lines.push([c, path(at(card, "r"), at(n, "l"), c)]);
+      const iv = $(`.pt-n.iv[data-n="${n.dataset.n}"]`, pt);
+      if (iv) lines.push([c, path(at(n, "r"), at(iv, "l"), c)]);
+    });
+    svg.setAttribute("width", box.width); svg.setAttribute("height", box.height);
+    svg.innerHTML = lines.sort((p, q) => (p[0] === "hot") - (q[0] === "hot")).map((l) => l[1]).join("");
+  });
+}
+addEventListener("resize", () => drawTrees());
 function recReader(x) {
   const a = x.a, r = x.read, key = x.key, len = x.dur * 60;
   const steps = nextSteps(x), done = (state.nsDone ||= new Set());
@@ -2495,6 +2542,7 @@ function recReader(x) {
         ${vPill(x.v)}<span class="stackav">${candAv(a)}${personAv(x.iv)}</span>
         <button class="cx-btn" data-act="transcript" data-k="${x.key}">${ico("file")}Transcript</button><a class="icon-btn" href="#t~${a.id}" title="Open ticket" aria-label="Open ticket">${ico("arrowR")}</a>
 </header>
+      ${processTree(x)}
       <div class="rc-cols"><div class="rc-col">
       <section class="rc-sec grow-sec"><div class="rc-h"><b>Post-interview read</b>${r ? `<span class="spill-s">${sentiWord(r.senti)}</span>` : ""}</div>${readThread(x)}</section>
       <section class="rc-sec"><div class="rc-h"><b>Talk time</b><span class="faint">${esc(first2(a))} ${x.cand}% · ${esc(first(x.iv))} ${100 - x.cand}%</span></div>
@@ -2802,6 +2850,7 @@ function render() {
   const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "history" ? historyPage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
+  drawTrees(); setTimeout(drawTrees, 420);
   if (r.name === "interviews" && r.id) $(".ivr.sel")?.scrollIntoView({ block: "nearest" });
   animateIvOpen();
   if (state.keepScroll) { if ($("#scroller")) $("#scroller").scrollTop = scroll; if ($("#mlist")) $("#mlist").scrollTop = ml; }

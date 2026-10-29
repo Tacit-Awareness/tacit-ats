@@ -4045,3 +4045,36 @@ button.rc-logo:hover { box-shadow: 0 0 0 3px var(--soft-strong); }
 .ib-head { margin-bottom: 20px; }
 .ib-read > .blk, .ib-read > .draft-card { margin-bottom: 4px; }
 .ib-read .askbar { margin: 14px 0 28px; }
+
+/* v52 Interviews: the loop as a tree. Candidate on the left, rounds in the middle, who ran each on the right. */
+.pt { position: relative; display: grid; grid-template-columns: minmax(230px, 280px) 48px minmax(140px, 180px) 32px minmax(190px, 260px); grid-auto-rows: 44px; row-gap: 10px; align-items: center; padding: 22px 24px 24px; border-bottom: 1px solid var(--line); }
+.pt-lines { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.pt-lines path { fill: none; stroke: var(--line-strong); stroke-width: 1.25; }
+.pt-lines path.ghost { opacity: 0.45; }
+.pt-lines path.hot { stroke: var(--accent); stroke-width: 1.5; }
+.pt-left { grid-column: 1; align-self: center; display: grid; gap: 8px; justify-items: start; position: relative; z-index: 1; }
+.pt-tag { height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 6px; background: var(--soft); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.pt-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: center; width: 100%; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.pt-card b { display: block; font-size: 14.5px; font-weight: 500; }
+.pt-card > div span { color: var(--muted); font-size: 12.5px; }
+.pt-card p { grid-column: 1 / -1; margin: 8px 0 0; font-size: 14px; line-height: 1.45; color: var(--ink); font-weight: 500; }
+.pt-n { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; height: 44px; min-width: 0; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--ink); font-size: 13.5px; }
+.pt-n.round { grid-column: 3; }
+.pt-n.iv { grid-column: 5; }
+a.pt-n:hover { border-color: var(--line-strong); }
+.pt-n b { font-weight: 500; white-space: nowrap; }
+.pt-n em { margin-left: auto; font-style: normal; color: var(--accent); font-size: 12.5px; }
+.pt-n em.off { color: var(--faint); }
+.pt-num { width: 20px; height: 20px; flex-shrink: 0; display: grid; place-items: center; border-radius: 5px; background: var(--soft); color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.pt-num .ico, .pt-num svg { width: 11px; height: 11px; }
+.pt-n.cur { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 14%, transparent); }
+.pt-n.next, .pt-n.closed { opacity: 0.45; }
+.pt-n .av { width: 24px; height: 24px; font-size: 9.5px; }
+.pt-who { display: grid; min-width: 0; line-height: 1.25; }
+.pt-who b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
+.pt-who > span { color: var(--muted); font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
+.pt-v::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+.pt-v.pass::before { background: var(--ok); }
+.pt-v.mixed::before { background: var(--amber); }
+.pt-v.fail::before { background: var(--red); }
+.pt-d { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
