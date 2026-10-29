@@ -27,6 +27,7 @@ Nothing staff-only lives in this repo: no staff session, no console.
 apps/
   web/        Next.js -- the /client area members sign in to (WorkOS AuthKit)
   mcp/        Next.js -- /api/client, the MCP connector members add to Claude (OAuth)
+  cli/        tats -- the same connector from the terminal, for coding agents and scripts
 packages/
   core/       @tacit-ats/core -- first sign-in, client invitations, the connector's tools
 vendor/       @tacit/db + @tacit/core tarballs from tacit-internal, named by commit (scripts/sync-tacit.mjs)
@@ -56,6 +57,7 @@ Run from the repo root:
 - `pnpm build` -- `@tacit-ats/core`, then both apps
 - `pnpm dev` -- web on :3100, mcp on :3101
 - `pnpm sync:tacit [path]` -- refresh `vendor/` from tacit-internal
+- `pnpm --filter @tacit-ats/cli build` -- then `node apps/cli/dist/main.js login` (`apps/cli/CLAUDE.md`)
 
 ## Deploy
 

@@ -1,0 +1,25 @@
+{
+  "name": "@tacit-ats/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "tats: your company's hiring workspace in Tacit, from the terminal.",
+  "type": "module",
+  "bin": {
+    "tats": "dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/main.js",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2"
+  }
+}
