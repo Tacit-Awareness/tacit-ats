@@ -36,7 +36,7 @@ export type Io = {
 
 export type JqResult = { status: "ok" | "failed" | "missing"; out: string; err: string };
 
-/** Putting tats on the PATH, for a `tats setup` run through npx (main.ts does the real thing). */
+/** Putting tats on the PATH, for a `tats agent setup` run through npx (main.ts does the real thing). */
 export type Installer = {
   /** Running from npx's cache, so `tats` is not installed anywhere an agent will find it. */
   fromNpx: boolean;
@@ -84,7 +84,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
       case "status":
         return await status(server, deps, io, json);
       case "setup":
-        return await doSetup(first, server, deps, io);
+        throw new UsageError("It is tats agent setup.");
       case "agent": {
         if (rest[0] === "setup") return await doSetup(first, server, deps, io);
         const catalog = (await io.store.session(server)) ? await loadCatalog(server, deps, flag(first, "refresh")).catch(() => null) : null;
@@ -137,7 +137,7 @@ function unknownCommand(name: string, catalog: Catalog): UsageError {
 }
 
 async function help(name: string, server: string, deps: AuthDeps, io: Io): Promise<number> {
-  if (["login", "logout", "status", "setup", "agent", "tools", "help", "version"].includes(name)) {
+  if (["login", "logout", "status", "agent", "tools", "help", "version"].includes(name)) {
     io.out(mainHelp(server, (await io.store.session(server)) !== null));
     return EXIT.ok;
   }
@@ -148,7 +148,7 @@ async function help(name: string, server: string, deps: AuthDeps, io: Io): Promi
 }
 
 /**
- * `tats agent setup` / `tats setup`, after `stripe agent setup`. In order, so
+ * `tats agent setup`, after `stripe agent setup`. In order, so
  * a failure leaves nothing pointing at nothing: tats onto the PATH (only when
  * run through npx, and nothing else happens if that fails), the skill, then
  * the sign-in. A cancelled sign-in keeps the skill: it tells the agent to ask
