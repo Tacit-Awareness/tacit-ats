@@ -42,6 +42,8 @@ ${COMMON.map(([n, d]) => `  ${n!.padEnd(22)} ${d}`).join("\n")}
 Commands:
   tats login             sign in with your company's Tacit account (opens your browser)
   tats logout            sign out on this machine
+  tats setup             teach this machine's coding agents (Claude Code, Codex) to use tats;
+                         again to refresh, --remove to undo, --print for any other agent
   tats status            which server and account, and whether the sign-in is current
   tats tools             every tool, read-only ones first
   tats help <tool>       one tool's flags
