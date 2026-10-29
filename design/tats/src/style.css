@@ -4264,3 +4264,19 @@ a.pt-n:hover { border-color: var(--line-strong); }
 .crm-foot { padding: 0 var(--s3) 0 var(--s5); }
 .ib-read > .askbar.askbar { margin: var(--s2) 0 0; }
 .ib-read > .block.ib-story { margin-top: var(--s6); }
+
+/* v58 Inbox gestures: the row slides over a track that says what letting go will do */
+.sw { position: relative; border-radius: 10px; overflow: hidden; }
+.sw + .sw { margin-top: 2px; }
+.sw .ib.iss { position: relative; z-index: 1; background: var(--paper); touch-action: pan-y; will-change: transform; }
+.sw .ib.iss:hover { background: color-mix(in srgb, var(--ink) 4%, var(--paper)); }
+.sw .ib.iss.sel { background: var(--sel); }
+.sw-bg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 13.5px; font-weight: 500; color: var(--muted); background: var(--soft); opacity: 0; transition: background 0.15s, color 0.15s; }
+.sw.go-l .sw-bg, .sw.go-r .sw-bg { opacity: 1; }
+.sw-bg span { display: inline-flex; align-items: center; gap: 8px; opacity: 0; transition: opacity 0.12s; }
+.sw-bg .ico { width: 15px; height: 15px; }
+.sw.go-l .sw-l, .sw.go-r .sw-r { opacity: 1; }
+.sw.go-l.armed .sw-bg { background: var(--accent); color: #fff; }
+.sw.go-r.armed .sw-bg { background: var(--ink); color: var(--paper); }
+@media (min-width: 768px) { .ib-top:not(:has(.cx-btn)) { display: none; } }
+.sw { user-select: none; -webkit-user-select: none; }

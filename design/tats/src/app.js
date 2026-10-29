@@ -291,7 +291,7 @@ function seed(a) {
   }
   const r = a.read || { verdict: "Yes", senti: 0.6, quote: "Solid. Yes.", by: a.iv };
   ev(a, a.when - 20 * MIN, a.iv, esc(r.quote), { ch: "slack", bubble: true, run: rd });
-  const re = ev(a, a.when - 18 * MIN, `bot:${a.iv}`, `Read: <b>${esc(r.verdict)}</b> · sentiment ${r.senti.toFixed(2)}, from the Granola notes and ${esc(first(a.iv))}'s reply`, { run: rd });
+  const re = ev(a, a.when - 18 * MIN, `bot:${a.iv}`, `Read: <b>${esc(r.verdict)}</b> · sentiment ${r.senti.toFixed(2)}, from ${esc(first(a.iv))}'s reply`, { run: rd });
   endRun(rd, re.at);
   ev(a, a.when, "orch", "Back with you");
   if (a.state === "rejected") {
@@ -397,7 +397,7 @@ function finishRead(a, rd, t) {
   const iv = a.iv;
   const r = { ...READS[a.id.charCodeAt(a.id.length - 1) % 2], by: iv };
   later(a, t, () => { rd.status = "running"; now(a, iv, esc(r.quote), { ch: "slack", bubble: true, run: rd }); });
-  later(a, t + SPEED, () => now(a, `bot:${iv}`, `Read: <b>${r.verdict}</b> · sentiment ${r.senti.toFixed(2)}, from the Granola notes and ${esc(first(iv))}'s reply`, { run: rd }));
+  later(a, t + SPEED, () => now(a, `bot:${iv}`, `Read: <b>${r.verdict}</b> · sentiment ${r.senti.toFixed(2)}, from ${esc(first(iv))}'s reply`, { run: rd }));
   later(a, t + SPEED * 2, () => {
     endRun(rd, Date.now());
     a.read = r; a.state = "judgment"; PEOPLE[iv].load = Math.max(0, PEOPLE[iv].load - 1);
@@ -798,7 +798,7 @@ function storyItem(g, a) {
     if (e.comment) return { ...g, st: "note", who: actorAv(e.actor, a), title: `${actorName(e.actor, a)} commented`, detail: text };
     if (e.actor === "me") return { ...g, st: "you", who: personAv(ME), title: `You: ${text.replace(/^./, (c) => c.toLowerCase())}` };
     if (/^Back with you/.test(text)) return null;
-    if (/^Interview done/.test(text)) return { ...g, st: "done", who: actorAv("orch", a), title: "Interview done", detail: `${text.split("· ")[1] || ""}. Notes in Granola` };
+    if (/^Interview done/.test(text)) return { ...g, st: "done", who: actorAv("orch", a), title: "Interview done", detail: `${text.split("· ")[1] || ""}` };
     if (e === TRACE[a.id][0]) return { ...g, st: "done", who: candAv(a), title: "Applied", detail: `${srcLong(a)}, for ${ROLES[a.role].title}` };
     return { ...g, st: "done", who: actorAv(e.actor, a), title: actorName(e.actor, a), detail: text };
   }
@@ -1213,7 +1213,6 @@ function popMain(e) {
   return `<div class="g-title"><i class="g-sq ${e.tone}"></i><div><h3>${esc(kindTitle)}</h3><p>${longDay(e.start)} · ${hm(e.start)} – ${hm(e.end)}</p><p class="faint">Round ${e.round} · ${esc(ROLES[a.role].title)}${e.team ? ` · ${TEAMS[e.team].name}` : ""}</p><div class="g-status">${status}</div></div></div>
     ${e.kind === "hold" ? `<div class="g-hold"><b>${esc(possessive(first(iv)))} Grokbot offered two times.</b><span>${esc(a.slots.join(" or "))}. ${esc(first2(a))} hasn't picked yet.</span></div>` : ""}
     ${e.kind !== "past" ? `<div class="g-row">${GICO.meet}<div><a href="#" data-act="noop" class="g-link">Join with Google Meet</a><span>meet.google.com/${code}</span></div>${gbtn("copy", "copyMeet", "Copy the Meet link", `data-v="meet.google.com/${code}"`)}</div>` : ""}
-    <div class="g-row"><span class="g-gran">${CH.granola}</span><div><b>${e.kind === "past" ? "Notes in Granola" : "Granola will take notes"}</b><span>${e.kind === "past" && recByKey(`${a.id}-${e.round}`) ? `<a href="#interviews~${a.id}-${e.round}">Open the notes</a>` : "Notes go to the interviewer's read"}</span></div></div>
     <div class="g-row">${GICO.people}<div class="grow"><b>2 guests</b><span>${cand ? "2 yes" : "1 yes, 1 awaiting"}</span>
       ${guestRow(botAv(iv, "lg"), ivp.name, `Interviewer · organizer`, true)}
       ${guestRow(candAv(a, "lg"), a.name, esc(emailOf(a)), cand)}</div></div>
@@ -1682,6 +1681,8 @@ function patch(el, html) {
       if (from.isEqualNode(to)) return false;
       // Never overwrite what someone is typing.
       if (from === document.activeElement && /^(INPUT|TEXTAREA)$/.test(from.tagName)) return false;
+      // Or a row that's mid-swipe.
+      if (from.classList.contains("sw") && (from === sw.el || (sw.drag && from === sw.drag.el) || from.classList.contains("go-l") || from.classList.contains("go-r"))) return false;
       if (from.classList.contains("sb-count") && from.textContent !== to.textContent) bumped.push(from);
       return true;
     },
@@ -1927,13 +1928,15 @@ const unreadCount = () => inboxRows().filter((x) => x.inInbox && x.unread).lengt
 const inboxLeft = () => inboxRows().filter((x) => x.inInbox).length;
 function ibRow(x, sel) {
   const a = x.a, i = x.iss, done = state.ibFilter === "done";
-  return `<div class="ib iss ${i.k} ${sel ? "sel" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
+  const row = `<div class="ib iss ${i.k} ${sel ? "sel" : ""}" role="button" tabindex="0" data-act="ibSel" data-id="${a.id}" id="ib-${a.id}">
     <span class="ib-av ib-k ${i.k}">${ico(ISSUE_ICON[i.k])}</span>
     <span class="ib-l1"><span class="trunc ib-what">${esc(i.what)}</span></span>
     <span class="ib-l2 trunc"><span class="ib-who">${i.who}${esc(i.whoName)}</span>${i.whoName === a.name || i.k === "decide" ? "" : `<i>·</i><b data-hc="a:${a.id}">${esc(a.name)}</b>`}<i>·</i><span class="trunc">${esc(i.why || "")}</span></span>
     <span class="ib-act">${done ? `<span class="ib-how">${esc(x.how || "Done")} ${agoText(x.at)}</span><button class="icon-btn" data-act="ibRestore" data-id="${a.id}" title="Move back to Inbox" aria-label="Move back to Inbox">${ico("inbox")}</button>`
 : `<span class="ib-t2">${ago(i.at)}</span>`}</span>
   </div>`;
+  if (done) return row;
+  return `<div class="sw" data-sw="${a.id}" data-tid="sw-${a.id}"><div class="sw-bg" aria-hidden="true"><span class="sw-l">${ico(i.k === "decide" ? "arrowR" : "check")}${esc(i.act.label)}</span><span class="sw-r">Dismiss${ico("x")}</span></div>${row}</div>`;
 }
 const TRAY = `<svg class="ib-tray" viewBox="0 0 64 64" aria-hidden="true"><rect x="9" y="6" width="46" height="46" rx="10"/><path d="M9 34h13.5c1.4 0 2.5 1.1 2.5 2.5v.5a4 4 0 0 0 4 4h6a4 4 0 0 0 4-4v-.5c0-1.4 1.1-2.5 2.5-2.5H55"/><path d="M14 52.5c0 3 2.2 5.5 5 5.5h26c2.8 0 5-2.5 5-5.5"/></svg>`;
 // A stuck or failed Grokbot step: the facts in one line, and the one action that fixes it.
@@ -1969,9 +1972,7 @@ function ibReader(a) {
   const i = done ? c && c.iss : issueOf(a);
   return `<div class="ib-top"><button class="icon-btn ib-back" data-act="ibBack" aria-label="Back to Inbox">${ico("chevL")}</button>
       <span class="ib-crumb"><span class="trunc">${esc(a.name)}</span></span><span class="spacer"></span>
-      ${done ? `<button class="cx-btn" data-act="ibRestore" data-id="${a.id}">${ico("inbox")}Move back to Inbox</button>`
-        : `<button class="cx-btn ib-donebtn" data-act="ibDone" data-id="${a.id}" title="Dismiss (E). The applicant stays in Pipeline.">${ico("check")}Dismiss</button>`}
-      <a class="icon-btn" href="#t~${a.id}" title="Open the ticket (↵)" aria-label="Open the ticket">${ico("arrowR")}</a></div>
+      ${done ? `<button class="cx-btn" data-act="ibRestore" data-id="${a.id}">${ico("inbox")}Move back to Inbox</button>` : ""}</div>
     <div class="r-scroll" id="scroller"><div class="ib-read">
       <header class="ib-head"><div class="grow"><h1>${esc(i ? i.what : a.name)}</h1><p><span data-hc="a:${a.id}">${esc(a.name)}</span> · ${esc(ROLES[a.role].title)}</p></div></header>
       ${done ? `<section class="blk ok"><span class="blk-ico">${ico("check")}</span><div class="blk-main"><b>${esc(c.how)}</b><span>${agoText(c.at)}</span></div></section>` : i ? issueCard(a, i) : nowPanel(a)}
@@ -1979,12 +1980,64 @@ function ibReader(a) {
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
+// Superhuman-style gestures on Inbox rows: swipe or drag right to run the fix, left to dismiss.
+// Trackpads send horizontal wheel deltas; mice and touch drag. Past the line, the row commits.
+const SWIPE_AT = 96;
+const sw = { el: null, dx: 0, t: 0, drag: null, moved: false };
+function swSet(el, dx) {
+  const row = el.querySelector(".ib"), w = el.clientWidth;
+  dx = Math.max(-w, Math.min(w, dx));
+  row.style.transform = `translateX(${dx}px)`;
+  el.classList.toggle("go-l", dx > 0); el.classList.toggle("go-r", dx < 0);
+  el.classList.toggle("armed", Math.abs(dx) > SWIPE_AT);
+  return dx;
+}
+function swEnd(el, dx) {
+  const row = el.querySelector(".ib"), id = el.dataset.sw, x = inboxRows().find((r) => r.a.id === id);
+  if (Math.abs(dx) <= SWIPE_AT || !x || !x.iss) {
+    row.style.transition = "transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)"; row.style.transform = "";
+    setTimeout(() => { row.style.transition = ""; el.classList.remove("go-l", "go-r", "armed"); }, 230);
+    return;
+  }
+  row.style.transition = "transform 0.2s ease-in"; row.style.transform = `translateX(${dx > 0 ? "" : "-"}110%)`;
+  setTimeout(() => {
+    if (dx < 0) return ibDone(id);
+    state.ibSel = id;
+    if (x.iss.k === "decide") return render();
+    state.ibNeed = id; state.ibIss = x.iss;
+    ACT[x.iss.act.a]({ dataset: { id: x.iss.act.id } });
+  }, 200);
+}
+document.addEventListener("wheel", (e) => {
+  const el = e.target.closest && e.target.closest(".sw");
+  if (!el || Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+  e.preventDefault();
+  if (sw.el !== el) { sw.el = el; sw.dx = 0; }
+  sw.dx = swSet(el, sw.dx - e.deltaX);
+  clearTimeout(sw.t);
+  sw.t = setTimeout(() => { const d = sw.dx; sw.el = null; sw.dx = 0; swEnd(el, d); }, 140);
+}, { passive: false });
+document.addEventListener("pointerdown", (e) => {
+  const el = e.target.closest && e.target.closest(".sw");
+  if (!el || e.button !== 0 || e.target.closest("button, a")) return;
+  sw.drag = { el, x0: e.clientX, y0: e.clientY, dx: 0, on: false }; sw.moved = false;
+});
+document.addEventListener("pointermove", (e) => {
+  const d = sw.drag; if (!d) return;
+  const dx = e.clientX - d.x0, dy = e.clientY - d.y0;
+  if (!d.on) { if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) d.on = true; else if (Math.abs(dy) > 8) { sw.drag = null; return; } else return; }
+  d.dx = swSet(d.el, dx); sw.moved = true;
+});
+document.addEventListener("pointerup", () => { const d = sw.drag; sw.drag = null; if (d && d.on) swEnd(d.el, d.dx); });
+// A drag that moved the row isn't a click.
+document.addEventListener("click", (e) => { if (sw.moved && e.target.closest(".sw")) { e.stopPropagation(); e.preventDefault(); sw.moved = false; } }, true);
 function inboxPage() {
   const f = state.ibFilter === "done" ? "done" : "all";
   const xs = inboxItems(f);
   const sel = state.ibSel && A[state.ibSel];
   const left = inboxLeft();
   const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done">Done</button></div>`;
+  if (!state.swHint && f === "all" && xs.length) { state.swHint = true; setTimeout(() => toast("Swipe an issue right to fix it, left to dismiss. E also dismisses."), 600); }
   const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
   if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
     <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
@@ -2572,20 +2625,17 @@ function recReader(x) {
   const steps = nextSteps(x), done = (state.nsDone ||= new Set());
   const nDone = steps.filter((s, i) => s[3] || done.has(`${key}:${i}`)).length;
   return `<article class="rc">
-      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interviews">${ico("chevL")}</a><button class="rc-logo" data-act="transcript" data-k="${x.key}" title="Open the transcript" aria-label="Open the transcript">${CH.granola}</button>
-        <div class="grow"><h1>${esc(a.name)} · Round ${x.round}</h1><p>${esc(ROLES[a.role].title)}<i>·</i>${CH.granola}Granola<i>·</i>${esc(`${MO[new Date(x.start).getMonth()]} ${new Date(x.start).getDate()}, ${new Date(x.start).getFullYear()}`)}<i>·</i>${x.dur} min</p></div>
+      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interviews">${ico("chevL")}</a>
+        <div class="grow"><h1>${esc(a.name)} · Round ${x.round}</h1><p>${esc(ROLES[a.role].title)}<i>·</i>${esc(`${MO[new Date(x.start).getMonth()]} ${new Date(x.start).getDate()}, ${new Date(x.start).getFullYear()}`)}</p></div>
         ${vPill(x.v)}<span class="stackav">${candAv(a)}${personAv(x.iv)}</span>
-        <button class="cx-btn" data-act="transcript" data-k="${x.key}">${ico("file")}Transcript</button><a class="icon-btn" href="#t~${a.id}" title="Open ticket" aria-label="Open ticket">${ico("arrowR")}</a>
+        <a class="icon-btn" href="#t~${a.id}" title="Open ticket" aria-label="Open ticket">${ico("arrowR")}</a>
 </header>
       ${processTree(x)}
       <div class="rc-cols"><div class="rc-col">
       <section class="rc-sec grow-sec"><div class="rc-h"><b>Post-interview read</b>${r ? `<span class="spill-s">${sentiWord(r.senti)}</span>` : ""}</div>${readThread(x)}</section>
-      <section class="rc-sec"><div class="rc-h"><b>Talk time</b><span class="faint">${esc(first2(a))} ${x.cand}% · ${esc(first(x.iv))} ${100 - x.cand}%</span></div>
-        <div class="rc-talk"><i class="c" style="flex:${x.cand}"></i><i class="v" style="flex:${100 - x.cand}"></i></div></section>
-      <section class="rc-sec"><div class="rc-h"><b>Summary</b><span class="faint">${x.dur} min</span></div>
-        <ul class="rc-sum">${(r ? r.notes : ["Notes are in. Waiting on the interviewer's read."]).map((n) => `<li>${esc(n)}</li>`).join("")}</ul></section>
       </div><div class="rc-col">
-      <section class="rc-sec grow-sec"><div class="rc-h"><b>Questions and answers</b><span class="faint">${qaOf(x).length}</span></div>${qaList(x)}</section>
+      <section class="rc-sec"><div class="rc-h"><b>Summary</b></div>
+        <ul class="rc-sum">${(r ? r.notes : [`Waiting on ${possessive(first(x.iv))} read.`]).map((n) => `<li>${esc(n)}</li>`).join("")}</ul></section>
       <section class="rc-sec"><div class="rc-h"><b>Next steps</b><span class="faint">${nDone} of ${steps.length} done</span></div>
         ${steps.map(([t, who, due, fixed], i) => { const on = fixed || done.has(`${key}:${i}`); return `<label class="rc-step ${on ? "done" : ""}"><input type="checkbox" ${on ? "checked" : ""} ${fixed ? "disabled" : ""} data-ns="${key}:${i}"><span class="grow">${esc(t)}</span><span class="rc-own">${personAv(who)}${esc(who === ME ? "You" : first(who))}</span><span class="faint">${esc(`${MO[new Date(due).getMonth()]} ${new Date(due).getDate()}`)}</span></label>`; }).join("")}</section>
       </div></div>
@@ -2597,16 +2647,8 @@ const SUMMARY_BANK = {
   res: (n) => `${n} walked through a reward model gaming its grader and how a held-out eval caught it.`,
   pe: (n) => `${n} talked through shipping small and moving form state to the server.`,
 };
-function interviewHighlights(a, x, r) {
-  const notes = r.notes.map((n) => n.charAt(0).toLowerCase() + n.slice(1));
-  const said = notes.length > 1 ? `${notes.slice(0, -1).join(", ")} and ${notes.at(-1)}` : notes[0];
-  return `<div class="iv-hl">
-    <div class="hl-h"><b>From the Granola notes</b><button class="linkish" data-act="transcript" data-k="${x.key}">Transcript · ${x.dur} min</button></div>
-    <p class="hl-sum">${esc((SUMMARY_BANK[a.role] || SUMMARY_BANK.eng)(first2(a)))} ${esc(first(r.by))} noted ${esc(said)}.</p>
-    ${state.qaOpen === x.key ? qaList(x) : qaList(x, 3)}
-    ${qaOf(x).length > 3 ? `<button class="qa-more linkish" data-act="qaMore" data-k="${x.key}">${state.qaOpen === x.key ? "Show fewer" : `Show all ${qaOf(x).length} questions`}</button>` : ""}
-  </div>`;
-}
+// Granola notes and a question-by-question breakdown come back once an interviewer connects Granola.
+function interviewHighlights() { return ""; }
 document.addEventListener("change", (e) => {
   const k = e.target.dataset && e.target.dataset.ns;
   if (!k) return;
