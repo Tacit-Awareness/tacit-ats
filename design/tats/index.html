@@ -4086,6 +4086,63 @@ a.pt-n:hover { border-color: var(--line-strong); }
 .pt-v.fail::before { background: var(--red); }
 .pt-d { margin-left: auto; color: var(--faint); font-size: 12px; white-space: nowrap; }
 
+/* v53 CRM: one database of everyone the funnel closed */
+.crm-tabs { display: flex; gap: 2px; padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
+.crm-tab { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 8px; color: var(--muted); font-size: 13.5px; }
+.crm-tab span { color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.crm-tab:hover { background: var(--hover); color: var(--ink); }
+.crm-tab.on { background: var(--sel); color: var(--ink); font-weight: 500; }
+.crm { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 14px 16px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); overflow: hidden; }
+.crm .scroll { flex: 1; min-height: 0; }
+.crm-head { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 12px 0 18px; border-bottom: 1px solid var(--line); }
+.crm-head > .ico { width: 16px; height: 16px; color: var(--muted); }
+.crm-head b { font-size: 15px; font-weight: 600; }
+.crm-ask { display: flex; align-items: center; gap: 8px; width: min(440px, 50%); height: 36px; padding: 0 4px 0 6px; border: 1px solid var(--line); border-radius: 18px; transition: border-color 0.12s, box-shadow 0.12s; }
+.crm-ask:focus-within { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
+.crm-ask .bot .av { width: 24px; height: 24px; font-size: 9px; }
+.crm-ask .bot > i { display: none; }
+.crm-ask input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font-size: 13.5px; color: var(--ink); }
+.crm-ask .btn { height: 28px; border-radius: 14px; white-space: nowrap; }
+.crm-t { display: grid; min-width: 1000px; }
+.crm-r { display: grid; grid-template-columns: 44px minmax(200px, 1.6fr) minmax(170px, 1.3fr) minmax(130px, 1fr) minmax(120px, 0.9fr) 90px minmax(160px, 1.1fr) 110px; align-items: center; min-height: 50px; border-bottom: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+.crm-r > * { padding: 0 14px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 1px solid var(--line); height: 100%; display: flex; align-items: center; }
+.crm-r > :first-child { border-left: 0; justify-content: center; padding: 0; }
+.crm-r:not(.crm-h):hover { background: var(--hover); }
+.crm-r.picked { background: var(--sel); }
+.crm-h { position: sticky; top: 0; z-index: 1; min-height: 46px; background: var(--paper); cursor: default; }
+.crm-hc { gap: 8px; color: var(--muted); font-size: 13.5px; text-align: left; }
+.crm-hc .ico { width: 14px; height: 14px; color: var(--faint); }
+.crm-hc.on, .crm-hc:hover { color: var(--ink); }
+.crm-hc i { font-style: normal; margin-left: 2px; }
+.ck { width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 0 0 1.25px var(--line-strong); }
+.ck.on { background: var(--accent); box-shadow: none; position: relative; }
+.ck.on::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #fff; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg); }
+.crm-name { gap: 10px; }
+.crm-name .av { width: 24px; height: 24px; font-size: 9.5px; flex-shrink: 0; }
+.crm-name b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.crm-tag { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 6px; background: var(--soft); color: var(--ink); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
+.crm-link { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.crm-num, .crm-day { font-variant-numeric: tabular-nums; }
+.crm-foot { display: flex; align-items: center; gap: 4px; height: 46px; padding: 0 12px 0 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.crm-foot > span:not(.grow) { margin-right: 8px; }
+.crm-foot .icon-btn[disabled] { opacity: 0.35; pointer-events: none; }
+/* the Slack post Grokbot will send */
+.slk { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+.slk-m { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; }
+.slk-m .bot .av { width: 36px; height: 36px; border-radius: 8px; font-size: 12px; }
+.slk-n { display: flex; align-items: baseline; gap: 6px; font-size: 14px; }
+.slk-n span { padding: 0 4px; border-radius: 3px; background: var(--soft); color: var(--muted); font-size: 10.5px; font-weight: 600; }
+.slk-n time { color: var(--faint); font-size: 12px; }
+.slk-b p { margin: 4px 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.slk-b ol { margin: 4px 0 6px; padding-left: 20px; font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+.slk-b ol b { font-weight: 600; }
+.slk-more { color: var(--muted) !important; }
+.crm-r { grid-template-columns: 44px minmax(170px, 1.5fr) minmax(150px, 1.2fr) minmax(120px, 1fr) minmax(110px, 1fr) 108px minmax(150px, 1fr) 104px; }
+.crm-t { min-width: 960px; }
+.crm-r { grid-template-columns: 44px minmax(170px, 1.5fr) minmax(150px, 1.2fr) minmax(120px, 1fr) minmax(110px, 1fr) 104px minmax(150px, 1fr) 128px; }
+.slk-m .bot > i { display: none; }
+.crm-r { grid-template-columns: 44px minmax(170px, 1.5fr) minmax(150px, 1.2fr) minmax(110px, 0.9fr) minmax(110px, 0.9fr) 100px minmax(178px, 1.1fr) 124px; }
+
 </style>
 
 <div class="app" id="app">
@@ -4361,6 +4418,7 @@ const P = {
   route: "M4 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM12 5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM4 10.5V8a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2",
   compose: "M9.5 3.5h-6v9h9v-6M7 9l.4-2L12.5 2l1.5 1.5L9 8.6Z",
   grid: "M2.5 2.5h4.5v4.5H2.5ZM9 2.5h4.5v4.5H9ZM2.5 9h4.5v4.5H2.5ZM9 9h4.5v4.5H9Z",
+  db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
   chevU: "M4 10l4-4 4 4",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
   gear: "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1",
@@ -4905,47 +4963,15 @@ function scoped() {
   return everyone().filter((a) => isOpen(a) && (!sv || viewMatch(sv, a)) && (tk === "all" || a.team === tk || (!a.team && ROLES[a.role].team === tk)) && (!q || `${a.name} ${a.hl} ${srcLong(a)} ${labelsOf(a).join(" ")}`.toLowerCase().includes(q)))
     .sort((x, y) => y.when - x.when);
 }
-// Active and History are two tabs of one Pipeline. Active is every open application; History is every
-// closed one, as a record. One person can be in both: a past application links to the open one.
-const pipeTabs = (on) => `<div class="cx-seg pp-tabs"><a class="${on === "active" ? "on" : ""}" href="#all">Active<span>${scoped().length.toLocaleString()}</span></a><a class="${on === "history" ? "on" : ""}" href="#history">History<span>${hscoped().length.toLocaleString()}</span></a></div>`;
-const H_PERIODS = [["all", "Any time"], ["90", "Last 90 days"], ["365", "Last 12 months"], ["730", "Last 2 years"]];
-const H_OUTCOMES = OUTCOMES.map((o) => o[0]);
+// Pipeline is every open application. Closed ones are records in the CRM; one person can be in both.
 const hSrc = (h) => (h.src.startsWith("Referral") ? "Referral" : h.src === "Tacit" ? "Tacit" : "Cold");
 function hscoped() {
   const f = (state.hf ||= {}), tk = state.team, q = (state.q || "").toLowerCase().trim();
   return HISTORY.filter((h) => (tk === "all" || h.team === tk) && (!f.outcome || h.outcome === f.outcome) && (!f.role || h.role === f.role) && (!f.src || hSrc(h) === f.src)
     && (!f.period || f.period === "all" || NOW - h.closed < +f.period * DAY) && (!q || `${h.name} ${h.hl} ${h.outcome}`.toLowerCase().includes(q)));
 }
-const H_COLS = [["name", "Name"], ["role", "Role"], ["outcome", "Outcome"], ["reached", "Got to"], ["src", "Source"], ["closed", "Closed"]];
-const H_REACH = ["Applied", "Testbench", "Round 1", "Round 2", "Offer"];
 const outcomeTone = (o) => (o === "Hired" ? "ok" : o === "Not now" || o === "Withdrew" || o === "Offer declined" ? "wait" : "");
 const fmtDate = (t) => { const d = new Date(t); return `${MO[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`; };
-function historyPage() {
-  const f = (state.hf ||= {}), sort = (state.hsort ||= { k: "closed", dir: -1 });
-  const key = { name: (h) => h.name, role: (h) => ROLES[h.role].title, outcome: (h) => h.outcome, reached: (h) => H_REACH.indexOf(h.reached), src: hSrc, closed: (h) => h.closed }[sort.k];
-  const xs = hscoped().sort((x, y) => (key(x) > key(y) ? 1 : key(x) < key(y) ? -1 : 0) * sort.dir);
-  const per = 50, pages = Math.max(1, Math.ceil(xs.length / per)), pg = Math.min(state.hpage || 0, pages - 1);
-  const rows = xs.slice(pg * per, pg * per + per);
-  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="hFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
-  const any = Object.values(f).some((v) => v && v !== "all");
-  const q = (state.q || "").trim(), act = q ? everyone().filter((a) => isOpen(a) && a.name.toLowerCase().includes(q.toLowerCase())).length : 0;
-  return `<div class="bar"><div class="crumbs">${ico("people")}<b>Pipeline</b></div>${pipeTabs("history", xs.length)}<span class="spacer"></span><a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
-  <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<button class="tab ${state.team === k ? "on" : ""}" data-act="hTeam" data-v="${k}">${n}</button>`).join("")}</div>
-    <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  ${(() => { const hired = xs.filter((h) => h.outcome === "Hired").length; return statStrip([{ n: xs.length.toLocaleString(), label: "Closed applications" }, { n: hired, label: "Hired" }, { n: `${xs.length ? ((hired / xs.length) * 100).toFixed(1) : 0}%`, label: "Hire rate" }, { n: `${median(xs.map((h) => Math.round((h.closed - h.applied) / DAY)))}d`, label: "Median time to close" }]); })()}
-  <div class="h-filters">${chip("outcome", "Outcome", f.outcome)}${chip("role", "Role", f.role && ROLES[f.role].title)}${chip("src", "Source", f.src)}${chip("period", "Any time", f.period && f.period !== "all" ? H_PERIODS.find((p) => p[0] === f.period)[1] : "")}
-    ${any ? `<button class="linkish" data-act="hClear">Clear</button>` : ""}<span class="grow"></span>${act ? `<a class="also in" href="#all">${act} active ${act === 1 ? "match" : "matches"}</a>` : ""}</div>
-  <div class="scroll" id="scroller"><div class="htable" role="table">
-    <div class="h-row h-head" role="row">${H_COLS.map(([k, n]) => `<button role="columnheader" data-act="hSort" data-k="${k}" class="${sort.k === k ? "on" : ""}">${n}${sort.k === k ? `<i>${sort.dir < 0 ? "↓" : "↑"}</i>` : ""}</button>`).join("")}</div>
-    ${rows.map((h) => `<div class="h-row" role="row" tabindex="0" data-act="openHist" data-id="${h.id}" data-tid="${h.id}">
-      <span class="h-name"><b>${esc(h.name)}</b><span>${esc(h.hl)}</span></span>
-      <span class="h-role">${esc(ROLES[h.role].title)}</span>
-      <span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span>${h.again ? `<a class="h-again" href="#t~${h.again}" title="Open the active application">Active again</a>` : ""}</span>
-      <span class="h-muted">${esc(h.reached)}</span><span class="h-muted">${esc(hSrc(h))}</span><span class="h-muted">${fmtDate(h.closed)}</span></div>`).join("") || `<div class="empty">No past applications match</div>`}
-  </div></div>
-  <div class="h-foot"><span>${xs.length ? `${(pg * per + 1).toLocaleString()}–${Math.min(xs.length, pg * per + per).toLocaleString()} of ${xs.length.toLocaleString()}` : "0"}</span>
-    <button class="icon-btn" data-act="hPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="hPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>`;
-}
 function openHist(id) {
   const h = HISTORY.find((x) => x.id === id);
   if (!h) return;
@@ -4962,6 +4988,78 @@ function openHist(id) {
 // A dashboard row of numbers: what's true right now, read at a glance.
 const statStrip = (xs) => `<div class="dk">${xs.map((x) => `<div class="dk-i ${x.tone || ""}"><b>${x.n}</b><span>${esc(x.label)}</span></div>`).join("")}</div>`;
 const thisWeek = (t) => t && t >= dayStart(Date.now()) - new Date().getDay() * DAY && t < dayStart(Date.now()) + (7 - new Date().getDay()) * DAY;
+/* ---------------- CRM: everyone the funnel has closed, as one database ---------------- */
+// One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
+const CRM_VIEWS = [
+  ["all", "All candidates", () => true],
+  ["hired", "Hired", (h) => h.outcome === "Hired"],
+  ["silver", "Silver medalists", (h) => ["Rejected after interview", "Not now", "Offer declined"].includes(h.outcome) && (h.score || 0) >= 80],
+  ["rejected", "Rejected", (h) => h.outcome.startsWith("Rejected") || h.outcome === "Passed at Testbench"],
+  ["withdrew", "Withdrew", (h) => h.outcome === "Withdrew" || h.outcome === "Offer declined"],
+];
+const relDay = (t) => { const d = Math.round((dayStart(Date.now()) - dayStart(t)) / DAY), dt = new Date(t); return d === 0 ? "Today" : d === 1 ? "Yesterday" : `${MO[dt.getMonth()]} ${dt.getDate()}${dt.getFullYear() !== new Date().getFullYear() ? `, ${dt.getFullYear()}` : ""}`; };
+const profileOf = (h) => `in/${h.name.toLowerCase().replace(/[^a-z]+/g, "")}`;
+const ownerOf = (h) => h.iv || ME;
+const CRM_COLS = [["name", "Candidate", "people"], ["role", "Role", "brief"], ["profile", "Profile", "link"], ["owner", "Owner", "users"], ["score", "Testbench", "code"], ["outcome", "Outcome", "flag"], ["last", "Last contact", "cal"]];
+function crmRows() {
+  const v = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all")), q = (state.q || "").toLowerCase().trim();
+  return HISTORY.filter((h) => v[2](h) && (!q || `${h.name} ${h.hl} ${ROLES[h.role].title} ${h.outcome}`.toLowerCase().includes(q)));
+}
+function crmPage() {
+  const sort = (state.crmSort ||= { k: "last", dir: -1 }), pick = (state.crmPick ||= new Set());
+  const key = { name: (h) => h.name, role: (h) => ROLES[h.role].title, profile: (h) => h.name, owner: (h) => PEOPLE[ownerOf(h)].name, score: (h) => h.score || 0, outcome: (h) => h.outcome, last: (h) => h.closed }[sort.k];
+  const xs = crmRows().sort((x, y) => (key(x) > key(y) ? 1 : key(x) < key(y) ? -1 : 0) * sort.dir);
+  const per = 50, pages = Math.max(1, Math.ceil(xs.length / per)), pg = Math.min(state.crmPg || 0, pages - 1), rows = xs.slice(pg * per, pg * per + per);
+  const view = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all"));
+  return `<div class="bar"><div class="crumbs">${ico("db")}<b>CRM</b></div><span class="spacer"></span>
+    <label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
+  <div class="crm-tabs">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${HISTORY.filter(f).length.toLocaleString()}</span></button>`).join("")}</div>
+  <div class="crm">
+    <div class="crm-head">${ico("db")}<b>${view[1]}</b><span class="faint">${xs.length.toLocaleString()}</span><span class="grow"></span>
+      <form class="crm-ask" id="crmAskForm">${botAv(ME)}<input id="crmask" placeholder="${pick.size ? `Ask Grokbot about these ${pick.size}` : "Ask Grokbot for a list"}" autocomplete="off"><button class="btn sm" type="submit">${pick.size ? `Send ${pick.size} to Slack` : "Get the list"}</button></form></div>
+    <div class="scroll" id="scroller"><div class="crm-t" role="table">
+      <div class="crm-r crm-h" role="row"><span class="crm-c"><button class="ck ${rows.length && rows.every((h) => pick.has(h.id)) ? "on" : ""}" data-act="crmPickAll" aria-label="Select this page"></button></span>
+        ${CRM_COLS.map(([k, n, ic]) => `<button class="crm-hc ${sort.k === k ? "on" : ""}" data-act="crmSort" data-k="${k}">${ico(ic)}${n}${sort.k === k ? `<i>${sort.dir < 0 ? "↓" : "↑"}</i>` : ""}</button>`).join("")}</div>
+      ${rows.map((h) => `<div class="crm-r ${pick.has(h.id) ? "picked" : ""}" role="row" data-tid="${h.id}" data-act="openHist" data-id="${h.id}">
+        <span class="crm-c"><button class="ck ${pick.has(h.id) ? "on" : ""}" data-act="crmPick" data-id="${h.id}" aria-label="Select ${esc(h.name)}"></button></span>
+        <span class="crm-name"><span class="av cand">${initials(h.name)}</span><b>${esc(h.name)}</b>${h.again ? `<a class="h-again" href="#t~${h.again}">Active again</a>` : ""}</span>
+        <span><span class="crm-tag">${esc(ROLES[h.role].title)}</span></span>
+        <span class="crm-link">${profileOf(h)}</span>
+        <span class="crm-own">${esc(PEOPLE[ownerOf(h)].name)}</span>
+        <span class="crm-num">${h.score ? `${h.score}/100` : `<span class="faint">None</span>`}</span>
+        <span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span></span>
+        <span class="crm-day">${relDay(h.closed)}</span></div>`).join("") || `<div class="empty">No candidates match</div>`}
+    </div></div>
+    <div class="crm-foot"><span>${pick.size ? `${pick.size} selected · <button class="linkish" data-act="crmClear">Clear</button>` : ""}</span><span class="grow"></span><span>${xs.length ? `${(pg * per + 1).toLocaleString()}–${Math.min(xs.length, pg * per + per).toLocaleString()} of ${xs.length.toLocaleString()}` : "0"}</span>
+      <button class="icon-btn" data-act="crmPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="crmPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>
+  </div>`;
+}
+// Plain words to a list: teams, outcomes, roles, a Testbench bar, a period. Anything it can't read falls back to the open view.
+function crmAsk(text) {
+  const t = text.toLowerCase(), pick = state.crmPick || new Set();
+  let xs;
+  if (pick.size) xs = HISTORY.filter((h) => pick.has(h.id));
+  else {
+    const team = Object.keys(TEAMS).find((k) => t.includes(k) || t.includes(TEAMS[k].name.toLowerCase()));
+    const view = t.includes("silver") ? "silver" : /\bhired\b/.test(t) ? "hired" : /withdr|declin/.test(t) ? "withdrew" : /reject/.test(t) ? "rejected" : null;
+    const role = /design/.test(t) ? "des" : /inference/.test(t) ? "inf" : /eval/.test(t) ? "evals" : /product engineer/.test(t) ? "pe" : null;
+    const bar = (t.match(/(\d{2})\s*\+|(?:over|above|at least|>)\s*(\d{2})/) || []).slice(1).find(Boolean);
+    const min = bar ? +bar : /strong|top|great/.test(t) ? 85 : 0;
+    const since = /this year|last 12|past year/.test(t) ? 365 * DAY : /last 6|six months/.test(t) ? 182 * DAY : /2025/.test(t) ? NOW - new Date(2025, 0, 1) : 0;
+    const any = team || view || role || min || since;
+    xs = (any ? HISTORY : crmRows()).filter((h) => (!team || h.team === team) && (!view || CRM_VIEWS.find((v) => v[0] === view)[2](h)) && (!role || h.role === role) && (!min || (h.score || 0) >= min) && (!since || NOW - h.closed < since));
+  }
+  xs = xs.slice().sort((x, y) => (y.score || 0) - (x.score || 0));
+  const ask = text.trim() || (pick.size ? `these ${pick.size} candidates` : CRM_VIEWS.find((v) => v[0] === (state.crmView || "all"))[1].toLowerCase());
+  const show = xs.slice(0, 6);
+  openForm({ title: "Post the list to Slack", sub: `${xs.length.toLocaleString()} candidate${xs.length === 1 ? "" : "s"}`, wide: true,
+    body: `<label class="fm-f"><span>Channel</span><select name="ch"><option>#hiring</option><option>#infra-hiring</option><option>#research-hiring</option><option>A DM to me</option></select></label>
+      <div class="slk"><div class="slk-m">${botAv(ME, "lg")}<div class="slk-b"><div class="slk-n"><b>${esc(possessive(first(ME)))} Grokbot</b><span>APP</span><time>now</time></div>
+        <p>${xs.length.toLocaleString()} candidate${xs.length === 1 ? "" : "s"} for “${esc(ask)}”, best Testbench first:</p>
+        <ol>${show.map((h) => `<li><b>${esc(h.name)}</b> · ${esc(ROLES[h.role].title)} · ${esc(h.outcome)}${h.score ? ` · ${h.score}/100` : ""}</li>`).join("")}</ol>
+        ${xs.length > show.length ? `<p class="slk-more">and ${(xs.length - show.length).toLocaleString()} more in the attached sheet · <u>Open in tATS</u></p>` : ""}</div></div></div>`,
+    submit: "Post to Slack", onSubmit: (v) => { toast(`Posted ${xs.length.toLocaleString()} candidates to ${v.ch === "A DM to me" ? "your DMs" : v.ch}`); state.crmPick = new Set(); } });
+}
 function applicantsPage() {
   const tk = state.team;
   const list = scoped();
@@ -4982,14 +5080,14 @@ function applicantsPage() {
       ${open(g) ? g.items.slice(0, more.has(g.k) ? g.items.length : 25).map(arow).join("") + (g.items.length > 25 && !more.has(g.k) ? `<button class="grp-more" data-act="grpAll" data-k="${g.k}">Show ${g.items.length - 25} more</button>` : "") : ""}`).join("") || `<div class="empty">No applicants match</div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}</div>${pipeTabs("active", list.length)}<span class="spacer"></span>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${list.length.toLocaleString()}</span></div><span class="spacer"></span>
     <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" title="Board (B)">${ico("board")}</button></div>
     <a class="btn ghost sm" href="#views">${ico("layers")}Views</a><button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
   ${statStrip([{ n: list.length.toLocaleString(), label: "Active" }, { n: list.filter((a) => STATES[a.state].court === "you").length, label: "Waiting on you" }, { n: list.filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: `${median(list.map(dayN))}d`, label: "Median time open" }])}
-  ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#history">${ico("search")}${n.toLocaleString()} past application${n === 1 ? "" : "s"} also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
+  ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in CRM also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
   ${picked.size ? `<div class="bulk"><span class="n">${picked.size} selected</span>
     <button class="btn ghost sm" data-act="bulkTeam" title="Send to team (A)">Send to team…</button>
@@ -6046,6 +6144,7 @@ function renderSide() {
       <button class="icon-btn sb-toggle" data-act="sbToggle" title="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar ([)" aria-label="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!state.sbCollapsed}">${ico("sidebar")}</button></div>
     <nav class="sb-group" aria-label="Inbox">
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", inboxLeft(), "", `${inboxLeft()} left to clear`)}
+      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
     <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
@@ -6053,7 +6152,7 @@ function renderSide() {
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
     </nav>
     <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views" || r.name === "history")}
+      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
       ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
       ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
@@ -7113,7 +7212,8 @@ function parseHash() {
   if (name === "all") { state.team = "all"; state.savedView = null; return { name: "all" }; }
   if (name === "view" && viewById(a)) { const v = viewById(a); if (v.href) { location.replace(v.href); return { name: "views" }; } state.team = "all"; state.savedView = a; return { name: "all" }; }
   if (name === "views") return { name };
-  if (name === "history") { state.savedView = null; return { name }; }
+  if (name === "history") { location.replace("#crm"); return { name: "crm" }; }
+  if (name === "crm") return { name };
   if (name === "bots" && a === "rules") return { name: "settings" };
   if (name === "bots") return { name, id: a === "people" ? a : "runs" };
   if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks"))) return { name: "bots", id: a === "checks" ? "checks" : "runs" };
@@ -7145,7 +7245,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "history" ? historyPage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420);
@@ -7421,16 +7521,15 @@ const ACT = {
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
+  crmView: (el) => { state.crmView = el.dataset.v; state.crmPg = 0; render(); },
+  crmSort: (el) => { const s = state.crmSort; s.dir = s.k === el.dataset.k ? -s.dir : ["last", "score"].includes(el.dataset.k) ? -1 : 1; s.k = el.dataset.k; state.crmPg = 0; render(); },
+  crmPage: (el) => { state.crmPg = (state.crmPg || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
+  crmPick: (el) => { const p = state.crmPick; p.has(el.dataset.id) ? p.delete(el.dataset.id) : p.add(el.dataset.id); render(); },
+  crmPickAll: () => { const p = state.crmPick; const ids = $$(".crm-r[data-id]").map((r) => r.dataset.id); const all = ids.every((id) => p.has(id)); ids.forEach((id) => (all ? p.delete(id) : p.add(id))); render(); },
+  crmClear: () => { state.crmPick = new Set(); render(); },
   grpAll: (el) => { state.grpAll.add(el.dataset.k); render(); },
   openHist: (el) => openHist(el.dataset.id),
-  hTeam: (el) => { state.team = el.dataset.v; state.hpage = 0; render(); },
-  hSort: (el) => { const s = state.hsort; s.dir = s.k === el.dataset.k ? -s.dir : el.dataset.k === "closed" ? -1 : 1; s.k = el.dataset.k; state.hpage = 0; render(); },
-  hPage: (el) => { state.hpage = (state.hpage || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
-  hClear: () => { state.hf = {}; state.hpage = 0; render(); },
-  hFilter: (el) => {
-    const k = el.dataset.k, f = state.hf, opts = { outcome: H_OUTCOMES.map((o) => [o, o]), role: Object.entries(ROLES).map(([k2, r]) => [k2, r.title]), src: [["Referral", "Referral"], ["Tacit", "Tacit"], ["Cold", "Cold"]], period: H_PERIODS }[k];
-    openMenu(el, [{ id: "", label: k === "period" ? "Any time" : "Any", checked: !f[k] }, ...opts.map(([v, n]) => ({ id: v, label: n, checked: f[k] === v }))], (o) => { f[k] = o.id || null; state.hpage = 0; render(); });
-  },
+
   sendInvite: (el) => sendInvite(A[el.dataset.id]),
   nudgeCand: (el) => nudgeCand(A[el.dataset.id]),
   remindIv: (el) => { const a = A[el.dataset.id]; ev(a, Date.now(), `bot:${a.iv}`, `Reminded ${nm(a.iv)} to send the invite`, { ch: chOf(a.iv) }); touch(a); toast(`Reminded ${first(a.iv)} to send the invite`); },
@@ -7466,8 +7565,13 @@ document.addEventListener("click", (e) => {
   e.stopPropagation();
   ACT[el.dataset.act](el, e);
 });
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "crmAskForm") return;
+  e.preventDefault();
+  crmAsk($("#crmask").value);
+});
 document.addEventListener("input", (e) => {
-  if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; render(); }
+  if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; state.crmPg = 0; render(); }
   if (e.target.id === "actq") { state.actQ = e.target.value; render(); }
   if (e.target.id === "calq") { state.calQ = e.target.value; render(); }
   if (e.target.id === "tri-draft") { e.target.dataset.dirty = 1; state.tri.draft = e.target.value; }
