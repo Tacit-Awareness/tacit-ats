@@ -43,7 +43,7 @@ Commands:
   tats login             sign in with your company's Tacit account (opens your browser)
   tats logout            sign out on this machine
   tats agent setup       teach this machine's coding agents (Claude Code, Codex, Cursor) to use
-                         tats, then sign in (also: tats setup). --status shows what is set up;
+                         tats, then sign in. --status shows what is set up;
                          --client <id>, --skills-scope local|global, --json or --dry-run to plan,
                          -y, --force, --remove, --print
   tats status            which server and account, and whether the sign-in is current

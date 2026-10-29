@@ -15,7 +15,7 @@ beforeEach(async () => {
   home = await mkdtemp(join(tmpdir(), "tats-setup-"));
 });
 
-describe("tats setup", () => {
+describe("tats agent setup", () => {
   it("writes the skill for every agent found, and only those", async () => {
     await mkdir(join(home, ".claude"));
     await mkdir(join(home, ".codex"));
@@ -93,7 +93,7 @@ describe("tats setup", () => {
   });
 });
 
-describe("tats setup, from the command line", () => {
+describe("tats agent setup, from the command line", () => {
   let out: string[];
   let err: string[];
   let installs: string[];
@@ -131,13 +131,19 @@ describe("tats setup, from the command line", () => {
   });
 
   it("--print prints the skill and writes nothing", async () => {
-    expect(await run(["setup", "--print"], io())).toBe(0);
+    expect(await run(["agent", "setup", "--print"], io())).toBe(0);
     expect(out).toEqual([SKILL]);
     await expect(readFile(skillAt(".claude"))).rejects.toThrow();
   });
 
+  it("tats setup alone points at tats agent setup and changes nothing", async () => {
+    expect(await run(["setup"], io())).toBe(64);
+    expect(err).toEqual(["It is tats agent setup."]);
+    await expect(readFile(skillAt(".claude"))).rejects.toThrow();
+  });
+
   it("under npx, installs tats globally at its own version before the skill", async () => {
-    expect(await run(["setup"], io({}, { fromNpx: true }))).toBe(0);
+    expect(await run(["agent", "setup"], io({}, { fromNpx: true }))).toBe(0);
     expect(installs).toEqual(["@tacitawareness/tats@0.1.0"]);
     expect(out.join("\n")).toContain("✓ tats installed");
     expect(await readFile(skillAt(".claude"), "utf8")).toBe(SKILL);
@@ -145,41 +151,41 @@ describe("tats setup, from the command line", () => {
   });
 
   it("under npx, stops before the skill when the install fails or tats is still not on the PATH", async () => {
-    expect(await run(["setup"], io({}, { fromNpx: true, installGlobal: async () => false }))).toBe(1);
+    expect(await run(["agent", "setup"], io({}, { fromNpx: true, installGlobal: async () => false }))).toBe(1);
     expect(err[0]).toContain("npm i -g @tacitawareness/tats\n  tats agent setup");
-    expect(await run(["setup"], io({}, { fromNpx: true, onPath: async () => null }))).toBe(1);
+    expect(await run(["agent", "setup"], io({}, { fromNpx: true, onPath: async () => null }))).toBe(1);
     await expect(readFile(skillAt(".claude"))).rejects.toThrow();
   });
 
   it("warns, outside npx, when tats is not on the PATH", async () => {
-    expect(await run(["setup"], io({}, { onPath: async () => null }))).toBe(0);
+    expect(await run(["agent", "setup"], io({}, { onPath: async () => null }))).toBe(0);
     expect(out[0]).toContain("tats is not on your PATH");
     expect(installs).toEqual([]);
   });
 
   it("signs in after the skill when a person is at the terminal", async () => {
-    expect(await run(["setup"], io({ interactive: true }))).toBe(0);
+    expect(await run(["agent", "setup"], io({ interactive: true }))).toBe(0);
     expect(await store.session(SERVER)).not.toBeNull();
     expect(out.join("\n")).toContain("Signed in. Done: whoami.");
-    expect(out.join("\n")).not.toContain("use tats on their own: tats setup");
+    expect(out.join("\n")).not.toContain("use tats on their own: tats agent setup");
   });
 
   it("keeps the skill when the sign-in fails", async () => {
-    expect(await run(["setup"], io({ interactive: true, openBrowser: async () => true, env: { ...env(), TATS_CALLBACK_PORT: "0" } }))).toBe(2);
+    expect(await run(["agent", "setup"], io({ interactive: true, openBrowser: async () => true, env: { ...env(), TATS_CALLBACK_PORT: "0" } }))).toBe(2);
     expect(err.at(-1)).toContain("The skill is installed; finish with: tats login");
     expect(await readFile(skillAt(".claude"), "utf8")).toBe(SKILL);
   });
 
   it("does not sign in, or install, for a project's skill (--workspace or --skills-scope local)", async () => {
-    expect(await run(["setup", "--skills-scope", "local"], io({}, { fromNpx: true }))).toBe(0);
-    expect(await run(["setup", "--workspace"], io({}, { fromNpx: true }))).toBe(0);
+    expect(await run(["agent", "setup", "--skills-scope", "local"], io({}, { fromNpx: true }))).toBe(0);
+    expect(await run(["agent", "setup", "--workspace"], io({}, { fromNpx: true }))).toBe(0);
     expect(installs).toEqual([]);
     expect(await readFile(join(home, "repo", ".claude", "skills", "tats", "SKILL.md"), "utf8")).toBe(SKILL);
     expect(out.at(-1)).toContain("Commit these");
   });
 
   it("previews with --dry-run", async () => {
-    expect(await run(["setup", "--dry-run"], io({}, { fromNpx: true }))).toBe(0);
+    expect(await run(["agent", "setup", "--dry-run"], io({}, { fromNpx: true }))).toBe(0);
     expect(installs).toEqual([]);
     expect(out.join("\n")).toContain("· would install tats for good: npm i -g @tacitawareness/tats@0.1.0");
     expect(out.join("\n")).toContain("would install the skill at");

@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { PACKAGE, VERSION } from "./version.js";
 
 /**
- * `tats agent setup` (also `tats setup`): tells the coding agents on this
+ * `tats agent setup`: tells the coding agents on this
  * machine that tats exists, by writing a skill they load on their own. The
  * command's shape follows `stripe agent setup` (detected clients, --client,
  * --skills-scope, --status, --json as the plan, -y); Stripe also installs its
@@ -16,6 +16,7 @@ import { PACKAGE, VERSION } from "./version.js";
  * cli.ts runs the steps around it: the global install under npx, and login.
  */
 
+// Skills already written carry this text, and `setup` finds its own by it: keep it as it is.
 const MARKER = "<!-- written by tats setup";
 
 export const SKILL = `---

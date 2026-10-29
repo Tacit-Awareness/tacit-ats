@@ -11,7 +11,7 @@ npm i -g @tacitawareness/tats
 tats agent setup
 ```
 
-`tats agent setup` finds Claude Code, Codex and Cursor on your machine and gives each a skill, so they use `tats` for hiring questions on their own, then signs you in in your browser. (`npx @tacitawareness/tats agent setup` does the same and installs `tats` for you. `tats setup` is the same command.)
+`tats agent setup` finds Claude Code, Codex and Cursor on your machine and gives each a skill, so they use `tats` for hiring questions on their own, then signs you in in your browser. (`npx @tacitawareness/tats agent setup` does the same and installs `tats` for you.)
 
 ## Use
 
