@@ -1,4 +1,4 @@
-# @tacit-ats/cli
+# @tacitawareness/tats
 
 `tats`, the command line for the client connector: every tool a member gets from `/api/client` in Claude, as a terminal command, for coding agents (Claude Code, Codex, Cursor) and scripts. Added 2026-10-29. No dependencies; Node 20+.
 
@@ -20,8 +20,11 @@ src/
               repeated or JSON, objects JSON, nullable "null", text-or-JSON values (set_custom_field) unquoted;
               --input <json|@file|->; --<x>-file reads a file into x_base64 (add_file's name and type follow)
   guide.ts    tats help, tats agent (the connector's own instructions, live), tats tools, tats help <tool>
-  setup.ts    tats setup: the `tats` skill into each coding agent found (~/.claude/skills, ~/.codex/skills; Claude Code
-              when none is), refreshed by running it again; --remove, --force, --print (for any other agent)
+  setup.ts    tats setup's skill: into each coding agent found (~/.claude/skills, ~/.codex/skills; Claude Code when
+              none is), or with --workspace into a project (.claude/skills, .agents/skills); --remove, --force,
+              --dry-run, --print. cli.ts runs it in order: npm i -g itself when run from npx's cache (setup stops
+              there if that fails, so no skill points at a missing command), the skill, then the browser sign-in
+              when a person is at the terminal (a cancelled one keeps the skill)
   store.ts    ~/.config/tats/credentials.json (0600; the session per server, and the registered client, which a
               logout keeps) and ~/.cache/tats/ (the catalog); XDG_CONFIG_HOME / XDG_CACHE_HOME honoured
 ```
@@ -34,14 +37,24 @@ src/
 
 ## Tests
 
-`flags.test.ts` maps flags against `test-helpers/tools.json`, a trimmed copy of the real connector's `tools/list` (dumped from `buildClientHandler`; regenerate it when the schemas it covers change). `cli.test.ts` runs `run()` against `test-helpers/fake-tacit.ts`, a fetch-level stand-in for the connector and AuthKit that checks PKCE and the `resource`: help and the agent guide, a call, the cache, refusals, the `--yes` gate and the prompt, refresh before and after a 401, a refused refresh, a 403, and a whole browser login through a real loopback listener, twice, reusing the registered client. `setup.test.ts` writes, refreshes, keeps, forces and removes the skill in a temporary home.
+`flags.test.ts` maps flags against `test-helpers/tools.json`, a trimmed copy of the real connector's `tools/list` (dumped from `buildClientHandler`; regenerate it when the schemas it covers change). `cli.test.ts` runs `run()` against `test-helpers/fake-tacit.ts`, a fetch-level stand-in for the connector and AuthKit that checks PKCE and the `resource`: help and the agent guide, a call, the cache, refusals, the `--yes` gate and the prompt, refresh before and after a 401, a refused refresh, a 403, and a whole browser login through a real loopback listener, twice, reusing the registered client. `setup.test.ts` writes, refreshes, keeps, forces and removes the skill in a temporary home, and runs `tats setup` through its order: the npx install and its failure, a missing PATH, sign-in after, a failed sign-in, `--workspace`, `--dry-run`. `version.test.ts` keeps `version.ts` equal to package.json. apps/mcp's `src/cli-confirm.test.ts` fails when the connector's instructions name a tool to confirm that `--yes` does not guard (`guide.ts`'s `CONFIRM_ALSO`).
 
 ## Trying it
 
 ```
-pnpm --filter @tacit-ats/cli build
-node apps/cli/dist/main.js login        # or: npm link ./apps/cli, then tats login
-TATS_URL=http://localhost:3101/api/client node apps/cli/dist/main.js whoami
+pnpm --filter @tacitawareness/tats build
+npm link ./apps/cli && tats setup        # or: node apps/cli/dist/main.js <command>
+TATS_URL=http://localhost:3101/api/client tats whoami
 ```
 
-Not published yet (`private: true`); the npm name is still to pick (`tats` may be taken; `@tacitawareness/tats` keeps the command name).
+`npx` from a local tarball, without touching the real install (`TATS_INSTALL_SPEC` points setup's `npm i -g` at the tarball instead of the registry; checked this way in a throwaway home and npm prefix on 2026-10-29: tats on the PATH, both skills, `Next: tats login`):
+
+```
+cd apps/cli && npm pack --pack-destination /tmp/tats
+HOME=/tmp/tats/home npm_config_prefix=/tmp/tats/g TATS_INSTALL_SPEC=/tmp/tats/tacitawareness-tats-0.1.0.tgz \
+  npx -y --package=/tmp/tats/tacitawareness-tats-0.1.0.tgz tats setup
+```
+
+## Publishing
+
+npm `@tacitawareness/tats` (unscoped `tats` is someone else's), public (`publishConfig.access`, or the first publish is a 403), license `UNLICENSED`, only `dist/*.js` and the README. Pushing a tag `cli-v<version>` runs `.github/workflows/publish-cli.yml`: the tag must equal package.json's version, then typecheck, the CLI's tests, build, `npm publish` with the `NPM_TOKEN` secret. No `--provenance`: npm attests only builds from public repositories. To release, bump `version` in package.json and `version.ts` together. The build deletes `dist` and the tsbuildinfo first: with `composite`, a stale tsbuildinfo makes tsc skip files whose output was deleted.

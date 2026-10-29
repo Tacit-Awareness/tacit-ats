@@ -4,7 +4,7 @@ import { AuthRequired, login, type AuthDeps } from "./oauth.js";
 import { callTool, catalog as loadCatalog, Refused } from "./rpc.js";
 import { describeSetup, setup, SKILL } from "./setup.js";
 import type { Catalog, Store, Tool } from "./store.js";
-import { VERSION } from "./version.js";
+import { PACKAGE, VERSION } from "./version.js";
 
 /**
  * tats, argv to exit code. main.ts passes the real world; tests pass fakes.
@@ -28,6 +28,18 @@ export type Io = {
   interactive: boolean;
   ask: (question: string) => Promise<string>;
   args: ArgsDeps;
+  cwd: string;
+  install: Installer;
+};
+
+/** Putting tats on the PATH, for a `tats setup` run through npx (main.ts does the real thing). */
+export type Installer = {
+  /** Running from npx's cache, so `tats` is not installed anywhere an agent will find it. */
+  fromNpx: boolean;
+  /** npm i -g <spec>; true when npm said it worked. */
+  installGlobal: (spec: string) => Promise<boolean>;
+  /** What `tats --version` prints from the PATH, or null when there is no tats there. */
+  onPath: () => Promise<string | null>;
 };
 
 const EXIT = { ok: 0, refused: 1, auth: 2, confirm: 3, usage: 64 } as const;
@@ -67,15 +79,8 @@ export async function run(argv: string[], io: Io): Promise<number> {
         return EXIT.ok;
       case "status":
         return await status(server, deps, io, json);
-      case "setup": {
-        if (flag(first, "print")) {
-          io.out(SKILL);
-          return EXIT.ok;
-        }
-        const results = await setup(io.env, { remove: flag(first, "remove"), force: flag(first, "force") });
-        io.out(json ? JSON.stringify(results) : describeSetup(results, (await io.store.session(server)) !== null));
-        return EXIT.ok;
-      }
+      case "setup":
+        return await doSetup(first, server, deps, io, json);
       case "agent": {
         const catalog = (await io.store.session(server)) ? await loadCatalog(server, deps, flag(first, "refresh")).catch(() => null) : null;
         io.out(agentGuide(server, catalog));
@@ -136,7 +141,65 @@ async function help(name: string, server: string, deps: AuthDeps, io: Io): Promi
   return EXIT.ok;
 }
 
-async function doLogin(server: string, deps: AuthDeps, io: Io): Promise<number> {
+/**
+ * In order, so a failure leaves nothing pointing at nothing: tats onto the
+ * PATH (only when run through npx, and nothing else happens if that fails),
+ * the skill, then the sign-in. A cancelled sign-in keeps the skill: it tells
+ * the agent to ask for tats login.
+ */
+async function doSetup(parsed: Parsed, server: string, deps: AuthDeps, io: Io, json: boolean): Promise<number> {
+  if (flag(parsed, "print")) {
+    io.out(SKILL);
+    return EXIT.ok;
+  }
+  const remove = flag(parsed, "remove");
+  const dryRun = flag(parsed, "dry_run");
+  const workspace = flag(parsed, "workspace") ? (flagValue(parsed, "workspace") ?? io.cwd) : null;
+  const say = (line: string) => (json ? io.err(line) : io.out(line));
+
+  if (!remove && !workspace) {
+    // TATS_INSTALL_SPEC: install from a tarball or folder instead, to try setup before a release.
+    const spec = io.env.TATS_INSTALL_SPEC || `${PACKAGE}@${VERSION}`;
+    if (io.install.fromNpx) {
+      if (dryRun) say(`· would install tats for good: npm i -g ${spec}`);
+      else {
+        say(`Installing tats so your agents can run it: npm i -g ${spec}`);
+        const installed = (await io.install.installGlobal(spec)) && (await io.install.onPath()) !== null;
+        if (!installed) {
+          io.err(
+            `tats could not be installed globally, so no agent would find it. Install it yourself, then run setup again:\n` +
+              `  npm i -g ${PACKAGE}\n  tats setup\n` +
+              "(If npm refuses with EACCES, your Node needs a user-owned prefix: https://docs.npmjs.com/resolving-eacces-permissions-errors-when-installing-packages-globally)",
+          );
+          return EXIT.refused;
+        }
+        say("✓ tats installed");
+      }
+    } else if ((await io.install.onPath()) === null) {
+      say(`! tats is not on your PATH, so agents will not find it. Install it: npm i -g ${PACKAGE}`);
+    }
+  }
+
+  const results = await setup(io.env, { remove, force: flag(parsed, "force"), workspace, dryRun });
+  if (json) io.out(JSON.stringify(results));
+  else io.out(describeSetup(results, { dryRun, workspace }));
+  if (remove || dryRun || workspace) return EXIT.ok;
+
+  if (await io.store.session(server)) return EXIT.ok;
+  if (!io.interactive) {
+    say("Next: tats login");
+    return EXIT.ok;
+  }
+  say("");
+  try {
+    return await doLogin(server, deps, io, false);
+  } catch (err) {
+    io.err(`${err instanceof Error ? err.message : String(err)}\nThe skill is installed; finish with: tats login`);
+    return EXIT.auth;
+  }
+}
+
+async function doLogin(server: string, deps: AuthDeps, io: Io, suggestSetup = true): Promise<number> {
   const port = Number(io.env.TATS_CALLBACK_PORT ?? 33418);
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new UsageError("TATS_CALLBACK_PORT is not a port number.");
   await login(server, { ...deps, openBrowser: io.openBrowser, log: io.err, port });
@@ -145,7 +208,7 @@ async function doLogin(server: string, deps: AuthDeps, io: Io): Promise<number> 
   const line = who.content?.find((c) => c.type === "text")?.text?.split("\n\n")[0];
   io.out(`Signed in. ${line ?? ""}`.trim());
   io.out(`${catalog.tools.length} tools available. Try: tats list-jobs`);
-  io.out("To let your coding agents (Claude Code, Codex) use tats on their own: tats setup");
+  if (suggestSetup) io.out("To let your coding agents (Claude Code, Codex) use tats on their own: tats setup");
   return EXIT.ok;
 }
 

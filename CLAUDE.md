@@ -57,7 +57,7 @@ Run from the repo root:
 - `pnpm build` -- `@tacit-ats/core`, then both apps
 - `pnpm dev` -- web on :3100, mcp on :3101
 - `pnpm sync:tacit [path]` -- refresh `vendor/` from tacit-internal
-- `pnpm --filter @tacit-ats/cli build` -- then `node apps/cli/dist/main.js login` (`apps/cli/CLAUDE.md`)
+- `pnpm --filter @tacitawareness/tats build` -- then `node apps/cli/dist/main.js login` (`apps/cli/CLAUDE.md`)
 
 ## Deploy
 
@@ -65,5 +65,5 @@ Two Vercel projects, one per app (`apps/web`, `apps/mcp`), each with its own `ve
 
 ## Conventions
 
-- Workspace members are `@tacit-ats/<folder>`.
+- Workspace members are `@tacit-ats/<folder>`, except `apps/cli`, published to npm as `@tacitawareness/tats` (unscoped `tats` is taken).
 - TS configs extend `tsconfig.base.json` and override only `outDir` / `rootDir` / `include`.

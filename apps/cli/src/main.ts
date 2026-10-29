@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { sep } from "node:path";
 import { createInterface } from "node:readline/promises";
+import { fileURLToPath } from "node:url";
 
 import { run } from "./cli.js";
 import { realArgsDeps } from "./flags.js";
@@ -20,6 +22,18 @@ function openBrowser(url: string): Promise<boolean> {
       child.unref();
       resolve(true);
     });
+  });
+}
+
+/** Runs a command to its end; its output goes to stderr, so --json's stdout stays clean. */
+function runCommand(cmd: string, args: string[], capture = false): Promise<{ ok: boolean; stdout: string }> {
+  return new Promise((resolve) => {
+    let stdout = "";
+    // npm is npm.cmd on Windows, which only a shell runs.
+    const child = spawn(cmd, args, { stdio: ["ignore", capture ? "pipe" : process.stderr, process.stderr], shell: process.platform === "win32" });
+    child.stdout?.on("data", (chunk) => (stdout += chunk));
+    child.once("error", () => resolve({ ok: false, stdout }));
+    child.once("close", (code) => resolve({ ok: code === 0, stdout }));
   });
 }
 
@@ -44,5 +58,14 @@ const code = await run(process.argv.slice(2), {
     }
   },
   args: realArgsDeps,
+  cwd: process.cwd(),
+  install: {
+    fromNpx: fileURLToPath(import.meta.url).includes(`${sep}_npx${sep}`),
+    installGlobal: async (spec) => (await runCommand("npm", ["install", "--global", spec])).ok,
+    onPath: async () => {
+      const r = await runCommand("tats", ["--version"], true);
+      return r.ok ? r.stdout.trim() : null;
+    },
+  },
 });
 process.exitCode = code;

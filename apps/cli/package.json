@@ -1,23 +1,28 @@
 {
-  "name": "@tacit-ats/cli",
+  "name": "@tacitawareness/tats",
   "version": "0.1.0",
-  "private": true,
-  "description": "tats: your company's hiring workspace in Tacit, from the terminal.",
+  "description": "tats: your company's hiring workspace in Tacit, from the terminal and your coding agents.",
+  "license": "UNLICENSED",
+  "homepage": "https://tacitawareness.com",
   "type": "module",
   "bin": {
     "tats": "dist/main.js"
   },
   "files": [
-    "dist"
+    "dist/*.js",
+    "README.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod +x dist/main.js",
+    "build": "rm -rf dist tsconfig.tsbuildinfo && tsc -p tsconfig.json && chmod +x dist/main.js",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
   },
   "devDependencies": {
     "@types/node": "^26.1.2"

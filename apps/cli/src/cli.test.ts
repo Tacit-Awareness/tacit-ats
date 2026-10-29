@@ -24,6 +24,8 @@ function io(over: Partial<Io> = {}): Io {
     interactive: false,
     ask: async () => answers.shift() ?? "",
     args: { readFile: async () => Buffer.from(""), readStdin: async () => "{}" },
+    cwd: "/nowhere",
+    install: { fromNpx: false, installGlobal: async () => true, onPath: async () => "tats 0.1.0" },
     ...over,
   };
 }
