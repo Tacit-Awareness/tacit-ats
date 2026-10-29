@@ -18,7 +18,7 @@ To change it, edit `src/` and run `python3 design/tats/build.py`, which inlines 
 
 The sidebar follows the funnel: Inbox and CRM, then **Top of Funnel** (Job Postings, Applicant Tickets, Analytics), then **Routing & Tracking** (Pipeline, Interviews, Calendar, Interviewers, Grokbot Activity). Each of the four daily pages has its own shape, so you can tell them apart before reading a row:
 
-Dashboard first: Pipeline opens with a row of numbers; the Inbox goes straight to its issues. Color is grey except one accent for the primary action, red for what's broken, and the three interview verdicts. Rows and cards carry no buttons; a reader has one action, and anything else goes to the Grokbot through "Ask your Grokbot" or ⌘K, where open issues show up as one-line commands.
+No summary rows or banners: every page opens straight on its content. Color is grey except one accent for the primary action, red for what's broken, and the three interview verdicts. Rows and cards carry no buttons; a reader has one action, and anything else goes to the Grokbot through "Ask your Grokbot" or ⌘K, where open issues show up as one-line commands.
 
 - **Inbox** (`#inbox`): an operational action queue, not an applicant list. Issues are grouped Bot failures (a Grokbot step broke), Unsent invites (drafted in an interviewer's Gmail, not sent), Overdue replies (an interviewer's read or a candidate's Testbench), and Decisions. Each row says what's wrong, who it's about (bot, interviewer or candidate) and has its one action button; resolved and dismissed issues go to Done.
 - **Applicant Tickets** (`#triage`): new, unrouted applicants one at a time. A queue strip on top ("2 of 6"), their whole application as one document, and the reply and routing bar below.

@@ -4985,9 +4985,6 @@ function openHist(id) {
       ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
     submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
 }
-// A dashboard row of numbers: what's true right now, read at a glance.
-const statStrip = (xs) => `<div class="dk">${xs.map((x) => `<div class="dk-i ${x.tone || ""}"><b>${x.n}</b><span>${esc(x.label)}</span></div>`).join("")}</div>`;
-const thisWeek = (t) => t && t >= dayStart(Date.now()) - new Date().getDay() * DAY && t < dayStart(Date.now()) + (7 - new Date().getDay()) * DAY;
 /* ---------------- CRM: everyone the funnel has closed, as one database ---------------- */
 // One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
 const CRM_VIEWS = [
@@ -5086,7 +5083,6 @@ function applicantsPage() {
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  ${statStrip([{ n: list.length.toLocaleString(), label: "Active" }, { n: list.filter((a) => STATES[a.state].court === "you").length, label: "Waiting on you" }, { n: list.filter((a) => a.state === "scheduled" && thisWeek(a.at)).length, label: "Interviews this week" }, { n: `${median(list.map(dayN))}d`, label: "Median time open" }])}
   ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in CRM also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
   ${picked.size ? `<div class="bulk"><span class="n">${picked.size} selected</span>
@@ -7165,12 +7161,8 @@ function botsPage(tab = "runs") {
         ${list.map(runRow).join("") || `<div class="empty">No runs match</div>`}
       </section>`;
   } else if (tab === "people") {
-    body = `<section class="gb-ex">
-        <div class="gb-pair">${personAv("sam", "xl")}<span class="gb-link"></span><span class="gb-bot">${SPARK}</span></div>
-        <div class="gb-txt"><b>Every interviewer has a Grokbot</b><p>Their assistant for interviews. It asks, schedules, briefs and collects the read.</p></div>
-      </section>
-      <section class="cardbox">
-      <div class="cardbox-head">Interviewers<span class="n">${ids.length}</span></div>
+    body = `<section class="cardbox">
+      <div class="cardbox-head" title="Every interviewer has a Grokbot: their assistant for interviews. It asks, schedules, briefs and collects the read.">Interviewers<span class="n">${ids.length}</span></div>
       <div class="ptable">
         <div class="ph"><span>Interviewer</span><span>Interviews</span><span>This week</span><span>Knows</span><span>Reach</span><span>Their Grokbot is</span></div>
         ${ids.map((id) => { const p = PEOPLE[id]; return `<div class="pr2">
