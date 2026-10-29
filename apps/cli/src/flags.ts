@@ -19,7 +19,7 @@ import type { JsonSchema, Tool } from "./store.js";
 export class UsageError extends Error {}
 
 /** tats's own flags, never a tool's. */
-export const GLOBAL_FLAGS = { boolean: ["json", "yes", "help", "refresh"], value: ["input", "url"] } as const;
+export const GLOBAL_FLAGS = { boolean: ["json", "yes", "help", "refresh"], value: ["input", "url", "jq"] } as const;
 
 export type Parsed = {
   positionals: string[];
@@ -36,8 +36,8 @@ export function parseArgv(argv: string[], isBoolean: (name: string) => boolean):
       out.positionals.push(...argv.slice(i + 1));
       break;
     }
-    if (arg === "-h") {
-      out.flags.push({ name: "help", value: null });
+    if (arg === "-h" || arg === "-y") {
+      out.flags.push({ name: arg === "-h" ? "help" : "yes", value: null });
       continue;
     }
     if (!arg.startsWith("--") || arg === "--") {

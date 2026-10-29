@@ -42,6 +42,10 @@ ${COMMON.map(([n, d]) => `  ${n!.padEnd(22)} ${d}`).join("\n")}
 Commands:
   tats login             sign in with your company's Tacit account (opens your browser)
   tats logout            sign out on this machine
+  tats agent setup       teach this machine's coding agents (Claude Code, Codex, Cursor) to use
+                         tats, then sign in (also: tats setup). --status shows what is set up;
+                         --client <id>, --skills-scope local|global, --json or --dry-run to plan,
+                         -y, --force, --remove, --print
   tats status            which server and account, and whether the sign-in is current
   tats tools             every tool, read-only ones first
   tats help <tool>       one tool's flags
@@ -49,6 +53,7 @@ Commands:
 
 Flags on every tool:
   --json                 print only the result as JSON (for scripts and agents)
+  --jq <expr>            filter that JSON with jq, as gh does: --jq '.candidates[].stage'
   --yes                  confirm a change that asks for it
   --input <json|@file|->  the whole argument object as JSON; flags override it
   --refresh              fetch the tool list again first
@@ -71,6 +76,8 @@ from the Tacit connector in Claude is a command here, under the same name:
   refusal it is {"error": "..."} and the exit code is 1.
 - \`tats help <tool>\` lists a tool's flags. Ids come from earlier results:
   never invent one. When you only have a name, run search-candidates first.
+- --jq '<expr>' filters the JSON with jq (when it is installed), e.g.
+  \`tats get-pipeline --job-id ID --jq '.candidates[] | {candidate, stage}'\`.
 - Lists repeat their flag (--interviewer-user-ids ID1 --interviewer-user-ids
   ID2) or take a JSON array; nested arguments take JSON. --input '{"...": ...}' gives the
   whole argument object at once.

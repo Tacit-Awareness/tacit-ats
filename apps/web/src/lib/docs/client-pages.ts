@@ -47,6 +47,8 @@ claude mcp add --transport http tacit ${CLIENT_CONNECTOR_URL}
 
 Then run \`/mcp\` in Claude Code, choose **tacit** and sign in in the browser it opens.
 
+Or skip the connector in Claude Code, Codex and Cursor: [the tats command line](/docs/cli) gives them every tool through the terminal, with nothing to configure.
+
 ## Check it works
 
 Ask Claude:
@@ -66,6 +68,71 @@ Claude calls \`whoami\` and answers with your company, your name, your access le
 ## Disconnect
 
 Remove the connector in **Settings → Connectors**. That stops Claude from acting for you. It changes nothing in Tacit, and your account stays as it is.`,
+  },
+  {
+    slug: "cli",
+    title: "Use Tacit from Claude Code, Codex and Cursor",
+    category: "Get started",
+    description: "Install the tats command line so coding agents work your hiring through the terminal.",
+    body: `\`tats\` is the Tacit connector as a command line. Every tool you get in Claude is a \`tats\` command, so a coding agent that can run commands (Claude Code, Codex, Cursor) can work your hiring through your terminal, with no connector to add. You can run it yourself too. It acts as you, so it sees and changes only what your access in Tacit allows, exactly like the connector.
+
+Use the [connector](/docs/connect) in Claude and ChatGPT chats and in Slack bots; use \`tats\` where an agent has a terminal. Both reach the same workspace.
+
+## Install
+
+You need Node 20 or later and an invitation to your company's workspace.
+
+\`\`\`sh
+npm i -g @tacitawareness/tats
+tats agent setup
+\`\`\`
+
+\`tats agent setup\` (or just \`tats setup\`) does two things, after asking you once:
+
+1. **Teaches your agents.** It finds Claude Code, Codex and Cursor on your computer and installs a short skill for each, so they reach for \`tats\` when you ask about jobs, candidates or interviews, without you mentioning it. Agent sessions already open need a restart.
+2. **Signs you in.** A Tacit sign-in page opens in your browser; sign in with the email you were invited at. You stay signed in on this computer.
+
+\`npx @tacitawareness/tats agent setup\` does the same in one line and installs \`tats\` for you.
+
+## Check it works
+
+\`\`\`sh
+tats whoami
+\`\`\`
+
+It answers with your company, your name, your access level and the jobs you can see. Then, in a new Claude Code or Codex session, ask:
+
+> Who is in the pipeline for my open jobs?
+
+The agent should run \`tats\` and answer.
+
+## Before anything changes, you are asked
+
+Commands that change something that matters (moving a candidate, sending an email, offers, approvals, access) refuse to run unless the agent passes \`--yes\`, and the agent is told to pass it only after you say yes to that exact change. So an agent tells you what it is about to do and waits, the same way it does with the connector. When you run such a command yourself, \`tats\` asks you.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| \`tats help\` | Common commands, and how to get help on any one |
+| \`tats tools\` | Every tool, reads first |
+| \`tats help <tool>\` | One tool's options, e.g. \`tats help update-stage\` |
+| \`tats <tool> --json\` | Any tool, with machine-readable output |
+| \`tats status\` | Which account, and whether the sign-in is current |
+| \`tats logout\` | Sign out on this computer |
+| \`tats agent setup --status\` | Which agents are on this computer and which have the skill |
+| \`tats agent setup --client cursor\` | Set up one agent only: \`claude-code\`, \`codex\` or \`cursor\` |
+| \`tats agent setup --skills-scope local\` | Put the skill in the current project instead, to commit for your whole team |
+| \`tats agent setup --json\` | What setup would do, without doing it |
+| \`tats agent setup --remove\` | Take the skill out of your agents |
+| \`tats agent setup --print\` | The skill's text, for another agent's skills folder or its AGENTS.md |
+
+The tools are the [same as the connector's](/docs/client-tools), written with dashes (\`search-candidates\`) or underscores (\`search_candidates\`).
+
+## A shared or headless computer
+
+\`tats\` signs in as one person, in a browser, and keeps that sign-in on the computer. Install it only where you work yourself: anyone using that computer's \`tats\` acts as you, with your access. A bot or job shared by your team should not use a person's sign-in.
+`,
   },
   {
     slug: "access",

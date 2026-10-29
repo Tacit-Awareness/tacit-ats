@@ -24,6 +24,13 @@ function io(over: Partial<Io> = {}): Io {
     interactive: false,
     ask: async () => answers.shift() ?? "",
     args: { readFile: async () => Buffer.from(""), readStdin: async () => "{}" },
+    cwd: "/nowhere",
+    // A stand-in for jq: ".candidates[].candidate_id" works, "oops" is a syntax error.
+    jq: async (expr, input) =>
+      expr === ".candidates[].candidate_id"
+        ? { status: "ok", out: (JSON.parse(input).candidates as { candidate_id: string }[]).map((c) => c.candidate_id).join("\n") + "\n", err: "" }
+        : { status: "failed", out: "", err: "jq: error: syntax error\n" },
+    install: { fromNpx: false, installGlobal: async () => true, onPath: async () => "tats 0.1.0" },
     ...over,
   };
 }
@@ -118,6 +125,43 @@ describe("calling a tool", () => {
     expect(await tats(["whoami", "--json"])).toBe(1);
     expect(lastJson()).toEqual({ error: "You cannot do that." });
     expect(err).toEqual(["You cannot do that."]);
+  });
+});
+
+describe("--jq", () => {
+  beforeEach(async () => {
+    await signIn();
+    tacit.state.results.set("search_candidates", {
+      content: [{ type: "text", text: "Found 2." }],
+      structuredContent: { candidates: [{ candidate_id: "a" }, { candidate_id: "b" }] },
+    });
+  });
+
+  it("filters the JSON through jq -r", async () => {
+    expect(await tats(["search-candidates", "--jq", ".candidates[].candidate_id"])).toBe(0);
+    expect(out.at(-1)).toBe("a\nb");
+  });
+
+  it("passes jq's own error on, as a usage error", async () => {
+    expect(await tats(["search-candidates", "--jq", "oops"])).toBe(64);
+    expect(err.at(-1)).toBe("--jq: jq: error: syntax error");
+  });
+
+  it("says so when there is no jq", async () => {
+    expect(await tats(["search-candidates", "--jq", ".x"], { jq: async () => ({ status: "missing", out: "", err: "" }) })).toBe(1);
+    expect(err.at(-1)).toContain("--jq needs jq on your PATH");
+  });
+
+  it("needs an expression, and answers a refusal as JSON", async () => {
+    expect(await tats(["search-candidates", "--jq"])).toBe(64);
+    tacit.state.results.set("whoami", { content: [{ type: "text", text: "No." }], isError: true });
+    expect(await tats(["whoami", "--jq", ".x"])).toBe(1);
+    expect(lastJson()).toEqual({ error: "No." });
+  });
+
+  it("counts as --json for the --yes gate", async () => {
+    expect(await tats(["update-stage", "--application-id", ID, "--stage", "hired", "--jq", ".x"], { interactive: true })).toBe(3);
+    expect(lastJson()).toMatchObject({ needs_confirmation: true });
   });
 });
 
