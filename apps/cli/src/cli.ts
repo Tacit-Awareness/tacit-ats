@@ -2,6 +2,7 @@ import { agentGuide, mainHelp, needsConfirm, toolHelp, toolList } from "./guide.
 import { booleanFlags, describeFlags, normalize, parseArgv, toolArguments, UsageError, type ArgsDeps, type Parsed } from "./flags.js";
 import { AuthRequired, login, type AuthDeps } from "./oauth.js";
 import { callTool, catalog as loadCatalog, Refused } from "./rpc.js";
+import { describeSetup, setup, SKILL } from "./setup.js";
 import type { Catalog, Store, Tool } from "./store.js";
 import { VERSION } from "./version.js";
 
@@ -66,6 +67,15 @@ export async function run(argv: string[], io: Io): Promise<number> {
         return EXIT.ok;
       case "status":
         return await status(server, deps, io, json);
+      case "setup": {
+        if (flag(first, "print")) {
+          io.out(SKILL);
+          return EXIT.ok;
+        }
+        const results = await setup(io.env, { remove: flag(first, "remove"), force: flag(first, "force") });
+        io.out(json ? JSON.stringify(results) : describeSetup(results, (await io.store.session(server)) !== null));
+        return EXIT.ok;
+      }
       case "agent": {
         const catalog = (await io.store.session(server)) ? await loadCatalog(server, deps, flag(first, "refresh")).catch(() => null) : null;
         io.out(agentGuide(server, catalog));
@@ -116,7 +126,7 @@ function unknownCommand(name: string, catalog: Catalog): UsageError {
 }
 
 async function help(name: string, server: string, deps: AuthDeps, io: Io): Promise<number> {
-  if (["login", "logout", "status", "agent", "tools", "help", "version"].includes(name)) {
+  if (["login", "logout", "status", "setup", "agent", "tools", "help", "version"].includes(name)) {
     io.out(mainHelp(server, (await io.store.session(server)) !== null));
     return EXIT.ok;
   }
@@ -134,7 +144,8 @@ async function doLogin(server: string, deps: AuthDeps, io: Io): Promise<number> 
   const who = await callTool(server, "whoami", {}, deps);
   const line = who.content?.find((c) => c.type === "text")?.text?.split("\n\n")[0];
   io.out(`Signed in. ${line ?? ""}`.trim());
-  io.out(`${catalog.tools.length} tools available. Try: tats list-jobs   (AI agents: tats agent)`);
+  io.out(`${catalog.tools.length} tools available. Try: tats list-jobs`);
+  io.out("To let your coding agents (Claude Code, Codex) use tats on their own: tats setup");
   return EXIT.ok;
 }
 
