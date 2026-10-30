@@ -6,6 +6,7 @@ import {
 } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
+import { ANONYMIZED_NAME } from "./merge.js";
 import { reasonForStage } from "./offers.js";
 import { openingFilledBy, type HireOpening } from "./openings.js";
 
@@ -215,27 +216,31 @@ export async function addNote(
   ctx: ClientToolCtx,
   input: { candidateId: string; text: string },
 ): Promise<{ noteId: string }> {
-  const text = input.text.trim();
+  // Postgres text cannot hold a NUL: past the claim it would only fail the write.
+  const text = input.text.replaceAll("\0", "").trim();
   if (!text) throw new ClientToolError("invalid", "The note is empty.");
   if (text.length > NOTE_MAX) throw new ClientToolError("invalid", `A note is at most ${NOTE_MAX} characters.`);
 
-  // A member notes on candidates they can see; an interviewer on the ones they interview.
+  // A member notes on candidates they can see; an interviewer on the ones they
+  // interview. Never on someone erased: their row stays for the numbers, and a
+  // note from a page left open would put personal data back on it. An
+  // interviewer's token reads no people row, so the name is what tells them.
   let visible: boolean;
   if (ctx.accessLevel === "limited") {
     const { data, error } = await db.rpc("my_interview_candidates");
     if (error) throw new Error(error.message);
-    visible = (data ?? []).some((c) => c.person_id === input.candidateId);
+    visible = (data ?? []).some((c) => c.person_id === input.candidateId && c.display_name !== ANONYMIZED_NAME);
   } else {
-    const { data, error } = await db.from("people").select("id").eq("id", input.candidateId).maybeSingle();
+    const { data, error } = await db.from("people").select("id, anonymized_at").eq("id", input.candidateId).maybeSingle();
     if (error) throw new Error(error.message);
-    visible = !!data;
+    visible = !!data && !data.anonymized_at;
   }
   if (!visible) throw new ClientToolError("not_found", "No candidate with that id that you can see. Call search_candidates for the ids.");
 
   return withAudit(db, ctx, { action: "note.add", entity: "person" }, async () => {
     const { data, error } = await db
       .from("person_notes")
-      .insert({ person_id: input.candidateId, actor_id: ctx.actorId, text })
+      .insert({ person_id: input.candidateId, actor_id: ctx.actorId, text, source: ctx.source })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
