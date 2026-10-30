@@ -40,6 +40,12 @@ export const TOUR: TourStep[] = [
     body: "Everyone you can see, one table: in process, and everyone the funnel has closed, hired or not.",
   },
   {
+    href: "/client/jobs",
+    targets: ['[data-tour="add-role"]', 'aside a[href="/client/jobs"]'],
+    title: "Job Postings",
+    body: "Your careers page as applicants see it. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
+  },
+  {
     href: "/client/applicants",
     targets: ['[data-tour="route"]', '[data-tour="tickets"]'],
     title: "Applicant Tickets",
