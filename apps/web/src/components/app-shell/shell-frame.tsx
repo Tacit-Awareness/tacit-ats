@@ -31,6 +31,7 @@ const ICONS = {
   search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
   menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
+  chart: "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5",
   tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
   ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
@@ -62,6 +63,7 @@ const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
+const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
@@ -277,6 +279,7 @@ export function ShellFrame({
     { group: "Go to", label: CRM.label, href: CRM.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
     { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
+    { group: "Go to", label: ANALYTICS.label, href: ANALYTICS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
@@ -360,6 +363,7 @@ export function ShellFrame({
                 );
               })}
           <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} />
+          <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
         </Section>
 
         <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
