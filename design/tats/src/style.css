@@ -5094,3 +5094,36 @@ a.pth-s:hover { box-shadow: var(--elev-hi); }
 .pth-c .pt-tag { margin: 0; white-space: nowrap; }
 .pth-row { display: flex; align-items: stretch; min-width: 0; }
 .pth-s { min-width: 0; }
+
+/* v75 full-page pop-up: the whole ticket over the Inbox, decide there, close back */
+.overlay.fs { padding: var(--s5); align-items: stretch; justify-content: center; }
+.fs-sheet { display: flex; flex-direction: column; width: min(1280px, 100%); height: 100%; background: var(--paper); box-shadow: var(--elev-hi); overflow: hidden; }
+.fs-h { display: flex; align-items: center; gap: var(--s3); min-height: 56px; padding: 0 var(--s4) 0 var(--s6); border-bottom: 1px solid var(--line-strong); background: var(--surface); }
+.fs-t { display: grid; gap: 2px; }
+.fs-t b { font-size: 16px; font-weight: 600; }
+.fs-t span { color: var(--muted); font-size: 13px; }
+.fs-h .btn .ico { width: 13px; height: 13px; }
+.fs-x .ico { width: 16px; height: 16px; }
+.fs-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; }
+.fs-body > .bar { display: none; }
+.fs-body > .pth { flex: none; }
+.fs-body > .detail, .fs-body > .scroll { flex: 1; min-height: auto; overflow: visible; }
+
+/* v75 Inbox opening: the Grokbot reads each source, then the tasks populate */
+.ibx-think { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2) var(--s6); margin-bottom: var(--s5); overflow: hidden; }
+.ibx-s { display: flex; align-items: center; gap: var(--s3); min-height: 48px; opacity: 0; }
+.ibx-s .ibx-src { width: 20px; height: 20px; flex: none; }
+.ibx-s .ibx-src svg { width: 20px; height: 20px; }
+.ibx-sm { display: grid; gap: 2px; flex: 1; }
+.ibx-sm b { font-size: 14.5px; font-weight: 500; }
+.ibx-sm span { color: var(--muted); font-size: 13.5px; }
+.ibx-st { width: 16px; height: 16px; display: grid; place-items: center; color: var(--muted); }
+.ibx-st .ico { width: 14px; height: 14px; display: none; }
+.ibx-st .spin { width: 12px; height: 12px; border: 1.5px solid var(--line-strong); border-top-color: var(--ink); border-radius: 50% !important; animation: ibx-spin 0.6s linear infinite; }
+.ibx-s.ok .spin { display: none; }
+.ibx-s.ok .ico { display: block; animation: ibx-pop 0.18s var(--spring); }
+@keyframes ibx-spin { to { transform: rotate(360deg); } }
+@keyframes ibx-pop { from { transform: scale(0.6); opacity: 0; } }
+.ibx.is-thinking .ibx-g, .ibx.is-thinking .ibx-zero, .ibx.is-thinking .ibx-all { display: none; }
+.ibx.is-thinking .ibx-h p { color: var(--muted); }
+.ibx-stop { min-width: 120px; justify-content: center; }
