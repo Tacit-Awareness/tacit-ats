@@ -15,6 +15,7 @@ vi.mock("@tacit/db", () => ({
           filters.push([column, value]);
           return q;
         },
+        abortSignal: () => q,
         maybeSingle: async () => ({ data: service.row, error: null }),
         update(patch: unknown) {
           service.saved.push(patch);
@@ -48,7 +49,7 @@ function memberDb(tables: Record<string, { data: unknown; error?: { message: str
       };
       return q;
     },
-    rpc: async () => ({ data: [], error: null }),
+    rpc: () => ({ eq: async () => ({ data: [], error: null }) }),
   } as unknown as Db;
 }
 

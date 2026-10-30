@@ -51,6 +51,8 @@ export type GranolaAccess = { token: string } | { reconnect: true } | null;
 const TOKEN_URL = "https://mcp-auth.granola.ai/oauth2/token";
 /** A cached access token is used until this long before it expires. */
 const EARLY_MS = 60_000;
+/** After a refusal, how long to wait before each look for another call's rotated token. */
+const RACE_WAITS_MS = [0, 200, 500];
 
 /**
  * The member's Granola access from their grant in granola_connections, which
@@ -64,10 +66,17 @@ const EARLY_MS = 60_000;
  * refresh, so the new one is written back, conditional on the one read: when
  * two calls refresh at once (the web reader and the connector, or two tabs),
  * the winner's write stands, and the loser, whose old refresh token Granola now
- * refuses, finds the winner's access token on a second read rather than saying
- * Granola dropped the grant. Any other refusal (invalid_grant: revoked, or
- * signed out) is `reconnect`, and the row stays until the member connects again
- * or disconnects.
+ * refuses, finds the winner's access token on a re-read rather than saying
+ * Granola dropped the grant. Granola answers both at about the same moment, so
+ * the loser's first re-read can beat the winner's write: it looks a few times
+ * over RACE_WAITS_MS before believing the refusal. Any other refusal
+ * (invalid_grant: revoked, or signed out) is then `reconnect`, and the row stays
+ * until the member connects again or disconnects. A row gone by then is not
+ * connected.
+ *
+ * Every read carries a signal: within one server render Next answers identical
+ * GETs from the first one's result unless they do (its fetch memoization), so
+ * without it the re-reads in apps/web's reader only ever see the first read's row.
  */
 export async function granolaGrantAccess(
   db: Db,
@@ -75,6 +84,7 @@ export async function granolaGrantAccess(
   actorId: string,
   fetchImpl: typeof fetch = fetch,
   now: () => number = Date.now,
+  pause: (ms: number) => Promise<void> = (ms) => new Promise((done) => setTimeout(done, ms)),
 ): Promise<GranolaAccess> {
   const read = async () => {
     const { data, error } = await db
@@ -82,6 +92,7 @@ export async function granolaGrantAccess(
       .select("oauth_client_id, refresh_token, access_token, access_token_expires_at")
       .eq("org_id", orgId)
       .eq("actor_id", actorId)
+      .abortSignal(AbortSignal.timeout(10_000))
       .maybeSingle();
     if (error) throw new Error(`granola_connections: ${error.message}`);
     return data;
@@ -109,9 +120,15 @@ export async function granolaGrantAccess(
     | null;
   if (res.status === 400 || res.status === 401) {
     if (json?.error === "invalid_grant" || json?.error === "invalid_client" || res.status === 401) {
-      const again = await read();
-      const theirs = again && again.refresh_token !== grant.refresh_token ? fresh(again) : null;
-      return theirs ? { token: theirs } : { reconnect: true };
+      for (const wait of RACE_WAITS_MS) {
+        if (wait) await pause(wait);
+        const again = await read();
+        if (!again) return null;
+        if (again.refresh_token === grant.refresh_token) continue;
+        const theirs = fresh(again);
+        return theirs ? { token: theirs } : { reconnect: true };
+      }
+      return { reconnect: true };
     }
   }
   if (!res.ok || typeof json?.access_token !== "string" || !json.access_token) {
@@ -312,7 +329,8 @@ export async function getInterviewNotes(
   // An interviewer reads the candidate through my_interviews(), never the application.
   let candidateId = app?.person_id ?? null;
   if (!candidateId) {
-    const { data: mine, error: mineError } = await db.rpc("my_interviews");
+    // By this interview: the function is oldest first, and PostgREST stops at 1,000 rows.
+    const { data: mine, error: mineError } = await db.rpc("my_interviews").eq("interview_id", interview.id);
     if (mineError) throw new Error(mineError.message);
     candidateId = (mine ?? []).find((i) => i.interview_id === interview.id)?.person_id ?? null;
   }

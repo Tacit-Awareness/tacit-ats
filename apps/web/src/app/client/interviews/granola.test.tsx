@@ -65,6 +65,12 @@ describe("the panel", () => {
     expect(html).toContain("paid Granola plan");
   });
 
+  test("a transcript that is only Granola's wrapper is no transcript, not an empty box", () => {
+    const html = render(found({ transcript: "<transcript>\n</transcript>", transcriptStatus: "included" }));
+    expect(html).not.toContain('data-untrusted="granola transcript"');
+    expect(html).toContain("Granola has no transcript of this one");
+  });
+
   test("says when it was cut", () => {
     expect(render(found({ truncated: true }))).toContain("Cut for length");
   });

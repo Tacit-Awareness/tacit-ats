@@ -169,6 +169,32 @@ describe("a member's Granola notes on their own token", () => {
     expect(data!.map((r) => [r.actor_id, r.refresh_token])).toEqual([[ADA, "rt_ada"], [BEN, "rt_fresh"], [IVY, "rt_ivy"]]);
   });
 
+  test("two reads refreshing at once both get notes, the loser through the winner's token", async () => {
+    must(await db().from("granola_connections").update({ access_token: null, access_token_expires_at: null }).eq("actor_id", BEN));
+    const g = granola();
+    let refreshes = 0;
+    const fetchImpl = (async (url: unknown, init?: RequestInit) => {
+      if (!String(url).endsWith("/oauth2/token")) return g.fetchImpl(url as string, init);
+      // Granola rotates once: whoever comes second holds a dead refresh token.
+      if (refreshes++ === 0) return Response.json({ access_token: "at_won", refresh_token: "rt_won", expires_in: 21600 });
+      return Response.json({ error: "invalid_grant" }, { status: 400 });
+    }) as typeof fetch;
+    const both = await Promise.all([read(ben, fetchImpl), read(ben, fetchImpl)]);
+    expect(both).toEqual([expect.objectContaining({ status: "found" }), expect.objectContaining({ status: "found" })]);
+    const { data } = must(await db().from("granola_connections").select("refresh_token").eq("actor_id", BEN).single());
+    expect(data!.refresh_token).toBe("rt_won");
+  });
+
+  test("a busy interviewer's newest interview is still found past PostgREST's 1,000 rows", async () => {
+    // my_interviews() is oldest first, so these push PAST off the end of an unfiltered read.
+    const older = Array.from({ length: 1001 }, (_, n) => ({
+      org_id: ACME, application_id: APP, starts_at: at(-100 - n), ends_at: at(-99 - n), status: "done", step: "Screen", interviewer_actor_ids: [IVY],
+    }));
+    must(await db().from("interviews").insert(older));
+    const g = granola();
+    expect(await read(ivy, g.fetchImpl)).toMatchObject({ status: "found", notes: "notes for Bearer at_ivy" });
+  });
+
   test("the list marks the interviews the member sat on", async () => {
     const member: Member = { actorId: BEN, orgId: ACME, accessLevel: "elevated" };
     const mine = await readInterviews(ben.db, member, new Date());

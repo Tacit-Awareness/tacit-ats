@@ -117,6 +117,9 @@ export function GranolaPanel({
   }
 
   const notes = granolaText(reading.notes);
+  const transcript = granolaTranscript(reading.transcript);
+  // A transcript that is only Granola's wrapper has nothing to show.
+  const noTranscript = reading.transcriptStatus === "unavailable" || (reading.transcriptStatus === "included" && !transcript);
   return (
     <Frame line={matchedLine(reading.matchedBy)}>
       {notes.title ? (
@@ -130,10 +133,10 @@ export function GranolaPanel({
           Show the transcript
         </Link>
       ) : null}
-      {reading.transcriptStatus === "unavailable" ? (
+      {noTranscript ? (
         <Empty className="my-0">Granola has no transcript of this one for you. Transcripts need a paid Granola plan.</Empty>
       ) : null}
-      {reading.transcriptStatus === "included" ? (
+      {reading.transcriptStatus === "included" && transcript ? (
         <div className="grid gap-1.5">
           <div className="flex items-baseline justify-between gap-3">
             <b className="text-[13px] font-medium text-muted-foreground">Transcript</b>
@@ -143,7 +146,7 @@ export function GranolaPanel({
           </div>
           {/* A scrolling region needs focus to scroll by keyboard. */}
           <div tabIndex={0} role="region" aria-label="Transcript" className="max-h-[480px] overflow-y-auto">
-            <Fenced label="granola transcript">{granolaTranscript(reading.transcript)}</Fenced>
+            <Fenced label="granola transcript">{transcript}</Fenced>
           </div>
         </div>
       ) : null}

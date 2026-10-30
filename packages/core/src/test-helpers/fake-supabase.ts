@@ -17,7 +17,7 @@ export type RecordedCall = {
     value: unknown;
   }>;
   modifiers: Array<{
-    method: "order" | "limit" | "range";
+    method: "order" | "limit" | "range" | "abortSignal";
     column?: string;
     options?: unknown;
     /** limit: the row count; range: [from, to] */
@@ -157,6 +157,11 @@ export class FakeSupabase {
         call.modifiers.push({ method: "range", value: [from, to] });
         return builder;
       },
+      // Bounds a read, and takes it out of Next's per-render memoization of GETs.
+      abortSignal() {
+        call.modifiers.push({ method: "abortSignal" });
+        return builder;
+      },
       // A compile-time cast for embedded selects; at runtime it is the same query.
       overrideTypes() {
         return builder;
@@ -182,9 +187,14 @@ export class FakeSupabase {
     const call: RecordedCall = { table: fn, op: "rpc", args, filters: [], modifiers: [], terminal: "await" };
     this.calls.push(call);
     const next = () => this.next();
-    // Awaited directly, or after the order and range that page a set-returning function.
+    // Awaited directly, or after the order and range that page a set-returning
+    // function, or the eq that picks one of its rows.
     /* eslint-disable @typescript-eslint/no-explicit-any */
     const builder: any = {
+      eq(column: string, value: unknown) {
+        call.filters.push({ method: "eq", column, value });
+        return builder;
+      },
       order(column: string, options?: unknown) {
         call.modifiers.push({ method: "order", column, options });
         return builder;

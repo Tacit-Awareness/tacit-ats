@@ -75,6 +75,27 @@ describe("granolaText", () => {
     ]);
   });
 
+  test("a title with angle brackets, the common 'Pat <> Ada', is still the meeting's title", () => {
+    const raw = `<meeting id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" title="Pat <> Ada" date="Oct 15, 2026">\n<summary>Strong.</summary>\n</meeting>`;
+    expect(granolaText(raw)).toEqual({ title: "Pat <> Ada", date: "Oct 15, 2026", sections: [{ label: "Summary", text: "Strong." }] });
+  });
+
+  test("a stray quote in a title loses no notes, and text after the tag is not read as part of it", () => {
+    const raw = `<meeting id="x" title="24" monitor" date="Oct 15">\n<summary>He said "great" > fine</summary>\n</meeting>`;
+    expect(granolaText(raw).sections).toEqual([{ label: "Summary", text: 'He said "great" > fine' }]);
+  });
+
+  test("hostile text of the longest size stays quick", () => {
+    const started = performance.now();
+    for (const chunk of ['<meeting "', '<summary "<', '<meeting "x" ', "<summary>", '"<>"', "<meeting a=", "\n"]) granolaText(chunk.repeat(Math.floor(60_000 / chunk.length)));
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  test("a section with nothing in it, self-closed, does not swallow the ones after it", () => {
+    expect(granolaText("<private_notes/>\n<summary>Strong.</summary>").sections).toEqual([{ label: "Summary", text: "Strong." }]);
+    expect(granolaText('<summary />\n<private_notes foo="1">Mine.</private_notes>').sections).toEqual([{ label: "Your notes", text: "Mine." }]);
+  });
+
   test("nothing at all is nothing", () => {
     expect(granolaText(null)).toEqual({ title: null, date: null, sections: [] });
     expect(granolaText("   ").sections).toEqual([]);

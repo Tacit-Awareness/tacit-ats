@@ -25,9 +25,16 @@ const LABELS: Record<string, string> = {
   private_notes: "Your notes",
   summary: "Summary",
 };
-const WRAPPER = /<\/?(?:meetings_data|meetings|meeting|transcript)\b[^<>]*>/gi;
+// A quoted attribute can hold angle brackets: "Pat <> Ada" is a common meeting
+// title. Quotes that don't pair up (a title of 24" monitor) read as before.
+const ATTRS = String.raw`(?:(?:[^<>"]|"[^"\n]*")*|[^<>]*)`;
+const MEETING = new RegExp(String.raw`<meeting\b${ATTRS}>`, "i");
+const WRAPPER = new RegExp(String.raw`<\/?(?:meetings_data|meetings|meeting|transcript)\b${ATTRS}>`, "gi");
+const SECTIONS = "known_participants|participants|private_notes|summary";
+// Self-closed is empty, and would otherwise run on through the sections after it.
+const EMPTY_SECTION = new RegExp(String.raw`<(?:${SECTIONS})\b${ATTRS}\/>`, "gi");
 // An unclosed one runs to the end: core cuts long text, closing tag and all.
-const SECTION = /<(known_participants|participants|private_notes|summary)\b[^<>]*>([\s\S]*?)(?:<\/\1>|$)/gi;
+const SECTION = new RegExp(String.raw`<(${SECTIONS})\b${ATTRS}>([\s\S]*?)(?:<\/\1>|$)`, "gi");
 
 const attr = (tag: string, name: string) => new RegExp(`\\b${name}="([^"]*)"`).exec(tag)?.[1]?.trim() || null;
 
@@ -41,8 +48,8 @@ function dedent(text: string) {
 /** A meeting's text as a title, a date and its sections in Granola's order. */
 export function granolaText(raw: string | null): GranolaText {
   const text = raw ?? "";
-  const meeting = /<meeting\b[^<>]*>/i.exec(text)?.[0] ?? "";
-  const body = text.replace(WRAPPER, "").trim();
+  const meeting = MEETING.exec(text)?.[0] ?? "";
+  const body = text.replace(WRAPPER, "").replace(EMPTY_SECTION, "").trim();
   const sections: GranolaSection[] = [];
   let at = 0;
   const loose = (chunk: string) => {

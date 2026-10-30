@@ -163,6 +163,9 @@ describe("getInterviewNotes", () => {
     ]);
     const r = await getInterviewNotes(fake.asDb(), ctx("limited"), g.deps, { interviewId: "iv-1" });
     expect(r).toMatchObject({ found: true, matchedBy: "time", candidateId: "p-9", noteId: A });
+    // my_interviews() is oldest first and PostgREST stops at 1,000 rows, so
+    // reading the whole of it would never find a busy interviewer's newest.
+    expect(fake.calls.find((c) => c.op === "rpc")!.filters.map((f) => [f.column, f.value])).toEqual([["interview_id", "iv-1"]]);
   });
 
   test("no match lists the meetings nearby, so one can be picked by note_id", async () => {
@@ -214,7 +217,7 @@ describe("granolaGrantAccess", () => {
     oauth_client_id: "client-1", refresh_token: "rt_old", access_token: "at_old", access_token_expires_at: "2026-10-20T13:00:00Z", ...over,
   });
   const expired = row({ access_token_expires_at: "2026-10-20T11:00:00Z" });
-  const access = (fake: FakeSupabase, fetchImpl: typeof fetch) => granolaGrantAccess(fake.asDb(), "org-1", "actor-1", fetchImpl, () => NOW);
+  const access = (fake: FakeSupabase, fetchImpl: typeof fetch) => granolaGrantAccess(fake.asDb(), "org-1", "actor-1", fetchImpl, () => NOW, async () => undefined);
   const never = (async () => {
     throw new Error("Granola should not be asked");
   }) as unknown as typeof fetch;
@@ -246,9 +249,9 @@ describe("granolaGrantAccess", () => {
   });
 
   test("a refresh Granola refuses is reconnect, and the row stays", async () => {
-    const fake = new FakeSupabase([{ data: expired }, { data: expired }]);
+    const fake = new FakeSupabase([{ data: expired }, { data: expired }, { data: expired }, { data: expired }]);
     expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toEqual({ reconnect: true });
-    expect(fake.calls.map((c) => c.op)).toEqual(["select", "select"]);
+    expect(fake.calls.map((c) => c.op)).toEqual(["select", "select", "select", "select"]);
   });
 
   test("losing a refresh race to another call uses the winner's token, not reconnect", async () => {
@@ -260,6 +263,31 @@ describe("granolaGrantAccess", () => {
   test("a refused grant whose row changed but holds no live token is still reconnect", async () => {
     const fake = new FakeSupabase([{ data: expired }, { data: { ...expired, refresh_token: "rt_rotated" } }]);
     expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toEqual({ reconnect: true });
+  });
+
+  test("a refusal that lands before the winner's write still finds the winner's token", async () => {
+    // Granola rotated for the winner and refused the loser at the same moment,
+    // so the loser's first re-read can beat the winner's save to the row.
+    const won = row({ refresh_token: "rt_rotated", access_token: "at_theirs", access_token_expires_at: "2026-10-20T18:00:00Z" });
+    const fake = new FakeSupabase([{ data: expired }, { data: expired }, { data: won }]);
+    const waits: number[] = [];
+    const out = await granolaGrantAccess(fake.asDb(), "org-1", "actor-1", answers({ error: "invalid_grant" }, 400), () => NOW, async (ms) => void waits.push(ms));
+    expect(out).toEqual({ token: "at_theirs" });
+    expect(waits).toEqual([200]);
+  });
+
+  test("a grant disconnected while the refresh was out is not connected, not reconnect", async () => {
+    const fake = new FakeSupabase([{ data: expired }, { data: null }]);
+    expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toBeNull();
+  });
+
+  test("every read opts out of a server render's fetch memoization, or a re-read answers with the first read's row", async () => {
+    // Next dedupes identical GETs within one render unless they carry a signal.
+    const fake = new FakeSupabase([{ data: expired }, { data: expired }, { data: expired }, { data: expired }]);
+    await access(fake, answers({ error: "invalid_grant" }, 400));
+    const reads = fake.calls.filter((c) => c.op === "select");
+    expect(reads.length).toBeGreaterThan(1);
+    for (const r of reads) expect(r.modifiers.map((m) => m.method)).toContain("abortSignal");
   });
 
   test("any other failure throws with the status alone", async () => {
