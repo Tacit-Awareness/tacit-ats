@@ -16,6 +16,10 @@ import type { Member } from "./interviews";
 
 /** Interviews one view reads at most: a month of a busy company's calendar. */
 const WINDOW_MAX = 1000;
+/** Interviews a search looks through at most, newest first. */
+const SEARCH_SCAN_MAX = 3000;
+/** PostgREST's `max_rows`: a request brings back no more than this, whatever its `.limit` asks. */
+const PAGE = 1000;
 /** Ids per `.in()` read, to keep the query string short. */
 const IDS_PER_READ = 150;
 
@@ -36,7 +40,7 @@ export type Schedule = {
   items: ScheduleItem[];
   /** The org's departments, when the member may read them; empty for an interviewer. */
   departments: clientTools.Department[];
-  /** The window held more than WINDOW_MAX interviews and the latest were left off. */
+  /** There were more than the read's cap: a window's latest, or a search's oldest, were left off. */
   truncated: boolean;
 };
 
@@ -58,23 +62,50 @@ async function inChunks<T>(ids: string[], read: (chunk: string[]) => Promise<T[]
   return out;
 }
 
+/**
+ * Up to `max` + 1 of the interviews the member can read, but cancelled ones:
+ * one past the cap, a page at a time, so the caller can tell there were more.
+ * The id breaks ties, so no row is read twice or missed across pages.
+ */
+async function scanInterviews(db: Db, { window, ascending, max }: { window: { from: string; to: string } | null; ascending: boolean; max: number }): Promise<InterviewRow[]> {
+  const rows: InterviewRow[] = [];
+  for (let from = 0; from <= max; from += PAGE) {
+    let query = db.from("interviews").select("id, application_id, starts_at, ends_at, step, interviewer_actor_ids, location_or_link").neq("status", "cancelled");
+    if (window) query = query.lt("starts_at", window.to).gt("ends_at", window.from);
+    const { data, error } = await query
+      .order("starts_at", { ascending })
+      .order("id", { ascending })
+      .range(from, Math.min(from + PAGE - 1, max));
+    if (error) throw new Error(error.message);
+    rows.push(...((data ?? []) as InterviewRow[]));
+    if ((data ?? []).length < PAGE) break;
+  }
+  return rows;
+}
+
 /** Every interview the member can see that overlaps [from, to), but cancelled ones, soonest first. */
 export async function readSchedule(db: Db, member: Member, window: { from: string; to: string }, now: Date): Promise<Schedule> {
-  const [{ data: rows, error }, mine, departments] = await Promise.all([
-    db
-      .from("interviews")
-      .select("id, application_id, starts_at, ends_at, step, interviewer_actor_ids, location_or_link")
-      .neq("status", "cancelled")
-      .lt("starts_at", window.to)
-      .gt("ends_at", window.from)
-      .order("starts_at")
-      .limit(WINDOW_MAX + 1),
+  return assemble(db, member, await scanInterviews(db, { window, ascending: true, max: WINDOW_MAX }), WINDOW_MAX, now);
+}
+
+/**
+ * Every interview the member can see, on any date, but cancelled ones, for the
+ * search to look through: newest first, so a company past the cap loses its
+ * oldest. Nothing the member typed reaches the query: lib/client/schedule-search.ts
+ * matches on what comes back, which is what the policies let them read.
+ */
+export async function readAllInterviews(db: Db, member: Member, now: Date): Promise<Schedule> {
+  return assemble(db, member, await scanInterviews(db, { window: null, ascending: false, max: SEARCH_SCAN_MAX }), SEARCH_SCAN_MAX, now);
+}
+
+/** Interview rows into the Calendar's items: who, for which job, in which department, with whom. */
+async function assemble(db: Db, member: Member, rows: InterviewRow[], max: number, now: Date): Promise<Schedule> {
+  const [mine, departments] = await Promise.all([
     clientTools.listMyInterviews(db, toolCtx(member), { when: "all" }, now),
     // Archived ones too: a job can still sit in one.
     member.accessLevel === "limited" ? Promise.resolve([]) : clientTools.listDepartments(db, toolCtx(member), { includeArchived: true }),
   ]);
-  if (error) throw new Error(error.message);
-  const interviews = ((rows ?? []) as InterviewRow[]).slice(0, WINDOW_MAX);
+  const interviews = rows.slice(0, max);
 
   // Who and for which job: the application where the member may read it, else their own my_interviews() row.
   const apps = new Map<string, { candidateName: string | null; jobId: string; jobTitle: string }>();
@@ -123,6 +154,6 @@ export async function readSchedule(db: Db, member: Member, window: { from: strin
       };
     }),
     departments,
-    truncated: (rows ?? []).length > WINDOW_MAX,
+    truncated: rows.length > max,
   };
 }

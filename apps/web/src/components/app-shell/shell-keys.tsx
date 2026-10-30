@@ -15,10 +15,12 @@ export type GoKey = { key: string; label: string; href: string };
 const OPEN_EVENT = "tats:keys";
 
 function Keys({ keys }: { keys: string }) {
+  const parts = keys.split(" ");
   return (
     <span className="flex flex-none items-center gap-1">
-      {keys.split(" ").map((k, i) =>
-        ["then", "/", "or"].includes(k) ? (
+      {parts.map((k, i) =>
+        // Between keys these are words; alone, "/" is the key itself.
+        parts.length > 1 && ["then", "/", "or"].includes(k) ? (
           <span key={i} className="text-[11.5px] text-faint">
             {k}
           </span>

@@ -2,8 +2,9 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 import type { Member } from "./interviews";
-import { readSchedule } from "./schedule";
-import { departmentTones } from "./schedule-layout";
+import { readAllInterviews, readSchedule } from "./schedule";
+import { daysOf, departmentTones, monthCells, readWindow } from "./schedule-layout";
+import { matchesSearch } from "./schedule-search";
 
 /**
  * The Calendar's read against the local stack, on members' own tokens: the
@@ -179,11 +180,108 @@ describe("the Calendar's read", () => {
     }
   });
 
+  test("a window with more than the cap says so, past PostgREST's 1,000 rows a request", async () => {
+    // 1,001 in the window: a `.limit(1001)` alone comes back with 1,000 and says nothing.
+    const rows = Array.from({ length: 1001 }, (_, n) => ({
+      org_id: ACME,
+      application_id: app(2),
+      starts_at: new Date(NOW + 30 * 24 * H + n * 60_000).toISOString(),
+      ends_at: new Date(NOW + 30 * 24 * H + (n + 30) * 60_000).toISOString(),
+      status: "scheduled" as const,
+      step: `Bulk ${n}`,
+      interviewer_actor_ids: [BEN],
+    }));
+    must(await db().from("interviews").insert(rows));
+    const window = { from: at(29 * 24), to: at(32 * 24) };
+    const full = await readSchedule(admin.db, admin.member, window, new Date(NOW));
+    expect(full.items.length).toBe(1000);
+    expect(full.truncated).toBe(true);
+    // Exactly the cap is not short.
+    must(await db().from("interviews").delete().eq("org_id", ACME).eq("step", "Bulk 1000"));
+    const exact = await readSchedule(admin.db, admin.member, window, new Date(NOW));
+    expect(exact.items.length).toBe(1000);
+    expect(exact.truncated).toBe(false);
+  });
+
   test("another company never appears, and theirs never reaches us", async () => {
     const theirs = await read(globex);
     expect(ids(theirs.items)).toEqual([GLOBEX_IV]);
     expect(theirs.items[0]!.departmentId).toBeNull();
     expect(theirs.departments).toEqual([]);
     for (const who of [admin, lead, ivy]) expect(ids((await read(who)).items)).not.toContain(GLOBEX_IV);
+  });
+
+  test("the month's read reaches the grid's last week, past the month's own end", async () => {
+    // A grid's last cell, on a date whose grid the fixture falls in whichever day this runs.
+    const onsite = new Date(Date.parse(at(24)));
+    const ymd = (d: Date) => d.toISOString().slice(0, 10);
+    const previousMonth = ymd(new Date(Date.UTC(onsite.getUTCFullYear(), onsite.getUTCMonth() - 1, 15)));
+    const inGrid = daysOf("month", previousMonth).includes(ymd(onsite));
+    const anchor = inGrid ? previousMonth : ymd(onsite);
+    const { items } = await readSchedule(admin.db, admin.member, readWindow("month", anchor, new Date(NOW)), new Date(NOW));
+    const cell = monthCells(items.map((i) => ({ ...i, id: i.interviewId })), anchor, "UTC").find((c) => c.day === ymd(onsite))!;
+    expect(cell.events.map((e) => e.id)).toContain(iv(2));
+  });
+});
+
+describe("the Calendar's search", () => {
+  const found = async (who: { db: ReturnType<typeof client>; member: Member }, q: string) =>
+    ids((await readAllInterviews(who.db, who.member, new Date(NOW))).items.filter((i) => matchesSearch(i, q)));
+
+  test("reaches every date, not a window, newest first, and never a cancelled one", async () => {
+    const { items, truncated } = await readAllInterviews(admin.db, admin.member, new Date(NOW));
+    // Candidate 3's screen in two weeks is well outside any window read above.
+    expect(items.map((i) => i.interviewId)).toEqual([iv(5), iv(2), iv(3), iv(1), iv(6)]);
+    expect(truncated).toBe(false);
+    expect(await found(admin, "Candidate 3")).toEqual([iv(5)]);
+  });
+
+  test("finds by candidate, interviewer, job and step", async () => {
+    expect(await found(admin, "candidate 1")).toEqual([iv(1), iv(2)].sort());
+    expect(await found(admin, "lee lead")).toEqual([iv(2)]);
+    expect(await found(admin, "designer")).toEqual([iv(3), iv(6)].sort());
+    expect(await found(admin, "portfolio")).toEqual([iv(3)]);
+  });
+
+  test("a hiring manager finds only their job's interviews, even by a name on another", async () => {
+    expect(await found(lead, "candidate")).toEqual([iv(1), iv(2), iv(5)].sort());
+    expect(await found(lead, "Candidate 2")).toEqual([]);
+    expect(await found(lead, "portfolio")).toEqual([]);
+  });
+
+  test("an interviewer finds only their own", async () => {
+    expect(await found(ivy, "candidate")).toEqual([iv(1), iv(5)].sort());
+    expect(await found(ivy, "Lee Lead")).toEqual([]);
+    expect(await found(ivy, "designer")).toEqual([]);
+  });
+
+  test("another company's interviews are never found, by name or at all", async () => {
+    for (const who of [admin, lead, ivy]) {
+      expect(await found(who, "Globex")).toEqual([]);
+      expect(ids((await readAllInterviews(who.db, who.member, new Date(NOW))).items)).not.toContain(GLOBEX_IV);
+    }
+    expect(await found(globex, "Candidate 1")).toEqual([]);
+    expect(await found(globex, "Globex Candidate")).toEqual([GLOBEX_IV]);
+  });
+
+  test("past the cap it keeps the newest and says so, paging past 1,000 rows a request", async () => {
+    // 3,001 on one application, on top of the fixtures: the oldest are what fall off.
+    const rows = Array.from({ length: 3001 }, (_, n) => ({
+      org_id: ACME,
+      application_id: app(2),
+      starts_at: new Date(NOW - 400 * 24 * H + n * 60_000).toISOString(),
+      ends_at: new Date(NOW - 400 * 24 * H + (n + 30) * 60_000).toISOString(),
+      status: "done" as const,
+      step: `Bulk ${n}`,
+      interviewer_actor_ids: [BEN],
+    }));
+    must(await db().from("interviews").insert(rows));
+    const { items, truncated } = await readAllInterviews(admin.db, admin.member, new Date(NOW));
+    expect(items).toHaveLength(3000);
+    expect(new Set(items.map((i) => i.interviewId)).size).toBe(3000);
+    expect(truncated).toBe(true);
+    expect(items[0]!.interviewId).toBe(iv(5));
+    expect(items.map((i) => i.step)).not.toContain("Bulk 0");
+    expect(items.map((i) => i.step)).toContain("Bulk 3000");
   });
 });

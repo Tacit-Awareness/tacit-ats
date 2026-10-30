@@ -4,31 +4,40 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { FilterMenu } from "@/components/filter-menu";
-import { Avatar, Empty, Notice, Page, PageBar } from "@/components/page";
+import { useKeyHelp, useKeys, type KeyHandler } from "@/components/keys";
+import { Avatar, Empty, Notice, Page, PageBar, SearchBox } from "@/components/page";
 import {
   daysOf,
   hourSpan,
+  monthCells,
   placeDay,
+  SCHEDULE_KEYS,
+  scheduleHref,
+  scheduleKeyHref,
   stepAnchor,
   todayIn,
   weekdayOf,
   zoned,
   type EventTone,
+  type MonthCell,
   type Placed,
   type ScheduleView as View,
   type Ymd,
 } from "@/lib/client/schedule-layout";
+import { searchOrder } from "@/lib/client/schedule-search";
 import { cn } from "@/lib/utils";
 
 // The Calendar's markup, props only (page.tsx does the read): design/tats's
-// calendar page, edge to edge under its bar with no card: the controls row
-// (Today and the joined arrows, the dates, the department menu, the view
-// pills), then a day or week grid, or the month as its interviews table. A client component because
-// it lays the interviews out in the browser's own time zone, which the server
-// does not know; until it has the zone (the server render, and the first
-// paint) it draws the frame with no times in it, never UTC by mistake.
-// Navigation is in the URL (`?view=`, `?date=`, `?dept=`), with D / W / L, ← / → and
-// `.` for today. Each event opens the interview on the Interviews page.
+// calendar page, edge to edge under its bar with no card: the search in the
+// bar, the controls row (Today and the joined arrows, the dates, the department
+// menu, the view pills), then a day or week grid, the month grid, or the month
+// as its interviews table. A search swaps the dates and the grid for one table
+// of every date's matches. A client component because it lays the interviews
+// out in the browser's own time zone, which the server does not know; until it
+// has the zone (the server render, and the first paint) it draws the frame with
+// no times in it, never UTC by mistake. Navigation is in the URL (`?view=`,
+// `?date=`, `?dept=`, `?q=`), with D / W / M / L, ← / →, `.` for today and `/`
+// for the search. Each event opens the interview on the Interviews page.
 
 export type CalendarEvent = {
   id: string;
@@ -71,12 +80,11 @@ const LINE_AT = { time: 36, detail: 52, interviewers: 68, location: 84 } as cons
 const VIEWS: { key: View; label: string }[] = [
   { key: "day", label: "Day" },
   { key: "week", label: "Week" },
+  { key: "month", label: "Month" },
   { key: "list", label: "List" },
 ];
-const VIEW_KEYS: Record<string, View> = { d: "day", w: "week", l: "list" };
 
-const hrefFor = (view: View, date: Ymd | null, dept: string | null) =>
-  `/client/schedule?view=${view}${date ? `&date=${date}` : ""}${dept ? `&dept=${encodeURIComponent(dept)}` : ""}`;
+const hrefFor = (view: View, date: Ymd | null, dept: string | null, q?: string | null) => scheduleHref({ view, date, dept, q });
 
 /** design/tats's `.cx-btn`: 32px, radius 8, the strong hairline. */
 const cxBtn =
@@ -95,11 +103,12 @@ const serverZone = () => null;
 /** A calendar date in words, in the member's locale (noon UTC, so no zone can move the day). */
 const dayWords = (ymd: Ymd, opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(undefined, { ...opts, timeZone: "UTC" }).format(new Date(`${ymd}T12:00:00Z`));
 
-function titleOf(view: View, days: Ymd[]): string {
+function titleOf(view: View, days: Ymd[], shown: Ymd): string {
   const first = days[0]!;
   const last = days[days.length - 1]!;
   if (view === "day") return dayWords(first, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-  if (first.slice(0, 7) === last.slice(0, 7) || view === "list") return dayWords(first, { month: "long", year: "numeric" });
+  // The month's grid starts in the month before, more often than not.
+  if (view === "month" || view === "list" || first.slice(0, 7) === last.slice(0, 7)) return dayWords(shown, { month: "long", year: "numeric" });
   return first.slice(0, 4) === last.slice(0, 4)
     ? `${dayWords(first, { month: "short" })} – ${dayWords(last, { month: "short", year: "numeric" })}`
     : `${dayWords(first, { month: "short", year: "numeric" })} – ${dayWords(last, { month: "short", year: "numeric" })}`;
@@ -213,6 +222,91 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
   );
 }
 
+/** design/tats's month (`.mo-grid`): six weeks, a day's first three interviews, the rest in its day view. */
+function MonthGrid({ cells, timeZone, today, dept }: { cells: MonthCell<CalendarEvent>[]; timeZone: string; today: Ymd; dept: string | null }) {
+  const clock = useClock(timeZone);
+  return (
+    <>
+      <div aria-hidden className="grid grid-cols-7 border-b border-[color:var(--line)]">
+        {cells.slice(0, 7).map((c) => (
+          <span key={c.day} className="px-1.5 py-2.5 text-xs tracking-[0.04em] text-faint uppercase md:px-3 md:text-[13px]">
+            {dayWords(c.day, { weekday: "short" })}
+          </span>
+        ))}
+      </div>
+      <ul aria-label="Month" className="m-0 grid list-none auto-rows-fr grid-cols-7 p-0">
+        {cells.map((c) => {
+          const isToday = c.day === today;
+          const dayHref = hrefFor("day", c.day, dept);
+          const count = c.events.length;
+          return (
+            <li
+              key={c.day}
+              className={cn(
+                "grid min-h-16 min-w-0 content-start gap-[3px] border-r border-b border-[color:var(--line)] px-1 pt-1.5 pb-2 md:min-h-28 md:px-1.5 [&:nth-child(7n)]:border-r-0",
+                !c.inMonth && "bg-[color:color-mix(in_srgb,var(--soft)_55%,transparent)]",
+              )}
+            >
+              <Link
+                href={dayHref}
+                aria-current={isToday ? "date" : undefined}
+                aria-label={`${dayWords(c.day, { weekday: "long", month: "long", day: "numeric" })}, ${count} ${count === 1 ? "interview" : "interviews"}`}
+                className={cn(
+                  "justify-self-start rounded-md px-1.5 py-0.5 text-[13px] font-medium tabular-nums md:text-sm",
+                  isToday ? "bg-[color:var(--accent)] text-[color:var(--accent-ink)]" : "hover:bg-[color:var(--hover)]",
+                  !isToday && !c.inMonth && "text-faint",
+                )}
+              >
+                {Number(c.day.slice(8))}
+              </Link>
+              {c.listed.map((e) => (
+                <Link
+                  key={e.id}
+                  href={e.href}
+                  title={[e.candidate, `${clock(e.startsAt)} – ${clock(e.endsAt)}`, [e.step, e.job].filter(Boolean).join(" · "), e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
+                  className="flex h-[22px] min-w-0 items-center gap-[5px] rounded-[5px] px-[5px] text-[12.5px] text-foreground transition-colors hover:bg-[color:var(--hover)] max-md:hidden"
+                >
+                  <i aria-hidden className={cn("size-[7px] flex-none rounded-[2px]", DOT[e.tone])} />
+                  <span className="truncate">
+                    <span className="tabular-nums">{clock(e.startsAt)}</span> {e.candidate}
+                  </span>
+                </Link>
+              ))}
+              {c.more ? (
+                <Link href={dayHref} className="px-1.5 text-[11.5px] text-faint transition-colors hover:text-foreground max-md:hidden">
+                  {c.more} more
+                </Link>
+              ) : null}
+              {/* Too narrow for names on a phone: the count, and the date opens the day. */}
+              {count ? (
+                <span aria-hidden className="flex items-center gap-1 px-1.5 text-[11.5px] text-faint tabular-nums md:hidden">
+                  <i className={cn("size-[7px] flex-none rounded-[2px]", DOT[c.events[0]!.tone])} />
+                  {count}
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+/** The key under a grid: the departments of the interviews in view. */
+function Legend({ tones, gutter }: { tones: Map<string, EventTone>; gutter: boolean }) {
+  if (!tones.size) return null;
+  return (
+    <ul aria-label="Departments" className={cn("m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--line)] py-2.5 pr-5 text-xs text-faint", gutter ? "pl-16" : "pl-5")}>
+      {[...tones].map(([name, tone]) => (
+        <li key={name} className="flex items-center gap-1.5">
+          <i aria-hidden className={cn("size-2.5 rounded-[3px]", DOT[tone])} />
+          {name}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** design/tats's `.cx-pill`: booked green with a tick, past grey with a clock. */
 function StatusPill({ past }: { past: boolean }) {
   return (
@@ -236,17 +330,16 @@ function StatusPill({ past }: { past: boolean }) {
 
 const CT_GRID = "grid grid-cols-[110px_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_120px_110px_minmax(160px,1.2fr)] items-center gap-3.5 px-5";
 
-/** design/tats's interviews table (`.ct-row`): the month's interviews in order, each row opening the interview. */
-function ListOf({ events, timeZone, now }: { events: CalendarEvent[]; timeZone: string; now: number }) {
+/** design/tats's interviews table (`.ct-row`): the rows in the order given, each opening the interview. */
+function ListOf({ rows, timeZone, now, empty }: { rows: CalendarEvent[]; timeZone: string; now: number; empty: string }) {
   const clock = useClock(timeZone);
-  const rows = [...events].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
   return (
     <section aria-label="Interviews" className="pb-10">
       <h2 className="m-0 flex items-center gap-2.5 px-5 py-3.5 text-[15px] font-semibold">
         Interviews <span className="font-normal text-faint tabular-nums">{rows.length}</span>
       </h2>
       {rows.length === 0 ? (
-        <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews this month.</Empty>
+        <Empty className="border-t border-[color:var(--line)] px-5 py-3 [overflow-wrap:anywhere]">{empty}</Empty>
       ) : (
         <div className="overflow-x-auto">
           <div role="table" aria-label="Interviews" className="grid min-w-[980px]">
@@ -325,17 +418,20 @@ export function ScheduleView({
   events,
   departments,
   dept,
+  q,
   truncated,
 }: {
   view: View;
   /** The `?date=`; null is the browser's today. */
   anchor: Ymd | null;
-  /** A window wider than the view, so it holds the view's days in any zone. */
+  /** A window wider than the view, so it holds the view's days in any zone; in a search, every date's matches. */
   events: CalendarEvent[];
   /** The department menu's choices; empty hides it (an interviewer reads no department names). */
   departments: string[];
   /** The `?dept=`, one of `departments`; null is everyone's. */
   dept: string | null;
+  /** The `?q=`; null is the calendar, anything else the table of matches. */
+  q: string | null;
   truncated: boolean;
 }) {
   const router = useRouter();
@@ -349,60 +445,89 @@ export function ScheduleView({
   const today = timeZone ? todayIn(timeZone, now) : null;
   const shown = anchor ?? today;
 
-  React.useEffect(() => {
-    if (!shown) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
-      const to = VIEW_KEYS[e.key.toLowerCase()];
-      let href: string | null = null;
-      if (to) href = hrefFor(to, anchor, dept);
-      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") href = hrefFor(view, stepAnchor(view, shown, e.key === "ArrowLeft" ? -1 : 1), dept);
-      else if (e.key === ".") href = hrefFor(view, null, dept);
-      if (!href) return;
-      e.preventDefault();
-      router.push(href);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [router, view, anchor, shown, dept]);
+  // Every key is a shortcut for a link here; `/` puts the cursor in the search.
+  const search = React.useRef<HTMLDivElement>(null);
+  const bindings: Record<string, KeyHandler> = {
+    "/": () => {
+      const input = search.current?.querySelector<HTMLInputElement>('input[name="q"]');
+      input?.focus();
+      input?.select();
+    },
+  };
+  if (shown) {
+    for (const key of SCHEDULE_KEYS) {
+      const href = scheduleKeyHref(key, { view, anchor, shown, dept, q });
+      if (href) bindings[key] = () => router.push(href);
+    }
+  }
+  useKeys(bindings);
+  useKeyHelp("Calendar", [
+    { keys: "D / W / M / L", label: "Day, week, month, list" },
+    ...(q ? [] : [{ keys: "← / →", label: "Previous, next" }]),
+    { keys: ".", label: "Today" },
+    { keys: "/", label: "Search interviews" },
+  ]);
 
   const days = shown ? daysOf(view, shown) : [];
-  const visible =
-    timeZone && days.length
-      ? events.filter((e) => (!dept || e.department === dept) && zoned(e.startsAt, timeZone).day <= days.at(-1)! && zoned(e.endsAt, timeZone).day >= days[0]!)
-      : [];
+  const inDept = events.filter((e) => !dept || e.department === dept);
+  const inView =
+    timeZone && days.length ? inDept.filter((e) => zoned(e.startsAt, timeZone).day <= days.at(-1)! && zoned(e.endsAt, timeZone).day >= days[0]!) : [];
+  const cells = timeZone && shown && view === "month" && !q ? monthCells(inDept, shown, timeZone) : [];
+  // The month shows an interview on the day it starts, so one still running into its first day is not in it.
+  const visible = q ? inDept : view === "month" ? cells.flatMap((c) => c.events) : inView;
   // The key: the departments of the interviews in view, for whoever may read their names.
   const legend = new Map<string, EventTone>();
   for (const e of visible) if (e.department) legend.set(e.department, e.tone);
   if (legend.size && visible.some((e) => !e.department)) legend.set("No department", "gray");
+  const inOrder = [...inView].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
 
   return (
-    <Page bar={<PageBar title="Calendar" />} bleed>
+    <Page
+      bar={
+        <PageBar title="Calendar">
+          <div ref={search} className="contents">
+            {/* Keyed by the search: the box holds what it was given, and the URL can change under it. */}
+            <SearchBox key={q ?? ""} action="/client/schedule" defaultValue={q ?? ""} placeholder="Search interviews…" label="Search interviews" keep={{ view, date: anchor, dept }} />
+          </div>
+        </PageBar>
+      }
+      bleed
+      className="grid-cols-[minmax(0,1fr)]"
+    >
       <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:flex-nowrap md:px-5 md:py-3">
-        <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Today (.)">
-          Today
-        </Link>
-        <span className="inline-flex">
-          <Link
-            href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"}
-            aria-label="Previous"
-            title="Previous (←)"
-            className={cn(cxBtn, "rounded-l-lg px-[11px]")}
-          >
-            {arrow("M10 3.5 5.5 8l4.5 4.5")}
-          </Link>
-          <Link
-            href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"}
-            aria-label="Next"
-            title="Next (→)"
-            className={cn(cxBtn, "-ml-px rounded-r-lg px-[11px]")}
-          >
-            {arrow("M6 3.5 10.5 8 6 12.5")}
-          </Link>
-        </span>
-        <h2 className="m-0 mr-1 ml-2 text-[17px] font-medium tracking-[-0.014em] whitespace-nowrap md:text-[19px]">{days.length ? titleOf(view, days) : " "}</h2>
+        {q ? (
+          <>
+            <Link href={hrefFor(view, anchor, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Back to the calendar">
+              Clear
+            </Link>
+            <h2 className="m-0 mr-1 ml-2 min-w-0 truncate text-[17px] font-medium tracking-[-0.014em] md:text-[19px]">Results for “{q}”</h2>
+          </>
+        ) : (
+          <>
+            <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Today (.)">
+              Today
+            </Link>
+            <span className="inline-flex">
+              <Link
+                href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"}
+                aria-label="Previous"
+                title="Previous (←)"
+                className={cn(cxBtn, "rounded-l-lg px-[11px]")}
+              >
+                {arrow("M10 3.5 5.5 8l4.5 4.5")}
+              </Link>
+              <Link
+                href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"}
+                aria-label="Next"
+                title="Next (→)"
+                className={cn(cxBtn, "-ml-px rounded-r-lg px-[11px]")}
+              >
+                {arrow("M6 3.5 10.5 8 6 12.5")}
+              </Link>
+            </span>
+            <h2 className="m-0 mr-1 ml-2 text-[17px] font-medium tracking-[-0.014em] whitespace-nowrap md:text-[19px]">{days.length && shown ? titleOf(view, days, shown) : " "}</h2>
+          </>
+        )}
         {timeZone ? <span className="hidden min-w-0 truncate text-[13px] text-muted-foreground min-[1100px]:inline">{timeZone.replace(/_/g, " ")}</span> : null}
         <span className="min-w-2 flex-1" />
         {departments.length ? (
@@ -411,8 +536,8 @@ export function ScheduleView({
             value={dept ?? "Everyone"}
             on={dept !== null}
             options={[
-              { href: hrefFor(view, anchor, null), label: "Everyone", active: dept === null },
-              ...departments.map((d) => ({ href: hrefFor(view, anchor, d), label: d, active: dept === d })),
+              { href: hrefFor(view, anchor, null, q), label: "Everyone", active: dept === null },
+              ...departments.map((d) => ({ href: hrefFor(view, anchor, d, q), label: d, active: dept === d })),
             ]}
           />
         ) : null}
@@ -421,11 +546,11 @@ export function ScheduleView({
             <Link
               key={v.key}
               href={hrefFor(v.key, anchor, dept)}
-              aria-current={v.key === view ? "page" : undefined}
+              aria-current={!q && v.key === view ? "page" : undefined}
               title={`${v.label} (${v.key[0]!.toUpperCase()})`}
               className={cn(
                 "inline-flex h-8 items-center rounded-2xl border px-3.5 text-[14px] whitespace-nowrap transition-colors",
-                v.key === view
+                !q && v.key === view
                   ? "border-transparent bg-[color:var(--soft-strong)] font-medium text-foreground"
                   : "border-[color:var(--line-strong)] font-[450] text-foreground hover:bg-[color:var(--hover)]",
               )}
@@ -436,26 +561,21 @@ export function ScheduleView({
         </nav>
       </div>
       {truncated ? (
-        <Notice className="mx-5 mt-3">Too many interviews to show at once here; some later ones are left off. Try the day or week view.</Notice>
+        <Notice className="mx-5 mt-3">
+          {q ? "Too many interviews to search them all; the oldest are left out." : "Too many interviews to show at once here; some later ones are left off. Try the day or week view."}
+        </Notice>
       ) : null}
       {!timeZone || !today ? (
         <div aria-busy className="h-[668px]" />
+      ) : q ? (
+        <ListOf rows={searchOrder(inDept, now)} timeZone={timeZone} now={now} empty={`No interviews match “${q}”.`} />
       ) : view === "list" ? (
-        <ListOf events={visible} timeZone={timeZone} now={now} />
+        <ListOf rows={inOrder} timeZone={timeZone} now={now} empty="No interviews this month." />
       ) : (
         <div className="pb-10">
-          <TimeGrid days={days} events={visible} timeZone={timeZone} today={today} now={now} />
-          {visible.length ? null : <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews {view === "day" ? "this day" : "this week"}.</Empty>}
-          {legend.size ? (
-            <ul aria-label="Departments" className="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--line)] py-2.5 pr-5 pl-16 text-xs text-faint">
-              {[...legend].map(([name, tone]) => (
-                <li key={name} className="flex items-center gap-1.5">
-                  <i aria-hidden className={cn("size-2.5 rounded-[3px]", DOT[tone])} />
-                  {name}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {view === "month" ? <MonthGrid cells={cells} timeZone={timeZone} today={today} dept={dept} /> : <TimeGrid days={days} events={inView} timeZone={timeZone} today={today} now={now} />}
+          {visible.length ? null : <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews this {view}.</Empty>}
+          <Legend tones={legend} gutter={view !== "month"} />
         </div>
       )}
     </Page>

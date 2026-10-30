@@ -4,9 +4,14 @@ import {
   departmentTones,
   groupByDay,
   hourSpan,
+  isScheduleView,
+  MONTH_CELL_EVENTS,
+  monthCells,
   parseYmd,
   placeDay,
   readWindow,
+  scheduleHref,
+  scheduleKeyHref,
   stepAnchor,
   todayIn,
   toneFor,
@@ -24,6 +29,54 @@ describe("days and views", () => {
     expect(parseYmd("2026-10-29T00:00")).toBeNull();
     expect(parseYmd("")).toBeNull();
     expect(parseYmd(undefined)).toBeNull();
+  });
+
+  test("a date whose view would leave four-digit years is no date", () => {
+    expect(parseYmd("9999-12-31")).toBeNull();
+    expect(parseYmd("0000-01-01")).toBeNull();
+    expect(parseYmd("2200-12-31")).toBe("2200-12-31");
+    expect(parseYmd("1900-01-01")).toBe("1900-01-01");
+    for (const view of ["day", "week", "month", "list"] as const) {
+      expect(() => readWindow(view, "2200-12-31", new Date())).not.toThrow();
+      expect(() => readWindow(view, "1900-01-01", new Date())).not.toThrow();
+    }
+  });
+
+  test("month is a view; anything else in the URL is not", () => {
+    expect(isScheduleView("month")).toBe(true);
+    expect(isScheduleView("year")).toBe(false);
+  });
+
+  test("the month grid is six weeks from the Sunday on or before the 1st", () => {
+    const oct = daysOf("month", "2026-10-29"); // the 1st is a Thursday
+    expect([oct.length, oct[0], oct.at(-1)]).toEqual([42, "2026-09-27", "2026-11-07"]);
+    const nov = daysOf("month", "2026-11-15"); // the 1st is a Sunday: no days before it
+    expect([nov[0], nov.at(-1)]).toEqual(["2026-11-01", "2026-12-12"]);
+    const leap = daysOf("month", "2028-02-29");
+    expect([leap[0], leap.at(-1)]).toEqual(["2028-01-30", "2028-03-11"]);
+    expect(leap).toContain("2028-02-29");
+    // A year's turn.
+    expect(daysOf("month", "2027-01-01")[0]).toBe("2026-12-27");
+  });
+
+  test("← and → move the month a month at a time, as the list", () => {
+    expect(stepAnchor("month", "2026-01-31", 1)).toBe("2026-02-28");
+    expect(stepAnchor("month", "2026-12-15", 1)).toBe("2027-01-15");
+    expect(stepAnchor("month", "2026-01-15", -1)).toBe("2025-12-15");
+  });
+
+  test("the read window covers the whole month grid in every zone, not only the month", () => {
+    expect(readWindow("month", "2026-10-29", new Date("2026-10-29T12:00:00Z"))).toEqual({
+      from: "2026-09-26T10:00:00.000Z", // Sunday 27 September's midnight at UTC+14
+      to: "2026-11-08T12:00:00.000Z", // Sunday 8 November's midnight at UTC-12
+    });
+  });
+
+  test("with no date, the month's window covers the member's month a day either side of the server's", () => {
+    // 31 October 23:30 UTC is already November in Tokyo, whose grid runs to 12 December.
+    const w = readWindow("month", null, new Date("2026-10-31T23:30:00Z"));
+    expect(w.from <= "2026-09-26T10:00:00.000Z").toBe(true);
+    expect(w.to >= "2026-12-13T12:00:00.000Z").toBe(true);
   });
 
   test("a week runs Sunday to Saturday; the list is the anchor's month", () => {
@@ -131,6 +184,87 @@ describe("placing a day's interviews", () => {
     const days = daysOf("list", "2026-10-01");
     expect(groupByDay(events, days, "UTC").map((g) => [g.day, g.events.map((e) => e.id)])).toEqual([["2026-10-29", ["a"]], ["2026-10-30", ["b"]]]);
     expect(groupByDay(events, days, "America/Los_Angeles").map((g) => [g.day, g.events.map((e) => e.id)])).toEqual([["2026-10-29", ["a", "b"]]]);
+  });
+});
+
+describe("the month grid's cells", () => {
+  const brief = (e: { id: string }) => e.id;
+  const cell = (cells: ReturnType<typeof monthCells<ReturnType<typeof ev>>>, day: string) => cells.find((c) => c.day === day)!;
+
+  test("days outside the month are in the grid, marked; a day's interviews are soonest first", () => {
+    const events = [ev("b", "2026-10-29T15:00:00Z", "2026-10-29T16:00:00Z"), ev("a", "2026-10-29T09:00:00Z", "2026-10-29T10:00:00Z"), ev("out", "2026-11-03T09:00:00Z", "2026-11-03T10:00:00Z")];
+    const cells = monthCells(events, "2026-10-29", "UTC");
+    expect(cells).toHaveLength(42);
+    expect(cell(cells, "2026-10-29")).toMatchObject({ inMonth: true, more: 0 });
+    expect(cell(cells, "2026-10-29").events.map(brief)).toEqual(["a", "b"]);
+    expect(cell(cells, "2026-11-03")).toMatchObject({ inMonth: false });
+    expect(cell(cells, "2026-11-03").events.map(brief)).toEqual(["out"]);
+    expect(cells.filter((c) => c.inMonth)).toHaveLength(31);
+  });
+
+  test("a cell lists three and counts the rest, keeping them all for the legend", () => {
+    const events = Array.from({ length: 5 }, (_, i) => ev(`e${i}`, `2026-10-29T1${i}:00:00Z`, `2026-10-29T1${i}:30:00Z`));
+    const c = cell(monthCells(events, "2026-10-01", "UTC"), "2026-10-29");
+    expect(MONTH_CELL_EVENTS).toBe(3);
+    expect(c.listed.map(brief)).toEqual(["e0", "e1", "e2"]);
+    expect(c.more).toBe(2);
+    expect(c.events).toHaveLength(5);
+  });
+
+  test("an interview sits on the day it starts in the member's zone, once", () => {
+    const events = [ev("late", "2026-10-31T23:30:00Z", "2026-11-01T00:30:00Z")]; // a Saturday night in UTC
+    const utc = monthCells(events, "2026-10-01", "UTC");
+    expect(cell(utc, "2026-10-31").events.map(brief)).toEqual(["late"]);
+    expect(cell(utc, "2026-11-01").events).toEqual([]);
+    // Already Sunday 1 November in Tokyo, which is another month's first day.
+    const tokyo = monthCells(events, "2026-10-01", "Asia/Tokyo");
+    expect(cell(tokyo, "2026-10-31").events).toEqual([]);
+    expect(cell(tokyo, "2026-11-01")).toMatchObject({ inMonth: false });
+    expect(cell(tokyo, "2026-11-01").events.map(brief)).toEqual(["late"]);
+  });
+
+  test("on the night the clocks change, the day is still the wall clock's", () => {
+    // 1:30 in New York on 1 November 2026 happens twice; both are that day.
+    const events = [ev("first", "2026-11-01T05:30:00Z", "2026-11-01T06:00:00Z"), ev("second", "2026-11-01T06:30:00Z", "2026-11-01T07:00:00Z")];
+    expect(cell(monthCells(events, "2026-11-01", "America/New_York"), "2026-11-01").events.map(brief)).toEqual(["first", "second"]);
+  });
+
+  test("an interview outside the grid is in no cell", () => {
+    expect(monthCells([ev("far", "2027-01-15T09:00:00Z", "2027-01-15T10:00:00Z")], "2026-10-01", "UTC").flatMap((c) => c.events)).toEqual([]);
+  });
+});
+
+describe("links and keys", () => {
+  test("a link holds only what is set, and escapes it", () => {
+    expect(scheduleHref({ view: "week", date: null, dept: null })).toBe("/client/schedule?view=week");
+    expect(scheduleHref({ view: "month", date: "2026-10-01", dept: "R&D / Labs", q: "ada?&x=1" })).toBe("/client/schedule?view=month&date=2026-10-01&dept=R%26D%20%2F%20Labs&q=ada%3F%26x%3D1");
+  });
+
+  const at = { view: "month", anchor: "2026-10-15", shown: "2026-10-15", dept: "Design", q: null } as const;
+
+  test("D, W, M and L change the view and keep the date and department", () => {
+    expect(scheduleKeyHref("d", at)).toBe("/client/schedule?view=day&date=2026-10-15&dept=Design");
+    expect(scheduleKeyHref("w", at)).toBe("/client/schedule?view=week&date=2026-10-15&dept=Design");
+    expect(scheduleKeyHref("m", { ...at, view: "week" })).toBe("/client/schedule?view=month&date=2026-10-15&dept=Design");
+    expect(scheduleKeyHref("l", at)).toBe("/client/schedule?view=list&date=2026-10-15&dept=Design");
+  });
+
+  test("the arrows step from what is shown, a month in the month view; `.` drops the date", () => {
+    expect(scheduleKeyHref("ArrowLeft", at)).toBe("/client/schedule?view=month&date=2026-09-15&dept=Design");
+    expect(scheduleKeyHref("ArrowRight", { ...at, anchor: null, shown: "2026-01-31" })).toBe("/client/schedule?view=month&date=2026-02-28&dept=Design");
+    expect(scheduleKeyHref(".", at)).toBe("/client/schedule?view=month&dept=Design");
+  });
+
+  test("in a search the arrows do nothing, and a view key or `.` leaves it", () => {
+    const search = { ...at, q: "ada" };
+    expect(scheduleKeyHref("ArrowLeft", search)).toBeNull();
+    expect(scheduleKeyHref("ArrowRight", search)).toBeNull();
+    expect(scheduleKeyHref("m", search)).toBe("/client/schedule?view=month&date=2026-10-15&dept=Design");
+    expect(scheduleKeyHref(".", search)).toBe("/client/schedule?view=month&dept=Design");
+  });
+
+  test("any other key goes nowhere", () => {
+    expect(scheduleKeyHref("x", at)).toBeNull();
   });
 });
 
