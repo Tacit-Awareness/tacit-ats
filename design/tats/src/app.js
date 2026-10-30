@@ -3209,19 +3209,34 @@ function loopOf(a) {
   return out;
 }
 const loopName = (t) => (t === "final" ? "Final" : t === "offer" ? "Offer" : TEAMS[t].name);
+// The loop as a path, left to right: where they've been, the one you're reading, who's next, and what's left before the offer.
 function processTree(x) {
   const a = x.a, rs = loopOf(a), met = rs.filter((r) => r.st === "done" && r.iv);
-  const cur = rs.find((r) => r.key === x.key);
+  const view = rs.find((r) => r.key === x.key);
   const names = [...new Set(met.map((r) => first(r.iv)))];
   const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
-  const cls = (r) => `${r.st}${r === cur ? " cur" : ""}`;
-  const node = (r) => `<${r.key && r !== cur ? `a href="#interviews~${r.key}"` : "div"} class="pt-n round ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">
-      ${r.team === "offer" ? `<span class="pt-num">${ico(r.st === "closed" ? "x" : "check")}</span>` : `<span class="pt-num">${r.n}</span>`}<b>${loopName(r.team)}</b>${r === cur ? `<em>Now</em>` : r.st === "closed" ? `<em class="off">Closed</em>` : ""}</${r.key && r !== cur ? "a" : "div"}>
-    ${r.team === "offer" ? "" : `<div class="pt-n iv ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">${r.iv ? `${personAv(r.iv)}<span class="pt-who"><b>${esc(PEOPLE[r.iv].name)}</b>${r.st === "done" ? `<span class="pt-v ${r.v}">${VERDICT_NAME[r.v]}</span>` : `<span>Not booked</span>`}</span>${r.st === "done" ? `<span class="pt-d">${MO[new Date(r.at).getMonth()]} ${new Date(r.at).getDate()}</span>` : ""}` : `<span class="pt-who"><span>Not booked</span></span>`}</div>`}`;
-  return `<section class="pt" style="--rows:${rs.length}"><svg class="pt-lines" aria-hidden="true"></svg>
-    <div class="pt-left" style="grid-row:1 / span ${rs.length}"><span class="pt-tag">${a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : `Round ${cur ? cur.n : x.round} of ${Math.max(LOOP, cur ? cur.n : 0)}`}</span>
-      <div class="pt-card">${candAv(a, "lg")}<div><b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span></div><p>${esc(line)}</p></div></div>
-    ${rs.map(node).join("")}</section>`;
+  const nextI = rs.findIndex((r) => r.st === "next");
+  // Who the Grokbot would ask for a step that isn't booked yet.
+  const whoNext = (r) => r.iv || (r.team !== "offer" && TEAMS[r.team] ? pickInterviewer(r.team, a.role).best : null);
+  const left = rs.filter((r) => r.st === "next" && r.team !== "offer").length;
+  const tag = a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : left ? `${left} round${left === 1 ? "" : "s"} left before the offer` : "Next: the offer";
+  const step = (r, i) => {
+    const kind = r === view ? "view" : r.st === "done" ? "done" : i === nextI ? "up" : r.st === "closed" ? "closed" : "todo";
+    const iv = r.st === "done" ? r.iv : whoNext(r);
+    const label = r.team === "offer" ? "Offer" : `Round ${r.n} · ${loopName(r.team)}`;
+    const flag = kind === "view" ? "This interview" : kind === "up" ? "Up next" : kind === "closed" ? "Closed" : "";
+    const body = r.team === "offer"
+      ? `<span class="pth-p">${r.st === "done" ? `${ico("check")}<b>Offer out</b>` : `<span class="pth-sub">${kind === "up" ? "Your call after the last read" : "After the last round"}</span>`}</span>`
+      : iv ? `<span class="pth-p">${personAv(iv)}<span><b>${esc(PEOPLE[iv].name)}</b>${r.st === "done" ? `<span class="pt-v ${r.v}">${VERDICT_NAME[r.v]} · ${MO[new Date(r.at).getMonth()]} ${new Date(r.at).getDate()}</span>` : `<span class="pth-sub">${kind === "up" ? "Grokbot will ask" : "Not booked"}</span>`}</span></span>`
+      : `<span class="pth-p"><span class="pth-sub">Not booked</span></span>`;
+    const tagName = r.key && r !== view ? "a" : "div";
+    return `<${tagName} class="pth-s ${kind}" ${tagName === "a" ? `href="#interviews~${r.key}"` : ""}><span class="pth-h"><span class="pt-num">${r.team === "offer" ? ico(r.st === "closed" ? "x" : "check") : r.n}</span><b>${esc(label)}</b>${flag ? `<em>${flag}</em>` : ""}</span>${body}</${tagName}>`;
+  };
+  const arrow = (i) => `<i class="pth-ar ${i < nextI || nextI < 0 ? "done" : i === nextI ? "up" : "todo"}" aria-hidden="true"></i>`;
+  return `<section class="pth">
+    <div class="pth-c"><p>${esc(line)}</p><span class="pt-tag">${tag}</span></div>
+    <div class="pth-row">${rs.map((r, i) => `${i ? arrow(i) : ""}${step(r, i)}`).join("")}</div>
+  </section>`;
 }
 // Elbow lines from the candidate to each round, and from each round to who ran it. The current path is drawn last, in the accent.
 function drawTrees() {

@@ -5055,3 +5055,42 @@ button.cp-msg:hover { box-shadow: var(--elev-hi); }
 .hm-li { grid-template-columns: auto minmax(0, 1fr) auto auto; }
 .pt-card { grid-template-columns: minmax(0, 1fr); }
 .ibx-avs:empty { display: none; }
+
+/* v74 the interview loop as a path, left to right */
+.pth { display: flex; align-items: stretch; gap: 0; padding: var(--s5) var(--s6); border-bottom: 1px solid var(--line-strong); background: var(--surface); overflow-x: auto; }
+.pth-c { flex: 0 0 210px; display: grid; align-content: start; gap: 2px; padding: var(--s3) var(--s4); background: var(--raised); box-shadow: var(--elev); }
+.pth-c .pt-tag { justify-self: start; margin-bottom: var(--s2); }
+.pth-c b { font-size: 14.5px; font-weight: 600; }
+.pth-role { color: var(--muted); font-size: 12.5px; }
+.pth-c p { margin: var(--s2) 0 0; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.pth-ar { flex: 0 0 28px; align-self: center; position: relative; height: 2px; background: var(--line-strong); }
+.pth-ar::after { content: ""; position: absolute; right: 0; top: -4px; border: 5px solid transparent; border-left: 6px solid var(--line-strong); border-right: 0; }
+.pth-ar.done { background: var(--ink); }
+.pth-ar.done::after { border-left-color: var(--ink); }
+.pth-ar.up { background: var(--accent); }
+.pth-ar.up::after { border-left-color: var(--accent); }
+.pth-s { flex: 1 1 0; min-width: 132px; display: grid; align-content: start; gap: var(--s2); padding: var(--s3); background: var(--raised); box-shadow: var(--elev); color: var(--ink); }
+a.pth-s:hover { box-shadow: var(--elev-hi); }
+.pth-h { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.pth-h b { font-weight: 500; white-space: nowrap; }
+.pth-h em { font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.pth-p { display: flex; align-items: center; gap: var(--s2); min-width: 0; font-size: 12.5px; }
+.pth-p .av { width: 24px; height: 24px; font-size: 9px; flex-shrink: 0; }
+.pth-p > span { display: grid; min-width: 0; }
+.pth-p b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pth-p .ico { width: 14px; height: 14px; color: var(--ok); }
+.pth-sub { color: var(--muted); font-size: 12px; }
+.pth-p .pt-v { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12px; }
+/* states: done is solid, this interview carries the accent, up next leads with it, the rest step back */
+.pth-s.view { box-shadow: var(--elev), 0 0 0 1.5px var(--accent); }
+.pth-s.view .pth-h em { color: var(--accent); }
+.pth-s.up { box-shadow: var(--elev), inset 0 3px 0 var(--accent); }
+.pth-s.up .pth-h em { color: var(--accent); }
+.pth-s.todo, .pth-s.closed { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--muted); }
+.pth-s.todo .av { opacity: 0.6; }
+.pth { display: grid; gap: var(--s3); align-items: start; }
+.pth-c { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: 0; background: transparent; box-shadow: none; flex: none; }
+.pth-c p { margin: 0; font-size: 13.5px; }
+.pth-c .pt-tag { margin: 0; white-space: nowrap; }
+.pth-row { display: flex; align-items: stretch; min-width: 0; }
+.pth-s { min-width: 0; }
