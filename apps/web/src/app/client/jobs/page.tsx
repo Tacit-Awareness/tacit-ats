@@ -43,6 +43,7 @@ export default async function ClientJobs() {
   return (
     <JobPostingsView
       orgName={org.name}
+      careersPath={liveCount(groups) > 0 ? `/careers/${org.slug}` : null}
       total={read.jobs.length}
       live={liveCount(groups)}
       groups={props}

@@ -95,14 +95,14 @@ describe("the client area never holds a privileged database client", () => {
 });
 
 describe("the public job pages hold no session and no client but the publishable key", () => {
-  // /jobs/[slug] and /api/jobs/[slug]/apply are outside the proxy's sign-in
+  // /careers/[org], /jobs/[slug] and /api/jobs/[slug]/apply are outside the proxy's sign-in
   // check on purpose. What they can reach must not be able to act as anyone:
   // no privileged database client, no client session.
-  const roots = [...walk(join(SRC, "app/jobs")), ...walk(join(SRC, "app/api/jobs")), ...walk(join(SRC, "lib/public"))];
+  const roots = [...walk(join(SRC, "app/careers")), ...walk(join(SRC, "app/jobs")), ...walk(join(SRC, "app/api/jobs")), ...walk(join(SRC, "components/careers")), ...walk(join(SRC, "lib/public"))];
   const SESSIONS = new Set([join(SRC, "lib/client/session.ts"), join(SRC, "lib/client/bind.ts")]);
 
   test("there are public pages to check", () => {
-    expect(roots.map(rel)).toEqual(expect.arrayContaining(["app/jobs/[slug]/page.tsx", "app/api/jobs/[slug]/apply/route.ts", "lib/public/jobs.ts"]));
+    expect(roots.map(rel)).toEqual(expect.arrayContaining(["app/careers/[org]/page.tsx", "app/jobs/[slug]/page.tsx", "app/api/jobs/[slug]/apply/route.ts", "components/careers/frame.tsx", "lib/public/jobs.ts"]));
   });
 
   test("nothing they import, at any depth, reaches a session or a privileged client, and none is an action", () => {

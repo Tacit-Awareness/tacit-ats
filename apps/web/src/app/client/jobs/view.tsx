@@ -75,6 +75,7 @@ function Row({ row }: { row: PostingRowProps }) {
 
 export function JobPostingsView({
   orgName,
+  careersPath,
   total,
   live,
   groups,
@@ -82,6 +83,8 @@ export function JobPostingsView({
   connectorNote,
 }: {
   orgName: string;
+  /** The public board, while it has a live post to show. */
+  careersPath: string | null;
   total: number;
   live: number;
   groups: PostingGroupProps[];
@@ -90,7 +93,15 @@ export function JobPostingsView({
   connectorNote: boolean;
 }) {
   return (
-    <Page narrow bar={<PageBar title="Job Postings" count={`${live} live`} />} className="gap-0 px-4 pt-8 pb-16 sm:px-6 sm:pt-14 sm:pb-20 md:px-6">
+    <Page narrow bar={(
+        <PageBar title="Job Postings" count={`${live} live`}>
+          {careersPath ? (
+            <Link href={careersPath} target="_blank" className={textLink}>
+              Careers page
+            </Link>
+          ) : null}
+        </PageBar>
+      )} className="gap-0 px-4 pt-8 pb-16 sm:px-6 sm:pt-14 sm:pb-20 md:px-6">
       <h2 className="m-0 mb-7 text-center text-[30px] leading-[1.1] font-medium tracking-[-0.025em] sm:mb-11 sm:text-[40px]">Careers at {orgName}</h2>
       <div>
         <div className="flex h-11 items-center gap-2 border-b border-[color:var(--line)] px-2.5 text-[13px] text-faint">

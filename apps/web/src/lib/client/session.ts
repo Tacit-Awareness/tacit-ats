@@ -16,7 +16,7 @@ export type ClientContext = {
   db: Db;
   actorId: string;
   accessLevel: AccessLevel;
-  org: { id: string; name: string; workosOrgId: string };
+  org: { id: string; name: string; slug: string; workosOrgId: string };
   user: { email: string; name: string; workosUserId: string };
 };
 
@@ -69,7 +69,7 @@ export const resolveClient = cache(async (): Promise<ClientGate> => {
 
   const [level, org] = await Promise.all([
     db.rpc("current_access_level"),
-    db.from("orgs").select("id, name").maybeSingle(),
+    db.from("orgs").select("id, name, slug").maybeSingle(),
   ]);
   // The database matched the token's org claim to get this far, so it is set;
   // checked anyway, since an invitation is sent into it.
@@ -84,7 +84,7 @@ export const resolveClient = cache(async (): Promise<ClientGate> => {
       db,
       actorId: who.data,
       accessLevel: level.data,
-      org: { id: org.data.id, name: org.data.name, workosOrgId },
+      org: { id: org.data.id, name: org.data.name, slug: org.data.slug, workosOrgId },
       user: { email: auth.user.email, name, workosUserId: auth.user.id },
     },
   };

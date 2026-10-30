@@ -12,6 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   if (!SLUG.test(slug)) return new Response(null, { status: 404 });
   const back = (query: Record<string, string>) => {
     const url = new URL(`/jobs/${slug}`, request.url);
+    url.searchParams.set("tab", "application");
     for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v);
     if (!query.applied) url.hash = "apply";
     return Response.redirect(url, 303);

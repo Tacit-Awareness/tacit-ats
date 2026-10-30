@@ -1,0 +1,37 @@
+import { describe, expect, test } from "vitest";
+import { formSections, guideProgress, guideSteps } from "./application";
+import type { PublicQuestion } from "./jobs";
+
+const q = (id: string, type: PublicQuestion["type"], required = true): PublicQuestion => ({ id, type, label: id, required });
+const QUESTIONS = [q("name", "name"), q("resume", "resume"), q("email", "email"), q("phone", "phone", false), q("q_why1", "long_text"), q("q_note", "short_text", false)];
+const steps = guideSteps(QUESTIONS, (x) => `a_${x.id}`);
+
+describe("formSections", () => {
+  test("splits the resume, the built-ins and the post's own questions", () => {
+    const { resume, about, custom } = formSections(QUESTIONS);
+    expect(resume.map((x) => x.id)).toEqual(["resume"]);
+    expect(about.map((x) => x.id)).toEqual(["name", "email", "phone"]);
+    expect(custom.map((x) => x.id)).toEqual(["q_why1", "q_note"]);
+  });
+});
+
+describe("guideSteps", () => {
+  test("asks only for required questions, and drops a section with none", () => {
+    expect(steps.map((s) => [s.key, s.items.map((i) => i.field)])).toEqual([
+      ["resume", ["a_resume"]],
+      ["about", ["a_name", "a_email"]],
+      ["questions", ["a_q_why1"]],
+    ]);
+    expect(guideSteps([q("name", "name")], (x) => x.id).map((s) => s.key)).toEqual(["about"]);
+  });
+});
+
+describe("guideProgress", () => {
+  test("counts what is done and points at the next item and its step", () => {
+    expect(guideProgress(steps, new Set(["a_resume", "a_name"]))).toMatchObject({ total: 4, finished: 2, next: { field: "a_email" }, current: "about" });
+  });
+
+  test("everything done has no next", () => {
+    expect(guideProgress(steps, new Set(["a_resume", "a_name", "a_email", "a_q_why1"]))).toMatchObject({ finished: 4, next: null, current: null });
+  });
+});

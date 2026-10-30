@@ -93,7 +93,8 @@ to addresses you can read. The sidebar shows the level under the member's name. 
 least two open jobs, a few candidates spread across stages (add them from a
 job's board, or use the client connector), one interview booked with a second
 person as interviewer, and one application from a public job post
-(`/jobs/<slug>`) so Applicant Tickets has something in it.
+(`/jobs/<slug>`, or find it on the board at `/careers/<org slug>`) so Applicant
+Tickets has something in it.
 
 Roles in short: **Admin** and **Hiring team** see the pages below; a Hiring
 team member sees only the jobs they are on. An **Interviewer** (limited) gets
