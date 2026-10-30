@@ -1,23 +1,35 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
-import { Avatar, Chip, Chips, Empty, KeyValues, Page, PageHeader, Pill, Row, Rows, Section, Split, textLink } from "@/components/page";
+import { Avatar, Chip, Chips, Empty, KeyValues, Notice, Page, PageHeader, Pill, Row, Rows, Section, Split, textLink } from "@/components/page";
 import { activityLine } from "@/lib/client/candidate-activity";
+import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { cn, safeHttpUrl } from "@/lib/utils";
+import { JobControls } from "./controls";
 
 // The candidate page's markup, props only (page.tsx does the reads), laid
 // out like design/tats's ticket page (#t~APP-x) where real data exists: the
 // person and their headline, their tags, each job they are in, the profile,
 // their files and the activity feed in the main column; contact and the rest
-// in a side column. Read-only. Everything about the candidate is untrusted
-// text and is rendered as text; a LinkedIn link is only a link when it is
+// in a side column. Under each job the member may edit (can_edit_pipeline),
+// its controls (controls.tsx); nobody else gets any. Everything about the
+// candidate is untrusted text and is rendered as text; a LinkedIn link is only a link when it is
 // http(s). Times are relative ("3d ago"), so no time zone is needed.
 
 export type CandidateViewProps = {
   candidate: clientTools.CandidateDetail;
   activity: clientTools.ActivityEntry[];
   owners: Record<string, string | null>;
+  /** Null when the member may edit none of this candidate's jobs. */
+  editing: {
+    /** The applications they may edit, with each one's owner's id. */
+    apps: Record<string, { ownerActorId: string | null }>;
+    owners: OwnerChoice[];
+    reasons: CloseReason[];
+  } | null;
+  notice: string | null;
+  error: string | null;
   now: number;
 };
 
@@ -41,7 +53,7 @@ const sourceText = (source: string, detail: string | null) => [source.replace(/_
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function Jobs({ candidate, owners, now }: Pick<CandidateViewProps, "candidate" | "owners" | "now">) {
+function Jobs({ candidate, owners, editing, now }: Pick<CandidateViewProps, "candidate" | "owners" | "editing" | "now">) {
   if (candidate.applications.length === 0) {
     return <Empty>{candidate.prospect ? "A prospect: in no job yet." : "In no job you can see."}</Empty>;
   }
@@ -50,27 +62,43 @@ function Jobs({ candidate, owners, now }: Pick<CandidateViewProps, "candidate" |
       {candidate.applications.map((a) => {
         const owner = owners[a.applicationId] ?? null;
         const next = a.nextAction ? { text: a.nextAction, due: a.nextActionDue ? due(a.nextActionDue, now) : null } : null;
+        const edit = editing?.apps[a.applicationId];
         return (
-          <Row
-            key={a.applicationId}
-            href={`/client/jobs/${a.jobId}`}
-            title={a.jobTitle ?? "Untitled job"}
-            sub={[sourceText(a.source, a.sourceDetail), owner ? `Owner ${owner}` : "No owner", `touched ${ago(a.lastTouchAt, now)}`].join(" · ")}
-            meta={
-              <>
-                {a.offer ? <Pill>Offer {a.offer.status}</Pill> : null}
-                <Pill tone={a.stage === "hired" ? "green" : "grey"}>{stageLabel(a.stage)}</Pill>
-              </>
-            }
-          >
-            {next ? (
-              <span className="max-w-full justify-self-start truncate text-xs text-foreground/80">
-                Next: {next.text}
-                {next.due ? <span className={cn("ml-1.5", next.due.late ? "text-negative" : "text-faint")}>{next.due.text}</span> : null}
-              </span>
+          <div key={a.applicationId} className="grid">
+            <Row
+              href={`/client/jobs/${a.jobId}`}
+              title={a.jobTitle ?? "Untitled job"}
+              sub={[sourceText(a.source, a.sourceDetail), owner ? `Owner ${owner}` : "No owner", `touched ${ago(a.lastTouchAt, now)}`].join(" · ")}
+              meta={
+                <>
+                  {a.offer ? <Pill>Offer {a.offer.status}</Pill> : null}
+                  <Pill tone={a.stage === "hired" ? "green" : "grey"}>{stageLabel(a.stage)}</Pill>
+                </>
+              }
+            >
+              {next ? (
+                <span className="max-w-full justify-self-start truncate text-xs text-foreground/80">
+                  Next: {next.text}
+                  {next.due ? <span className={cn("ml-1.5", next.due.late ? "text-negative" : "text-faint")}>{next.due.text}</span> : null}
+                </span>
+              ) : null}
+              {a.rejectionReason ? <span className="max-w-full justify-self-start truncate text-xs text-faint">Reason: {a.rejectionReason}</span> : null}
+            </Row>
+            {edit && editing ? (
+              <JobControls
+                e={{
+                  candidateId: candidate.candidateId,
+                  applicationId: a.applicationId,
+                  stage: a.stage,
+                  ownerActorId: edit.ownerActorId,
+                  nextAction: a.nextAction,
+                  nextActionDue: a.nextActionDue,
+                  owners: editing.owners,
+                  reasons: editing.reasons,
+                }}
+              />
             ) : null}
-            {a.rejectionReason ? <span className="max-w-full justify-self-start truncate text-xs text-faint">Reason: {a.rejectionReason}</span> : null}
-          </Row>
+          </div>
         );
       })}
     </Rows>
@@ -106,7 +134,7 @@ function Activity({ entries, now }: { entries: clientTools.ActivityEntry[]; now:
   );
 }
 
-export function CandidateView({ candidate, activity, owners, now }: CandidateViewProps) {
+export function CandidateView({ candidate, activity, owners, editing, notice, error, now }: CandidateViewProps) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
@@ -131,6 +159,7 @@ export function CandidateView({ candidate, activity, owners, now }: CandidateVie
   return (
     <Page>
       <PageHeader crumbs={[{ href: "/client/candidates", label: "CRM" }]} lead={<Avatar name={name} size="xl" />} title={name} subtitle={subtitle} />
+      {error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null}
       {candidate.tags.length ? (
         <Chips aria-label="Tags">
           {candidate.tags.map((t) => (
@@ -143,7 +172,7 @@ export function CandidateView({ candidate, activity, owners, now }: CandidateVie
           <>
             {candidate.full ? (
               <Section title="Jobs" count={candidate.applications.length}>
-                <Jobs candidate={candidate} owners={owners} now={now} />
+                <Jobs candidate={candidate} owners={owners} editing={editing} now={now} />
               </Section>
             ) : (
               <Section>
