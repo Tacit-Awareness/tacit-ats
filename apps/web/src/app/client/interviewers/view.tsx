@@ -1,15 +1,20 @@
 import * as React from "react";
-import { Avatar, Count, Empty, Page, PageBar } from "@/components/page";
+import { Avatar, Count, Empty, KeyValues, Page, PageBar, Section } from "@/components/page";
+import { CHANNEL_LABELS, PREFERENCE_LABELS, loadMeter, type StoredProfile } from "@/lib/client/interviewer-profile";
 import { cn } from "@/lib/utils";
+import { ProfileEditor } from "./profile-editor";
 
 // The Interviewers page's markup, props only (page.tsx does the reads):
 // design/tats's interviewer table (`.cardbox` around `.ptable`), one card in
-// a 1040px column, with a ruled subhead per department when there are any. A
-// row is the person (and their jobs, faint under the name), their interviews
-// this week as a bar against the busiest on the team, next week and in the
-// last 30 days, and feedback on time / late / not filed (only for a member
-// who may read it). Counts only: never what anyone wrote. Colour only for
-// meaning: feedback not filed reads red.
+// the page's column, with a ruled subhead per department when there are any. A
+// row is the person (and their jobs, faint under the name), whether they like
+// interviewing, their interviews this week as a bar against their own limit or
+// else the busiest on the team, whether they are away, next week and the last
+// 30 days, what they know, where to reach them, and feedback on time / late /
+// not filed (only for a member who may read it). Anything they have not said,
+// or the member may not read, is an empty cell. Counts only: never what anyone
+// wrote as feedback. Colour only for meaning: a positive "likes it", and
+// feedback not filed and a week over the limit in red.
 
 export type InterviewerViewRow = {
   actorId: string;
@@ -20,6 +25,12 @@ export type InterviewerViewRow = {
   /** Null: nothing ended in the last 30 days that they owe feedback on. */
   feedback: { onTime: number; late: number; notFiled: number; notVisible: number } | null;
   jobs: string[];
+  profile: StoredProfile | null;
+  /** "Away through Nov 14", computed by the page. Null when they are not away. */
+  away: string | null;
+  /** Their own row, or the member is an admin. Presentation: the policies decide the write. */
+  editable: boolean;
+  self: boolean;
 };
 
 /** `label` null: no departments, one list without subheads. */
@@ -27,27 +38,43 @@ export type InterviewerViewGroup = { label: string | null; rows: InterviewerView
 
 const gridOf = (feedback: boolean) =>
   cn(
-    "grid items-center gap-3.5 px-3.5",
+    "grid items-center gap-3 px-3.5",
     feedback
-      ? "grid-cols-[minmax(200px,1.5fr)_150px_80px_96px_minmax(240px,1.3fr)]"
-      : "grid-cols-[minmax(200px,1.5fr)_150px_80px_96px]",
+      ? "grid-cols-[minmax(170px,1.3fr)_84px_132px_62px_72px_minmax(110px,1fr)_60px_minmax(170px,1fr)_44px]"
+      : "grid-cols-[minmax(170px,1.3fr)_84px_132px_62px_72px_minmax(110px,1fr)_60px_44px]",
   );
 
-/** The most pips a bar draws; past that, each pip stands for more than one interview. */
-const MAX_PIPS = 10;
-
-/** design/tats's `.lbar`: pips to the team's busiest week, the ones lit for this person, and the number. */
-function LoadBar({ n, max }: { n: number; max: number }) {
-  const pips = Math.min(Math.max(max, 1), MAX_PIPS);
-  const lit = max <= MAX_PIPS ? n : n > 0 ? Math.max(1, Math.round((n / max) * MAX_PIPS)) : 0;
+/** design/tats's `.lbar` and its number: the bar is loadMeter's. */
+function LoadBar({ n, cap, max, away }: { n: number; cap: number | null; max: number; away: string | null }) {
+  const m = loadMeter(n, cap, max);
   return (
-    <span className="flex items-center gap-2" title={`${n} this week; the busiest on the team has ${max}`}>
-      <span aria-hidden className="inline-flex gap-0.5">
-        {Array.from({ length: pips }, (_, i) => (
-          <i key={i} className={cn("h-3 w-[7px] rounded-[2px]", i < lit ? "bg-foreground opacity-70" : "bg-[color:var(--soft-strong)]")} />
-        ))}
+    <span className="grid gap-[3px]">
+      <span className="flex items-center gap-2" title={m.title}>
+        <span aria-hidden className="inline-flex gap-0.5">
+          {Array.from({ length: m.pips }, (_, i) => (
+            <i key={i} className={cn("h-3 w-[7px] rounded-[2px]", i < m.lit ? "bg-foreground opacity-70" : "bg-[color:var(--soft-strong)]")} />
+          ))}
+        </span>
+        <span className={cn("whitespace-nowrap tabular-nums", m.over ? "text-negative" : n === 0 && "text-faint")}>{m.label}</span>
       </span>
-      <span className={cn("tabular-nums", n === 0 && "text-faint")}>{n}</span>
+      {away ? <small className="text-xs text-faint">{away}</small> : null}
+    </span>
+  );
+}
+
+/** design/tats's `.likes`: a positive pill for "Likes it", a quiet one otherwise. */
+function Likes({ preference }: { preference: StoredProfile["preference"] }) {
+  if (!preference) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[22px] items-center rounded-[11px] px-2 text-xs whitespace-nowrap",
+        preference === "loves" ? "bg-positive-soft text-positive" : "bg-[color:var(--soft)]",
+        preference === "either" && "text-muted-foreground",
+        preference === "avoids" && "text-faint",
+      )}
+    >
+      {PREFERENCE_LABELS[preference]}
     </span>
   );
 }
@@ -98,7 +125,10 @@ function Rows({ rows, feedback, max }: { rows: InterviewerViewRow[]; feedback: b
         </span>
       </span>
       <span role="cell">
-        <LoadBar n={r.thisWeek} max={max} />
+        <Likes preference={r.profile?.preference ?? null} />
+      </span>
+      <span role="cell">
+        <LoadBar n={r.thisWeek} cap={r.profile?.weeklyCap ?? null} max={max} away={r.away} />
       </span>
       <span role="cell">
         <Num n={r.nextWeek} />
@@ -106,13 +136,40 @@ function Rows({ rows, feedback, max }: { rows: InterviewerViewRow[]; feedback: b
       <span role="cell">
         <Num n={r.last30} />
       </span>
+      <span role="cell" className="min-w-0 truncate text-muted-foreground" title={r.profile?.focusAreas.join(", ") || undefined}>
+        {r.profile?.focusAreas.join(", ")}
+      </span>
+      <span role="cell" className="text-muted-foreground">
+        {r.profile?.channel ? CHANNEL_LABELS[r.profile.channel] : null}
+      </span>
       {feedback ? (
         <span role="cell" className="min-w-0">
           <FeedbackCell f={r.feedback} />
         </span>
       ) : null}
+      <span role="cell" className="justify-self-end">
+        {r.editable ? <ProfileEditor actorId={r.actorId} name={r.name} self={r.self} profile={r.profile} /> : null}
+      </span>
     </div>
   ));
+}
+
+/** Where a member with no row on the table reads and edits their own, an interviewer always. */
+export function OwnProfile({ actorId, name, profile, away }: { actorId: string; name: string; profile: StoredProfile | null; away: string | null }) {
+  const said = (text: string | null | undefined) => text || <span className="text-faint">Not said</span>;
+  return (
+    <Section title="Your interviewer profile" aside={<ProfileEditor actorId={actorId} name={name} self profile={profile} />}>
+      <KeyValues
+        items={[
+          ["Interviewing", said(profile?.preference ? PREFERENCE_LABELS[profile.preference] : null)],
+          ["Most a week", profile?.weeklyCap == null ? <span className="text-faint">No limit</span> : profile.weeklyCap],
+          ["Knows", said(profile?.focusAreas.join(", "))],
+          ["Reach", said(profile?.channel ? CHANNEL_LABELS[profile.channel] : null)],
+          ["Away", away ?? <span className="text-faint">Not away</span>],
+        ]}
+      />
+    </Section>
+  );
 }
 
 export function InterviewersView({
@@ -138,7 +195,7 @@ export function InterviewersView({
   const max = Math.max(0, ...groups.flatMap((g) => g.rows.map((r) => r.thisWeek)));
   const grid = gridOf(feedback);
   return (
-    <Page className="max-w-[1040px]" bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
+    <Page bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
       {notices}
       <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line)] px-3.5 text-[13.5px] font-medium">
@@ -149,10 +206,13 @@ export function InterviewersView({
           <Empty className="px-3.5 py-3">{empty}</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[860px]" : "min-w-[600px]")}>
+            <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[1090px]" : "min-w-[880px]")}>
               <div role="row" className={cn(grid, "h-[34px] border-b border-[color:var(--line)] text-xs whitespace-nowrap text-faint")}>
                 <span role="columnheader">Interviewer</span>
-                <span role="columnheader" title="Interviews starting this week, Monday to Sunday (UTC), against the busiest on the team">
+                <span role="columnheader" title="Whether they like interviewing, as they said">
+                  Interviews
+                </span>
+                <span role="columnheader" title="Interviews starting this week, Monday to Sunday (UTC), against their weekly limit or else the busiest on the team">
                   This week
                 </span>
                 <span role="columnheader" title="Interviews starting next week, Monday to Sunday (UTC)">
@@ -161,11 +221,20 @@ export function InterviewersView({
                 <span role="columnheader" title="Interviews that started in the last 30 days">
                   Last 30 days
                 </span>
+                <span role="columnheader" title="What they can interview on, as they wrote it">
+                  Knows
+                </span>
+                <span role="columnheader" title="Where they want to be reached about interviews">
+                  Reach
+                </span>
                 {feedback ? (
                   <span role="columnheader" title="Interviews that ended in the last 30 days on jobs you manage: feedback within 24 hours is on time">
                     Feedback, 30 days
                   </span>
                 ) : null}
+                <span role="columnheader" className="sr-only">
+                  Edit
+                </span>
               </div>
               {groups.map((g) =>
                 g.label === null ? (
