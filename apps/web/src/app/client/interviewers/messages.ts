@@ -30,7 +30,8 @@ export const PROFILE_ERRORS = {
   member_gone: "That person is no longer on the team.",
   stale: "Someone else just saved this profile. Cancel to see what it says now, or Save again to replace it with this.",
   rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was saved. Try again later.",
-  failed: "That didn't save. Nothing was changed.",
+  // A write can fail after it landed, so this cannot promise that nothing changed.
+  failed: "That didn't save, and it may not have gone through. Close this and check.",
 } as const;
 
 export type TeamNotice = keyof typeof TEAM_NOTICES;

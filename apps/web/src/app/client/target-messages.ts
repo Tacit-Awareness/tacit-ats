@@ -3,6 +3,22 @@ import type { TargetError } from "@/lib/client/home-target-rules";
 /** What saveTargetAction answers: a code and never a message, which the dialog words. */
 export type TargetState = { status: "idle" } | { status: "saved" } | { status: "error"; error: TargetError };
 
+/**
+ * What the dialog runs. An action that rejects (the connection dropped, the
+ * session lapsed) would otherwise be rethrown by useActionState into the
+ * render, and this app has no error boundary, so the whole page would go for a
+ * dialog that can say what happened. Nobody knows whether it landed.
+ */
+export const answering =
+  (save: (prev: TargetState, form: FormData) => Promise<TargetState>) =>
+  async (prev: TargetState, form: FormData): Promise<TargetState> => {
+    try {
+      return await save(prev, form);
+    } catch {
+      return { status: "error", error: "failed" };
+    }
+  };
+
 export const TARGET_ERRORS: Record<TargetError, string> = {
   invalid: "That target couldn't be saved. Reload the page and try again.",
   not_number: "Enter a number, like 2 or 1.5.",

@@ -16,8 +16,8 @@ export function parseReviewWrite(raw: unknown): ReviewWrite | null {
   return { interviewId: interviewId.toLowerCase(), reviewed };
 }
 
-/** The bar's count, as the prototype. */
-export const reviewCount = (toReview: number) => (toReview ? `${toReview} to review` : "All reviewed");
+/** The bar's count, as the prototype. Nothing past yet is nothing reviewed, so it says nothing. */
+export const reviewCount = (toReview: number, past: number) => (!past ? null : toReview ? `${toReview} to review` : "All reviewed");
 
 /** What this page has set since it loaded wins over what it loaded with: a read can land before the write it follows. */
 export const isReviewed = (id: string, saved: ReadonlySet<string>, set: ReadonlyMap<string, boolean>) => set.get(id) ?? saved.has(id);

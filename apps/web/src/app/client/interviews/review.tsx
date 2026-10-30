@@ -87,7 +87,7 @@ export function ReviewCount() {
   const { past, saved, set, failed } = useReview();
   if (!saved) return null;
   const left = [...past].filter((id) => !isReviewed(id, saved, set)).length;
-  return <span role="status">{failed ? "Not saved, try again" : reviewCount(left)}</span>;
+  return <span role="status">{failed ? "Not saved, try again" : reviewCount(left, past.size)}</span>;
 }
 
 /** E, and its line in the `?` sheet. Render after the list, so the line follows J / K's. */

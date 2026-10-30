@@ -185,6 +185,13 @@ describe("setInterviewerProfile", () => {
     expect(await row(IVY)).toMatchObject({ focus_areas: ["\u{1F468}‍\u{1F4BB} pairing"], away_until: "0001-01-01" });
   });
 
+  test("an array's own punctuation comes back as it was written", async () => {
+    const focusAreas = ['"quoted"', "back\\slash", "{braces}", "a, b", "NULL", "'; drop table actors;--", "<script>alert(1)</script>", "日本語", "\u{1F600}".repeat(60)];
+    await clientTools.setInterviewerProfile(...ivy(), { memberId: IVY, expectedUpdatedAt: null, profile: { ...EMPTY, focusAreas } });
+    expect((await row(IVY))?.focus_areas).toEqual(focusAreas);
+    expect(await clientTools.setInterviewerProfile(...ivy(), { memberId: IVY, expectedUpdatedAt: null, profile: { ...EMPTY, focusAreas } })).toEqual({ outcome: "unchanged" });
+  });
+
   test("a connector set to read-only stops the connector and not the dashboard", async () => {
     must(await db().from("orgs").update({ connector_access: "read_only" }).eq("id", ACME));
     expect(await clientTools.setInterviewerProfile(...ivy(), { memberId: IVY, expectedUpdatedAt: null, profile: FULL })).toEqual({ outcome: "changed" });

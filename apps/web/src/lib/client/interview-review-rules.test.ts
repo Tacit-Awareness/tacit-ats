@@ -24,9 +24,11 @@ describe("what a write may say", () => {
 
 describe("the bar's count", () => {
   test("says what is left, as the prototype", () => {
-    expect(reviewCount(3)).toBe("3 to review");
-    expect(reviewCount(1)).toBe("1 to review");
-    expect(reviewCount(0)).toBe("All reviewed");
+    expect(reviewCount(3, 5)).toBe("3 to review");
+    expect(reviewCount(1, 1)).toBe("1 to review");
+    expect(reviewCount(0, 5)).toBe("All reviewed");
+    // Nothing has happened yet, so nothing is reviewed: no interviews, or only upcoming ones.
+    expect(reviewCount(0, 0)).toBeNull();
   });
 });
 
