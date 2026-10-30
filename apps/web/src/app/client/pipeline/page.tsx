@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
+import { readDepartments } from "@/lib/client/departments";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { PIPELINE_COLUMNS, ago, isColumnKey, lastInterviewAt, nextInterviewAt, until, type ColumnKey } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
@@ -8,7 +10,9 @@ import { PipelineView, type BoardCard, type BoardColumn } from "./view";
 
 // Every open job's live applications on one board (design/tats's Pipeline),
 // read with the signed-in member's own token (lib/client/pipeline.ts). This
-// page only arranges it: the member's job tab and name filter, each column's
+// page only arranges it: the member's department and job tabs and name
+// filter (a department narrows the job tabs to its jobs and those of the
+// departments inside it, lib/client/department-tree.ts), each column's
 // order, and a dozen cards a column until "Show all". Read-only: a card opens
 // the candidate page; the edit controls are on each job's board.
 
@@ -75,15 +79,21 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   const now = new Date();
   const nowMs = now.getTime();
-  const { jobs, entries } = await readPipeline(db, now);
+  const [pipeline, structure] = await Promise.all([readPipeline(db, now), readDepartments(db)]);
+  const scope = departmentScope(structure, one(sp.department));
+  const department = scope.departmentId;
+  const jobs = pipeline.jobs.filter((j) => inScope(scope, j.id));
+  const entries = pipeline.entries.filter((e) => inScope(scope, e.roleId));
   const job = jobs.some((j) => j.id === one(sp.job)) ? one(sp.job) : null;
   const needle = q.toLowerCase();
   const shown = entries.filter((e) => (!job || e.roleId === job) && (!needle || `${e.personName} ${e.headline ?? ""}`.toLowerCase().includes(needle)));
 
-  const href = (next: { job?: string | null; all?: ColumnKey | null }) => {
+  const href = (next: { department?: string | null; job?: string | null; all?: ColumnKey | null }) => {
     const params = new URLSearchParams();
+    const d = next.department === undefined ? department : next.department;
     const j = next.job === undefined ? job : next.job;
     const a = next.all === undefined ? expanded : next.all;
+    if (d) params.set("department", d);
     if (j) params.set("job", j);
     if (q) params.set("q", q);
     if (a) params.set("all", a);
@@ -116,6 +126,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     <PipelineView
       total={shown.length}
       columns={columns}
+      departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null }))}
       jobs={[
         { href: href({ job: null, all: null }), label: "All jobs", count: entries.length, active: !job },
         ...jobs.map((j) => ({
@@ -125,8 +136,16 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
           active: job === j.id,
         })),
       ]}
-      search={{ q, job }}
-      empty={entries.length === 0 ? "Nobody is in an open job's pipeline yet." : shown.length === 0 ? "Nobody matches." : null}
+      search={{ q, job, department }}
+      empty={
+        entries.length === 0
+          ? department
+            ? "Nobody is in this department's open jobs yet."
+            : "Nobody is in an open job's pipeline yet."
+          : shown.length === 0
+            ? "Nobody matches."
+            : null
+      }
     />
   );
 }

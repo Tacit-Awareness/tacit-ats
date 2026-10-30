@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Page, PageHeader, Section, textLink } from "@/components/page";
 import { CRM_SCAN_MAX, readCandidates } from "@/lib/client/crm";
-import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, parseCrmQuery, stageLabel, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
+import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, inJobs, parseCrmQuery, stageLabel, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
+import { departmentScope, departmentTabs } from "@/lib/client/department-tree";
+import { readDepartments } from "@/lib/client/departments";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -9,9 +11,10 @@ import { CrmView, type CrmColumn } from "./view";
 
 // The CRM (design/tats's #crm): every candidate the signed-in member can
 // read, on their own token (lib/client/crm.ts), as one table. This page only
-// arranges it: the view tab, the search, the sort and the page are URL params
-// (`?view=`, `?q=`, `?sort=` / `?dir=`, `?page=`), worked out in
-// lib/client/crm-views.ts. Read-only: a row opens the candidate page.
+// arranges it: the department, the view tab, the search, the sort and the
+// page are URL params (`?department=`, `?view=`, `?q=`, `?sort=` / `?dir=`,
+// `?page=`), worked out in lib/client/crm-views.ts and, for the department,
+// lib/client/department-tree.ts. Read-only: a row opens the candidate page.
 
 const COLUMNS: { key: CrmSort; label: string }[] = [
   { key: "name", label: "Candidate" },
@@ -43,13 +46,17 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
     );
   }
 
-  const query = parseCrmQuery(await searchParams);
-  const { candidates, truncated } = await readCandidates(db);
+  const parsed = parseCrmQuery(await searchParams);
+  const [{ candidates: everyone, truncated }, structure] = await Promise.all([readCandidates(db), readDepartments(db)]);
+  const scope = departmentScope(structure, parsed.department);
+  const query: CrmQuery = { ...parsed, department: scope.departmentId };
+  const candidates = scope.jobIds ? inJobs(everyone, scope.jobIds) : everyone;
   const table = crmTable(candidates, query);
   const now = Date.now();
   const at = (next: Partial<CrmQuery>) => crmHref({ ...query, page: 1, ...next });
 
   const hidden: Record<string, string> = {};
+  if (query.department) hidden.department = query.department;
   if (query.view !== "all") hidden.view = query.view;
   if (query.sort !== "last") hidden.sort = query.sort;
   if (query.dir !== DEFAULT_DIR[query.sort]) hidden.dir = query.dir;
@@ -64,6 +71,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
   return (
     <CrmView
       views={CRM_VIEWS.map((v) => ({ href: at({ view: v.key }), label: v.label, count: table.counts[v.key].toLocaleString("en-US"), active: query.view === v.key }))}
+      departments={departmentTabs(scope, (department) => at({ department }))}
       viewLabel={CRM_VIEWS.find((v) => v.key === query.view)!.label}
       columns={columns}
       rows={table.rows.map((r) => ({
@@ -83,7 +91,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
       next={table.page < table.pages ? crmHref({ ...query, page: table.page + 1 }) : null}
       search={{ q: query.q, hidden }}
       note={truncated ? `Counting the first ${CRM_SCAN_MAX.toLocaleString("en-US")} candidates.` : null}
-      empty={candidates.length === 0 ? "Nobody yet." : table.total === 0 ? "Nobody matches." : null}
+      empty={candidates.length === 0 ? (query.department ? "Nobody in this department's jobs yet." : "Nobody yet.") : table.total === 0 ? "Nobody matches." : null}
     />
   );
 }

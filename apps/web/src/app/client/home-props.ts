@@ -1,13 +1,14 @@
 import { clientTools } from "@tacit-ats/core";
 import type { HomeRead } from "@/lib/client/home";
+import { departmentTabs } from "@/lib/client/department-tree";
 import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, workload, HOME_PERIODS, type Bottleneck } from "@/lib/client/home-metrics";
 import { LEVELS } from "@/lib/client/levels";
 import { PIPELINE_COLUMNS } from "@/lib/client/pipeline-columns";
 import type { AccessLevel } from "@/lib/client/session";
 import type { Bar, HomeViewProps, WaitCard } from "./home-view";
 
-// Home's read (lib/client/home.ts) shaped for home-view.tsx: the period and
-// job links, each card's words and bars, the bottlenecks' sentences. No reads.
+// Home's read (lib/client/home.ts) shaped for home-view.tsx: the period,
+// department and job links, each card's words and bars, the bottlenecks' sentences. No reads.
 
 /** People a time-in-stage row lists before "All in Pipeline". */
 const STAGE_PREVIEW = 8;
@@ -16,7 +17,7 @@ const STAGE_NAMES: Record<string, string> = { sourced: "Sourced", contacted: "Co
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function bottleneckWords(b: Bottleneck, days: number): { what: string; why: string } {
+function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what: string; why: string } {
   const oldest = b.oldestHours === null ? "" : fmtHours(b.oldestHours);
   switch (b.key) {
     case "review":
@@ -26,7 +27,7 @@ function bottleneckWords(b: Bottleneck, days: number): { what: string; why: stri
     case "decide":
       return { what: `${plural(b.n, "candidate")} waiting on your call`, why: `Oldest ${oldest} since their last interview` };
     case "feedback":
-      return { what: `${plural(b.n, "piece")} of interviewer feedback outstanding`, why: `From interviews that ended in the last ${days} days` };
+      return { what: `${plural(b.n, "piece")} of interviewer feedback outstanding`, why: `From interviews that ended in the last ${days} days${allJobs ? ", on every job you manage" : ""}` };
     case "stalled":
       return { what: `${plural(b.n, "candidate")} stalled`, why: `Untouched for a while or overdue · oldest touch ${oldest} ago` };
   }
@@ -34,17 +35,23 @@ function bottleneckWords(b: Bottleneck, days: number): { what: string; why: stri
 
 export function overviewProps(read: HomeRead, ctx: { org: { name: string }; accessLevel: AccessLevel }, days: number, now: number): HomeViewProps {
   const job = read.jobId;
-  const href = (next: { days?: number; job?: string | null }) => {
+  const department = read.departmentId;
+  // interviewerActivity has no job filter: with a job or a department picked, its numbers still cover every job they manage.
+  const allJobs = job !== null || department !== null;
+  const href = (next: { days?: number; department?: string | null; job?: string | null }) => {
     const params = new URLSearchParams();
     const d = next.days ?? days;
+    const dep = next.department === undefined ? department : next.department;
     const j = next.job === undefined ? job : next.job;
     if (d !== HOME_PERIODS[0]) params.set("days", String(d));
+    if (dep) params.set("department", dep);
     if (j) params.set("job", j);
     const qs = params.toString();
     return `/client${qs ? `?${qs}` : ""}`;
   };
   const pipeline = (all?: string) => {
     const params = new URLSearchParams();
+    if (department) params.set("department", department);
     if (job) params.set("job", job);
     if (all) params.set("all", all);
     const qs = params.toString();
@@ -80,6 +87,7 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
     subtitle: `${ctx.org.name} · ${LEVELS[ctx.accessLevel]}`,
     days,
     periods: HOME_PERIODS.map((d) => ({ href: href({ days: d }), label: `${d} days`, active: d === days })),
+    departments: departmentTabs({ options: read.departments, departmentId: department, jobIds: null }, (d) => href({ department: d, job: null })),
     jobs: [
       { href: href({ job: null }), label: "All jobs", active: !job },
       ...read.jobs.map((j) => ({ href: href({ job: j.id }), label: j.title, active: job === j.id })),
@@ -98,7 +106,7 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
       onTime: fb.onTime,
       outstanding: fb.outstanding,
       onTimeHours: clientTools.FEEDBACK_ON_TIME_HOURS,
-      allJobs: job !== null,
+      allJobs,
       interviewers: fb.interviewers.slice(0, 7).map((x) => ({
         id: x.userId,
         name: x.name ?? "Unknown",
@@ -121,7 +129,7 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
     },
     bottlenecks: bottlenecks(read.waiting, fb ? fb.outstanding : null, now).map((b) => ({
       key: b.key,
-      ...bottleneckWords(b, days),
+      ...bottleneckWords(b, days, allJobs),
       href: b.key === "feedback" ? null : pipeline(b.key === "review" ? "new" : b.key === "schedule" ? "scheduling" : b.key === "decide" ? "decide" : undefined),
     })),
     stages: rows.map((r) => ({

@@ -3,8 +3,9 @@ import { Avatar, Empty, Page, PageHeader, Tabs, Toolbar, type Tab } from "@/comp
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-// The Pipeline board's markup, props only (page.tsx does the reads): job
-// tabs and a filter above design/tats's board, one column per computed stage,
+// The Pipeline board's markup, props only (page.tsx does the reads):
+// department tabs (none for an org without departments), job tabs and a
+// filter above design/tats's board, one column per computed stage,
 // each a band with its count and up to a dozen cards. A card is the person,
 // their job (or headline, once one job is picked), one status line and the
 // owner. Colour only for meaning: a stalled card's status reads red.
@@ -75,23 +76,28 @@ function Column({ column }: { column: BoardColumn }) {
 export function PipelineView({
   total,
   columns,
+  departments,
   jobs,
   search,
   empty,
 }: {
   total: number;
   columns: BoardColumn[];
+  /** Empty for an org with no departments: no filter at all. */
+  departments: Tab[];
   jobs: Tab[];
-  search: { q: string; job: string | null };
+  search: { q: string; job: string | null; department: string | null };
   empty: string | null;
 }) {
   return (
     <Page>
       <PageHeader title="Pipeline" badge={<span className="text-base font-normal text-muted-foreground">{total}</span>} />
+      {departments.length ? <Tabs label="Departments" tabs={departments} /> : null}
       <Toolbar>
         <Tabs label="Jobs" tabs={jobs} />
         {/* A plain GET form: the filter is in the URL, like the tabs. */}
         <form action="/client/pipeline" method="get" role="search" className="w-full sm:w-56">
+          {search.department ? <input type="hidden" name="department" value={search.department} /> : null}
           {search.job ? <input type="hidden" name="job" value={search.job} /> : null}
           <Input name="q" defaultValue={search.q} placeholder="Filter by name" aria-label="Filter by name" />
         </form>

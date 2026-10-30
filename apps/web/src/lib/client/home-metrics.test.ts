@@ -7,6 +7,7 @@ import {
   feedbackSummary,
   fmtHours,
   median,
+  mergeStays,
   parsePeriod,
   periodCount,
   stageRows,
@@ -181,4 +182,29 @@ test("hours read like design/tats", () => {
   expect(fmtHours(5.4)).toBe("5h");
   expect(fmtHours(60)).toBe("2.5d");
   expect(fmtHours(72)).toBe("3d");
+});
+
+describe("average stays over several jobs' reports", () => {
+  const report = (rows: Record<string, [number | null, number]>) => ({
+    stages: Object.entries(rows).map(([stage, [avgDaysInStage, stays]]) => ({ stage, avgDaysInStage, stays })),
+  });
+
+  test("weighted by how many stays each average is over, in the live stages only", () => {
+    const merged = mergeStays([
+      report({ screening: [2, 3], interviewing: [10, 1], hired: [5, 4] }),
+      report({ screening: [4, 1], interviewing: [null, 0], offer: [1.5, 2] }),
+    ]);
+    expect(merged).toEqual([
+      { stage: "sourced", avgDays: null, stays: 0 },
+      { stage: "contacted", avgDays: null, stays: 0 },
+      { stage: "screening", avgDays: 2.5, stays: 4 },
+      { stage: "interviewing", avgDays: 10, stays: 1 },
+      { stage: "offer", avgDays: 1.5, stays: 2 },
+    ]);
+  });
+
+  test("one report is itself; none is every stage empty", () => {
+    expect(mergeStays([report({ screening: [1.3, 7] })]).find((s) => s.stage === "screening")).toEqual({ stage: "screening", avgDays: 1.3, stays: 7 });
+    expect(mergeStays([]).every((s) => s.avgDays === null && s.stays === 0)).toBe(true);
+  });
 });

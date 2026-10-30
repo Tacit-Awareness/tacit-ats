@@ -13,7 +13,8 @@ import { Refusal } from "./refusal";
 // The client area's home. For admins and the hiring team, design/tats's
 // Recruiting Overview: where are candidates getting stuck? (lib/client/home.ts
 // reads, lib/client/home-metrics.ts counts, home-props.ts words it,
-// home-view.tsx draws), with the period (?days=7|30|90) and the job (?job=)
+// home-view.tsx draws), with the period (?days=7|30|90), the department
+// (?department=, none for an org without departments) and the job (?job=)
 // in the URL. An interviewer keeps the page they had: the people they
 // interview, the jobs, the team. Every number is read with the member's own
 // token, so it counts only what their access allows and nothing is filtered
@@ -32,7 +33,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
   const read = await readHome(
     ctx.db,
     { actorId: ctx.actorId, orgId: ctx.org.id, accessLevel: ctx.accessLevel },
-    { days, jobId: one(sp.job) || null },
+    { days, jobId: one(sp.job) || null, departmentId: one(sp.department) || null },
     now,
   );
   return <HomeView {...overviewProps(read, ctx, days, now.getTime())} />;

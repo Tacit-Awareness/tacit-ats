@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { CRM_PAGE_SIZE, crmHref, crmTable, matches, parseCrmQuery, rowFor, sortRows, stageLabel, type CrmApplication, type CrmCandidate, type CrmQuery } from "./crm-views";
+import { CRM_PAGE_SIZE, crmHref, crmTable, inJobs, matches, parseCrmQuery, rowFor, sortRows, stageLabel, type CrmApplication, type CrmCandidate, type CrmQuery } from "./crm-views";
 
 const day = (n: number) => new Date(Date.parse("2026-10-01T12:00:00Z") + n * 86_400_000).toISOString();
 
@@ -23,7 +23,7 @@ const person = (name: string, applications: CrmApplication[], over: Partial<CrmC
   applications,
   ...over,
 });
-const q = (over: Partial<CrmQuery> = {}): CrmQuery => ({ view: "all", q: "", sort: "last", dir: "desc", page: 1, ...over });
+const q = (over: Partial<CrmQuery> = {}): CrmQuery => ({ view: "all", q: "", sort: "last", dir: "desc", page: 1, department: null, ...over });
 
 describe("a candidate's row", () => {
   test("in All, the lead application is the furthest along, and the jobs are the live ones", () => {
@@ -150,5 +150,28 @@ describe("the table", () => {
     const last = crmTable(people, q({ sort: "name", dir: "asc", page: 99 }));
     expect(last.page).toBe(3);
     expect(last.rows.map((r) => r.name)).toEqual(["P100", "P101", "P102"]);
+  });
+});
+
+describe("a department's candidates", () => {
+  test("each keeps only their applications to its jobs; whoever has none there drops out", () => {
+    const ana = person("Ana", [app("offer", { jobId: "eng-1" }), app("hired", { jobId: "prod-1" })]);
+    const bo = person("Bo", [app("screening", { jobId: "prod-1" })]);
+    const prospect = person("Cy", []);
+    const scoped = inJobs([ana, bo, prospect], new Set(["eng-1", "eng-2"]));
+    expect(scoped.map((c) => c.name)).toEqual(["Ana"]);
+    expect(scoped[0].applications.map((a) => a.jobId)).toEqual(["eng-1"]);
+    // so the views count the department's applications: Ana is not Hired here
+    const table = crmTable(scoped, q());
+    expect(table.counts).toMatchObject({ all: 1, active: 1, hired: 0 });
+    expect(inJobs([ana], new Set())).toEqual([]);
+  });
+
+  test("the department rides in the URL with the rest", () => {
+    const full = q({ department: "dep-1", view: "hired", page: 2 });
+    const href = crmHref(full);
+    expect(href).toBe("/client/candidates?department=dep-1&view=hired&page=2");
+    expect(parseCrmQuery(Object.fromEntries(new URL(href, "http://x").searchParams))).toEqual(full);
+    expect(parseCrmQuery({ department: "  " }).department).toBeNull();
   });
 });
