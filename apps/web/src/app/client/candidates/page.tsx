@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { CRM_SCAN_MAX, readCandidates } from "@/lib/client/crm";
 import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, inJobs, parseCrmQuery, stageLabel, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
 import { departmentScope, departmentTabs } from "@/lib/client/department-tree";
@@ -7,6 +7,7 @@ import { readDepartments } from "@/lib/client/departments";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
+import { Icon, type IconName } from "./icons";
 import { CrmView, type CrmColumn } from "./view";
 
 // The CRM (design/tats's #crm): every candidate the signed-in member can
@@ -16,13 +17,32 @@ import { CrmView, type CrmColumn } from "./view";
 // `?page=`), worked out in lib/client/crm-views.ts and, for the department,
 // lib/client/department-tree.ts. Read-only: a row opens the candidate page.
 
-const COLUMNS: { key: CrmSort; label: string }[] = [
-  { key: "name", label: "Candidate" },
-  { key: "job", label: "Job" },
-  { key: "stage", label: "Stage" },
-  { key: "owner", label: "Owner" },
-  { key: "last", label: "Last touch" },
+// design/tats's CRM_COLS, each with its icon; Profile does not sort.
+const COLUMNS: { key: CrmSort | "profile"; label: string; icon: IconName }[] = [
+  { key: "name", label: "Candidate", icon: "people" },
+  { key: "job", label: "Job", icon: "brief" },
+  { key: "profile", label: "Profile", icon: "link" },
+  { key: "stage", label: "Stage", icon: "flag" },
+  { key: "owner", label: "Owner", icon: "users" },
+  { key: "last", label: "Last contact", icon: "cal" },
 ];
+
+/** "in/ada-lovelace" from a LinkedIn profile URL; anything else as typed, without its scheme. */
+function profileOf(url: string | null): string | null {
+  const u = url?.trim();
+  if (!u) return null;
+  const m = /linkedin\.com\/(in|pub)\/([^/?#\s]+)/i.exec(u);
+  if (m) return `in/${decodeSafe(m[2]!)}`;
+  return u.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, "");
+}
+
+function decodeSafe(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
 
 export default async function ClientCandidates({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const gate = await resolveClient();
@@ -31,8 +51,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="CRM" />
+      <Page bar={<PageBar title="CRM" icon={<Icon name="db" />} />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -63,6 +82,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
 
   const first = (table.page - 1) * CRM_PAGE_SIZE + 1;
   const columns: CrmColumn[] = COLUMNS.map((c) => {
+    if (c.key === "profile") return { ...c, href: null, sorted: null };
     const sorted = query.sort === c.key ? query.dir : null;
     // A sorted column's next click flips it; any other column starts at its own default.
     return { ...c, sorted, href: at({ sort: c.key, dir: sorted ? (sorted === "asc" ? "desc" : "asc") : DEFAULT_DIR[c.key] }) };
@@ -77,13 +97,13 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
       rows={table.rows.map((r) => ({
         href: `/client/candidates/${r.candidateId}`,
         name: r.name,
-        headline: r.headline,
         jobs: r.jobs.map((j) => j.title),
+        profile: profileOf(r.linkedinUrl),
         stage: stageLabel(r.stage),
         stageTone: r.stage === "hired" ? "green" : "grey",
         ownerName: r.ownerName,
+        lastTouchAt: r.lastTouchAt,
         lastTouch: ago(r.lastTouchAt, now),
-        lastTouchTitle: r.lastTouchAt.slice(0, 10),
       }))}
       total={table.total}
       range={table.total ? `${first.toLocaleString("en-US")}–${(first + table.rows.length - 1).toLocaleString("en-US")} of ${table.total.toLocaleString("en-US")}` : "0"}

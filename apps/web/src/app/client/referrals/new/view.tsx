@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Notice, Page, PageHeader, Section, textLink } from "@/components/page";
+import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { Input, selectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,12 +24,8 @@ export function AddReferralView({
   error: string | null;
 }) {
   return (
-    <Page narrow>
-      <PageHeader
-        crumbs={[{ href: "/client/referrals", label: "Referrals" }]}
-        title="Add referral"
-        subtitle="They're added to the job's pipeline with Referral as the source and the person who referred them."
-      />
+    <Page narrow bar={<PageBar crumbs={[{ href: "/client/referrals", label: "Referrals" }]} title="Add referral" />}>
+      <p className="m-0 text-[13px] text-muted-foreground">They&apos;re added to the job&apos;s pipeline with Referral as the source and the person who referred them.</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <Section>
         {jobs.length === 0 ? (

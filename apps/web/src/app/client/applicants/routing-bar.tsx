@@ -1,10 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
-import { Button } from "@/components/ui/button";
-import { selectClass } from "@/components/ui/input";
 import type { RejectReason } from "@/lib/client/applicants";
 import { cn } from "@/lib/utils";
 import { routeApplicantAction } from "./actions";
@@ -29,6 +27,31 @@ function RoutingKeys({ press, decline }: { press: (route: "interview" | "screeni
   return null;
 }
 
+/** design/tats's `.cx-seg.sm` pill: 28px, radius 16, a strong hairline. */
+const pill =
+  "inline-flex h-7 items-center gap-2 rounded-2xl border border-[color:var(--line-strong)] px-3 text-[13.5px] font-[450] whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+
+/** The buttons, disabled while a route is in flight. */
+function Route({ value, keyName, primary = false, refFn, children }: { value: string; keyName: string; primary?: boolean; refFn: (b: HTMLButtonElement | null) => void; children: ReactNode }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      ref={refFn}
+      type="submit"
+      name="route"
+      value={value}
+      disabled={pending}
+      aria-keyshortcuts={keyName}
+      className={cn(pill, primary && "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106")}
+    >
+      {children}
+      <Kbd decorative className={primary ? "border-transparent bg-white/20 text-current" : undefined}>
+        {keyName}
+      </Kbd>
+    </button>
+  );
+}
+
 export function RoutingBar({ routing }: { routing: Routing }) {
   const form = useRef<HTMLFormElement>(null);
   const reason = useRef<HTMLSelectElement>(null);
@@ -39,26 +62,33 @@ export function RoutingBar({ routing }: { routing: Routing }) {
   };
   const decline = () => (reason.current?.value ? press("decline") : reason.current?.focus());
 
+  // design/tats's `.composer2` footer: full width under the page, ruled on top, on paper.
   return (
     <form
       ref={form}
       action={routeApplicantAction}
-      className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-2 rounded-[12px] border border-[color:var(--line)] bg-card p-2.5 shadow-[var(--shadow)]"
+      className="sticky bottom-0 z-10 flex flex-wrap items-center gap-1.5 border-t border-[color:var(--line)] bg-[color:var(--paper)] px-[18px] py-3"
     >
       <RoutingKeys press={press} decline={decline} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
-      <Button ref={(b) => void (buttons.current.interview = b)} type="submit" name="route" value="interview" aria-keyshortcuts="I">
-        Interview <Kbd decorative className="border-current/35 text-current opacity-80">I</Kbd>
-      </Button>
-      <Button ref={(b) => void (buttons.current.screening = b)} type="submit" name="route" value="screening" variant="outline" aria-keyshortcuts="S">
-        Move to screening <Kbd decorative>S</Kbd>
-      </Button>
-      <span className="ml-auto flex min-w-0 items-center gap-2">
+      <Route value="interview" keyName="I" primary refFn={(b) => void (buttons.current.interview = b)}>
+        Interview
+      </Route>
+      <Route value="screening" keyName="S" refFn={(b) => void (buttons.current.screening = b)}>
+        Move to screening
+      </Route>
+      <span className="ml-auto flex min-w-0 items-center gap-1.5">
         <label htmlFor="reasonId" className="sr-only">
           Rejection reason
         </label>
-        <select ref={reason} id="reasonId" name="reasonId" defaultValue="" className={cn(selectClass, "w-[200px]")}>
+        <select
+          ref={reason}
+          id="reasonId"
+          name="reasonId"
+          defaultValue=""
+          className={cn(pill, "w-[190px] bg-transparent pr-2 text-muted-foreground outline-none focus-visible:border-[color:var(--accent)]")}
+        >
           <option value="">Rejection reason…</option>
           {routing.reasons.map((r) => (
             <option key={r.reasonId} value={r.reasonId}>
@@ -66,9 +96,9 @@ export function RoutingBar({ routing }: { routing: Routing }) {
             </option>
           ))}
         </select>
-        <Button ref={(b) => void (buttons.current.decline = b)} type="submit" name="route" value="decline" variant="outline" aria-keyshortcuts="D">
-          Decline <Kbd decorative>D</Kbd>
-        </Button>
+        <Route value="decline" keyName="D" refFn={(b) => void (buttons.current.decline = b)}>
+          Decline
+        </Route>
       </span>
     </form>
   );

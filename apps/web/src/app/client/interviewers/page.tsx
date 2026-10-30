@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { readInterviewers } from "@/lib/client/interviewers";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -17,8 +17,7 @@ export default async function ClientInterviewers() {
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Interviewers" />
+      <Page bar={<PageBar title="Interviewers" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -34,7 +33,7 @@ export default async function ClientInterviewers() {
 
   const { groups, feedback, truncated } = await readInterviewers(db, { actorId, orgId: org.id, accessLevel }, new Date());
   const view: InterviewerViewGroup[] = groups.map((g) => ({
-    label: g.label ?? "Interviewers",
+    label: g.label,
     rows: g.interviewers.map((i) => ({
       actorId: i.actorId,
       name: i.name,

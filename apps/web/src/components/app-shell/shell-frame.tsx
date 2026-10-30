@@ -31,6 +31,9 @@ const ICONS = {
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
   menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
+  ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
+  mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
+  cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -56,10 +59,10 @@ type NavLink = { href: string; label: string; icon: IconName; activeUnder?: stri
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
-const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "menu" };
+const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
-const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
-const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "menu" };
+const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };
+const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [

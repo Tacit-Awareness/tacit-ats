@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Avatar, Empty, Page, Section, textLink } from "@/components/page";
+import { Avatar, Empty, Page, PageBar, Section, SubBar, Tabs, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
-import { FilterMenu, type FilterOption } from "./filter-menu";
+import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 
 // Home's markup (design/tats's Recruiting Overview), props only: page.tsx
 // does the reads and the counting. The prototype's bar (the crumb, then the
@@ -212,36 +212,20 @@ export function HomeView(p: HomeViewProps) {
   const maxStay = Math.max(1, ...p.stays.map((s) => s.avgDays ?? 0));
 
   return (
-    <Page>
-      <header className="grid">
-        <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-[color:var(--line)] pb-2">
-          <h1 className="m-0 flex min-w-0 items-center gap-2 text-[13.5px] font-medium">
-            <Icon name="home" className="text-muted-foreground" />
-            {p.title}
-          </h1>
-          <span className="flex-1" />
-          <div className="flex flex-wrap items-center gap-1">
+    <Page
+      bar={
+        <>
+          <PageBar title={p.title} icon={<Icon name="home" />}>
             {p.filters.map((f) => (
               <FilterMenu key={f.label} {...f} />
             ))}
-          </div>
-        </div>
-        <nav aria-label="Overview pages" className="flex flex-wrap gap-1 border-b border-[color:var(--line)] py-3">
-          {NAV.map((n, i) => (
-            <Link
-              key={n.href}
-              href={n.href}
-              aria-current={i === 0 ? "page" : undefined}
-              className={cn(
-                "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] transition-colors",
-                i === 0 ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
-              )}
-            >
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
+          </PageBar>
+          <SubBar>
+            <Tabs strip label="Overview pages" tabs={NAV.map((n, i) => ({ ...n, active: i === 0 }))} />
+          </SubBar>
+        </>
+      }
+    >
 
       <div className="grid gap-4 min-[768px]:grid-cols-2 min-[1100px]:grid-cols-3">
         <Card

@@ -1,5 +1,5 @@
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
-import { AppTile, Live, Notice, Page, PageHeader, Row, Rows, Section, textLink } from "@/components/page";
+import { AppTile, Live, Notice, Page, PageBar, Row, Rows, Section, textLink } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
@@ -43,8 +43,7 @@ export function IntegrationsView({
       : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
-    <Page narrow>
-      <PageHeader title="Integrations" subtitle="Tools Tacit can use for you. Each connection is yours alone; your teammates connect their own." />
+    <Page narrow bar={<PageBar title="Integrations" />}>
       {errorText ? <Notice tone="error">{errorText}</Notice> : null}
       {noticeText ? <Notice>{noticeText}</Notice> : null}
 

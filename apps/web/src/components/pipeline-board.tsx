@@ -152,12 +152,12 @@ function CardView({
           <span className="text-muted-foreground">Next: </span>
           {card.nextAction}
           {card.nextActionDue && (
-            <span className="font-mono text-xs text-muted-foreground"> · by {card.nextActionDue}</span>
+            <span className="text-xs text-muted-foreground tabular-nums"> · by {card.nextActionDue}</span>
           )}
         </p>
       )}
 
-      <p className="mt-2 font-mono text-[11px] text-muted-foreground/80">
+      <p className="mt-2 text-[12px] text-muted-foreground">
         {card.ownerName ?? "unowned"} · touched {ago(card.lastTouchAt, now)}
       </p>
 
@@ -284,10 +284,10 @@ export function PipelineBoard({
           return (
             <div key={col.key} className="w-64 shrink-0">
               <div className="mb-2 flex items-baseline justify-between px-1">
-                <h3 className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                <h3 className="m-0 text-[14px] font-medium">
                   {col.label}
                 </h3>
-                <span className="font-mono text-xs text-muted-foreground/70">{inColumn.length}</span>
+                <span className="text-xs text-faint tabular-nums">{inColumn.length}</span>
               </div>
               <div className="space-y-2">
                 {col.targets.map((stage) => {
