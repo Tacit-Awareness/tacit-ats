@@ -2,11 +2,13 @@ import type { StalledReason } from "@tacit/core";
 import { ago, lastInterviewAt, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
 
 // The Inbox's queue (design/tats's #inbox): what is stuck and waiting on
-// someone, computed from what the pages already read. No issue is stored, so
-// one leaves the queue by being dealt with, never by being marked. An
-// application has at most one issue, the first that holds of: feedback
-// outstanding, the next action overdue, the team's call waiting, nobody
-// touching it. A pending approval takes the place of its application's issue.
+// someone, computed from what the pages already read. No issue is stored: one
+// leaves the queue by being dealt with, or for this member alone by a row in
+// inbox_dismissals naming that one instance (IssueInstance). An application
+// shows at most one issue, the first that holds and isn't dismissed of:
+// feedback outstanding, the next action overdue, the team's call waiting,
+// nobody touching it. So setting one aside never hides the next thing wrong
+// with them. A pending approval takes the place of its application's issue.
 // Pure: lib/client/inbox.ts reads, this sorts and words. Next-action text,
 // names and a draft's subject are plain text, never markup.
 
@@ -23,6 +25,19 @@ export type IssueReason = "draft" | "feedback" | "overdue" | "quiet" | "decide" 
 export const DRAFT_LATE_MS = 2 * 3_600_000;
 
 const KIND: Record<IssueReason, IssueKind> = { draft: "draft", feedback: "late", overdue: "late", quiet: "late", decide: "decide", approval: "decide" };
+
+export const issueKind = (reason: IssueReason): IssueKind => KIND[reason];
+export const isIssueReason = (v: unknown): v is IssueReason => typeof v === "string" && Object.hasOwn(KIND, v);
+
+/**
+ * One instance of an issue, what a dismissal names. `key` alone is the same for
+ * every issue an application ever has; the reason and when it started tell them
+ * apart, so a later one is not hidden by this one's dismissal.
+ */
+export type IssueInstance = { key: string; reason: IssueReason; at: string };
+
+/** As instants, not strings: a timestamp comes back from Postgres in its own format. */
+export const instanceId = (i: IssueInstance) => `${i.key}|${i.reason}|${Date.parse(i.at)}`;
 
 /** A live application on an open job, as the Pipeline board reads it. */
 export type InboxCard = {
@@ -97,8 +112,10 @@ export type Issue = {
   key: string;
   kind: IssueKind;
   reason: IssueReason;
-  /** When it started waiting, for the order and the row's age. */
+  /** Which instance this is, what a dismissal names: a new wait gets a new one. */
   at: string;
+  /** When it started waiting, where that isn't `at`. Read it with waitingSince. */
+  since?: string;
   /** The row's and the reader's heading. */
   what: string;
   why: string;
@@ -116,15 +133,24 @@ export type Issue = {
   draft: InboxDraft | null;
 };
 
+/** For the order and the row's age. */
+export const waitingSince = (i: Pick<Issue, "at" | "since">) => i.since ?? i.at;
+
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
+/**
+ * Worded from the oldest missing, the most overdue, but `at` is the newest: a
+ * dismissal of the first round's must not hide the next round's, by someone else.
+ */
 function feedbackIssue(missing: InboxOutstanding[], now: number): Partial<Issue> {
-  const oldest = [...missing].sort((a, b) => Date.parse(a.endsAt) - Date.parse(b.endsAt))[0]!;
+  const ended = [...missing].sort((a, b) => Date.parse(a.endsAt) - Date.parse(b.endsAt));
+  const oldest = ended[0]!;
   const people = [...new Set(missing.map((m) => m.interviewerName ?? "An interviewer"))];
   const one = people.length === 1 ? people[0]! : null;
   return {
     reason: "feedback",
-    at: oldest.endsAt,
+    at: ended.at(-1)!.endsAt,
+    since: oldest.endsAt,
     what: one ? `${one === "An interviewer" ? one : firstName(one)} hasn't sent feedback` : `${people.length} interviewers haven't sent feedback`,
     why: `Interview ended ${ago(oldest.endsAt, now)}`,
     who: one === "An interviewer" ? null : one,
@@ -132,51 +158,61 @@ function feedbackIssue(missing: InboxOutstanding[], now: number): Partial<Issue>
   };
 }
 
-function applicationIssue(card: InboxCard, missing: InboxOutstanding[], now: number): Issue | null {
-  let found: Partial<Issue> | null = null;
-  if (missing.length) {
-    found = feedbackIssue(missing, now);
-  } else if (card.stalled.includes("overdue") && card.nextActionDue) {
+/** What holds for an application, most pressing first. */
+function applicationIssues(card: InboxCard, missing: InboxOutstanding[], now: number): Issue[] {
+  const found: Partial<Issue>[] = [];
+  if (missing.length) found.push(feedbackIssue(missing, now));
+  if (card.stalled.includes("overdue") && card.nextActionDue) {
     const at = `${card.nextActionDue}T00:00:00Z`;
-    found = {
+    found.push({
       reason: "overdue",
       at,
       what: card.nextAction ? `Overdue: ${card.nextAction}` : "Next action overdue",
       why: `Was due ${ago(at, now)}`,
       who: card.nextActionOwnerName ?? card.ownerName,
       nextAction: card.nextAction,
-    };
-  } else if (card.column === "decide") {
-    const at = lastInterviewAt(card.interviews, now) ?? card.lastTouchAt;
-    found = { reason: "decide", at, what: `Decide on ${card.personName}`, why: `Interviewed ${ago(at, now)}, nothing booked next`, who: null };
-  } else if (card.stalled.includes("no_touch")) {
-    found = { reason: "quiet", at: card.lastTouchAt, what: "Nobody has been in touch", why: `Last touched ${ago(card.lastTouchAt, now)}`, who: card.ownerName };
+    });
   }
-  if (!found) return null;
-  return {
+  if (card.column === "decide") {
+    const at = lastInterviewAt(card.interviews, now) ?? card.lastTouchAt;
+    found.push({ reason: "decide", at, what: `Decide on ${card.personName}`, why: `Interviewed ${ago(at, now)}, nothing booked next`, who: null });
+  }
+  if (card.stalled.includes("no_touch")) {
+    found.push({ reason: "quiet", at: card.lastTouchAt, what: "Nobody has been in touch", why: `Last touched ${ago(card.lastTouchAt, now)}`, who: card.ownerName });
+  }
+  return found.map((f) => ({
     key: `app-${card.applicationId}`,
-    kind: KIND[found.reason!],
-    reason: found.reason!,
-    at: found.at!,
-    what: found.what!,
-    why: found.why!,
-    who: found.who ?? null,
+    kind: KIND[f.reason!],
+    reason: f.reason!,
+    at: f.at!,
+    since: f.since,
+    what: f.what!,
+    why: f.why!,
+    who: f.who ?? null,
     candidate: { id: card.personId, name: card.personName },
     job: { id: card.roleId, title: card.roleTitle },
     applicationId: card.applicationId,
-    interviewId: found.interviewId ?? null,
-    nextAction: found.nextAction ?? null,
+    interviewId: f.interviewId ?? null,
+    nextAction: f.nextAction ?? null,
     approval: null,
     draft: null,
-  };
+  }));
 }
+
+/**
+ * The request keeps one date through its steps, so this moves it on a
+ * millisecond a step: reaching this approver again at a later step is a new
+ * wait, and a dismissal at the earlier one must not hide it.
+ */
+const approvalAt = (a: InboxApproval) => (a.waitingStep > 1 ? new Date(Date.parse(a.requestedAt) + a.waitingStep - 1).toISOString() : a.requestedAt);
 
 function approvalIssue(a: InboxApproval): Issue {
   return {
     key: `appr-${a.requestId}`,
     kind: "decide",
     reason: "approval",
-    at: a.requestedAt,
+    at: approvalAt(a),
+    since: a.requestedAt,
     what: a.kind === "offer" ? `Approve the offer for ${a.candidateName ?? "this candidate"}` : `Approve opening ${a.jobTitle}`,
     why: a.steps > 1 ? `Your approval, step ${a.waitingStep} of ${a.steps}` : "Your approval",
     who: a.requestedBy,
@@ -209,22 +245,49 @@ function draftIssue(d: InboxDraft): Issue {
   };
 }
 
-/** The whole queue: unsent drafts, then overdue, then decisions, newest first in each, as the prototype sorts. */
-export function inboxIssues(
-  input: { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[] },
-  now: number,
-): Issue[] {
-  const missing = new Map<string, InboxOutstanding[]>();
-  for (const o of input.outstanding) missing.set(o.applicationId, [...(missing.get(o.applicationId) ?? []), o]);
-  const approving = new Set(input.approvals.map((a) => a.applicationId));
+export type InboxInput = { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[] };
 
-  const issues = [
-    ...input.drafts.filter((d) => now - Date.parse(d.updatedAt) > DRAFT_LATE_MS).map(draftIssue),
-    ...input.cards.filter((c) => !approving.has(c.applicationId)).flatMap((c) => applicationIssue(c, missing.get(c.applicationId) ?? [], now) ?? []),
+function missingByApplication(outstanding: InboxOutstanding[]) {
+  const missing = new Map<string, InboxOutstanding[]>();
+  for (const o of outstanding) missing.set(o.applicationId, [...(missing.get(o.applicationId) ?? []), o]);
+  return missing;
+}
+
+const lateDrafts = (drafts: InboxDraft[], now: number) => drafts.filter((d) => now - Date.parse(d.updatedAt) > DRAFT_LATE_MS).map(draftIssue);
+
+/**
+ * Everything that holds right now, dismissed or not, including what a more
+ * pressing issue on the same application stands in front of: what a dismissal
+ * can match, and what the Done tab asks to tell "set aside" from "gone since".
+ */
+export function standingIssues(input: InboxInput, now: number): Issue[] {
+  const missing = missingByApplication(input.outstanding);
+  return [
+    ...lateDrafts(input.drafts, now),
+    ...input.cards.flatMap((c) => applicationIssues(c, missing.get(c.applicationId) ?? [], now)),
     ...input.approvals.map(approvalIssue),
   ];
+}
+
+/**
+ * The queue: unsent drafts, then overdue, then decisions, newest first in each,
+ * as the prototype sorts. `dismissed` is instanceId()s: only those instances go,
+ * so a dismissed approval gives its place back to its application's issue, and
+ * a dismissed issue to the next that holds.
+ */
+export function inboxIssues(input: InboxInput, now: number, dismissed: ReadonlySet<string> = new Set()): Issue[] {
+  const kept = (i: Issue) => !dismissed.has(instanceId(i));
+  const missing = missingByApplication(input.outstanding);
+  const approvals = input.approvals.map(approvalIssue).filter(kept);
+  const approving = new Set(approvals.map((a) => a.applicationId));
+
+  const issues = [
+    ...lateDrafts(input.drafts, now).filter(kept),
+    ...input.cards.filter((c) => !approving.has(c.applicationId)).flatMap((c) => applicationIssues(c, missing.get(c.applicationId) ?? [], now).find(kept) ?? []),
+    ...approvals,
+  ];
   const rank = (i: Issue) => ISSUE_KINDS.findIndex((k) => k.key === i.kind);
-  return issues.sort((a, b) => rank(a) - rank(b) || Date.parse(b.at) - Date.parse(a.at));
+  return issues.sort((a, b) => rank(a) - rank(b) || Date.parse(waitingSince(b)) - Date.parse(waitingSince(a)));
 }
 
 /** The row's second line: who it waits on, the candidate unless the heading names them, and why. */

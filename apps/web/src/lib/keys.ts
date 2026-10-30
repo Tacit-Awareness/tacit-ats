@@ -33,6 +33,16 @@ export function modalOpen(target?: EventTarget | null): boolean {
 export const isShown = (el: { getClientRects(): { length: number } } | null): boolean => !!el && el.getClientRects().length > 0;
 
 /**
+ * A key that writes acts once a press. Held down, the browser repeats it, and
+ * each repeat would land on whatever the page moved on to.
+ */
+export const onePress =
+  (run: () => void) =>
+  (e: { repeat: boolean }): void => {
+    if (!e.repeat) run();
+  };
+
+/**
  * A page key never fires while typing, with ⌘, Ctrl or Alt held (those
  * belong to the browser and the OS, and ⌘K to the shell), once something
  * else has handled the event, or behind a modal dialog. Shift is allowed: `?`

@@ -63,12 +63,15 @@ export function PageBar({
   icon,
   count,
   crumbs,
+  lead,
   children,
 }: {
   title: React.ReactNode;
   icon?: React.ReactNode;
   count?: React.ReactNode;
   crumbs?: Crumb[];
+  /** Beside the title, left of the spacer: the Inbox's Open / Done. */
+  lead?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
@@ -88,6 +91,7 @@ export function PageBar({
         <span className="truncate">{title}</span>
         {count !== undefined && count !== null ? <span className="font-normal text-faint tabular-nums">{count}</span> : null}
       </h1>
+      {lead}
       <span className="flex-1" />
       {children ? <div className="flex flex-wrap items-center gap-1.5">{children}</div> : null}
     </header>

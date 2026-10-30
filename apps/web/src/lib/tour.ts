@@ -37,7 +37,7 @@ export const TOUR: TourStep[] = [
     href: "/client/inbox",
     targets: ['[data-tour="inbox-keys"]', '[data-tour="inbox"]'],
     title: "Inbox",
-    body: "Only what's stuck or waiting on you. F runs the fix. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
+    body: "Only what's stuck or waiting on you. F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
   },
   {
     href: "/client/candidates",

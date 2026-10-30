@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHORD_MS, chord, ignoreKey, isShown, isTyping, keyName, menuKey, stepIndex, type KeyEventLike } from "./keys";
+import { CHORD_MS, chord, ignoreKey, isShown, isTyping, keyName, menuKey, onePress, stepIndex, type KeyEventLike } from "./keys";
 
 const ev = (over: Partial<KeyEventLike> = {}): KeyEventLike => ({
   key: "j",
@@ -135,5 +135,16 @@ describe("a key while a menu is open", () => {
   it("only picks a line that shows that digit", () => {
     expect(menuKey(ev({ key: "6" }), 5)).toBeNull();
     expect(menuKey(ev({ key: "0" }), 5)).toBeNull();
+  });
+});
+
+describe("onePress", () => {
+  it("acts on a press, not on the repeats of a key held down", () => {
+    let runs = 0;
+    const press = onePress(() => void runs++);
+    press({ repeat: false });
+    press({ repeat: true });
+    press({ repeat: true });
+    expect(runs).toBe(1);
   });
 });

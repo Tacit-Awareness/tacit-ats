@@ -2,7 +2,8 @@ import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
 import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
-import { DRAFT_LATE_MS, currentDrafts, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue, type LaterEmail } from "./inbox-issues";
+import { doneItems, type Dismissal, type DoneItem, type DoneSubject } from "./inbox-done";
+import { DRAFT_LATE_MS, currentDrafts, inboxIssues, instanceId, isIssueReason, standingIssues, type InboxDraft, type InboxInput, type InboxOutstanding, type Issue, type IssueInstance, type LaterEmail } from "./inbox-issues";
 import { readPipeline } from "./pipeline";
 
 // The Inbox's reads and writes, on the member's OWN client (never a
@@ -16,7 +17,10 @@ import { readPipeline } from "./pipeline";
 // for DRAFT_LATE_MS and that no newer email on the application has replaced. Not for an interviewer
 // (`limited`), who is refused: the page points them home. The writes are
 // clientTools' audited ones with source `dashboard`: a decision on an approval,
-// and the stage move the candidate page makes.
+// and the stage move the candidate page makes. A dismissal is the member's own
+// row in inbox_dismissals, ids and timestamps only, so nothing here is audited
+// and nothing about the issue is kept: the Done tab reads it back through the
+// member's own reads, and what they can no longer read drops off it.
 
 /** Drafts read, newest first; the list says when it stops here. */
 const DRAFTS_MAX = 100;
@@ -32,9 +36,22 @@ const FEEDBACK_WINDOW_DAYS = 90;
 const DAY = 86_400_000;
 /** Entries in the reader's activity story. */
 const STORY_MAX = 12;
+/** Rows on the Done tab, newest first; the list says when it stops here. */
+const DONE_MAX = 200;
+/** Ids in one `in` filter, as the Pipeline board reads: past this the URL gets too long. */
+const IDS_A_READ = 150;
+/** PostgREST's row limit, which ends a read with no error. */
+const ROWS_A_READ = 1000;
+
+const UNIQUE_VIOLATION = "23505";
+const REFUSED = "42501";
+
+const chunks = <T,>(all: T[]): T[][] => Array.from({ length: Math.ceil(all.length / IDS_A_READ) }, (_, i) => all.slice(i * IDS_A_READ, (i + 1) * IDS_A_READ));
 
 export type InboxRead = {
   issues: Issue[];
+  /** Everything that holds, dismissed or not: readDone tells what stands from what has gone. */
+  standing: Issue[];
   /** interviewerActivity stopped at its cap, so some feedback may be missing. */
   truncated: boolean;
   /** More current drafts than DRAFTS_MAX, or the scan stopped short, so older ones may not be listed. */
@@ -116,6 +133,34 @@ async function readDrafts(db: Db, actorId: string, now: Date): Promise<{ drafts:
   return { drafts, capped };
 }
 
+/**
+ * Which of what stands the member has set aside. Asked by key, so the read is
+ * as long as the queue and not every dismissal they ever made. Only `dismissed`
+ * hides: `resolved` is a record for Done, and an issue that comes back after its
+ * fix (the same due date set again) is waiting again.
+ */
+async function readDismissed(db: Db, standing: Issue[]): Promise<Set<string>> {
+  const dismissed = new Set<string>();
+  const parts = await Promise.all(chunks([...new Set(standing.map((i) => i.key))]).map((keys) => readDismissalsOn(db, keys)));
+  for (const rows of parts) {
+    for (const r of rows) {
+      if (isIssueReason(r.reason)) dismissed.add(instanceId({ key: r.issue_key, reason: r.reason, at: r.issue_at }));
+    }
+  }
+  return dismissed;
+}
+
+/** Every dismissal on these keys, by pages: a key keeps its past instances, and a read cut off at the row limit would bring a dismissed issue back. */
+async function readDismissalsOn(db: Db, keys: string[]) {
+  const rows: { issue_key: string; reason: string; issue_at: string }[] = [];
+  for (;;) {
+    const { data, error } = await db.from("inbox_dismissals").select("issue_key, reason, issue_at").eq("how", "dismissed").in("issue_key", keys).order("id").range(rows.length, rows.length + ROWS_A_READ - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROWS_A_READ) return rows;
+  }
+}
+
 export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, now: Date): Promise<InboxRead> {
   if (member.accessLevel === "limited") throw new clientTools.ClientToolError("forbidden", "An interviewer's work is on their home page.");
   // The reports never write an audit row, so the source is never read.
@@ -139,33 +184,43 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
     endsAt: o.endsAt,
   }));
 
+  const input: InboxInput = {
+    cards: pipeline.entries,
+    outstanding,
+    // The offer's terms stay out: they are confidential, and the queue only says one is waiting.
+    approvals: approvals.map((a) => ({
+      requestId: a.requestId,
+      kind: a.kind,
+      jobId: a.jobId,
+      jobTitle: a.jobTitle,
+      applicationId: a.applicationId,
+      candidateId: a.candidateId,
+      candidateName: a.candidateName,
+      requestedBy: a.requestedBy,
+      requestedAt: a.requestedAt,
+      waitingStep: a.waitingStep,
+      steps: a.steps,
+    })),
+    drafts,
+  };
+  const standing = standingIssues(input, now.getTime());
   return {
-    issues: inboxIssues(
-      {
-        cards: pipeline.entries,
-        outstanding,
-        // The offer's terms stay out: they are confidential, and the queue only says one is waiting.
-        approvals: approvals.map((a) => ({
-          requestId: a.requestId,
-          kind: a.kind,
-          jobId: a.jobId,
-          jobTitle: a.jobTitle,
-          applicationId: a.applicationId,
-          candidateId: a.candidateId,
-          candidateName: a.candidateName,
-          requestedBy: a.requestedBy,
-          requestedAt: a.requestedAt,
-          waitingStep: a.waitingStep,
-          steps: a.steps,
-        })),
-        drafts,
-      },
-      now.getTime(),
-    ),
+    issues: inboxIssues(input, now.getTime(), await readDismissed(db, standing)),
+    standing,
     truncated: activity?.truncated ?? false,
     draftsCapped: capped,
   };
 }
+
+/** The candidate's story, or null when the member can't read them. */
+const readStory = (db: Db, ctx: clientTools.ClientToolCtx, candidateId: string) =>
+  clientTools.getActivity(db, ctx, { candidateId, limit: STORY_MAX }).then(
+    (a) => a.entries,
+    (err: unknown) => {
+      if (err instanceof clientTools.ClientToolError && err.code === "not_found") return null;
+      throw err;
+    },
+  );
 
 /**
  * What the reader adds for the issue open: the candidate's story, whether the
@@ -180,15 +235,7 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
   const offerRequest = issue.approval?.kind === "offer" ? issue.approval.requestId : null;
   const [story, canEdit, terms, reasons, jobSeen] = await Promise.all([
-    issue.candidate
-      ? clientTools.getActivity(db, ctx, { candidateId: issue.candidate.id, limit: STORY_MAX }).then(
-          (a) => a.entries,
-          (err: unknown) => {
-            if (err instanceof clientTools.ClientToolError && err.code === "not_found") return null;
-            throw err;
-          },
-        )
-      : [],
+    issue.candidate ? readStory(db, ctx, issue.candidate.id) : [],
     issue.applicationId && issue.job.id
       ? db.rpc("can_on_role", { p_role: issue.job.id, perm: "can_edit_pipeline" }).then((r) => {
           if (r.error) throw new Error(r.error.message);
@@ -207,6 +254,120 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
       : true,
   ]);
   return { story, canEdit, terms, reasons, canOpen: story !== null && jobSeen };
+}
+
+type DoneApplication = { id: string; person_id: string; role_id: string; people: { display_name: string | null } | null; roles: { title: string } | null };
+type DoneApproval = { id: string; kind: string; role_id: string; roles: { title: string } | null };
+type DoneDraft = { id: string; person_id: string; to_email: string; people: { display_name: string | null } | null; applications: { roles: { title: string } | null } | null };
+
+/** Names for what no longer stands, on the member's own reads: what they can't read has no name, and drops off Done. */
+async function readDoneSubjects(db: Db, actorId: string, keys: string[]): Promise<Map<string, DoneSubject>> {
+  const ids = (prefix: string) => keys.filter((k) => k.startsWith(`${prefix}-`)).map((k) => k.slice(prefix.length + 1));
+  const failed = (r: { error: { message: string } | null }) => {
+    if (r.error) throw new Error(r.error.message);
+  };
+  const [applications, approvals, drafts] = await Promise.all([
+    Promise.all(
+      chunks(ids("app")).map((part) =>
+        db.from("applications").select("id, person_id, role_id, people(display_name), roles(title)").in("id", part).is("merged_into_id", null).overrideTypes<DoneApplication[], { merge: false }>(),
+      ),
+    ),
+    Promise.all(chunks(ids("appr")).map((part) => db.from("approval_requests").select("id, kind, role_id, roles(title)").in("id", part).overrideTypes<DoneApproval[], { merge: false }>())),
+    Promise.all(
+      chunks(ids("draft")).map((part) =>
+        db.from("candidate_emails").select("id, person_id, to_email, people(display_name), applications(roles(title))").in("id", part).eq("author_actor_id", actorId).overrideTypes<DoneDraft[], { merge: false }>(),
+      ),
+    ),
+  ]);
+  const subjects = new Map<string, DoneSubject>();
+  for (const r of applications) {
+    failed(r);
+    for (const a of r.data ?? []) subjects.set(`app-${a.id}`, { candidate: { id: a.person_id, name: a.people?.display_name ?? "This candidate" }, jobId: a.role_id, jobTitle: a.roles?.title ?? null, approvalKind: null });
+  }
+  for (const r of approvals) {
+    failed(r);
+    for (const a of r.data ?? []) subjects.set(`appr-${a.id}`, { candidate: null, jobId: a.role_id, jobTitle: a.roles?.title ?? null, approvalKind: a.kind === "offer" ? "offer" : "job_open" });
+  }
+  for (const r of drafts) {
+    failed(r);
+    for (const d of r.data ?? []) subjects.set(`draft-${d.id}`, { candidate: { id: d.person_id, name: d.people?.display_name ?? d.to_email }, jobId: null, jobTitle: d.applications?.roles?.title ?? null, approvalKind: null });
+  }
+  return subjects;
+}
+
+export type DoneRead = { items: DoneItem[]; /** The read reached DONE_MAX, so older ones may not be listed. */ capped: boolean };
+
+/**
+ * The Done tab: the member's own rows, newest first. What still stands is worded
+ * from the live queue, which also keeps an approval on the list for an approver
+ * who can't read the job, and can only get it back from here.
+ */
+export async function readDone(db: Db, actorId: string, standing: Issue[]): Promise<DoneRead> {
+  const { data, error } = await db
+    .from("inbox_dismissals")
+    .select("id, issue_key, reason, issue_at, how, dismissed_at")
+    .order("dismissed_at", { ascending: false })
+    .order("id")
+    .limit(DONE_MAX);
+  if (error) throw new Error(error.message);
+  const rows: Dismissal[] = (data ?? []).map((r) => ({ id: r.id, key: r.issue_key, reason: r.reason, at: r.issue_at, how: r.how === "resolved" ? "resolved" : "dismissed", dismissedAt: r.dismissed_at }));
+  const live = new Set(standing.map(instanceId));
+  const gone = rows.filter((r) => !isIssueReason(r.reason) || !live.has(instanceId({ key: r.key, reason: r.reason, at: r.at }))).map((r) => r.key);
+  const subjects = await readDoneSubjects(db, actorId, [...new Set(gone)]);
+  return { items: doneItems(rows, standing, subjects), capped: rows.length >= DONE_MAX };
+}
+
+/** The Done reader's story. Null when the member can no longer read them. */
+export const readDoneStory = (db: Db, member: Omit<clientTools.ClientToolCtx, "source">, candidateId: string) => readStory(db, { ...member, source: "claude" }, candidateId);
+
+export type DismissOutcome = { ok: true; changed: true; id: string } | { ok: true; changed: false } | { ok: false; error: "refused" };
+
+const insertDismissal = (db: Db, i: IssueInstance, how: "dismissed" | "resolved") =>
+  db.from("inbox_dismissals").insert({ issue_key: i.key, reason: i.reason, issue_at: i.at, how }).select("id").maybeSingle();
+
+/**
+ * E: sets this instance aside for this member. `org_id`, `actor_id` and
+ * `dismissed_at` are the database's, so the form can name none of them. A row
+ * already there is either the same dismissal, a second press, or a `resolved`
+ * one for an issue that has since come back, which is only history: that row
+ * gives way, or the issue could never be set aside. There is no update grant.
+ */
+export async function dismissIssue(db: Db, instance: IssueInstance): Promise<DismissOutcome> {
+  const made = await insertDismissal(db, instance, "dismissed");
+  if (made.data) return { ok: true, changed: true, id: made.data.id };
+  if (made.error?.code === REFUSED) return { ok: false, error: "refused" };
+  if (made.error?.code !== UNIQUE_VIOLATION) throw new Error(made.error?.message ?? "inbox_dismissals: no row came back");
+
+  const there = await db.from("inbox_dismissals").select("id, how").eq("issue_key", instance.key).eq("reason", instance.reason).eq("issue_at", instance.at).maybeSingle();
+  if (there.error) throw new Error(there.error.message);
+  if (!there.data || there.data.how === "dismissed") return { ok: true, changed: false };
+  const cleared = await db.from("inbox_dismissals").delete().eq("id", there.data.id);
+  if (cleared.error) throw new Error(cleared.error.message);
+  const again = await insertDismissal(db, instance, "dismissed");
+  if (again.data) return { ok: true, changed: true, id: again.data.id };
+  if (again.error?.code === UNIQUE_VIOLATION) return { ok: true, changed: false };
+  throw new Error(again.error?.message ?? "inbox_dismissals: no row came back");
+}
+
+/** Back to the queue, and Undo: deletes the member's own row. Null when there is none, which is also someone else's id. */
+export async function restoreIssue(db: Db, id: string): Promise<{ key: string } | null> {
+  const { data, error } = await db.from("inbox_dismissals").delete().eq("id", id).select("issue_key").maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { key: data.issue_key } : null;
+}
+
+/**
+ * The fix ran, so Done says so. Only a record, and the write it records has
+ * happened: failing here must not say the fix did. A row already there stays.
+ */
+export async function noteResolved(db: Db, instance: IssueInstance | null): Promise<void> {
+  if (!instance) return;
+  try {
+    const { error } = await insertDismissal(db, instance, "resolved");
+    if (error && error.code !== UNIQUE_VIOLATION) console.error("[client-inbox] resolved row failed:", error.message);
+  } catch (err) {
+    console.error("[client-inbox] resolved row failed:", err instanceof Error ? err.message : err);
+  }
 }
 
 /** "Mark it done": clears the next action, only while it is still the overdue one the page showed. */

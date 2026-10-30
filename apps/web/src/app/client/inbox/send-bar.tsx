@@ -4,18 +4,20 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
-import type { IssueFix } from "@/lib/client/inbox-issues";
+import type { IssueFix, IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { sendDraftAction } from "./actions";
+import { button, plain, primary } from "./buttons";
 import { Settled } from "./decision-bar";
-import { button, plain, primary } from "./fix-bar";
+import { DismissButton } from "./set-aside";
 
 // Send here, on an unsent draft: F or the button only opens a native modal
 // <dialog> showing the stored draft in full, and Send in it, or ⌘↵, is the
 // send. Esc, Cancel or the backdrop back out, and the dialog opens on Cancel,
 // so a second Enter can't send. With no mailer on this deployment the button is
-// off and the card says why. Same dialog rules as decision-bar.tsx.
+// off and the card says why. Same dialog rules as decision-bar.tsx. Dismiss (E)
+// is here as on the other bars: a draft that can't go out can still be set aside.
 
 export type SendProps = { to: string; subject: string; body: string; from: string | null; replyTo: string | null };
 
@@ -35,7 +37,7 @@ function Buttons({ cancel, cancelRef }: { cancel: () => void; cancelRef: React.R
   );
 }
 
-function SendDialog({ draftId, draft, next, close }: { draftId: string; draft: SendProps; next: string | null; close: () => void }) {
+function SendDialog({ draftId, draft, instance, next, close }: { draftId: string; draft: SendProps; instance: IssueInstance; next: string | null; close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -74,6 +76,8 @@ function SendDialog({ draftId, draft, next, close }: { draftId: string; draft: S
       <form ref={form} action={sendDraftAction} className="p-4">
         <Settled busy={busy} done={close} />
         <input type="hidden" name="draftId" value={draftId} />
+        <input type="hidden" name="issueReason" value={instance.reason} />
+        <input type="hidden" name="issueAt" value={instance.at} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <h2 id="send-title" className="m-0 text-[15px] font-semibold break-words">
           Send this to {draft.to}?
@@ -109,11 +113,13 @@ function SendDialog({ draftId, draft, next, close }: { draftId: string; draft: S
 export function SendBar({
   fix,
   draft,
+  instance,
   next,
   secondary,
 }: {
   fix: Extract<IssueFix, { type: "send" }>;
   draft: SendProps;
+  instance: IssueInstance;
   next: string | null;
   secondary: { label: string; href: string } | null;
 }) {
@@ -131,12 +137,13 @@ export function SendBar({
           </Kbd>
         ) : null}
       </button>
+      <DismissButton instance={instance} next={next} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}
         </Link>
       ) : null}
-      {open ? <SendDialog draftId={fix.draftId} draft={draft} next={next} close={() => setOpen(false)} /> : null}
+      {open ? <SendDialog draftId={fix.draftId} draft={draft} instance={instance} next={next} close={() => setOpen(false)} /> : null}
     </div>
   );
 }
