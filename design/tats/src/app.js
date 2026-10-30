@@ -1127,7 +1127,7 @@ const TOUR = [
   ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
   ["activity", ".af-todo", "Grokbot Activity", "What the Grokbots did, and the few things they couldn't finish without you."],
-  ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Ask, delegate and assign here or there; this dashboard is for checking in."],
+  ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Open it from ⌘K. Ask, delegate and assign here or there; this dashboard is for checking in."],
 ];
 let tour = null;
 function startTour() { tour = { i: 0 }; tourShow(); }
@@ -2287,7 +2287,6 @@ function renderSide() {
       ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
     <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
-    <button class="sb-chat ${on(r.name === "chat")}" data-act="goChat">${botAv(ME)}<span class="trunc">Chat with your Grokbot</span></button>
     <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
   </div>`);
 }
@@ -3650,6 +3649,7 @@ function openPalette(ctx) {
   const all = [
     ...grok,
     ...acts,
+    { sec: "Go to", label: "Chat with your Grokbot", icon: botAv(ME), run: () => go("chat") },
     { sec: "Go to", label: "Inbox", sub: `${unreadCount()} unread`, icon: ico("inbox"), hint: "G I", run: () => go("inbox") },
     { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
     { sec: "Go to", label: "Pipeline", icon: ico("people"), hint: "G A", run: () => go("all") },
