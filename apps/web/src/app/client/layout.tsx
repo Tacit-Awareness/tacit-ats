@@ -23,7 +23,7 @@ export default async function ClientLayout({ children }: { children: React.React
     return <div className="flex min-h-dvh flex-1 flex-col bg-frame px-4 py-8">{children}</div>;
   }
 
-  const { db, org, user, accessLevel } = gate.ctx;
+  const { db, org, user, accessLevel, actorId } = gate.ctx;
   const [{ data: roles, error }, jar] = await Promise.all([
     db.from("roles").select("id, title").eq("status", "open").order("created_at", { ascending: false }),
     cookies(),
@@ -33,6 +33,7 @@ export default async function ClientLayout({ children }: { children: React.React
 
   return (
     <ShellFrame
+      actorId={actorId}
       org={org.name}
       user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }}
       jobs={jobs}

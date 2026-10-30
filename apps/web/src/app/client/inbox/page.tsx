@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { readInbox, readIssue } from "@/lib/client/inbox";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
@@ -70,40 +71,43 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const decision = open && fix ? decisionProps(fix, open, detail?.reasons ?? []) : null;
 
   return (
-    <InboxView
-      rows={issues.map((i) => ({
-        key: i.key,
-        kind: i.kind,
-        href: `/client/inbox?i=${i.key}`,
-        what: i.what,
-        who: i.who,
-        line: issueLine(i),
-        age: ago(i.at, nowMs),
-        active: i.key === open?.key,
-      }))}
-      issue={
-        open && fix
-          ? {
-              kind: open.kind,
-              what: open.what,
-              subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
-              card: card(open, fix.type === "decide"),
-              draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body } : null,
-              fix,
-              decision,
-              terms: detail?.terms ? offerTermLines(detail.terms) : null,
-              next: nextIssue(issues, open.key)?.key ?? null,
-              secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
-              story: open.candidate ? (detail?.story ?? null) : null,
-              now: nowMs,
-            }
-          : null
-      }
-      notice={isInboxNotice(notice) ? INBOX_NOTICES[notice] : null}
-      error={isInboxError(error) ? INBOX_ERRORS[error] : null}
-      open={open !== null && open.key === one(sp.i)}
-      truncated={truncated}
-      draftsCapped={draftsCapped}
-    />
+    <>
+      <MarkSeen mark="inbox" ids={issues.map((i) => i.key)} />
+      <InboxView
+        rows={issues.map((i) => ({
+          key: i.key,
+          kind: i.kind,
+          href: `/client/inbox?i=${i.key}`,
+          what: i.what,
+          who: i.who,
+          line: issueLine(i),
+          age: ago(i.at, nowMs),
+          active: i.key === open?.key,
+        }))}
+        issue={
+          open && fix
+            ? {
+                kind: open.kind,
+                what: open.what,
+                subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
+                card: card(open, fix.type === "decide"),
+                draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body } : null,
+                fix,
+                decision,
+                terms: detail?.terms ? offerTermLines(detail.terms) : null,
+                next: nextIssue(issues, open.key)?.key ?? null,
+                secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
+                story: open.candidate ? (detail?.story ?? null) : null,
+                now: nowMs,
+              }
+            : null
+        }
+        notice={isInboxNotice(notice) ? INBOX_NOTICES[notice] : null}
+        error={isInboxError(error) ? INBOX_ERRORS[error] : null}
+        open={open !== null && open.key === one(sp.i)}
+        truncated={truncated}
+        draftsCapped={draftsCapped}
+      />
+    </>
   );
 }

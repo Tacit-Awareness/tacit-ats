@@ -347,6 +347,15 @@
   background: var(--soft-strong);
 }
 
+/* design/tats's sidebar mark: something arrived since you last opened the page. */
+.nav-new {
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+
+.nav-new:hover {
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

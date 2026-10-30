@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { groupByJob, inOrder, neighbour, readerAnswers, selected } from "@/lib/client/applicant-queue";
 import { readApplicantQueue, readRouting } from "@/lib/client/applicants";
@@ -65,24 +66,27 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
   }
 
   return (
-    <ApplicantsView
-      total={order.length}
-      groups={groups.map((g) => ({
-        jobId: g.jobId,
-        jobTitle: g.jobTitle,
-        rows: g.entries.map((e) => ({
-          applicationId: e.applicationId,
-          href: `/client/applicants?a=${e.applicationId}`,
-          name: e.name ?? "Unnamed applicant",
-          line: e.post ?? e.email ?? "Job board",
-          when: ago(e.appliedAt, now),
-          active: e.applicationId === open?.applicationId,
-        })),
-      }))}
-      ticket={ticket}
-      notice={isApplicantNotice(notice) ? APPLICANT_NOTICES[notice] : null}
-      error={isApplicantError(error) ? APPLICANT_ERRORS[error] : null}
-      open={Boolean(one(sp.a)) && open !== null}
-    />
+    <>
+      <MarkSeen mark="tickets" ids={order.map((e) => e.applicationId)} />
+      <ApplicantsView
+        total={order.length}
+        groups={groups.map((g) => ({
+          jobId: g.jobId,
+          jobTitle: g.jobTitle,
+          rows: g.entries.map((e) => ({
+            applicationId: e.applicationId,
+            href: `/client/applicants?a=${e.applicationId}`,
+            name: e.name ?? "Unnamed applicant",
+            line: e.post ?? e.email ?? "Job board",
+            when: ago(e.appliedAt, now),
+            active: e.applicationId === open?.applicationId,
+          })),
+        }))}
+        ticket={ticket}
+        notice={isApplicantNotice(notice) ? APPLICANT_NOTICES[notice] : null}
+        error={isApplicantError(error) ? APPLICANT_ERRORS[error] : null}
+        open={Boolean(one(sp.a)) && open !== null}
+      />
+    </>
   );
 }

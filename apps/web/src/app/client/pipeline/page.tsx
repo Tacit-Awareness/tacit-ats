@@ -7,6 +7,8 @@ import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, ago, isColumnKey, lastInterviewAt, nextInterviewAt, until, type ColumnKey } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
+import { readPersonTags } from "@/lib/client/views";
+import { describeFilters, hasFilters, parseViewFilters, parseViewId, rowSource, viewKeeps } from "@/lib/saved-views";
 import { Refusal } from "../refusal";
 import type { BoardCard, BoardColumn } from "./board-state";
 import { PipelineView } from "./view";
@@ -19,6 +21,10 @@ import { PipelineView } from "./view";
 // order, and a dozen cards a column until "Show all". A card opens the
 // candidate page; on a job the member may edit it also carries its real stage
 // moves (lib/client/pipeline-moves.ts), which board.tsx offers by drag and keys.
+// A saved view (lib/saved-views.ts) is the same page with
+// `?stage=&source=&tag=&view=` in the URL: the filters come from there, never
+// from the browser's copy, and picking a department leaves the view, as the
+// prototype.
 
 /** Cards a column shows before "Show all", as design/tats's board. */
 const COLUMN_PREVIEW = 12;
@@ -79,6 +85,8 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const q = one(sp.q).trim();
   const expanded = isColumnKey(one(sp.all)) ? (one(sp.all) as ColumnKey) : null;
+  const viewId = parseViewId(one(sp.view));
+  const filters = parseViewFilters({ stage: one(sp.stage), source: one(sp.source), tag: one(sp.tag) });
 
   const now = new Date();
   const nowMs = now.getTime();
@@ -87,11 +95,19 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   const department = scope.departmentId;
   const jobs = pipeline.jobs.filter((j) => inScope(scope, j.id));
   const entries = pipeline.entries.filter((e) => inScope(scope, e.roleId));
+  const [tagged, tagName] = filters.tag
+    ? await Promise.all([
+        readPersonTags(db, entries.map((e) => e.personId), filters.tag),
+        db.from("tags").select("name").eq("id", filters.tag).maybeSingle().then((r) => r.data?.name ?? null),
+      ])
+    : [null, null];
+  const viewed = entries.filter((e) => viewKeeps(filters, { roleId: e.roleId, column: e.column, source: rowSource(e), tagIds: tagged?.get(e.personId) ?? [] }, null));
   const job = jobs.some((j) => j.id === one(sp.job)) ? one(sp.job) : null;
   const needle = q.toLowerCase();
-  const shown = entries.filter((e) => (!job || e.roleId === job) && (!needle || `${e.personName} ${e.headline ?? ""}`.toLowerCase().includes(needle)));
+  const shown = viewed.filter((e) => (!job || e.roleId === job) && (!needle || `${e.personName} ${e.headline ?? ""}`.toLowerCase().includes(needle)));
 
-  const href = (next: { department?: string | null; job?: string | null; all?: ColumnKey | null }) => {
+  const viewParams = { stage: filters.stage, source: filters.source, tag: filters.tag, view: viewId };
+  const href = (next: { department?: string | null; job?: string | null; all?: ColumnKey | null; leaveView?: boolean }) => {
     const params = new URLSearchParams();
     const d = next.department === undefined ? department : next.department;
     const j = next.job === undefined ? job : next.job;
@@ -100,6 +116,9 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     if (j) params.set("job", j);
     if (q) params.set("q", q);
     if (a) params.set("all", a);
+    if (!next.leaveView) {
+      for (const [k, v] of Object.entries(viewParams)) if (v) params.set(k, v);
+    }
     const qs = params.toString();
     return `/client/pipeline${qs ? `?${qs}` : ""}`;
   };
@@ -133,24 +152,33 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     <PipelineView
       total={shown.length}
       columns={columns}
-      departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null }))}
+      capped={pipeline.capped}
+      departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null, leaveView: true }))}
       job={
         jobs.length
           ? {
               value: job ? (jobs.find((j) => j.id === job)?.title ?? "All jobs") : "All jobs",
               on: !!job,
               options: [
-                { href: href({ job: null, all: null }), label: `All jobs (${entries.length})`, active: !job },
+                { href: href({ job: null, all: null }), label: `All jobs (${viewed.length})`, active: !job },
                 ...jobs.map((j) => ({
                   href: href({ job: j.id, all: null }),
-                  label: `${j.title} (${entries.filter((e) => e.roleId === j.id).length})`,
+                  label: `${j.title} (${viewed.filter((e) => e.roleId === j.id).length})`,
                   active: job === j.id,
                 })),
               ],
             }
           : null
       }
-      search={{ q, job, department }}
+      search={{ q, keep: { department, job, ...viewParams } }}
+      view={
+        viewId || hasFilters(filters)
+          ? {
+              id: viewId,
+              fallback: describeFilters({ ...filters, department }, { department: scope.options.find((o) => o.id === department)?.path, tag: tagName }),
+            }
+          : null
+      }
       empty={
         entries.length === 0
           ? department
