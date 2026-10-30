@@ -182,7 +182,7 @@ describe("the Inbox", () => {
     const issue = issues.find((i) => i.key === `app-${app(1)}`)!;
     const read = await readIssue(client, lee, issue);
     expect(read.canEdit).toBe(true);
-    expect(read.story.some((e) => e.kind === "interview.scheduled")).toBe(true);
+    expect(read.story?.some((e) => e.kind === "interview.scheduled")).toBe(true);
     const designer = (await readInbox(token("user_ib_ada"), ada, NOW)).issues.find((i) => i.key === `app-${app(3)}`)!;
     expect((await readIssue(client, lee, designer)).canEdit).toBe(false);
   });

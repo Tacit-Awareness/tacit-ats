@@ -90,6 +90,8 @@ export type Issue = {
   interviewId: string | null;
   /** Overdue: the next action as written. */
   nextAction: string | null;
+  /** An approval: the request to decide. Its terms are never here: readIssue fetches them for the one open. */
+  approval: { requestId: string; kind: InboxApproval["kind"] } | null;
   draft: InboxDraft | null;
 };
 
@@ -143,6 +145,7 @@ function applicationIssue(card: InboxCard, missing: InboxOutstanding[], now: num
     applicationId: card.applicationId,
     interviewId: found.interviewId ?? null,
     nextAction: found.nextAction ?? null,
+    approval: null,
     draft: null,
   };
 }
@@ -161,6 +164,7 @@ function approvalIssue(a: InboxApproval): Issue {
     applicationId: a.applicationId,
     interviewId: null,
     nextAction: null,
+    approval: { requestId: a.requestId, kind: a.kind },
     draft: null,
   };
 }
@@ -179,6 +183,7 @@ function draftIssue(d: InboxDraft): Issue {
     applicationId: null,
     interviewId: null,
     nextAction: null,
+    approval: null,
     draft: d,
   };
 }
@@ -217,8 +222,16 @@ export function nextIssue(issues: Issue[], key: string): Issue | null {
   return issues[i + 1] ?? issues[i - 1] ?? null;
 }
 
-/** The one thing that deals with an issue: a write the member may make here, or the page that has it. */
-export type IssueFix = { type: "write"; write: "done" | "touch"; label: string; applicationId: string; /** What "Mark it done" clears, so a changed one is left alone. */ nextAction: string | null } | { type: "link"; label: string; href: string };
+/**
+ * The one thing that deals with an issue: a write the member may make here,
+ * the page that has it, or a decision (A / O / R, each confirmed first:
+ * inbox/decision-bar.tsx).
+ */
+export type IssueFix =
+  | { type: "write"; write: "done" | "touch"; label: string; applicationId: string; /** What "Mark it done" clears, so a changed one is left alone. */ nextAction: string | null }
+  | { type: "link"; label: string; href: string }
+  | { type: "approval"; requestId: string; kind: InboxApproval["kind"] }
+  | { type: "decide"; applicationId: string; /** Where A goes: booking a round isn't in the web app, so it is their page. */ nextRoundHref: string };
 
 const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
 
@@ -226,14 +239,16 @@ export function issueFix(i: Issue, canEdit: boolean): IssueFix {
   if (i.reason === "overdue" && canEdit && i.applicationId) return { type: "write", write: "done", label: "Mark it done", applicationId: i.applicationId, nextAction: i.nextAction };
   if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId, nextAction: null };
   if (i.reason === "feedback" && i.interviewId) return { type: "link", label: "Open the interview", href: `/client/interviews?i=${i.interviewId}` };
+  if (i.approval) return { type: "approval", requestId: i.approval.requestId, kind: i.approval.kind };
+  if (i.reason === "decide" && canEdit && i.applicationId) return { type: "decide", applicationId: i.applicationId, nextRoundHref: candidateHref(i) };
   if (i.reason === "decide") return { type: "link", label: "Decide", href: candidateHref(i) };
-  if (i.reason === "approval" && !i.candidate) return { type: "link", label: "Open the job", href: candidateHref(i) };
   return { type: "link", label: "Open candidate", href: candidateHref(i) };
 }
 
-/** The candidate's page as a second way out, when the fix is not already it. */
-export function secondaryHref(i: Issue, fix: IssueFix): string | null {
-  if (!i.candidate) return null;
+/** The page behind the issue as a second way out, when the fix is not already it and the member can open it. */
+export function secondaryLink(i: Issue, fix: IssueFix, canOpen = true): { label: string; href: string } | null {
+  if (fix.type === "decide" || !canOpen) return null;
+  if (!i.candidate) return fix.type === "approval" ? { label: "Open the job", href: candidateHref(i) } : null;
   const href = candidateHref(i);
-  return fix.type === "link" && fix.href === href ? null : href;
+  return fix.type === "link" && fix.href === href ? null : { label: "Open candidate", href };
 }

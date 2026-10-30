@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHORD_MS, chord, ignoreKey, isTyping, keyName, stepIndex, type KeyEventLike } from "./keys";
+import { CHORD_MS, chord, ignoreKey, isShown, isTyping, keyName, menuKey, stepIndex, type KeyEventLike } from "./keys";
 
 const ev = (over: Partial<KeyEventLike> = {}): KeyEventLike => ({
   key: "j",
@@ -19,10 +19,26 @@ describe("the typing guard", () => {
     expect(ignoreKey(ev({ target: el("INPUT") }))).toBe(true);
   });
 
+  it("keeps every key from the page behind a modal dialog, wherever the focus is", () => {
+    expect(ignoreKey(ev(), true)).toBe(true);
+    expect(ignoreKey(ev({ target: el("BUTTON") }), true)).toBe(true);
+    expect(ignoreKey(ev(), false)).toBe(false);
+  });
+
   it("lets keys through on the page, a link or a button", () => {
     for (const t of ["BODY", "A", "BUTTON", "DIV"]) expect(isTyping(el(t))).toBe(false);
     expect(isTyping(null)).toBe(false);
     expect(ignoreKey(ev())).toBe(false);
+  });
+});
+
+describe("a hidden pane", () => {
+  const box = (rects: number) => ({ getClientRects: () => ({ length: rects }) });
+
+  it("keeps its keys: a phone's list hides the reader, whose buttons stay mounted", () => {
+    expect(isShown(box(1))).toBe(true);
+    expect(isShown(box(0))).toBe(false);
+    expect(isShown(null)).toBe(false);
   });
 });
 
@@ -88,5 +104,36 @@ describe("stepping a list", () => {
 
   it("an empty list has nothing to step to", () => {
     expect(stepIndex(-1, 0, 1)).toBe(-1);
+  });
+});
+
+describe("a key while a menu is open", () => {
+  it("steps, picks and closes", () => {
+    expect(menuKey(ev({ key: "j" }), 5)).toEqual({ kind: "step", d: 1 });
+    expect(menuKey(ev({ key: "ArrowUp" }), 5)).toEqual({ kind: "step", d: -1 });
+    expect(menuKey(ev({ key: "2" }), 5)).toEqual({ kind: "pick", index: 1 });
+    expect(menuKey(ev({ key: "Escape" }), 5)).toEqual({ kind: "close", refocus: true });
+    expect(menuKey(ev({ key: "Tab" }), 5)).toEqual({ kind: "close", refocus: false });
+    expect(menuKey(ev({ key: "x" }), 5)).toBeNull();
+  });
+
+  // A pick is a write: F, / or ⌘K can move focus to a field while the menu is up.
+  it("leaves a digit typed in a field alone", () => {
+    expect(menuKey(ev({ key: "3", target: el("INPUT") }), 5)).toBeNull();
+    expect(menuKey(ev({ key: "j", target: el("INPUT") }), 5)).toBeNull();
+  });
+
+  it("leaves a key something else handled: G then 3 is not a pick", () => {
+    expect(menuKey(ev({ key: "3", defaultPrevented: true }), 5)).toBeNull();
+  });
+
+  it("leaves ⌘, Ctrl and Alt alone", () => {
+    expect(menuKey(ev({ key: "1", metaKey: true }), 5)).toBeNull();
+    expect(menuKey(ev({ key: "1", altKey: true }), 5)).toBeNull();
+  });
+
+  it("only picks a line that shows that digit", () => {
+    expect(menuKey(ev({ key: "6" }), 5)).toBeNull();
+    expect(menuKey(ev({ key: "0" }), 5)).toBeNull();
   });
 });

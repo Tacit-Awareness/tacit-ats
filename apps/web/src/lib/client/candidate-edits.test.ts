@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
-import { moveCandidate, setCandidateNextAction } from "./candidate-edits";
+import { addCandidateNote, moveCandidate, setCandidateNextAction } from "./candidate-edits";
 import type { MoveInput } from "./candidate-edit-rules";
 
-const { updateStage, setApplicationNextAction } = vi.hoisted(() => ({ updateStage: vi.fn(), setApplicationNextAction: vi.fn() }));
+const { updateStage, setApplicationNextAction, addNote } = vi.hoisted(() => ({ updateStage: vi.fn(), setApplicationNextAction: vi.fn(), addNote: vi.fn() }));
 
 vi.mock("@tacit-ats/core", async (original) => {
   const real = await original<typeof import("@tacit-ats/core")>();
-  return { ...real, clientTools: { ...real.clientTools, updateStage, setApplicationNextAction } };
+  return { ...real, clientTools: { ...real.clientTools, updateStage, setApplicationNextAction, addNote } };
 });
 
 const CTX: clientTools.ClientToolCtx = { actorId: "actor-1", orgId: "org-1", accessLevel: "admin", source: "dashboard" };
@@ -30,6 +30,7 @@ const reject = (over: Partial<MoveInput> = {}) => move({ stage: "rejected", reas
 beforeEach(() => {
   updateStage.mockReset();
   setApplicationNextAction.mockReset();
+  addNote.mockReset();
 });
 
 describe("moveCandidate", () => {
@@ -117,5 +118,31 @@ describe("setCandidateNextAction", () => {
 
     setApplicationNextAction.mockRejectedValue(new clientTools.ClientToolError("rate_limited", "Limit."));
     expect(await setCandidateNextAction(fakeDb(APP), CTX, input)).toEqual({ ok: false, error: "rate_limited" });
+  });
+});
+
+describe("addCandidateNote", () => {
+  const NOTE = { candidateId: "person-1", text: "Strong on systems" };
+
+  test("a note is clientTools' audited write, as the member", async () => {
+    addNote.mockResolvedValue({ noteId: "note-1" });
+    expect(await addCandidateNote(fakeDb(null), CTX, NOTE)).toEqual({ ok: true });
+    expect(addNote).toHaveBeenCalledWith(expect.anything(), CTX, NOTE);
+  });
+
+  test("a refusal is the form's code", async () => {
+    addNote.mockRejectedValueOnce(new clientTools.ClientToolError("not_found", "No candidate"));
+    expect(await addCandidateNote(fakeDb(null), CTX, NOTE)).toEqual({ ok: false, error: "note_gone" });
+    addNote.mockRejectedValueOnce(new clientTools.ClientToolError("rate_limited", "300 changes"));
+    expect(await addCandidateNote(fakeDb(null), CTX, NOTE)).toEqual({ ok: false, error: "rate_limited" });
+  });
+
+  test("anything else is a failure for the action to report, not an answer", async () => {
+    addNote.mockRejectedValueOnce(new clientTools.ClientToolError("invalid", "The note is empty."));
+    await expect(addCandidateNote(fakeDb(null), CTX, NOTE)).rejects.toThrow("The note is empty.");
+    addNote.mockRejectedValueOnce(new clientTools.ClientToolError("forbidden", "Read-only"));
+    await expect(addCandidateNote(fakeDb(null), CTX, NOTE)).rejects.toThrow("Read-only");
+    addNote.mockRejectedValueOnce(new Error("permission denied for table person_notes"));
+    await expect(addCandidateNote(fakeDb(null), CTX, NOTE)).rejects.toThrow("permission denied");
   });
 });

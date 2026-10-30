@@ -7,6 +7,7 @@ import { CommandMenu, type CommandItem } from "@/components/app-shell/command-me
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { Avatar, initialsOf } from "@/components/page";
+import { modalOpen } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
 import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
@@ -218,7 +219,7 @@ export function ShellFrame({
   toggleRef.current = toggle;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented) return;
+      if (e.defaultPrevented || modalOpen()) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setMenu((m) => !m);

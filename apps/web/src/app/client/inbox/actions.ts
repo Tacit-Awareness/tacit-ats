@@ -2,15 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { clearOverdueAction, touchApplication } from "@/lib/client/inbox";
+import { clearOverdueAction, decideInboxApplication, decideInboxApproval, touchApplication } from "@/lib/client/inbox";
+import { approvalNotice, parseDecision } from "@/lib/client/inbox-decisions";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { InboxError, InboxNotice } from "./messages";
 
-// The Inbox's two writes, both the candidate page's: clear an overdue next
-// action, through the audited clientTools, or log a touch, core's pipeline
-// function. Both on the member's own client, so the policies decide again.
-// Posted fields are request data, so the id and the `next` key are re-read.
+// The Inbox's writes, on the member's own client, so the policies decide again.
+// Two are the candidate page's: clear an overdue next action, through the
+// audited clientTools, or log a touch, core's pipeline function. A decision is
+// clientTools' too: approve or reject an approval, or move the team's call to
+// offer or rejected. Posted fields are request data, so they are re-read. A
+// reason, a note and an offer's terms never go in the URL or the log.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISSUE_KEY = /^(app|appr|draft)-[0-9a-f-]{36}$/i;
@@ -24,14 +27,18 @@ const back = (params: { i?: string | null; notice?: InboxNotice; error?: InboxEr
   return redirect(`/client/inbox?${qs}`);
 };
 
+const nextKey = (form: FormData) => {
+  const next = form.get("next");
+  return typeof next === "string" && ISSUE_KEY.test(next) ? next : null;
+};
+
 export async function fixIssueAction(form: FormData): Promise<void> {
   const member = await requireClient();
   const { db, actorId } = member;
   const applicationId = form.get("applicationId");
   const write = form.get("write");
   if (typeof applicationId !== "string" || !UUID.test(applicationId) || (write !== "done" && write !== "touch")) return back({ error: "not_found" });
-  const next = form.get("next");
-  const i = typeof next === "string" && ISSUE_KEY.test(next) ? next : null;
+  const i = nextKey(form);
   const expected = form.get("expected");
 
   let outcome: Awaited<ReturnType<typeof touchApplication>>;
@@ -50,4 +57,34 @@ export async function fixIssueAction(form: FormData): Promise<void> {
   revalidatePath("/client/pipeline");
   // On to the next issue: the one below it in the list, as the page sent it.
   return back({ i, notice: !outcome.changed ? "unchanged" : write === "done" ? "done" : "touched" });
+}
+
+/** A, O or R, once the member has confirmed: the dialog posts here. */
+export async function decideIssueAction(form: FormData): Promise<void> {
+  const member = await requireClient();
+  const { db } = member;
+  const decision = parseDecision(form);
+  if (!decision) return back({ error: "not_found" });
+  const here = decision.on === "approval" ? `appr-${decision.requestId}` : `app-${decision.move.applicationId}`;
+
+  let done: { notice: InboxNotice } | { error: InboxError };
+  try {
+    if (decision.on === "approval") {
+      const outcome = await decideInboxApproval(db, toolCtx(member), decision);
+      done = outcome.ok ? { notice: approvalNotice(outcome.outcome, outcome.kind) } : { error: outcome.error };
+    } else {
+      const outcome = await decideInboxApplication(db, toolCtx(member), decision.move);
+      if (outcome.ok) done = { notice: !outcome.changed ? "unchanged" : decision.move.stage === "offer" ? "moved_offer" : "closed" };
+      else done = { error: outcome.error === "not_member" ? "not_found" : outcome.error };
+    }
+  } catch (err) {
+    console.error("[client-inbox] decision failed:", err instanceof Error ? err.message : err);
+    done = { error: "failed" };
+  }
+  if ("error" in done) return back({ i: here, error: done.error });
+
+  revalidatePath("/client/inbox");
+  revalidatePath("/client/pipeline");
+  // On to the next issue, as the page sent it.
+  return back({ i: nextKey(form), notice: done.notice });
 }
