@@ -150,6 +150,21 @@ describe("getInterviewNotes", () => {
     expect(await getInterviewNotes(reads().asDb(), ctx(), g.deps, { interviewId: "iv-1" })).toMatchObject({ found: true, matchedBy: "email", noteId: A });
   });
 
+  test("someone else's address that contains the candidate's is not the candidate", async () => {
+    const list = `${meeting(A, "Standup", "joann@x.test, ann@x.testing.co")}\n${meeting(B, "Lunch")}`;
+    const g = granola({ list: (start) => (start === "2026-10-15T16:50:00.000Z" ? "" : list), get: () => "n" });
+    const r = await getInterviewNotes(reads("ann@x.test").asDb(), ctx(), g.deps, { interviewId: "iv-1" });
+    expect(r).toMatchObject({ found: false });
+  });
+
+  test("the candidate's address matches whatever is around it", async () => {
+    for (const around of ["Ann <ann@x.test>", "ann@x.test, pat@x.test", "(ann@x.test).", "mailto:ann@x.test"]) {
+      const g = granola({ list: meeting(A, "Chat", around), get: () => "n" });
+      const r = await getInterviewNotes(reads("ann@x.test").asDb(), ctx(), g.deps, { interviewId: "iv-1" });
+      expect(r).toMatchObject({ found: true, matchedBy: "email" });
+    }
+  });
+
   test("an interviewer finds the candidate through my_interviews and matches the one meeting during the interview", async () => {
     const g = granola({
       list: (start) => (start === "2026-10-15T16:50:00.000Z" ? meeting(A, "Chat") : `${meeting(A, "Chat")}\n${meeting(B, "Lunch")}`),

@@ -107,6 +107,13 @@ test("a transcript loses only Granola's wrapper", () => {
   expect(granolaTranscript(null)).toBe("");
 });
 
+test("a word in someone's notes that only looks like a wrapper stays", () => {
+  expect(granolaText("<summary>Booked the <meeting room> for the <transcript review></summary>").sections).toEqual([
+    { label: "Summary", text: "Booked the <meeting room> for the <transcript review>" },
+  ]);
+  expect(granolaTranscript("<transcript>\nAda: see my <meeting notes>\n</transcript>")).toBe("Ada: see my <meeting notes>");
+});
+
 test("matchedLine says how the meeting was found, and nothing for what it does not know", () => {
   expect(matchedLine("event")).toBe("Matched by the calendar event");
   expect(matchedLine("chosen")).toBe("The meeting you picked");

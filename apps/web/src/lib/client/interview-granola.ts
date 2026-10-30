@@ -29,7 +29,8 @@ const LABELS: Record<string, string> = {
 // title. Quotes that don't pair up (a title of 24" monitor) read as before.
 const ATTRS = String.raw`(?:(?:[^<>"]|"[^"\n]*")*|[^<>]*)`;
 const MEETING = new RegExp(String.raw`<meeting\b${ATTRS}>`, "i");
-const WRAPPER = new RegExp(String.raw`<\/?(?:meetings_data|meetings|meeting|transcript)\b${ATTRS}>`, "gi");
+// A wrapper has no attributes or real ones: "<meeting room>" in someone's notes is their words.
+const WRAPPER = new RegExp(String.raw`<\/?(?:meetings_data|meetings|meeting|transcript)(?:\s*|\s[^<>"=]*=${ATTRS})>`, "gi");
 const SECTIONS = "known_participants|participants|private_notes|summary";
 // Self-closed is empty, and would otherwise run on through the sections after it.
 const EMPTY_SECTION = new RegExp(String.raw`<(?:${SECTIONS})\b${ATTRS}\/>`, "gi");

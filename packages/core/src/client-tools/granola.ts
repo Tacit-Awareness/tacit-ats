@@ -287,6 +287,15 @@ export function meetingsIn(raw: string): Array<{ id: string; text: string }> {
   return meetings;
 }
 
+/** The address on its own: ann@x.co is neither joann@x.co nor ann@x.com. */
+const hasAddress = (text: string, address: string) => {
+  for (let at = text.indexOf(address); at >= 0; at = text.indexOf(address, at + 1)) {
+    const end = at + address.length;
+    if (!/[\w.+-]/.test(text[at - 1] ?? "") && !/^(?:[\w-]|\.\w)/.test(text.slice(end, end + 2))) return true;
+  }
+  return false;
+};
+
 // Only meetings whose note the caller captured: without the filter Granola
 // also lists colleagues' Team Space notes.
 const listMeetings = (mcp: ReturnType<typeof granolaMcp>, from: number, to: number) =>
@@ -353,7 +362,7 @@ export async function getInterviewNotes(
       const email = person?.email?.trim().toLowerCase() || null;
       const eventId = interview.google_event_id?.toLowerCase() || null;
       const byEvent = eventId ? nearby.filter((m) => m.text.toLowerCase().includes(eventId)) : [];
-      const byEmail = email ? nearby.filter((m) => m.text.toLowerCase().includes(email)) : [];
+      const byEmail = email ? nearby.filter((m) => hasAddress(m.text.toLowerCase(), email)) : [];
       if (byEvent.length === 1) [matchedId, matchedBy] = [byEvent[0]!.id, "event"];
       else if (byEmail.length === 1) [matchedId, matchedBy] = [byEmail[0]!.id, "email"];
       else {

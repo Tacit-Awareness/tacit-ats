@@ -193,4 +193,3 @@ token cannot read applications.
 - [ ] Not connected: a line pointing at Integrations. No match: the meetings
   around then, each with **Use this one**.
 - [ ] As Admin on an interview you did not sit on: no Granola section at all.
-- Left out: a "reviewed" check.
