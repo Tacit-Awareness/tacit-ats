@@ -35,6 +35,8 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
   const input = useRef<HTMLInputElement>(null);
   const results = rankPages(pages, query);
 
+  // On the docs, ⌘K is this search, not the shell's command menu: listening in
+  // the capture phase runs this first, and the shell skips a handled event.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -42,8 +44,8 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
         input.current?.focus();
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
   return (
@@ -61,7 +63,7 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
             e.currentTarget.blur();
           }
         }}
-        className="h-[30px] w-full rounded-lg border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--green)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--green-bright)_18%,transparent)]"
+        className="h-[30px] w-full rounded-lg border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--accent)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--accent)_18%,transparent)]"
       />
       {query.trim() ? (
         <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 rounded-lg border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
