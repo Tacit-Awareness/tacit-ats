@@ -63,4 +63,8 @@ describe("soleAdmin", () => {
     expect(soleAdmin([m("b", "elevated")])).toBeNull();
     expect(soleAdmin([])).toBeNull();
   });
+
+  test("nobody from a list that stopped short: another admin may be past the end", () => {
+    expect(soleAdmin([m("a", "admin"), m("b", "elevated")], true)).toBeNull();
+  });
 });

@@ -1,5 +1,6 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
+import { scanRows } from "./interviewers";
 import { isAccessLevel } from "./levels";
 
 // Changing a member's access from the team list: clientTools' audited
@@ -33,11 +34,23 @@ export async function changeMemberAccess(
 }
 
 /**
- * The member a change could not lower, when there is exactly one admin: the
- * page shows them no picker. Only a hint: members here are the signed-in ones,
- * the only admins set_org_member_access counts, and it refuses regardless.
+ * The team list: org_members on the member's own client, every page of it. One
+ * read stops at the database's 1000 rows, which would lose whoever sorts last,
+ * a second admin included. Ordered by id too, so no one is lost between pages.
  */
-export function soleAdmin(members: ReadonlyArray<{ id: string; access_level: string }>): string | null {
+export const readMembers = (db: Db) =>
+  scanRows((from, to) => db.from("org_members").select("id, display_name, email, access_level").order("display_name").order("id").range(from, to));
+
+/**
+ * The member a change could not lower, when there is exactly one admin: the
+ * page shows them no picker. Only a hint, and set_org_member_access refuses
+ * regardless: an admin who cannot sign in (a Tacit submitter raised by hand,
+ * who is listed here and is no invitation) counts as one here and not there,
+ * so that admin's colleague gets a picker and `last_admin` from it. A list that
+ * stopped short names nobody, since another admin may be past its end.
+ */
+export function soleAdmin(members: ReadonlyArray<{ id: string; access_level: string }>, truncated = false): string | null {
+  if (truncated) return null;
   const admins = members.filter((m) => m.access_level === "admin");
   return admins.length === 1 ? admins[0].id : null;
 }

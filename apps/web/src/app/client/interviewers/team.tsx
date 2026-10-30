@@ -19,22 +19,26 @@ export type TeamMember = { id: string; display_name: string; email: string | nul
 
 export function TeamSections({
   members,
+  membersTruncated,
   pending,
   actorId,
   isAdmin,
   rendered,
 }: {
   members: TeamMember[];
+  /** The read stopped at its cap, so the list may not hold every admin. */
+  membersTruncated: boolean;
   pending: Awaited<ReturnType<typeof listPendingInvites>>;
   actorId: string;
   isAdmin: boolean;
   /** When this request rendered: keys the pickers, so each comes back from an action showing the saved level. */
   rendered: number;
 }) {
-  const onlyAdmin = soleAdmin(members);
+  const onlyAdmin = soleAdmin(members, membersTruncated);
   return (
     <>
       <Section title="Members" count={members.length}>
+        {membersTruncated ? <p className="m-0 pb-2 text-xs text-muted-foreground">Showing the first {members.length.toLocaleString("en-US")}; there are more.</p> : null}
         <Rows>
           {members.map((m) => (
             <Row

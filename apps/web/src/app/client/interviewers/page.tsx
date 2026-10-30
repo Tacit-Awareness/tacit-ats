@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listPendingInvites } from "@tacit-ats/core";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readInterviewers } from "@/lib/client/interviewers";
+import { readMembers } from "@/lib/client/member-access";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
 import { TEAM_ERRORS, TEAM_NOTICES, isTeamError, isTeamNotice } from "./messages";
@@ -52,12 +53,11 @@ export default async function ClientInterviewers({
   const isAdmin = accessLevel === "admin";
   const [{ groups, feedback, truncated }, team, pending] = await Promise.all([
     readInterviewers(db, { actorId, orgId: org.id, accessLevel }, new Date()),
-    db.from("org_members").select("id, display_name, email, access_level").order("display_name"),
+    readMembers(db),
     isAdmin ? listPendingInvites(db) : Promise.resolve([]),
   ]);
-  if (team.error) throw new Error(team.error.message);
   const pendingIds = new Set(pending.map((p) => p.actorId));
-  const members = (team.data ?? []).filter((m) => m.id && !pendingIds.has(m.id)) as TeamMember[];
+  const members = team.rows.filter((m) => m.id && !pendingIds.has(m.id)) as TeamMember[];
   const view: InterviewerViewGroup[] = groups.map((g) => ({
     label: g.label,
     rows: g.interviewers.map((i) => ({
@@ -79,7 +79,7 @@ export default async function ClientInterviewers({
       empty={view.length === 0 ? "Nobody interviews yet. Add interviewers to a job's hiring team, or schedule an interview." : null}
       notices={notices}
     >
-      <TeamSections members={members} pending={pending} actorId={actorId} isAdmin={isAdmin} rendered={Date.now()} />
+      <TeamSections members={members} membersTruncated={team.truncated} pending={pending} actorId={actorId} isAdmin={isAdmin} rendered={Date.now()} />
     </InterviewersView>
   );
 }
