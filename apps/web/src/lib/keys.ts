@@ -21,10 +21,16 @@ export function isTyping(target: EventTarget | null): boolean {
 /**
  * A page key never fires while typing, with ⌘, Ctrl or Alt held (those
  * belong to the browser and the OS, and ⌘K to the shell), or once something
- * else has handled the event. Shift is allowed: `?` needs it.
+ * else has handled the event, or under a modal dialog (the `?` sheet), which
+ * leaves the page behind it inert. Shift is allowed: `?` needs it.
  */
 export function ignoreKey(e: KeyEventLike): boolean {
-  return e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
+  return e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target) || underModal(e.target);
+}
+
+function underModal(target: EventTarget | null): boolean {
+  const el = target as { ownerDocument?: { querySelector(selector: string): unknown } | null } | null;
+  return !!el?.ownerDocument?.querySelector("dialog:modal");
 }
 
 /** The name a binding is registered under: letters lower-cased, so Shift+J is J; named keys as the browser gives them. */

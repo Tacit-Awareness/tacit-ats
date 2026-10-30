@@ -494,7 +494,8 @@ export function ScheduleView({
       bleed
       className="grid-cols-[minmax(0,1fr)]"
     >
-      <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:flex-nowrap md:px-5 md:py-3">
+      {/* Wraps at every width: beside the sidebar a long department name would push the pills off the edge. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:px-5 md:py-3">
         {q ? (
           <>
             <Link href={hrefFor(view, anchor, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Back to the calendar">
