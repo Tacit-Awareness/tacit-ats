@@ -2,17 +2,20 @@ import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
 import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page";
+import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import { ISSUE_KINDS, type IssueFix, type IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
+import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
 // #inbox as a list and a reader under one bar. The list is the queue by kind,
 // a row each: an icon, what is wrong, who it waits on and why, its age. The
-// reader: the same heading, the one fix (fix-bar.tsx, key F), the card saying
-// what is waiting, then the candidate's story. Everything a member or a
-// candidate wrote renders as text.
+// reader: the same heading, the one fix (fix-bar.tsx, key F) or the decision
+// (decision-bar.tsx, keys A, O, R), the card saying what is waiting, an offer's
+// terms for the approver reading it, then the candidate's story. Everything a
+// member or a candidate wrote renders as text.
 
 export type IssueRow = { key: string; kind: IssueKind; href: string; what: string; who: string | null; line: string; age: string; active: boolean };
 
@@ -24,8 +27,12 @@ export type IssueReaderProps = {
   /** An unsent draft, for its author's eyes. */
   draft: { to: string; subject: string; body: string } | null;
   fix: IssueFix;
+  /** The buttons and what they confirm, when the fix is a decision. */
+  decision: DecisionProps | null;
+  /** An offer waiting on this member: its terms, as lines. Null for anything else. */
+  terms: TermLine[] | null;
   next: string | null;
-  candidateHref: string | null;
+  secondary: { label: string; href: string } | null;
   /** Null for an issue with no candidate (a job's approval). */
   story: clientTools.ActivityEntry[] | null;
   now: number;
@@ -79,7 +86,7 @@ function Row({ r }: { r: IssueRow }) {
 
 function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean }) {
   return (
-    <KeyList title="Inbox" next="Next issue" mode="select" className="grid content-start gap-0.5">
+    <KeyList title="Inbox" next="Next issue" mode="select" data-tour="inbox" className="grid content-start gap-0.5">
       {ISSUE_KINDS.map((k) => {
         const group = rows.filter((r) => r.kind === k.key);
         if (!group.length) return null;
@@ -118,7 +125,11 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
     <article className="mx-auto grid w-[760px] max-w-full content-start">
       <h1 className="m-0 text-[20px] leading-tight font-semibold tracking-[-0.01em] break-words">{issue.what}</h1>
       <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">{issue.subject}</p>
-      <FixBar fix={issue.fix} next={issue.next} candidateHref={issue.candidateHref} />
+      {issue.decision ? (
+        <DecisionBar key={issue.decision.key} decision={issue.decision} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
+      ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
+        <FixBar fix={issue.fix} next={issue.next} secondary={issue.secondary} />
+      ) : null}
       <section className="mt-5 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
         <div className="flex items-center gap-3">
           <KindIcon kind={issue.kind} className="size-[26px]" />
@@ -128,6 +139,11 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
           </div>
         </div>
         {issue.draft ? <Draft draft={issue.draft} /> : null}
+        {issue.terms ? (
+          <div className="mt-3 border-t border-[color:var(--line)] pt-3">
+            <OfferTerms lines={issue.terms} />
+          </div>
+        ) : null}
       </section>
       {issue.story ? (
         <section aria-label="Activity" className="mt-7">

@@ -18,13 +18,17 @@ export function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable === true || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName ?? ""));
 }
 
+/** True while a modal <dialog> is open: the page behind it is inert, so its keys are too. */
+export const modalOpen = (): boolean => typeof document !== "undefined" && document.querySelector("dialog:modal") !== null;
+
 /**
  * A page key never fires while typing, with ⌘, Ctrl or Alt held (those
- * belong to the browser and the OS, and ⌘K to the shell), or once something
- * else has handled the event. Shift is allowed: `?` needs it.
+ * belong to the browser and the OS, and ⌘K to the shell), once something
+ * else has handled the event, or behind a modal dialog. Shift is allowed: `?`
+ * needs it.
  */
-export function ignoreKey(e: KeyEventLike): boolean {
-  return e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
+export function ignoreKey(e: KeyEventLike, modal = modalOpen()): boolean {
+  return modal || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
 }
 
 /** The name a binding is registered under: letters lower-cased, so Shift+J is J; named keys as the browser gives them. */

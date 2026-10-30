@@ -19,6 +19,12 @@ describe("the typing guard", () => {
     expect(ignoreKey(ev({ target: el("INPUT") }))).toBe(true);
   });
 
+  it("keeps every key from the page behind a modal dialog, wherever the focus is", () => {
+    expect(ignoreKey(ev(), true)).toBe(true);
+    expect(ignoreKey(ev({ target: el("BUTTON") }), true)).toBe(true);
+    expect(ignoreKey(ev(), false)).toBe(false);
+  });
+
   it("lets keys through on the page, a link or a button", () => {
     for (const t of ["BODY", "A", "BUTTON", "DIV"]) expect(isTyping(el(t))).toBe(false);
     expect(isTyping(null)).toBe(false);

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { readInbox, readIssue } from "@/lib/client/inbox";
-import { issueFix, issueLine, nextIssue, secondaryHref, selectedIssue, type Issue } from "@/lib/client/inbox-issues";
+import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
+import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type Issue } from "@/lib/client/inbox-issues";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -13,7 +14,7 @@ import { InboxView } from "./view";
 // inbox-issues.ts computes the queue, view.tsx draws it; this file words the
 // reader's card. `?i=` picks the issue. An interviewer gets the pointer home.
 
-function card(i: Issue): { title: string; detail: string } {
+function card(i: Issue, decidable: boolean): { title: string; detail: string } {
   switch (i.reason) {
     case "feedback":
       return { title: "Waiting on feedback", detail: `${i.why}. Nothing here can remind them yet.` };
@@ -22,9 +23,12 @@ function card(i: Issue): { title: string; detail: string } {
     case "quiet":
       return { title: "No touch in over a week", detail: `${i.why}${i.who ? ` · owned by ${i.who}` : ""}` };
     case "decide":
-      return { title: "The team's call", detail: `${i.why}. Move them on or close them from their page.` };
+      return {
+        title: "The team's call",
+        detail: decidable ? `${i.why}. Next round opens their page: booking one is the client connector's schedule_interview for now.` : `${i.why}. Move them on or close them from their page.`,
+      };
     case "approval":
-      return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}Approve or turn it down with the client connector's approve and reject.` };
+      return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
     case "draft":
       return { title: "Not sent", detail: "Sending isn't in the web app yet: send it with the client connector's send_email." };
   }
@@ -63,6 +67,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
   const fix = open ? issueFix(open, detail?.canEdit ?? false) : null;
+  const decision = open && fix ? decisionProps(fix, open, detail?.reasons ?? []) : null;
 
   return (
     <InboxView
@@ -82,11 +87,13 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
               kind: open.kind,
               what: open.what,
               subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
-              card: card(open),
+              card: card(open, fix.type === "decide"),
               draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body } : null,
               fix,
+              decision,
+              terms: detail?.terms ? offerTermLines(detail.terms) : null,
               next: nextIssue(issues, open.key)?.key ?? null,
-              candidateHref: secondaryHref(open, fix),
+              secondary: secondaryLink(open, fix),
               story: open.candidate ? (detail?.story ?? []) : null,
               now: nowMs,
             }
