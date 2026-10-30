@@ -1,62 +1,53 @@
-import Link from "next/link";
-import { Empty, Glyph, Page, PageHeader, Section } from "@/components/page";
-import { StatusBadge } from "@/components/status-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toolCtx } from "@/lib/client/candidate";
+import { groupPostings, liveCount, postState } from "@/lib/client/posting-groups";
+import { readPostings } from "@/lib/client/postings";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
+import { publicOrigin } from "./origin";
+import { JobPostingsView, type PostingGroupProps } from "./view";
 
-// Every job the signed-in member can see, read with their own token: an admin
-// sees the org's jobs (not confidential ones), the hiring team the jobs they
-// have access on, an interviewer the jobs they interview for.
+// Job Postings (design/tats's #jobs): every job the signed-in member can see,
+// read with their own token (lib/client/postings.ts), as the careers page
+// shows it: by department, each with its lead post's state, how many applied
+// and the public link. An admin sees the org's jobs (not confidential ones),
+// the hiring team the jobs they have access on, an interviewer the jobs they
+// interview for, in one list with no counts and no departments. Read-only:
+// posts are written through the client connector until the web app has an
+// audit source of its own.
 
 export default async function ClientJobs() {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
-  const { db, accessLevel } = gate.ctx;
-  const showCounts = accessLevel !== "limited";
-  const { data: roles, error } = await db
-    .from("roles")
-    .select("id, title, status, location, applications(count)")
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  const { db, accessLevel, org } = gate.ctx;
+  const read = await readPostings(db, toolCtx(gate.ctx));
+  const groups = groupPostings(read, { grouped: accessLevel !== "limited" });
+  const base = await publicOrigin();
+
+  const props: PostingGroupProps[] = groups.map((g) => ({
+    key: g.key,
+    name: g.name,
+    rows: g.postings.map((p) => ({
+      jobId: p.job.id,
+      title: p.job.title,
+      location: p.job.location,
+      jobStatus: p.job.status === "open" ? null : p.job.status,
+      post: postState(p),
+      link: p.post?.accepting ? { path: `/jobs/${p.post.slug}`, url: `${base}/jobs/${p.post.slug}` } : null,
+      applied: p.applied,
+      inPipeline: p.job.inPipeline,
+      morePosts: Math.max(0, p.posts - 1),
+    })),
+  }));
 
   return (
-    <Page>
-      <PageHeader title="Jobs" subtitle="Every job you can see, newest first." />
-      <Section title="All jobs" count={roles.length} flush>
-        {roles.length === 0 ? (
-          <Empty className="px-4 py-3">{accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}</Empty>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Job</TableHead>
-                <TableHead>Location</TableHead>
-                {showCounts ? <TableHead className="text-right">In pipeline</TableHead> : null}
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {roles.map((role) => (
-                <TableRow key={role.id} className="relative">
-                  <TableCell>
-                    <Link href={`/client/jobs/${role.id}`} className="flex items-center gap-2.5 font-medium text-foreground after:absolute after:inset-0">
-                      <Glyph name={role.title} />
-                      {role.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{role.location ?? "—"}</TableCell>
-                  {showCounts ? <TableCell className="text-right font-mono">{role.applications[0]?.count ?? 0}</TableCell> : null}
-                  <TableCell>
-                    <StatusBadge status={role.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Section>
-    </Page>
+    <JobPostingsView
+      orgName={org.name}
+      total={read.jobs.length}
+      live={liveCount(groups)}
+      groups={props}
+      empty={accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}
+      connectorNote={accessLevel !== "limited"}
+    />
   );
 }

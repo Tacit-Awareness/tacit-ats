@@ -46,10 +46,15 @@ export default async function ClientJob({
   return (
     <Page>
       <PageHeader
-        crumbs={[{ href: "/client/jobs", label: "Jobs" }]}
+        crumbs={[{ href: "/client/jobs", label: "Job Postings" }]}
         title={pipeline.roleTitle}
         badge={<StatusBadge status={pipeline.roleStatus} />}
         subtitle={details || undefined}
+        actions={
+          <Link href={`/client/jobs/${pipeline.roleId}/post`} className={textLink}>
+            Job post
+          </Link>
+        }
       />
 
       {accessLevel === "limited" ? (
