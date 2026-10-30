@@ -1,12 +1,17 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { Avatar, Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
+import { FEED_MAX } from "@/lib/client/candidate";
+import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
+import type { PastApplication } from "@/lib/client/past-applications";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { ActivityStory } from "../activity-story";
+import { LocalDay } from "../local-day";
 import { JobControls } from "./controls";
+import { NoteComposer } from "./note-composer";
 
 // The candidate page's markup, props only (page.tsx does the reads), laid
 // out like design/tats's ticket page (#t~APP-x, `.detail`) where real data
@@ -14,8 +19,11 @@ import { JobControls } from "./controls";
 // (the `.t-head`: avatar, name, headline and location; a chip per job's stage
 // and their tags; each job they are in as a `.plan-row`, with its controls
 // under it where the member may edit (can_edit_pipeline, controls.tsx); the
-// profile; the activity as a `.story`), beside the 280px `.props` rail
-// (contact, files). Everything about the candidate is untrusted text and is
+// applications they came back after, with "Applied before" among the chips,
+// as design/tats's past applications (lib/client/past-applications.ts); the
+// profile; the activity as a `.story` under the `.composer` for a note, which
+// is above it because this feed runs newest first), beside the 280px `.props`
+// rail (contact, files). Everything about the candidate is untrusted text and is
 // rendered as text; a LinkedIn link is only a link when it is http(s). Times
 // are relative ("3d ago") or a day the browser words in its own zone
 // (LocalDay), so the server needs no time zone.
@@ -24,6 +32,8 @@ export type CandidateViewProps = {
   candidate: clientTools.CandidateDetail;
   activity: clientTools.ActivityEntry[];
   owners: Record<string, string | null>;
+  /** Applications closed before another began, newest first. These leave the Jobs block for their own. */
+  past: PastApplication[];
   /** Null when the member may edit none of this candidate's jobs. */
   editing: {
     /** The applications they may edit, with each one's owner's id. */
@@ -87,16 +97,42 @@ function PropGroup({ title, ruled = false, children }: { title: string; ruled?: 
   );
 }
 
-function Jobs({ candidate, owners, editing, now }: Pick<CandidateViewProps, "candidate" | "owners" | "editing" | "now">) {
-  if (candidate.applications.length === 0) {
+/** One job's edit controls, when the member may edit it. */
+function Controls({ candidate, applicationId, editing }: Pick<CandidateViewProps, "candidate" | "editing"> & { applicationId: string }) {
+  const edit = editing?.apps[applicationId];
+  const a = candidate.applications.find((x) => x.applicationId === applicationId);
+  if (!edit || !editing || !a) return null;
+  return (
+    <JobControls
+      e={{
+        candidateId: candidate.candidateId,
+        applicationId,
+        stage: a.stage,
+        ownerActorId: edit.ownerActorId,
+        nextAction: a.nextAction,
+        nextActionDue: a.nextActionDue,
+        owners: editing.owners,
+        reasons: editing.reasons,
+      }}
+    />
+  );
+}
+
+function Jobs({
+  candidate,
+  apps,
+  owners,
+  editing,
+  now,
+}: Pick<CandidateViewProps, "candidate" | "owners" | "editing" | "now"> & { apps: CandidateViewProps["candidate"]["applications"] }) {
+  if (apps.length === 0) {
     return <Empty>{candidate.prospect ? "A prospect: in no job yet." : "In no job you can see."}</Empty>;
   }
   return (
     <div className="border-t border-[color:var(--line)]">
-      {candidate.applications.map((a) => {
+      {apps.map((a) => {
         const owner = owners[a.applicationId] ?? null;
         const next = a.nextAction ? { text: a.nextAction, due: a.nextActionDue ? due(a.nextActionDue, now) : null } : null;
-        const edit = editing?.apps[a.applicationId];
         return (
           <div key={a.applicationId} className="border-b border-[color:var(--line)]">
             {/* design/tats's `.plan-row`: a mark, the job and a faint line, its pills right */}
@@ -132,20 +168,7 @@ function Jobs({ candidate, owners, editing, now }: Pick<CandidateViewProps, "can
                 <Pill tone={a.stage === "hired" ? "green" : "grey"}>{stageLabel(a.stage)}</Pill>
               </span>
             </Link>
-            {edit && editing ? (
-              <JobControls
-                e={{
-                  candidateId: candidate.candidateId,
-                  applicationId: a.applicationId,
-                  stage: a.stage,
-                  ownerActorId: edit.ownerActorId,
-                  nextAction: a.nextAction,
-                  nextActionDue: a.nextActionDue,
-                  owners: editing.owners,
-                  reasons: editing.reasons,
-                }}
-              />
-            ) : null}
+            <Controls candidate={candidate} applicationId={a.applicationId} editing={editing} />
           </div>
         );
       })}
@@ -153,11 +176,53 @@ function Jobs({ candidate, owners, editing, now }: Pick<CandidateViewProps, "can
   );
 }
 
-export function CandidateView({ candidate, activity, owners, editing, notice, error, now }: CandidateViewProps) {
+/** design/tats's `.past-row`: the job, its dates and how far they got, the outcome right. The controls stay, folded away. */
+function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewProps, "candidate" | "past" | "editing" | "now">) {
+  return (
+    <div className="border-t border-[color:var(--line)]">
+      {past.map((p) => (
+        <div key={p.applicationId} className="border-b border-[color:var(--line)]">
+          <Link
+            href={`/client/jobs/${p.jobId}`}
+            className="grid min-h-[38px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-2 py-1.5 transition-colors hover:bg-[color:var(--hover)]"
+          >
+            <span className="grid min-w-0">
+              <b className="truncate font-medium">{p.jobTitle ?? "Untitled job"}</b>
+              <span className="truncate text-[12.5px] text-faint">
+                <LocalDay iso={p.appliedAt} fallback={ago(p.appliedAt, now)} />
+                {p.closedAt ? (
+                  <>
+                    {" to "}
+                    <LocalDay iso={p.closedAt} fallback={ago(p.closedAt, now)} />
+                  </>
+                ) : null}
+                {p.reached ? ` · got to ${stageLabel(p.reached).toLowerCase()}` : null}
+              </span>
+              {p.rejectionReason ? <span className="truncate text-[12.5px] text-faint">Reason: {p.rejectionReason}</span> : null}
+            </span>
+            <Pill tone={p.stage === "hired" ? "green" : "grey"}>{stageLabel(p.stage)}</Pill>
+          </Link>
+          {editing?.apps[p.applicationId] ? (
+            <details className="pb-2">
+              <summary className="cursor-pointer px-2 text-xs text-muted-foreground select-none hover:text-foreground">Reopen or edit…</summary>
+              <div className="mt-2">
+                <Controls candidate={candidate} applicationId={p.applicationId} editing={editing} />
+              </div>
+            </details>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function CandidateView({ candidate, activity, owners, past, editing, notice, error, now }: CandidateViewProps) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
-  const multi = candidate.applications.length > 1;
+  const pastIds = new Set(past.map((p) => p.applicationId));
+  const current = candidate.applications.filter((a) => !pastIds.has(a.applicationId));
+  const multi = current.length > 1;
 
   const contact: [string, React.ReactNode][] = [];
   if (candidate.full) contact.push(["Email", candidate.email ? <span className="truncate">{candidate.email}</span> : <span className="text-faint">None on file</span>]);
@@ -192,9 +257,9 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
                 {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}
               </div>
             </div>
-            {candidate.applications.length || candidate.tags.length ? (
+            {current.length || candidate.tags.length ? (
               <Chips aria-label="Stage and tags">
-                {candidate.applications.map((a) => (
+                {current.map((a) => (
                   <Chip key={a.applicationId} title={a.jobTitle ?? undefined}>
                     <i
                       aria-hidden
@@ -207,6 +272,12 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
                     {multi ? <span className="max-w-[160px] truncate text-faint">{a.jobTitle ?? "Untitled job"}</span> : null}
                   </Chip>
                 ))}
+                {past.length ? (
+                  <Chip>
+                    <i aria-hidden className="size-1.5 rounded-full bg-[#8f9198]" />
+                    Applied before
+                  </Chip>
+                ) : null}
                 {candidate.tags.map((t) => (
                   <Chip key={`tag-${t}`}>{t}</Chip>
                 ))}
@@ -216,8 +287,8 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
 
           {candidate.full ? (
             <section aria-label="Jobs">
-              <BlockHead count={candidate.applications.length}>Jobs</BlockHead>
-              <Jobs candidate={candidate} owners={owners} editing={editing} now={now} />
+              <BlockHead count={current.length}>Jobs</BlockHead>
+              <Jobs candidate={candidate} apps={current} owners={owners} editing={editing} now={now} />
             </section>
           ) : (
             <p className="m-0 text-[14px] text-muted-foreground">
@@ -230,6 +301,13 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
             </p>
           )}
 
+          {past.length ? (
+            <section aria-label="Past applications">
+              <BlockHead count={past.length}>Past applications</BlockHead>
+              <PastApplications candidate={candidate} past={past} editing={editing} now={now} />
+            </section>
+          ) : null}
+
           {candidate.summary ? (
             <section aria-label="Profile">
               <BlockHead>Profile</BlockHead>
@@ -239,7 +317,11 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
 
           <section aria-label="Activity">
             <BlockHead count={activity.length}>Activity</BlockHead>
-            <ActivityStory entries={activity} now={now} />
+            <div className="grid gap-3">
+              {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
+              <ActivityStory entries={activity} now={now} />
+              {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
+            </div>
           </section>
         </div>
 

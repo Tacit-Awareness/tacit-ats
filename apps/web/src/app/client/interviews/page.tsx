@@ -68,7 +68,7 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
   const now = new Date();
   const nowMs = now.getTime();
 
-  const items = await readInterviews(db, member, now);
+  const items = await readInterviews(db, member, now, asked);
   const grouped = groupInterviews(items, nowMs);
   const ordered = grouped.flatMap((g) => g.items);
   // Nothing picked: the reader shows the first one beside the list; on a phone the list alone.

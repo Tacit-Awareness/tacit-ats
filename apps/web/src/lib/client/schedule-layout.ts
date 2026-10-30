@@ -9,7 +9,7 @@
 // `?date=` is one, and the arithmetic on them runs in UTC where no day is ever
 // 23 or 25 hours long.
 
-export const SCHEDULE_VIEWS = ["day", "week", "list"] as const;
+export const SCHEDULE_VIEWS = ["day", "week", "month", "list"] as const;
 export type ScheduleView = (typeof SCHEDULE_VIEWS)[number];
 export const isScheduleView = (v: string): v is ScheduleView => (SCHEDULE_VIEWS as readonly string[]).includes(v);
 
@@ -22,9 +22,15 @@ const MINUTES_IN_DAY = 24 * 60;
 const toUtc = (ymd: Ymd) => Date.parse(`${ymd}T00:00:00Z`);
 const fromUtc = (ms: number): Ymd => new Date(ms).toISOString().slice(0, 10);
 
-/** The `?date=` value when it is a real date, else null. */
+// Near enough that the arithmetic stays in four-digit years: `?date=9999-12-31`
+// walks past what "YYYY-MM-DD" can hold, and the read window with it.
+const YEARS = { first: 1900, last: 2200 } as const;
+
+/** The `?date=` value when it is a real date in a sane year, else null. */
 export function parseYmd(raw: string | null | undefined): Ymd | null {
   if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const year = Number(raw.slice(0, 4));
+  if (year < YEARS.first || year > YEARS.last) return null;
   const ms = toUtc(raw);
   return Number.isNaN(ms) || fromUtc(ms) !== raw ? null : raw;
 }
@@ -43,11 +49,18 @@ function addMonths(ymd: Ymd, n: number): Ymd {
   return fromUtc(first.getTime());
 }
 
-/** The days a view shows around `anchor`: the day, its week, or (the list) its month. */
+/** Six weeks, as design/tats's month: the grid keeps its height from one month to the next. */
+const MONTH_GRID_DAYS = 42;
+
+/**
+ * The days a view shows around `anchor`: the day, its week, the month's six
+ * weeks from the Sunday on or before the 1st, or (the list) the month alone.
+ */
 export function daysOf(view: ScheduleView, anchor: Ymd): Ymd[] {
   if (view === "day") return [anchor];
   if (view === "week") return Array.from({ length: 7 }, (_, i) => addDays(weekStart(anchor), i));
   const first = `${anchor.slice(0, 8)}01`;
+  if (view === "month") return Array.from({ length: MONTH_GRID_DAYS }, (_, i) => addDays(weekStart(first), i));
   const next = addMonths(first, 1);
   return Array.from({ length: (toUtc(next) - toUtc(first)) / DAY_MS }, (_, i) => addDays(first, i));
 }
@@ -176,7 +189,7 @@ export function hourSpan(placed: readonly { start: number; end: number }[]): { f
   return { first, last: Math.min(24, last) };
 }
 
-/** The list: interviews starting on the view's days, by day, each day in time order. */
+/** The list and the month: interviews starting on the view's days, by day, each day in time order. */
 export function groupByDay<T extends Timed>(events: readonly T[], days: readonly Ymd[], timeZone: string): { day: Ymd; events: T[] }[] {
   const wanted = new Set(days);
   const by = new Map<Ymd, T[]>();
@@ -185,6 +198,63 @@ export function groupByDay<T extends Timed>(events: readonly T[], days: readonly
     if (wanted.has(day)) by.set(day, [...(by.get(day) ?? []), e]);
   }
   return days.filter((d) => by.has(d)).map((day) => ({ day, events: by.get(day)! }));
+}
+
+/** Interviews a month cell lists before it says "N more", as design/tats. */
+export const MONTH_CELL_EVENTS = 3;
+
+export type MonthCell<T> = {
+  day: Ymd;
+  /** In the anchor's month, not the weeks either side that fill the grid. */
+  inMonth: boolean;
+  /** The interviews starting that day, soonest first. */
+  events: T[];
+  /** The ones the cell has room for. */
+  listed: T[];
+  /** How many it leaves off, for the day view to show. */
+  more: number;
+};
+
+/** The month grid: all its days, each with the interviews starting on it in the member's zone. */
+export function monthCells<T extends Timed>(events: readonly T[], anchor: Ymd, timeZone: string): MonthCell<T>[] {
+  const days = daysOf("month", anchor);
+  const month = anchor.slice(0, 7);
+  const byDay = new Map(groupByDay(events, days, timeZone).map((g) => [g.day, g.events]));
+  return days.map((day) => {
+    const onDay = byDay.get(day) ?? [];
+    return { day, inMonth: day.slice(0, 7) === month, events: onDay, listed: onDay.slice(0, MONTH_CELL_EVENTS), more: Math.max(0, onDay.length - MONTH_CELL_EVENTS) };
+  });
+}
+
+/** A place on the Calendar. A null `date` is the browser's today. */
+export type ScheduleLink = { view: ScheduleView; date: Ymd | null; dept: string | null; q?: string | null };
+
+export function scheduleHref({ view, date, dept, q }: ScheduleLink): string {
+  const parts = [`view=${view}`];
+  if (date) parts.push(`date=${date}`);
+  if (dept) parts.push(`dept=${encodeURIComponent(dept)}`);
+  if (q) parts.push(`q=${encodeURIComponent(q)}`);
+  return `/client/schedule?${parts.join("&")}`;
+}
+
+/** The Calendar's keys that go somewhere, as `useKeys` names them. */
+export const SCHEDULE_KEYS = ["d", "w", "m", "l", "ArrowLeft", "ArrowRight", "."] as const;
+const VIEW_OF_KEY: Record<string, ScheduleView> = { d: "day", w: "week", m: "month", l: "list" };
+
+/**
+ * Where a key goes from where the member is, or null when it does nothing
+ * there. `anchor` is the `?date=`, `shown` that or the browser's today. A view
+ * key and `.` leave a search; the arrows have no dates to step through in one.
+ */
+export function scheduleKeyHref(key: string, at: { view: ScheduleView; anchor: Ymd | null; shown: Ymd; dept: string | null; q: string | null }): string | null {
+  const { view, anchor, shown, dept, q } = at;
+  const to = VIEW_OF_KEY[key];
+  if (to) return scheduleHref({ view: to, date: anchor, dept });
+  if (key === ".") return scheduleHref({ view, date: null, dept });
+  if (q) return null;
+  if (key === "ArrowLeft") return scheduleHref({ view, date: stepAnchor(view, shown, -1), dept });
+  if (key === "ArrowRight") return scheduleHref({ view, date: stepAnchor(view, shown, 1), dept });
+  return null;
 }
 
 // design/tats's event tones (`--ev-*` in globals.css). Grey is for a job in no department.

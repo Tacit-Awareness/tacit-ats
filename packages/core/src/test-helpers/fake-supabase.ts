@@ -33,7 +33,7 @@ export type RecordedCall = {
  * reads `count`), insert…select…single, update…eq (awaited directly), the
  * guarded consume update…eq…is…gt…select, delete…eq…eq (awaited), and
  * rpc(fn, args) (awaited
- * directly, not chained). Responses are consumed in order, one per terminal
+ * directly, or after .order()/.range()). Responses are consumed in order, one per terminal
  * operation; every chain is recorded on `calls` for assertions. Not a
  * PostgREST emulation -- if production code grows a new chain shape, add it
  * here deliberately.
@@ -181,7 +181,23 @@ export class FakeSupabase {
   rpc(fn: string, args?: object) {
     const call: RecordedCall = { table: fn, op: "rpc", args, filters: [], modifiers: [], terminal: "await" };
     this.calls.push(call);
-    return Promise.resolve(this.next());
+    const next = () => this.next();
+    // Awaited directly, or after the order and range that page a set-returning function.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const builder: any = {
+      order(column: string, options?: unknown) {
+        call.modifiers.push({ method: "order", column, options });
+        return builder;
+      },
+      range(from: number, to: number) {
+        call.modifiers.push({ method: "range", value: [from, to] });
+        return builder;
+      },
+      then(onFulfilled?: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) {
+        return new Promise((resolve) => resolve(next())).then(onFulfilled, onRejected);
+      },
+    };
+    return builder;
   }
 
   asDb(): Db {

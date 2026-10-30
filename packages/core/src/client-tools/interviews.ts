@@ -1,5 +1,5 @@
 import { connector } from "@tacit/core";
-import type { Db } from "@tacit/db";
+import type { Database, Db } from "@tacit/db";
 
 import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
@@ -77,17 +77,27 @@ export type MyInterview = {
   feedbackFiled: boolean;
 };
 
+/** PostgREST's `max_rows`: a request brings back no more than this, whatever its range asks. */
+const MY_INTERVIEWS_PAGE = 1000;
+
 export async function listMyInterviews(
   db: Db,
   _ctx: ClientToolCtx,
   input: { when?: "upcoming" | "past" | "all" } = {},
   now: Date = new Date(),
 ): Promise<MyInterview[]> {
-  const { data, error } = await db.rpc("my_interviews");
-  if (error) throw new Error(error.message);
+  // Oldest first, and a request stops at PostgREST's 1,000 rows: unpaged, someone
+  // past that would lose what is coming up, not what is long over.
+  const rows: Database["public"]["Functions"]["my_interviews"]["Returns"] = [];
+  for (let from = 0; ; from += MY_INTERVIEWS_PAGE) {
+    const { data, error } = await db.rpc("my_interviews").order("starts_at").order("interview_id").range(from, from + MY_INTERVIEWS_PAGE - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < MY_INTERVIEWS_PAGE) break;
+  }
   const t = now.getTime();
   const when = input.when ?? "upcoming";
-  return (data ?? [])
+  return rows
     .filter((i) => when === "all" || (when === "upcoming" ? Date.parse(i.ends_at) >= t : Date.parse(i.ends_at) < t))
     .map((i) => ({
       interviewId: i.interview_id,

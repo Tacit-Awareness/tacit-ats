@@ -29,6 +29,21 @@ describe("listMyInterviews", () => {
     const past = await listMyInterviews(new FakeSupabase([{ data }]).asDb(), ctx("limited"), { when: "past" }, NOW);
     expect(past.map((i) => i.interviewId)).toEqual(["past-new", "past-old"]);
   });
+
+  test("past a request's 1,000 rows it reads on, in a fixed order, so nothing upcoming is lost", async () => {
+    const old = Array.from({ length: 1000 }, (_, n) => row(`old-${n}`, "2025-01-01T10:00:00Z"));
+    const fake = new FakeSupabase([{ data: old }, { data: [row("soon", "2026-10-21T10:00:00Z")] }]);
+    const upcoming = await listMyInterviews(fake.asDb(), ctx("limited"), {}, NOW);
+    expect(upcoming.map((i) => i.interviewId)).toEqual(["soon"]);
+    expect(fake.calls.map((c) => c.modifiers.filter((m) => m.method === "range").map((m) => m.value))).toEqual([[[0, 999]], [[1000, 1999]]]);
+    expect(fake.calls[0]!.modifiers.filter((m) => m.method === "order").map((m) => m.column)).toEqual(["starts_at", "interview_id"]);
+  });
+
+  test("a page that fails fails the read, rather than returning part of the list", async () => {
+    const old = Array.from({ length: 1000 }, (_, n) => row(`old-${n}`, "2025-01-01T10:00:00Z"));
+    const fake = new FakeSupabase([{ data: old }, { error: { message: "boom" } }]);
+    await expect(listMyInterviews(fake.asDb(), ctx("limited"), { when: "all" }, NOW)).rejects.toThrow("boom");
+  });
 });
 
 describe("scheduleInterview", () => {

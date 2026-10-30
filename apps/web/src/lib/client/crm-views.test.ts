@@ -26,6 +26,21 @@ const person = (name: string, applications: CrmApplication[], over: Partial<CrmC
 const q = (over: Partial<CrmQuery> = {}): CrmQuery => ({ view: "all", q: "", sort: "last", dir: "desc", page: 1, department: null, ...over });
 
 describe("a candidate's row", () => {
+  test("offers a bulk reject only the open applications it shows", () => {
+    const live = app("screening", { jobTitle: "Engineer" });
+    const offer = app("offer", { jobTitle: null });
+    const closed = app("rejected");
+    const c = person("Ana", [live, offer, closed]);
+    expect(rowFor(c, "all")!.openApps).toEqual([
+      { applicationId: offer.applicationId, jobTitle: "Untitled job", stage: "offer" },
+      { applicationId: live.applicationId, jobTitle: "Engineer", stage: "screening" },
+    ]);
+    // a view shows only its own applications, so a reject there is about only those
+    expect(rowFor(c, "rejected")!.openApps).toEqual([]);
+    expect(rowFor(person("Bo", [app("sourced"), live]), "active")!.openApps.map((a) => a.applicationId)).toEqual([live.applicationId]);
+    expect(rowFor(person("Cy", []), "all")!.openApps).toEqual([]);
+  });
+
   test("in All, the lead application is the furthest along, and the jobs are the live ones", () => {
     const c = person("Ana", [
       app("rejected", { jobId: "j1", jobTitle: "Designer", lastTouchAt: day(5) }),

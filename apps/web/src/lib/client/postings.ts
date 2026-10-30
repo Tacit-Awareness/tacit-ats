@@ -58,7 +58,7 @@ async function allPosts(db: Db, ctx: clientTools.ClientToolCtx, jobs: PostingJob
 }
 
 export type PostingDetail = {
-  job: { id: string; title: string; status: string; location: string | null; department: string | null };
+  job: { id: string; title: string; status: string; location: string | null; department: string | null; departmentId: string | null };
   posts: clientTools.JobPost[];
 };
 
@@ -85,7 +85,40 @@ export async function readPosting(db: Db, ctx: clientTools.ClientToolCtx, jobId:
       status: data.status,
       location: data.location,
       department: departments.find((d) => d.departmentId === data.department_id)?.path ?? null,
+      departmentId: full ? (data.department_id ?? null) : null,
     },
     posts,
   };
+}
+
+export type DepartmentChoice = { id: string; path: string };
+
+/** The departments a job may be filed under: the live ones, plus the archived one it is already in. */
+export async function departmentChoices(db: Db, ctx: clientTools.ClientToolCtx, current: string | null): Promise<DepartmentChoice[]> {
+  const all = await clientTools.listDepartments(db, ctx, { includeArchived: true });
+  return all.filter((d) => !d.archived || d.departmentId === current).map((d) => ({ id: d.departmentId, path: d.path }));
+}
+
+export type PostingEditing = { steps: string[]; departments: DepartmentChoice[] };
+
+/**
+ * What the editor adds to the read, for whoever may manage the job
+ * (`can_on_role(job, 'can_manage_job')`, what updateJobPost itself asks); null
+ * for everyone else, who get the read-only post. Hiding the editor is
+ * presentation: the writes and the policies check again.
+ */
+export async function readPostingEditing(
+  db: Db,
+  ctx: clientTools.ClientToolCtx,
+  job: Pick<PostingDetail["job"], "id" | "departmentId">,
+): Promise<PostingEditing | null> {
+  if (ctx.accessLevel === "limited") return null;
+  const { data, error } = await db.rpc("can_on_role", { p_role: job.id, perm: "can_manage_job" });
+  if (error) throw new Error(error.message);
+  if (data !== true) return null;
+  const [plan, departments] = await Promise.all([
+    clientTools.getInterviewPlan(db, ctx, { jobId: job.id }),
+    departmentChoices(db, ctx, job.departmentId),
+  ]);
+  return { steps: plan.steps, departments };
 }
