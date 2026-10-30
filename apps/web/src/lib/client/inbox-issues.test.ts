@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRAFT_LATE_MS, inboxIssues, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
+import { DRAFT_LATE_MS, currentDrafts, inboxIssues, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const DAY = 86_400_000;
@@ -50,9 +50,11 @@ const draft = (over: Partial<InboxDraft> = {}): InboxDraft => ({
   personId: "p-a",
   personName: "Candidate a",
   jobTitle: "Engineer",
+  applicationId: null,
   toEmail: "a@x.test",
   subject: "Hello",
   body: "Body",
+  createdAt: daysAgo(1),
   updatedAt: daysAgo(1),
   ...over,
 });
@@ -114,6 +116,26 @@ describe("inboxIssues", () => {
     const fresh = draft({ draftId: "fresh", updatedAt: new Date(NOW - DRAFT_LATE_MS + 60_000).toISOString() });
     expect(issues({ drafts: [fresh, draft()] }).map((i) => i.key)).toEqual(["draft-d1"]);
     expect(issues({ drafts: [draft()] })[0]).toMatchObject({ kind: "draft", what: "Draft to Candidate a not sent", why: "Hello" });
+  });
+
+  test("a draft's fix is Send here, off where there is no mailer", () => {
+    const [open] = issues({ drafts: [draft()] });
+    expect(issueFix(open!, false, true)).toEqual({ type: "send", label: "Send here", draftId: "d1", canSend: true });
+    expect(issueFix(open!, true, false)).toEqual({ type: "send", label: "Send here", draftId: "d1", canSend: false });
+    expect(issueFix(open!, true)).toMatchObject({ canSend: false });
+    expect(secondaryLink(open!, issueFix(open!, true, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
+  });
+
+  test("currentDrafts: a newer email on the application replaces a draft, and only there", () => {
+    const old = { draftId: "old", applicationId: "a1", createdAt: daysAgo(3) };
+    const newer = { draftId: "new", applicationId: "a1", createdAt: daysAgo(2) };
+    const elsewhere = { draftId: "else", applicationId: "a2", createdAt: daysAgo(4) };
+    const loose = { draftId: "loose", applicationId: null, createdAt: daysAgo(5) };
+    expect(currentDrafts([old, newer, elsewhere, loose], []).map((d) => d.draftId)).toEqual(["new", "else", "loose"]);
+    // The newest one sent: the older draft stays out of date, and isn't offered again.
+    expect(currentDrafts([old], [{ applicationId: "a1", createdAt: daysAgo(2) }])).toEqual([]);
+    // An older email sent says nothing about a newer draft.
+    expect(currentDrafts([newer], [{ applicationId: "a1", createdAt: daysAgo(3) }])).toEqual([newer]);
   });
 
   test("the queue: drafts, overdue, decisions, newest first in each", () => {

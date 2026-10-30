@@ -11,7 +11,8 @@ import { routeApplicantAction } from "./actions";
 // buttons: I interviews, S moves to screening, D declines. A key presses the
 // button (the same server action, the same posted fields); D with no reason
 // picked focuses the reason instead, since a decline needs one. design/tats's
-// T (Testbench) and ⌘↵ (send the reply) are left out: nothing sends either.
+// T (Testbench) is left out: nothing sends one. Its ⌘↵ and its one button for
+// reply and route are the reply box's (reply-box.tsx), which has its own Send.
 
 export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[] };
 
@@ -28,8 +29,10 @@ function RoutingKeys({ press, decline }: { press: (route: "interview" | "screeni
 }
 
 /** design/tats's `.cx-seg.sm` pill: 28px, radius 16, a strong hairline. */
-const pill =
+export const pill =
   "inline-flex h-7 items-center gap-2 rounded-2xl border border-[color:var(--line-strong)] px-3 text-[13.5px] font-[450] whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+
+export const pillPrimary = "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106";
 
 /** The buttons, disabled while a route is in flight. */
 function Route({ value, keyName, primary = false, refFn, children }: { value: string; keyName: string; primary?: boolean; refFn: (b: HTMLButtonElement | null) => void; children: ReactNode }) {
@@ -42,7 +45,7 @@ function Route({ value, keyName, primary = false, refFn, children }: { value: st
       value={value}
       disabled={pending}
       aria-keyshortcuts={keyName}
-      className={cn(pill, primary && "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106")}
+      className={cn(pill, primary && pillPrimary)}
     >
       {children}
       <Kbd decorative className={primary ? "border-transparent bg-white/20 text-current" : undefined}>
@@ -68,7 +71,7 @@ export function RoutingBar({ routing }: { routing: Routing }) {
       data-tour="route"
       ref={form}
       action={routeApplicantAction}
-      className="sticky bottom-0 z-10 flex flex-wrap items-center gap-1.5 border-t border-[color:var(--line)] bg-[color:var(--paper)] px-[18px] py-3"
+      className="flex flex-wrap items-center gap-1.5 border-t border-[color:var(--line)] bg-[color:var(--paper)] px-[18px] py-3"
     >
       <RoutingKeys press={press} decline={decline} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
