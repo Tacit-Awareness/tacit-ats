@@ -4560,10 +4560,9 @@ html.pal-prev .hm { background: linear-gradient(180deg, color-mix(in srgb, var(-
 .hm-card .hm-f { margin-top: auto; }
 .hm-card .hm-hist { flex: none; }
 
-/* v62: the sidebar says "something new" with a red dot, not a number */
-.sb-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 16%, transparent); flex-shrink: 0; }
-.sb-collapsed .sb-dot { position: absolute; top: 7px; right: 7px; margin: 0; }
-.sb-collapsed .sb-item { position: relative; }
+/* v63: the sidebar says "something new" with a faint red highlight, shaped like hover, not a number or a dot */
+.sb-item.new { background: color-mix(in srgb, var(--red) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 22%, transparent); }
+.sb-item.new:hover { background: color-mix(in srgb, var(--red) 12%, transparent); }
 
 /* v63 Applicant Tickets: no page header; the list and the application run full height. The PDF keeps only zoom and download, floating on the page. */
 .tk-nohead { height: 100%; }

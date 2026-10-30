@@ -2164,11 +2164,11 @@ function renderSide() {
   const shut = (k) => (closed.has(k) ? "shut" : "");
   const sec = (k, label, hint = "") => `<button class="sb-sec" data-act="sbSec" data-k="${k}" aria-expanded="${!closed.has(k)}" title="${hint}">${label}<svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg></button>`;
   // Counts only where they mean "this many need you", each with a plain-English tooltip.
-  // No counts in the sidebar: a red dot only when something new arrived since you last opened the page.
+  // No counts in the sidebar: a faint red highlight only when something new arrived since you last opened the page.
   if (r.name === "inbox") sbSeen.inbox = new Set(sbKeys.inbox());
   if (r.name === "triage") sbSeen.triage = new Set(sbKeys.triage());
   if (r.name === "bots" && (r.id === "runs" || r.id === "checks")) sbSeen.activity = new Set(sbKeys.activity());
-  const item = (href, icon, label, active, dot, tone = "", tip = "") => `<a class="sb-item ${on(active)}" href="${href}" title="${dot ? tip : label}"><span class="sb-ico">${icon}</span><span class="trunc">${label}</span>${dot ? `<span class="sb-dot" aria-label="${esc(tip)}"></span>` : ""}</a>`;
+  const item = (href, icon, label, active, dot, tone = "", tip = "") => `<a class="sb-item ${on(active)} ${dot ? "new" : ""}" href="${href}" title="${dot ? tip : label}"${dot ? ` aria-description="${esc(tip)}"` : ""}><span class="sb-ico">${icon}</span><span class="trunc">${label}</span></a>`;
   const faces = (ids) => `<span class="sb-faces" aria-hidden="true">${ids.slice(0, 3).map((id) => personAv(id)).join("")}</span>`;
   patch($("#side"), `<div class="sb">
     <div class="sb-ws"><button class="sb-org" data-act="palette"><span class="ws-logo">${ORG.initials}</span><b class="trunc">${ORG.name}</b><svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
