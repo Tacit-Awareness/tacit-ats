@@ -687,7 +687,7 @@ function crmPage() {
   const view = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all"));
   return `<div class="bar"><div class="crumbs">${ico("db")}<b>CRM</b></div><span class="spacer"></span>
     <label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  <div class="crm-tabs">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div>
+  <div class="crm-tabs"><div class="pills">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div></div>
   <div class="crm">
     <div class="crm-head">${ico("db")}<b>${view[1]}</b><span class="faint">${xs.length.toLocaleString()}</span><span class="grow"></span>
       <form class="crm-ask" id="crmAskForm">${botAv(ME)}<input id="crmask" placeholder="${pick.size ? `Ask Grokbot about these ${pick.size}` : "Ask Grokbot for a list"}" autocomplete="off"><button class="btn sm" type="submit">${pick.size ? `Send ${pick.size} to Slack` : "Get the list"}</button></form></div>
@@ -885,7 +885,7 @@ function homePage() {
   return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
     ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
     <a class="btn sm ghost" href="#compare" title="The same layout in both styles, side by side">Compare styles</a></div>
-  <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div>
+  <div class="hm-nav"><div class="pills"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div></div>
   <div class="scroll" id="scroller"><div class="hm">
     <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
     <h2 class="hm-sec">Where are candidates getting stuck?</h2>
@@ -1000,7 +1000,7 @@ function referralsPage() {
   const maxN = Math.max(...people.map((p) => p.n), 1);
   return `<div class="bar"><div class="crumbs">${ico("users")}<b>Referrals</b><span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
     <button class="btn sm ghost" data-act="refGrok">${botAv(ME)}Add with Grokbot</button><button class="btn sm primary" data-act="refAdd">${ico("plus")}Add referral</button></div>
-  <div class="crm-tabs">${REF_TABS.map(([k, n]) => `<button class="crm-tab ${tab === k ? "on" : ""}" data-act="refTab" data-v="${k}">${n}<span>${all.filter({ all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[k]).length.toLocaleString()}</span></button>`).join("")}
+  <div class="crm-tabs"><div class="pills">${REF_TABS.map(([k, n]) => `<button class="crm-tab ${tab === k ? "on" : ""}" data-act="refTab" data-v="${k}">${n}<span>${all.filter({ all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[k]).length.toLocaleString()}</span></button>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"></label></div>
   <div class="ref-wrap">
     <div class="crm ref-t">
@@ -1135,8 +1135,10 @@ function tourEnd() { tour = null; $("#tour")?.remove(); }
 function tourShow() {
   const [hash] = TOUR[tour.i];
   const cur = location.hash.slice(1) || "home";
-  if (cur.split("~")[0] !== hash) go(hash);
-  setTimeout(tourPlace, cur.split("~")[0] === hash ? 60 : 520);
+  if (cur.split("~")[0] !== hash) { location.hash = hash; state.route = parseHash(); render(); }
+  // render() is synchronous, so the target exists now: place the spotlight in the same click, then once more after layout settles.
+  tourPlace();
+  requestAnimationFrame(tourPlace);
 }
 function tourPlace() {
   if (!tour) return;
@@ -2136,6 +2138,9 @@ const G = window.gsap, FL = window.Flip;
 if (G && FL) G.registerPlugin(FL);
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const motion = (fn) => { if (G && !calm()) { try { fn(G); } catch {} } };
+// One feel everywhere: 0.2s with a slight spring, like Motion's { duration: 0.2, bounce: 0.2 }.
+const DUR = 0.2, SPRING = "back.out(1.25)";
+if (G) G.defaults({ duration: DUR, ease: SPRING });
 const LIVE_ROWS = ".ib, .ivr, .trow, .af-r, .ck-r, .mrow, .vw-r, .card, .jp-row, .iv-r, .runrow";
 const nodeKey = (n) => (n.id ? n.id : n.dataset && n.dataset.tid ? `t:${n.dataset.tid}` : undefined);
 function patch(el, html) {
@@ -2158,17 +2163,18 @@ function patch(el, html) {
     onNodeAdded: (n) => { if (n.nodeType === 1 && (n.matches(LIVE_ROWS) || n.matches(".drawer, .toast, .af-new, .blk"))) added.push(n); return n; },
   });
   motion((g) => {
-    if (flip) FL.from(flip, { duration: 0.35, ease: "power3.out", targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
+    if (flip) FL.from(flip, { duration: DUR, ease: SPRING, targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
     const fresh = added.filter((n) => n.isConnected).slice(0, 24);
-    if (fresh.length) g.fromTo(fresh, { opacity: 0, y: (i, n) => (n.matches(".drawer") ? 0 : -4), x: (i, n) => (n.matches(".drawer") ? 24 : 0) }, { opacity: 1, y: 0, x: 0, duration: 0.32, ease: "power3.out", stagger: 0.025, clearProps: "opacity,transform" });
-    if (bumped.length) g.fromTo(bumped, { scale: 1.3 }, { scale: 1, duration: 0.35, ease: "back.out(3)", clearProps: "transform" });
+    if (fresh.length) g.fromTo(fresh, { opacity: 0, y: (i, n) => (n.matches(".drawer") ? 0 : -4), x: (i, n) => (n.matches(".drawer") ? 24 : 0) }, { opacity: 1, y: 0, x: 0, duration: DUR, ease: SPRING, stagger: 0.01, clearProps: "opacity,transform" });
+    if (bumped.length) g.fromTo(bumped, { scale: 1.2 }, { scale: 1, duration: DUR, ease: SPRING, clearProps: "transform" });
   });
 }
 // A new page eases in; the same page with a new selection only eases the reader.
 // Every entrance states both ends, so elements with their own CSS fade never get stuck at 0.
 const IN = (from, to) => [{ opacity: 0, ...from }, { opacity: 1, x: 0, y: 0, scale: 1, clearProps: "opacity,transform", ...to }];
-function enterPage(el) { motion((g) => g.fromTo(el.children, ...IN({ y: 6 }, { duration: 0.3, ease: "power2.out", stagger: 0.03 }))); }
-function enterReader(sel) { motion((g) => { const r = $(sel); if (r) g.fromTo(r.children, ...IN({ x: 10 }, { duration: 0.26, ease: "power2.out", stagger: 0.03 })); }); }
+// Pages arrive whole: one quick fade, nothing staggered, nothing sliding, so nothing twitches.
+function enterPage(el) { if (tour) return; motion((g) => g.fromTo(el, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power1.out", clearProps: "opacity" })); }
+function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); if (r) g.fromTo(r, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power1.out", clearProps: "opacity" }); }); }
 // Menus, dialogs and the command menu open with a short scale and fade; toasts rise.
 // Overlays, menus and toasts enter with CSS keyframes (style.css, v45), so they never wait on a tween to become visible.
 
@@ -2696,13 +2702,17 @@ function triagePage() {
       return xs.length ? `<div class="m-team">${teamKey(tk)}<b>${esc(TEAMS[tk].name)}</b><span>${xs.length}</span></div>${xs.map((x) => mrow(x, x.id === a.id)).join("")}` : ""; }).join("")}</div>
     <div class="reader" id="reader">
       ${docViewer(a)}
-      <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
-        ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
-        <div class="c-row"><div class="cx-seg sm act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
-          ${t.mode === "interview" ? `<button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>` : ""}
-          ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}
-          <button class="c-msg" data-act="triEdit" title="${state.triEdit ? "Hide the message" : "Read or edit the message"}">${state.triEdit ? "Hide message" : `<span class="trunc">${esc(draft.split("\n").filter(Boolean)[1] || draft)}</span><b>Edit</b>`}</button>
-          <button class="cx-primary" data-act="triSend" title="${sendLabel} (⌘↵)">${sendLabel}</button></div>
+      <div class="composer2 cp ${t.mode} ${state.triEdit ? "open" : ""}">
+        <div class="cp-top">
+          <div class="cp-f"><span class="cp-l">Next step</span><div class="cx-seg act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
+            ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}</div>
+          ${t.mode === "interview" ? `<div class="cp-f"><span class="cp-l">Team</span><button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button></div>` : ""}
+        </div>
+        <div class="cp-main">
+          ${state.triEdit ? `<div class="cp-msg editing"><div class="cp-msg-h"><span>To ${esc(a.name)} · from ${esc(first(ME).toLowerCase())}@meridian.com</span><button class="linkish" data-act="triEdit">Done</button></div><textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea></div>`
+            : `<button class="cp-msg" data-act="triEdit" title="Read or edit the message"><span class="cp-msg-h"><span>To ${esc(a.name)} · from ${esc(first(ME).toLowerCase())}@meridian.com</span><b>Edit</b></span><span class="cp-msg-b">${esc(draft)}</span></button>`}
+          <div class="cp-send"><button class="cx-primary" data-act="triSend" title="${sendLabel} (⌘↵)">${sendLabel}</button><span class="cp-hint">⌘ ↵ to send</span></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -3127,9 +3137,9 @@ function animateIvOpen() {
   state.ivAnim = false;
   if (matchMedia("(prefers-reduced-motion: reduce)").matches || innerWidth < 760) return;
   const list = $(".ivw-list", w), read = $(".ivw-read", w), W = w.clientWidth;
-  list.animate([{ flexBasis: `${W}px` }, { flexBasis: "360px" }], { duration: 380, easing: "cubic-bezier(0.32, 0.72, 0, 1)" });
-  read.animate([{ opacity: 0, transform: "translateX(32px)" }, { opacity: 1, transform: "none" }], { duration: 380, delay: 60, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "backwards" });
-  $$(".ivr", list).forEach((r, i) => r.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 120 + i * 18, fill: "backwards" }));
+  list.animate([{ flexBasis: `${W}px` }, { flexBasis: "360px" }], { duration: 200, easing: "cubic-bezier(0.3, 1.25, 0.6, 1)" });
+  read.animate([{ opacity: 0, transform: "translateX(32px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(0.3, 1.25, 0.6, 1)", fill: "backwards" });
+  
 }
 function nextSteps(x) {
   const a = x.a, iv = x.iv, d = (n) => x.start + n * DAY;

@@ -4955,3 +4955,70 @@ body, .app { background: var(--frame); }
 .ibp-notes { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.7; }
 .ibp-dec { display: flex; align-items: center; gap: var(--s2); }
 .ibp-dec .btn .ico { width: 13px; height: 13px; }
+
+/* v69: structure is square; anything you click is a pill.
+   Panels, cards, tables, inputs, rows and pop-ups lose their rounding.
+   Buttons, chips and switches are pills, and every set of options sits in one pill track. */
+*, *::before, *::after { border-radius: 0 !important; }
+/* round by nature: people, dots, rings, switches, step markers */
+.av, .bot .av, .bot > i, .dot, .ib-dot, .tdot, .pt-v::before, .vpill::before, .iv-key i, .iv-gh i, .hm-oc-k, .ck-m, .ring, .su-tog, .su-tog i, .su-ck, .su-steps a span, .hm-st-key i { border-radius: 999px !important; }
+/* pills: everything you press */
+.btn, a.btn, button.btn, .cx-btn, .cx-primary, .chip, .kb, .ibx-all, .slk-btn, .icon-btn, .sb-chat, .sb-tour, .su-tag, .su-tag button, .su-iv, .su-lead, .hm-t, .linkish.pill, .col-more, .grp-more, .crm-ask, .crm-ask .btn, .askbar, .hm-more, .tq-c { border-radius: 999px !important; }
+.kb kbd, .btn kbd { border-radius: 4px !important; }
+/* option groups: one grey track, the picked one a dark pill */
+.pills, .cx-seg, .seg, .ibx-seg, .fm-seg, .tabs { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 0; border-radius: 999px !important; background: var(--soft-strong); box-shadow: none; }
+.pills > *, .cx-seg > *, .seg > *, .ibx-seg > *, .fm-seg > *, .tabs > * { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 14px; border: 0 !important; border-radius: 999px !important; background: transparent; box-shadow: none !important; color: var(--muted); font-size: 13.5px; font-weight: 500; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+.pills > *:hover, .cx-seg > *:hover, .seg > *:hover, .ibx-seg > *:hover, .fm-seg > *:hover, .tabs > *:hover { color: var(--ink); background: transparent; }
+.pills > .on, .cx-seg > .on, .seg > .on, .ibx-seg > .on, .fm-seg > .on, .tabs > .on, .fm-seg input:checked + span { background: #5B5C61 !important; color: #fff !important; }
+.pills > * span, .cx-seg > * span, .tabs > * span { color: inherit; opacity: 0.7; margin-left: 2px; }
+.seg > * { padding: 0 10px; }
+.seg .ico, .seg svg { width: 15px; height: 15px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pills > .on, :root:not([data-theme="light"]) .cx-seg > .on, :root:not([data-theme="light"]) .seg > .on, :root:not([data-theme="light"]) .ibx-seg > .on, :root:not([data-theme="light"]) .tabs > .on { background: #F4F5F8 !important; color: #222326 !important; } }
+:root[data-theme="dark"] .pills > .on, :root[data-theme="dark"] .cx-seg > .on, :root[data-theme="dark"] .seg > .on, :root[data-theme="dark"] .ibx-seg > .on, :root[data-theme="dark"] .tabs > .on { background: #F4F5F8 !important; color: #222326 !important; }
+.hm-nav, .crm-tabs { display: flex; align-items: center; }
+.hm-nav a.on, .crm-tab.on { font-weight: 500; }
+/* shading between the lines: header strips and table heads sit one step down from the content */
+.bar, .cx-bar, .ib-bar, .subbar, .hm-nav, .crm-tabs, .chat-bar { background: var(--surface); }
+.crm-head, .crm-h, .hm-st-head, .su-mx-h, .h-head, .ph, .runhead, .board .col-head, .ibp-hd { background: var(--surface); }
+.hm-st-head { margin: 0 calc(-1 * var(--s5)); padding-left: calc(var(--s5) + var(--s2)); padding-right: var(--s5); }
+.ibx-gh { margin: 0 calc(-1 * var(--s6)); padding-left: var(--s6); padding-right: var(--s6); background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: var(--s2); }
+.ibx-g + .ibx-g { padding-top: 0; }
+.ibx-f { background: var(--surface); }
+
+/* v69 Applicant Tickets: the bottom is a control panel, not a thin bar */
+.tk .composer2.cp { display: grid; gap: var(--s4); padding: var(--s4) var(--s6) var(--s5); border-top: 1px solid var(--line-strong); background: var(--surface); box-shadow: 0 -8px 20px -16px rgba(34, 35, 38, 0.25); }
+.cp-top { display: flex; align-items: center; gap: var(--s6); flex-wrap: wrap; }
+.cp-f { display: flex; align-items: center; gap: var(--s3); }
+.cp-l { color: var(--muted); font-size: 13px; font-weight: 500; }
+.cp .cx-seg > * { height: 36px; padding: 0 18px; font-size: 14px; }
+.cp .chip { height: 36px; padding: 0 14px; font-size: 14px; background: var(--raised); box-shadow: var(--elev); border: 0; }
+.cp .sugg { font-size: 12.5px; }
+.cp-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); align-items: stretch; }
+.cp-msg { display: grid; gap: var(--s2); align-content: start; min-width: 0; padding: var(--s3) var(--s4); background: var(--raised); box-shadow: var(--elev); text-align: left; cursor: text; }
+button.cp-msg:hover { box-shadow: var(--elev-hi); }
+.cp-msg-h { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); color: var(--faint); font-size: 12.5px; }
+.cp-msg-h b { color: var(--accent); font-weight: 500; }
+.cp-msg-b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--ink); font-size: 14px; line-height: 1.55; white-space: pre-line; }
+.cp-msg.editing textarea { min-height: 140px; max-height: 34vh; border: 0; padding: 0; background: transparent; font-size: 14px; line-height: 1.6; box-shadow: none; }
+.cp-send { display: grid; align-content: end; justify-items: end; gap: var(--s2); }
+.cp-send .cx-primary { height: 48px; padding: 0 26px; font-size: 15px; }
+.cp-hint { color: var(--faint); font-size: 12px; }
+
+/* v70 motion: everything moves in 0.2s or less, with a slight spring (Motion's duration 0.2, bounce 0.2) */
+:root { --spring: cubic-bezier(0.3, 1.25, 0.6, 1); }
+*, *::before, *::after { transition-duration: 0.15s !important; }
+.tour-spot, .tour-card { transition-duration: 0.2s !important; transition-timing-function: var(--spring) !important; }
+@keyframes ov-in { from { opacity: 0; } }
+@keyframes dlg-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-3px) scale(0.98); } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@media (prefers-reduced-motion: no-preference) {
+  #layer > .overlay { animation: ov-in 0.12s ease-out; }
+  #layer > .overlay > :first-child { animation: dlg-in 0.2s var(--spring); }
+  #layer > :not(.overlay):not(.layer-ghost) { animation: menu-in 0.15s var(--spring); }
+  #toasts > * { animation: toast-in 0.2s var(--spring); }
+}
+.su-tog i, .ibx-r, .ibx-acts .icon-btn, .pills > *, .cx-seg > * { transition-timing-function: var(--spring); }
+.tev.fresh, .step.new, .inrow.live, .rundrawer, .gpop, .gpop.sheet, .af-new, .hcard { animation-duration: 0.2s !important; animation-timing-function: var(--spring) !important; }
+/* the post-interview chat used to replay over two seconds; now it lands together, quickly */
+.gc[data-play] > * { animation-duration: 0.2s !important; animation-delay: calc(var(--i, 0) * 30ms) !important; animation-timing-function: var(--spring) !important; }
