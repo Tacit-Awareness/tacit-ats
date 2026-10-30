@@ -189,6 +189,39 @@ export function Split({ main, side }: { main: React.ReactNode; side: React.React
   );
 }
 
+/**
+ * design/tats's list-and-reader page (Inbox, Applicant Tickets, Interviews):
+ * a list on the left, the open item in a reader one shade down. Render it as
+ * the page itself, not inside `Page`: it fills the panel edge to edge (the
+ * shell drops its padding around it, `.shell-page:has(> .list-reader)` in
+ * globals.css) and each side scrolls on its own. On a phone it shows the
+ * list, or the reader once something is `open`.
+ */
+export function ListReader({
+  list,
+  reader,
+  open,
+  listLabel,
+  readerLabel,
+}: {
+  list: React.ReactNode;
+  reader: React.ReactNode;
+  open: boolean;
+  listLabel: string;
+  readerLabel: string;
+}) {
+  return (
+    <div className="list-reader grid min-h-0 flex-1 md:grid-cols-[minmax(320px,42%)_minmax(0,1fr)]">
+      <section aria-label={listLabel} className={cn("min-h-0 overflow-y-auto px-2 pt-2 pb-6 md:border-r md:border-[color:var(--line)]", open && "max-md:hidden")}>
+        {list}
+      </section>
+      <section aria-label={readerLabel} className={cn("min-h-0 overflow-y-auto bg-[color:var(--pane)] p-4", !open && "max-md:hidden")}>
+        {reader}
+      </section>
+    </div>
+  );
+}
+
 /** The list-row container; rows bleed 8px so their hover reaches the card padding. */
 export function Rows({ tight = false, className, ...props }: React.ComponentProps<"div"> & { tight?: boolean }) {
   return <div data-tight={tight || undefined} className={cn("group/rows -mx-2 grid", className)} {...props} />;
@@ -319,14 +352,14 @@ export function avatarColor(name: string | null | undefined): string {
 }
 
 /** The round initials avatar: a solid person colour, white initials. */
-export function Avatar({ name, size = "sm" }: { name: string | null | undefined; size?: "sm" | "xl" }) {
+export function Avatar({ name, size = "sm" }: { name: string | null | undefined; size?: "sm" | "md" | "xl" }) {
   return (
     <span
       aria-hidden
       style={{ background: avatarColor(name) }}
       className={cn(
         "grid flex-none place-items-center rounded-full font-semibold text-white",
-        size === "xl" ? "size-11 text-[15px]" : "size-[22px] text-[9.5px]",
+        size === "xl" ? "size-11 text-[15px]" : size === "md" ? "size-7 text-[10.5px]" : "size-[22px] text-[9.5px]",
       )}
     >
       {initialsOf(name)}

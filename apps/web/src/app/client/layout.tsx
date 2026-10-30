@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { ShellFrame, type ShellJob } from "@/components/app-shell/shell-frame";
 import { LEVELS } from "@/lib/client/levels";
 import { resolveClient } from "@/lib/client/session";
+import { SIDEBAR_COOKIE, parseSidebar } from "@/lib/sidebar";
 
 export const metadata: Metadata = { title: "Tacit" };
 export const dynamic = "force-dynamic";
 
-// The client area's shell: tacit-internal's sidebar and inset panel. The
+// The client area's shell: design/tats's sidebar and inset panel. The
 // sidebar reads who you are and your org's open jobs with your own token
-// (resolveClient() is cached per request, so the page's call reuses it). A
-// refused sign-in gets no sidebar: the page renders its refusal on the bare
-// frame.
+// (resolveClient() is cached per request, so the page's call reuses it), and
+// its width from a cookie so the first paint is already right. A refused
+// sign-in gets no sidebar: the page renders its refusal on the bare frame.
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const gate = await resolveClient();
   if (gate.status !== "ok") {
@@ -18,23 +20,20 @@ export default async function ClientLayout({ children }: { children: React.React
   }
 
   const { db, org, user, accessLevel } = gate.ctx;
-  const showCounts = accessLevel !== "limited";
-  const { data: roles, error } = await db
-    .from("roles")
-    .select("id, title, applications(count)")
-    .eq("status", "open")
-    .order("created_at", { ascending: false });
+  const [{ data: roles, error }, jar] = await Promise.all([
+    db.from("roles").select("id, title").eq("status", "open").order("created_at", { ascending: false }),
+    cookies(),
+  ]);
   if (error) throw new Error(error.message);
-
-  const jobs: ShellJob[] = roles.map((r) => ({
-    id: r.id,
-    title: r.title,
-    active: showCounts ? (r.applications[0]?.count ?? 0) : null,
-  }));
-  const activeTotal = showCounts ? jobs.reduce((n, j) => n + (j.active ?? 0), 0) : null;
+  const jobs: ShellJob[] = roles.map((r) => ({ id: r.id, title: r.title }));
 
   return (
-    <ShellFrame org={org.name} user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }} jobs={jobs} activeTotal={activeTotal}>
+    <ShellFrame
+      org={org.name}
+      user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }}
+      jobs={jobs}
+      sidebar={parseSidebar(jar.get(SIDEBAR_COOKIE)?.value)}
+    >
       {children}
     </ShellFrame>
   );
