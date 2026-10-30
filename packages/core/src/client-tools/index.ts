@@ -34,7 +34,7 @@ export {
 export type { Offer, OfferStatus, OfferTerms, RejectionKind, RejectionReason } from "./offers.js";
 export { getScorecard, setScorecard } from "./scorecards.js";
 export type { Scorecard, ScorecardAttribute, ScorecardChange, ScorecardEntry } from "./scorecards.js";
-export { PLAN_STEPS_MAX, STEP_NAME_MAX, getInterviewPlan, setInterviewPlan } from "./plans.js";
+export { PLAN_STEPS_MAX, STEP_NAME_MAX, getInterviewPlan, setInterviewPlan, stepsOf } from "./plans.js";
 export type { FeedbackState, InterviewPlan, PlanChange, PlanInterview, PlanProgress, StepState } from "./plans.js";
 export {
   FILE_BASE64_MAX, FILE_KINDS, FILE_LINK_SECONDS, FILE_MAX_BYTES, FILE_TYPES,
@@ -94,7 +94,7 @@ export {
 export type {
   ApplicationAnswer, ApplicationAnswers, InboxEntry, JobPost, JobPostInput, JobPostStatus, Question, QuestionInput, QuestionType,
 } from "./posts.js";
-export { anonymizeCandidate, confirmationFor, findDuplicates, linkedinKey, mergeCandidates } from "./merge.js";
+export { ANONYMIZED_NAME, anonymizeCandidate, confirmationFor, findDuplicates, linkedinKey, mergeCandidates } from "./merge.js";
 export type {
   AnonymizeResult, DuplicateCandidate, DuplicateGroup, DuplicateReason, Duplicates, MergeResult,
 } from "./merge.js";

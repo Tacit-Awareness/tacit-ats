@@ -10,8 +10,10 @@ import { closeReasonKind, type MoveInput, type NextActionInput } from "./candida
 // the page showed, so one someone else already made is reported, not
 // overwritten. A move and a next action are clientTools' audited writes, with
 // source `dashboard`, so the connector's read-only switch does not stop them
-// and the hourly limit does. The owner and a touch have no clientTools write,
-// so they stay core's pipeline functions, which are not audited.
+// and the hourly limit does. So is a note on the candidate, which is on the
+// person and not a job, so it has no pipeline gate: addNote asks whether the
+// member can see them. The owner and a touch have no clientTools write, so
+// they stay core's pipeline functions, which are not audited.
 
 export type CloseReason = { reasonId: string; name: string; kind: "rejected" | "withdrew" };
 export type OwnerChoice = { actorId: string; name: string };
@@ -139,6 +141,20 @@ export async function setCandidateNextAction(db: Db, ctx: clientTools.ClientTool
     return { ok: true, changed: r.outcome !== "unchanged", roleId: g.app.role_id };
   } catch (err) {
     return refused(err);
+  }
+}
+
+export type NoteOutcome = { ok: true } | { ok: false; error: "note_gone" | "rate_limited" };
+
+/** Adds a note the team can read. Its words never reach the audit row: clientTools.addNote keeps only its id. */
+export async function addCandidateNote(db: Db, ctx: clientTools.ClientToolCtx, input: { candidateId: string; text: string }): Promise<NoteOutcome> {
+  try {
+    await clientTools.addNote(db, ctx, input);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError && err.code === "not_found") return { ok: false, error: "note_gone" };
+    if (err instanceof clientTools.ClientToolError && err.code === "rate_limited") return { ok: false, error: "rate_limited" };
+    throw err;
   }
 }
 
