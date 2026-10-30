@@ -18,6 +18,12 @@ describe("the tour's steps", () => {
     expect(step.body).toMatch(/drag/i);
     expect(step.body).toContain("press S");
   });
+
+  it("the Interviews step spotlights the list and names how one is checked off", () => {
+    const step = TOUR.find((s) => s.href === "/client/interviews")!;
+    expect(step.targets).toContain('[data-tour="interviews"]');
+    expect(step.body).toContain("press E");
+  });
 });
 
 describe("placing the card", () => {

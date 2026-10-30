@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Avatar, Empty, Page, PageBar, Section, SubBar, Tabs, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
+import { TargetChip, type TargetChipProps } from "./home-target";
 
 // Home's markup (design/tats's Recruiting Overview), props only: page.tsx
 // does the reads and the counting. The prototype's bar (the crumb, then the
@@ -10,11 +11,12 @@ import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 // stuck?": the bottlenecks beside time in stage, then feedback by
 // interviewer, the average stay per stage and the feedback outstanding. Bars
 // are plain CSS, no chart library. Colour only for meaning: red for a
-// falling count and the longest waits.
+// falling count, the longest waits and a missed target. A card's target sits
+// at the left of its foot (home-target.tsx).
 
-export type Bar = { n: number; label: string; title: string };
+export type Bar = { n: number; label: string; title: string; /** Reads red: past the target, or with none set, one of the oldest. */ late?: boolean };
 
-export type WaitCard = { typical: string | null; waiting: number; oldest: string | null; buckets: Bar[] };
+export type WaitCard = { typical: string | null; waiting: number; oldest: string | null; buckets: Bar[]; target: TargetChipProps | null };
 
 export type StageLine = {
   key: string;
@@ -36,7 +38,7 @@ export type HomeViewProps = {
   /** The chips: the period always, the department and the job when there is one to pick. */
   filters: { label: string; value: string; on: boolean; options: FilterOption[] }[];
   pipelineHref: string;
-  newApps: { value: number; change: number | null; bars: Bar[] };
+  newApps: { value: number; change: number | null; bars: Bar[]; target: TargetChipProps | null };
   inProcess: { value: number; bars: Bar[] };
   review: WaitCard;
   schedule: WaitCard;
@@ -47,12 +49,15 @@ export type HomeViewProps = {
     onTime: number;
     outstanding: number;
     onTimeHours: number;
+    /** Typical time to feedback in words: what its target is compared with. */
+    typical: string | null;
+    target: TargetChipProps | null;
     /** A job or a department is picked, but the report covers every job they manage. */
     allJobs: boolean;
     interviewers: { id: string; name: string; median: string | null; medianHours: number | null; out: number }[];
   } | null;
-  workload: { hours: string; interviews: number; held: number; booked: number; people: { id: string; name: string; hours: number; label: string }[] };
-  bottlenecks: { key: string; what: string; why: string; icon: BottleneckIcon; label: string; href: string }[];
+  workload: { hours: string; interviews: number; held: number; booked: number; target: TargetChipProps | null; people: { id: string; name: string; hours: number; label: string }[] };
+  bottlenecks: { key: string; over: boolean; what: string; why: string; icon: BottleneckIcon; label: string; href: string }[];
   /** Null alongside `feedback`: not theirs. */
   outstanding: { total: number; rows: { id: string; interviewer: string; line: string; wait: string; href: string }[]; more: { href: string; label: string } | null } | null;
   stages: StageLine[];
@@ -92,7 +97,7 @@ const SEGMENT_KEYS = ["Under a day", "1 to 3 days", "Over 3 days"];
 const SEGMENT_FILL = ["bg-[color:var(--soft-strong)]", "bg-[color-mix(in_srgb,var(--ink)_45%,var(--paper))]", "bg-[color:var(--ink)]"];
 
 /** A column chart: one bar per bin, its label under it, the count on hover. */
-function Bars({ bars, tone }: { bars: Bar[]; tone?: (b: Bar, i: number) => string | undefined }) {
+function Bars({ bars, tone }: { bars: Bar[]; tone?: (b: Bar) => string | undefined }) {
   const max = Math.max(1, ...bars.map((b) => b.n));
   return (
     <div className="mt-2 grid h-16 auto-cols-fr grid-flow-col gap-1.5" role="img" aria-label={bars.map((b) => b.title).join(", ")}>
@@ -101,7 +106,7 @@ function Bars({ bars, tone }: { bars: Bar[]; tone?: (b: Bar, i: number) => strin
           <i
             className={cn(
               "w-full self-end rounded-t-[3px] rounded-b-[1px] transition-colors group-hover:bg-muted-foreground",
-              tone?.(b, i) ?? "bg-[color:var(--soft-strong)]",
+              tone?.(b) ?? "bg-[color:var(--soft-strong)]",
             )}
             style={{ height: b.n ? `${Math.max(6, (b.n / max) * 100)}%` : 0 }}
           />
@@ -112,17 +117,18 @@ function Bars({ bars, tone }: { bars: Bar[]; tone?: (b: Bar, i: number) => strin
   );
 }
 
-function Card({ label, def, value, unit, ctx, foot, children }: {
+function Card({ label, def, value, unit, ctx, target, foot, children }: {
   label: string;
   def: string;
   value: React.ReactNode;
   unit?: string;
   ctx: React.ReactNode;
+  target?: TargetChipProps | null;
   foot?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
-    <section className="grid min-w-0 content-start gap-2 rounded-[12px] border border-[color:var(--line)] bg-card px-5 pt-4 pb-4">
+    <section className="flex min-w-0 flex-col gap-2 rounded-[12px] border border-[color:var(--line)] bg-card px-5 pt-4 pb-4">
       <span
         title={def}
         className="w-fit cursor-help text-[13.5px] text-muted-foreground underline decoration-[color:var(--line-strong)] decoration-dotted underline-offset-4"
@@ -135,7 +141,12 @@ function Card({ label, def, value, unit, ctx, foot, children }: {
       </div>
       <div className="flex min-h-[18px] flex-wrap items-baseline gap-2 text-[12.5px] text-muted-foreground">{ctx}</div>
       {children}
-      {foot ? <div className="mt-1 flex justify-end border-t border-[color:var(--line)] pt-3">{foot}</div> : null}
+      {target || foot ? (
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-[color:var(--line)] pt-3">
+          {target ? <TargetChip {...target} /> : <span />}
+          {foot}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -154,10 +165,10 @@ function Waits({ label, def, card, noun, foot }: { label: string; def: string; c
       value={card.typical ?? "None"}
       unit={card.typical ? "typical" : undefined}
       ctx={card.waiting ? `${card.waiting} ${card.waiting === 1 ? noun[0] : noun[1]} waiting · oldest ${card.oldest}` : "Nothing waiting"}
+      target={card.target}
       foot={foot}
     >
-      {/* The two oldest buckets (3 days and over) read red. */}
-      <Bars bars={card.buckets} tone={(b, i) => (b.n && i >= 3 ? "bg-[color-mix(in_srgb,var(--red)_70%,var(--paper))]" : undefined)} />
+      <Bars bars={card.buckets} tone={(b) => (b.n && b.late ? "bg-[color-mix(in_srgb,var(--red)_70%,var(--paper))]" : undefined)} />
     </Card>
   );
 }
@@ -245,6 +256,7 @@ export function HomeView(p: HomeViewProps) {
               </>
             )
           }
+          target={p.newApps.target}
         >
           <Bars bars={p.newApps.bars} />
         </Card>
@@ -289,9 +301,11 @@ export function HomeView(p: HomeViewProps) {
                 ) : (
                   <span>All feedback is in</span>
                 )}
+                {p.feedback.typical ? <span>· typically {p.feedback.typical}</span> : null}
                 {p.feedback.allJobs ? <span className="text-faint">· every job you manage</span> : null}
               </>
             }
+            target={p.feedback.target}
           >
             <FeedbackSplit onTime={p.feedback.onTime} late={p.feedback.filed - p.feedback.onTime} outstanding={p.feedback.outstanding} hours={p.feedback.onTimeHours} />
           </Card>
@@ -302,6 +316,7 @@ export function HomeView(p: HomeViewProps) {
           def={`Interviewer hours: interviews held in the last ${p.days} days and booked in the next ${p.days}`}
           value={p.workload.hours}
           ctx={`${p.workload.held} held · ${p.workload.booked} booked`}
+          target={p.workload.target}
         >
           {p.workload.people.length ? (
             <div className="mt-1 grid">
@@ -325,12 +340,20 @@ export function HomeView(p: HomeViewProps) {
             <div className="-mx-3 grid">
               {p.bottlenecks.map((b) => (
                 <Link key={b.key} href={b.href} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] p-3 hover:bg-[color:var(--hover)]">
-                  <span className="grid size-8 place-items-center rounded-lg bg-[color:var(--soft)] text-muted-foreground">
+                  <span className={cn("grid size-8 place-items-center rounded-lg bg-[color:var(--soft)]", b.over ? "text-[color:var(--red)]" : "text-muted-foreground")}>
                     <Icon name={b.icon} />
                   </span>
                   <span className="grid min-w-0 gap-0.5">
                     <b className="text-[14px] font-medium">{b.what}</b>
-                    <span className="text-[13px] text-muted-foreground">{b.why}</span>
+                    <span className="text-[13px] text-muted-foreground">
+                      {b.over ? (
+                        <>
+                          <i className="mr-1.5 inline-block size-[7px] rounded-full bg-[color:var(--red)] align-[1px]" aria-hidden />
+                          Over target ·{" "}
+                        </>
+                      ) : null}
+                      {b.why}
+                    </span>
                   </span>
                   <span className="text-[13px] font-medium whitespace-nowrap text-[color:var(--accent)]">{b.label} →</span>
                 </Link>

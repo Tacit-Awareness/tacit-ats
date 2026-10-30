@@ -145,7 +145,7 @@ The tools are the [same as the connector's](/docs/client-tools), written with da
 
 | Level | Sees | Can change |
 | --- | --- | --- |
-| **Interviewer** | Their own interviews, and a short card on each candidate they interview: name, headline, LinkedIn, resume, and their own notes. No pipelines, no tags. | Their own feedback and notes on the people they interview. |
+| **Interviewer** | Their own interviews, and a short card on each candidate they interview: name, headline, LinkedIn, resume, and their own notes. No pipelines, no tags. | Their own feedback and notes on the people they interview, and their own interviewer profile. |
 | **Hiring team** | The jobs they are on through a hiring team, those jobs' pipelines and candidates. | What their team role on each job allows (below). |
 | **Admin** | Every job, the whole team, pending invitations. | Everything, including jobs, hiring teams, access levels and invitations. |
 

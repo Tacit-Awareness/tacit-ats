@@ -290,7 +290,7 @@ export async function getHiringTeam(db: Db, _ctx: ClientToolCtx, jobId: string):
   return { jobId: job.id, title: job.title, team: [...byActor.values()].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "")) };
 }
 
-async function activeMember(db: Db, userId: string): Promise<{ id: string; name: string | null }> {
+export async function activeMember(db: Db, userId: string): Promise<{ id: string; name: string | null }> {
   const { data, error } = await db
     .from("org_members").select("id, display_name").eq("id", userId).maybeSingle();
   if (error) throw new Error(error.message);

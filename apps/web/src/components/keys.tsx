@@ -130,9 +130,9 @@ export function KeyList({
   const box = useRef<HTMLDivElement>(null);
   const step = (d: 1 | -1) => {
     const all = Array.from(box.current?.querySelectorAll<HTMLElement>(items) ?? []);
-    // A table row's item may not be what has focus: the CRM's checkbox sits beside its link.
+    // A row's item may not be what has focus: the CRM's checkbox and Interviews' check sit beside their links.
     const active = document.activeElement;
-    const focused = all.findIndex((el) => el === active || (active && el.closest("[role=row]")?.contains(active)));
+    const focused = all.findIndex((el) => el === active || (active && el.closest("[role=row], [data-key-row]")?.contains(active)));
     const cur = focused >= 0 ? focused : all.findIndex((el) => el.hasAttribute("aria-current"));
     const i = stepIndex(cur, all.length, d);
     const el = all[i];

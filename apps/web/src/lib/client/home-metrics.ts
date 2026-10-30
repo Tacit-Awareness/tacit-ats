@@ -106,8 +106,8 @@ export const AGE_BUCKETS = [
   { label: "5d+", lo: 120, hi: Infinity },
 ] as const;
 
-export function ageBuckets(hours: number[]): { label: string; n: number }[] {
-  return AGE_BUCKETS.map((b) => ({ label: b.label, n: hours.filter((h) => h >= b.lo && h < b.hi).length }));
+export function ageBuckets(hours: number[]): { label: string; lo: number; n: number }[] {
+  return AGE_BUCKETS.map((b) => ({ label: b.label, lo: b.lo, n: hours.filter((h) => h >= b.lo && h < b.hi).length }));
 }
 
 /** Time in stage's three segments: under a day, one to three, over three. */
@@ -152,30 +152,44 @@ export function stageRows(waiting: Waiting[]): StageRow[] {
 
 export type BottleneckKey = "review" | "schedule" | "decide" | "feedback" | "stalled";
 
-export type Bottleneck = { key: BottleneckKey; n: number; /** The oldest wait, when there is one to tell. */ oldestHours: number | null };
+export type Bottleneck = {
+  key: BottleneckKey;
+  n: number;
+  /** The oldest wait, when there is one to tell. */
+  oldestHours: number | null;
+  /** Its oldest has waited past the company's target for that step. */
+  overTarget: boolean;
+};
+
+/** Home's targets for the steps a bottleneck waits on, in hours, and how long the oldest outstanding feedback has waited. */
+export type BottleneckTargets = { review?: number | null; schedule?: number | null; feedback?: number | null; oldestFeedbackHours?: number | null };
 
 /**
- * What is waiting, oldest first: candidates not yet screened, waiting to be
- * scheduled, waiting on the team's call; interviews whose feedback is not in
- * (no age: the activity report counts them, it does not date them); and
- * candidates core calls stalled. Nothing waiting, no row.
+ * What is waiting: candidates not yet screened, waiting to be scheduled,
+ * waiting on the team's call; interviews whose feedback is not in; and
+ * candidates core calls stalled. Nothing waiting, no row. Whatever is over its
+ * target comes first, as design/tats, then the oldest; feedback has no
+ * `oldestHours`, so it comes last on its side. A step with no target is never
+ * over one, and neither is a decision or a stall, which take none.
  */
-export function bottlenecks(waiting: Waiting[], outstandingFeedback: number | null, now: number): Bottleneck[] {
+export function bottlenecks(waiting: Waiting[], outstandingFeedback: number | null, now: number, targets: BottleneckTargets = {}): Bottleneck[] {
   const oldest = (ws: Waiting[]) => (ws.length ? Math.max(...ws.map((w) => w.hours)) : null);
   const of = (c: ColumnKey) => waiting.filter((w) => w.column === c);
   const stalled = waiting.filter((w) => w.stalled);
+  const over = (hours: number | null | undefined, target: number | null | undefined) => hours !== null && hours !== undefined && target !== null && target !== undefined && hours > target;
   const rows: Bottleneck[] = [
-    { key: "review", n: of("new").length, oldestHours: oldest(of("new")) },
-    { key: "schedule", n: of("scheduling").length, oldestHours: oldest(of("scheduling")) },
-    { key: "decide", n: of("decide").length, oldestHours: oldest(of("decide")) },
-    { key: "feedback", n: outstandingFeedback ?? 0, oldestHours: null },
+    { key: "review", n: of("new").length, oldestHours: oldest(of("new")), overTarget: over(oldest(of("new")), targets.review) },
+    { key: "schedule", n: of("scheduling").length, oldestHours: oldest(of("scheduling")), overTarget: over(oldest(of("scheduling")), targets.schedule) },
+    { key: "decide", n: of("decide").length, oldestHours: oldest(of("decide")), overTarget: false },
+    { key: "feedback", n: outstandingFeedback ?? 0, oldestHours: null, overTarget: over(targets.oldestFeedbackHours, targets.feedback) },
     {
       key: "stalled",
       n: stalled.length,
       oldestHours: stalled.length ? Math.max(...stalled.map((w) => (now - Date.parse(w.lastTouchAt)) / H)) : null,
+      overTarget: false,
     },
   ];
-  return rows.filter((r) => r.n > 0).sort((a, b) => (b.oldestHours ?? -1) - (a.oldestHours ?? -1));
+  return rows.filter((r) => r.n > 0).sort((a, b) => Number(b.overTarget) - Number(a.overTarget) || (b.oldestHours ?? -1) - (a.oldestHours ?? -1));
 }
 
 // ---------------------------------------------------------------------------

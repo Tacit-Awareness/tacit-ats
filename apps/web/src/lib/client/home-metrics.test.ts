@@ -126,15 +126,36 @@ describe("bottlenecks", () => {
   test("only what is waiting, oldest first, feedback (undated) after the dated ones", () => {
     const rows = bottlenecks([w("new", 5), w("scheduling", 80), w("scheduling", 10), w("booked", 300, { stalled: true, lastTouchAt: at(-24) })], 3, NOW);
     expect(rows).toEqual([
-      { key: "schedule", n: 2, oldestHours: 80 },
-      { key: "stalled", n: 1, oldestHours: 24 },
-      { key: "review", n: 1, oldestHours: 5 },
-      { key: "feedback", n: 3, oldestHours: null },
+      { key: "schedule", n: 2, oldestHours: 80, overTarget: false },
+      { key: "stalled", n: 1, oldestHours: 24, overTarget: false },
+      { key: "review", n: 1, oldestHours: 5, overTarget: false },
+      { key: "feedback", n: 3, oldestHours: null, overTarget: false },
     ]);
   });
 
   test("nothing waiting is no rows; hidden feedback is no row", () => {
     expect(bottlenecks([w("booked", 5), w("offer", 9)], null, NOW)).toEqual([]);
+  });
+
+  test("what is over its target comes first, then the oldest, and over is on the oldest wait", () => {
+    const rows = bottlenecks([w("new", 5), w("scheduling", 80), w("decide", 200)], 2, NOW, { review: 4, schedule: 80, feedback: 10, oldestFeedbackHours: 11 });
+    expect(rows.map((r) => [r.key, r.overTarget])).toEqual([
+      ["review", true],
+      ["feedback", true],
+      ["decide", false],
+      ["schedule", false],
+    ]);
+  });
+
+  test("a target of 0 counts, and a step with no target is never over one", () => {
+    expect(bottlenecks([w("new", 0.1)], 0, NOW, { review: 0 })[0].overTarget).toBe(true);
+    expect(bottlenecks([w("new", 900)], 0, NOW, { schedule: 1 })[0].overTarget).toBe(false);
+  });
+
+  test("feedback with no date is not over, and a decision or a stall takes no target", () => {
+    expect(bottlenecks([], 2, NOW, { feedback: 1 })[0].overTarget).toBe(false);
+    const stalled = bottlenecks([w("decide", 900), w("booked", 9, { stalled: true, lastTouchAt: at(-900) })], 0, NOW, { review: 1, schedule: 1, feedback: 1 });
+    expect(stalled.map((r) => r.overTarget)).toEqual([false, false]);
   });
 });
 

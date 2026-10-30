@@ -198,6 +198,26 @@ describe("interviewerActivity", () => {
     expect(r.outstanding).toEqual([{ interviewId: "i1", applicationId: "app-i1", interviewerId: "u2", endsAt: t(1, 10) }]);
   });
 
+  test("the overall median is over every filing, not the interviewers' medians", async () => {
+    const fake = new FakeSupabase([
+      { data: [interview("i1", t(1, 10), ["u1"]), interview("i2", t(2, 10), ["u1"]), interview("i3", t(3, 10), ["u1"]), interview("i4", t(3, 11), ["u2"])] },
+      { data: [
+        { interview_id: "i1", interviewer_actor_id: "u1", submitted_at: t(1, 11) },
+        { interview_id: "i2", interviewer_actor_id: "u1", submitted_at: t(2, 11) },
+        { interview_id: "i3", interviewer_actor_id: "u1", submitted_at: t(3, 11) },
+        { interview_id: "i4", interviewer_actor_id: "u2", submitted_at: t(3, 21) },
+      ] },
+      { data: [{ id: "u1", display_name: "Ivan" }, { id: "u2", display_name: "Una" }] },
+    ]);
+    // The interviewers' medians are 1 and 10, so a median of medians says 5.5.
+    expect((await interviewerActivity(fake.asDb(), ctx())).medianHoursToFeedback).toBe(1);
+  });
+
+  test("the overall median is null with nothing filed", async () => {
+    const fake = new FakeSupabase([{ data: [interview("i1", t(1, 10), ["u1"])] }, { data: [] }, { data: [{ id: "u1", display_name: "Ivan" }] }]);
+    expect((await interviewerActivity(fake.asDb(), ctx())).medianHoursToFeedback).toBeNull();
+  });
+
   test("a hiring manager: only the jobs they manage, and a filing they may not see is not visible, not missing", async () => {
     const fake = new FakeSupabase([
       { data: [{ id: "job-1" }, { id: "job-2" }] },

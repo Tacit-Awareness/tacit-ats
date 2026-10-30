@@ -13,6 +13,7 @@ import {
   type JobRef,
   type LoadInterview,
 } from "./interviewer-load";
+import type { StoredProfile } from "./interviewer-profile";
 
 // Thursday 29 October 2026, noon UTC: this week is Monday 26 October to Sunday 1 November.
 const NOW = new Date("2026-10-29T12:00:00Z");
@@ -93,6 +94,8 @@ const NAMES = new Map([
   ["ed", "Ed"],
 ]);
 
+const PROFILE = { preference: "loves", weeklyCap: 3, focusAreas: ["Go"], channel: "slack", awayUntil: null, updatedAt: "2026-10-30T12:00:00+00:00" } as const satisfies StoredProfile;
+
 describe("who is an interviewer", () => {
   const rows = assembleInterviewers({
     interviews: [iv("2026-10-30T09:00:00Z", ["bo"], "job-b"), iv("2026-10-20T09:00:00Z", ["cy"], "job-c")],
@@ -106,6 +109,7 @@ describe("who is an interviewer", () => {
     jobs: JOBS,
     departments: DEPTS,
     names: NAMES,
+    profiles: new Map([["bo", PROFILE], ["ed", PROFILE]]),
     feedback: new Map([["ada", { onTime: 1, late: 0, notFiled: 2, notVisible: 0 }]]),
     now: NOW,
   });
@@ -131,6 +135,12 @@ describe("who is an interviewer", () => {
     expect(by.bo!.feedback).toBeNull();
   });
 
+  test("a profile rides along, and having one does not make anyone a row", () => {
+    expect(by.bo!.profile).toEqual(PROFILE);
+    expect(by.ada!.profile).toBeNull();
+    expect(by.ed).toBeUndefined();
+  });
+
   test("someone the feedback report has, but nothing else, is still a row", () => {
     const only = assembleInterviewers({
       interviews: [],
@@ -138,6 +148,7 @@ describe("who is an interviewer", () => {
       jobs: JOBS,
       departments: DEPTS,
       names: new Map(),
+      profiles: new Map(),
       feedback: new Map([["zed", { onTime: 0, late: 1, notFiled: 0, notVisible: 0 }]]),
       now: NOW,
     });
@@ -148,6 +159,7 @@ describe("who is an interviewer", () => {
 const person = (actorId: string, departments: string[]): Interviewer => ({
   actorId,
   name: actorId,
+  profile: null,
   load: { thisWeek: 0, nextWeek: 0, last30: 0 },
   jobs: [],
   departments,

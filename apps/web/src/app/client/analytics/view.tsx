@@ -142,13 +142,13 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
     <Page bar={<Bar {...header} />}>
       <div className="grid gap-2 rounded-[20px] bg-[color:var(--soft)] p-2">
         <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3 pb-1.5">
-          <h2 className="m-0 text-[17px] font-semibold">Applications</h2>
+          <h2 className="m-0 text-[17px] font-semibold">Careers page</h2>
           <span className="flex-1" />
           <Segmented items={p.ranges} label="Period" />
           <ExportButton rows={p.exportRows} filename={p.exportName} />
         </div>
 
-        <div className="grid grid-cols-3 gap-1 min-[768px]:gap-2">
+        <div className="grid grid-cols-2 gap-1 min-[768px]:grid-cols-4 min-[768px]:gap-2">
           {p.cards.map((c) => (
             <Link
               key={c.key}
@@ -173,7 +173,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
                   {c.change.text}
                 </em>
               ) : (
-                <em className="h-[22px] text-[12px] leading-[22px] text-faint not-italic">Nothing before to compare</em>
+                <em className="min-h-[22px] text-[12px] leading-[22px] text-faint not-italic">Nothing before to compare</em>
               )}
             </Link>
           ))}
@@ -214,8 +214,8 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
         </div>
       </div>
       <p className="m-0 text-[12px] text-faint">
-        Days are UTC. Page views aren&apos;t recorded yet, so views and the share of views that apply will come later.
-        {p.truncated ? " This read stopped at 5,000 applications, so the numbers are a floor." : ""}
+        Days are UTC. Page views are page loads, not people, and only from a browser that runs scripts. Views that apply counts applications made on your public posts, from the first day views were recorded. Direct means no other site sent them: a link opened on its own, or your own careers page.
+        {p.truncated ? " This read stopped at 5,000 rows, so the numbers are a floor." : ""}
       </p>
     </Page>
   );
