@@ -98,6 +98,7 @@ What the code adds on top: before a write, it asks the policies' own helpers (`c
 | `apps/mcp` `client/audit.ts` | `tacit_internal` | `mcp_calls` rows and the read-breadth ceiling, which members cannot read |
 | `apps/mcp` `client/files.ts` | service role | Signing and uploading `org-files` objects |
 | `apps/mcp` `client/calendar.ts` | service role | Members' calendar refresh tokens, which no member token can read |
+| `apps/web` `lib/member-calendar/grants.ts` | service role | The same, for the Calendar's book, move and cancel. Outside the client area, imported only by `POST /client/schedule/api`, which runs as the member |
 
 `apps/web/src/client-area.test.ts` and `apps/mcp/src/client-connector.test.ts` walk the imports and fail on any other path. The web test also fails on a server action that does not start with `await requireClient()`, since an action is callable by id from any page and the proxy does not cover it.
 

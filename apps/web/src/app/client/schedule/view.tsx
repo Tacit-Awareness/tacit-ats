@@ -9,15 +9,18 @@ import { Avatar, Empty, Notice, Page, PageBar, SearchBox } from "@/components/pa
 import {
   daysOf,
   hourSpan,
+  minutesAt,
   monthCells,
   placeDay,
   SCHEDULE_KEYS,
   scheduleHref,
+  SNAP_MINUTES,
   scheduleKeyHref,
   stepAnchor,
   todayIn,
   weekdayOf,
   zoned,
+  zonedInstant,
   type EventTone,
   type MonthCell,
   type Placed,
@@ -26,6 +29,7 @@ import {
 } from "@/lib/client/schedule-layout";
 import { searchOrder } from "@/lib/client/schedule-search";
 import { cn } from "@/lib/utils";
+import { ScheduleDialog, type Flow } from "./booking";
 
 // The Calendar's markup, props only (page.tsx does the read): design/tats's
 // calendar page, edge to edge under its bar with no card: the search in the
@@ -37,7 +41,11 @@ import { cn } from "@/lib/utils";
 // has the zone (the server render, and the first paint) it draws the frame with
 // no times in it, never UTC by mistake. Navigation is in the URL (`?view=`,
 // `?date=`, `?dept=`, `?q=`), with D / W / M / L, ← / →, `.` for today and `/`
-// for the search. Each event opens the interview on the Interviews page.
+// for the search. Each event opens the interview on the Interviews page, except
+// one the member may still change (`canChange`): that opens its card, with
+// Reschedule and Cancel, and a drag moves it. A drag or a click on empty grid
+// starts a booking, and N and F open Book and Find a time. All of that is
+// booking.tsx; whatever would change a real calendar stops at its Confirm card.
 
 export type CalendarEvent = {
   id: string;
@@ -54,6 +62,11 @@ export type CalendarEvent = {
   startsAt: string;
   endsAt: string;
   tone: EventTone;
+  interviewerIds: string[];
+  /** Its Google Calendar event, only when it reads as an http(s) URL. */
+  eventLink: string | null;
+  /** Still ahead, and on a job the member may schedule on. */
+  canChange: boolean;
 };
 
 const TONE: Record<EventTone, string> = {
@@ -120,7 +133,17 @@ function useClock(timeZone: string) {
   return (iso: string) => time.format(new Date(iso));
 }
 
-function EventBlock({ placed, clock }: { placed: Placed<CalendarEvent>; clock: (iso: string) => string }) {
+/** Opens an event's card on a plain click; ⌘-click and the like stay the link's, and an event the member cannot change is only a link. */
+const opener = (e: CalendarEvent, open: (e: CalendarEvent) => void) =>
+  e.canChange
+    ? (click: React.MouseEvent) => {
+        if (click.metaKey || click.ctrlKey || click.shiftKey || click.altKey || click.button !== 0) return;
+        click.preventDefault();
+        open(e);
+      }
+    : undefined;
+
+function EventBlock({ placed, clock, open, grab }: { placed: Placed<CalendarEvent>; clock: (iso: string) => string; open: (e: CalendarEvent) => void; grab: (down: React.PointerEvent<HTMLElement>, e: CalendarEvent) => void }) {
   const { event: e, start, end, lane, lanes } = placed;
   const height = Math.max(20, ((end - start) / 60) * HOUR_PX - 2);
   const tight = height < LINE_AT.time;
@@ -129,9 +152,13 @@ function EventBlock({ placed, clock }: { placed: Placed<CalendarEvent>; clock: (
   return (
     <Link
       href={e.href}
+      draggable={false}
+      onClick={opener(e, open)}
+      onPointerDown={e.canChange ? (down) => grab(down, e) : undefined}
       title={[e.candidate, time, detail, e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
       style={{ top: (start / 60) * HOUR_PX + 1, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
       className={cn(
+        e.canChange && "cursor-grab touch-pan-y",
         "absolute z-[2] flex flex-col gap-px overflow-hidden rounded-lg px-2 text-xs leading-[1.3] transition-[filter,box-shadow] hover:z-[3] hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.15)] hover:brightness-[0.98] hover:saturate-[1.15]",
         tight ? "justify-center py-0.5" : "py-1.5",
         TONE[e.tone],
@@ -154,11 +181,112 @@ function EventBlock({ placed, clock }: { placed: Placed<CalendarEvent>; clock: (
   );
 }
 
-function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events: CalendarEvent[]; timeZone: string; today: Ymd; now: number }) {
+type Ghost = { day: Ymd; start: number; end: number; label: string };
+
+/** Past this many pixels a press is a drag. */
+const DRAG_PX = 4;
+
+function TimeGrid({
+  days, events, timeZone, today, now, canBook, open, book, move,
+}: {
+  days: Ymd[];
+  events: CalendarEvent[];
+  timeZone: string;
+  today: Ymd;
+  now: number;
+  canBook: boolean;
+  open: (e: CalendarEvent) => void;
+  book: (at: { day: Ymd; minutes: number; length: number }) => void;
+  move: (e: CalendarEvent, to: { startsAt: string; endsAt: string }) => void;
+}) {
   const clock = useClock(timeZone);
   const columns = days.map((day) => ({ day, placed: placeDay(events, day, timeZone) }));
   const { first, last } = hourSpan(columns.flatMap((c) => c.placed));
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
+  const [ghost, setGhost] = React.useState<Ghost | null>(null);
+  const noClick = React.useRef(0);
+
+  /** Follows the pointer until it lifts. Nothing is booked or moved here: the end of a drag only opens a dialog. */
+  const follow = (down: React.PointerEvent<HTMLElement>, onMove: (m: PointerEvent, col: HTMLElement | null) => void, onDone: (moved: boolean) => void) => {
+    const x0 = down.clientX;
+    const y0 = down.clientY;
+    let moved = false;
+    const leave = () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+    };
+    const onPointerMove = (m: PointerEvent) => {
+      if (Math.abs(m.clientX - x0) > DRAG_PX || Math.abs(m.clientY - y0) > DRAG_PX) moved = true;
+      if (!moved) return;
+      const col = document.elementsFromPoint(m.clientX, m.clientY).find((n): n is HTMLElement => n instanceof HTMLElement && !!n.dataset.day) ?? null;
+      onMove(m, col);
+    };
+    const onUp = () => {
+      leave();
+      onDone(moved);
+    };
+    // A scroll on a phone takes the gesture over: drop the drag.
+    const onCancel = () => {
+      leave();
+      setGhost(null);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  };
+
+  const pressGrid = (down: React.PointerEvent<HTMLDivElement>, day: Ymd) => {
+    if (!canBook || down.button !== 0 || (down.target as HTMLElement).closest("a")) return;
+    if (down.pointerType !== "touch") down.preventDefault();
+    const span = { first, last };
+    const column = down.currentTarget;
+    const from = minutesAt(down.clientY - column.getBoundingClientRect().top - HOUR_PX / 8, HOUR_PX, span);
+    let to = from + 60;
+    const shape = () => ({ start: Math.min(from, to), end: Math.max(to, from + 30) });
+    setGhost({ day, ...shape(), label: "New interview" });
+    follow(
+      down,
+      (m) => {
+        to = minutesAt(m.clientY - column.getBoundingClientRect().top, HOUR_PX, span) + SNAP_MINUTES;
+        setGhost({ day, ...shape(), label: "New interview" });
+      },
+      (moved) => {
+        setGhost(null);
+        if (!moved) to = from + 60;
+        const { start, end } = shape();
+        book({ day, minutes: start, length: end - start });
+      },
+    );
+  };
+
+  const grab = (down: React.PointerEvent<HTMLElement>, e: CalendarEvent) => {
+    if (down.button !== 0) return;
+    const span = { first, last };
+    const length = Math.round((Date.parse(e.endsAt) - Date.parse(e.startsAt)) / 60_000);
+    const grabbed = down.clientY - down.currentTarget.getBoundingClientRect().top;
+    let at: { day: Ymd; start: number } | null = null;
+    follow(
+      down,
+      (m, col) => {
+        if (!col?.dataset.day) return;
+        at = { day: col.dataset.day, start: minutesAt(m.clientY - col.getBoundingClientRect().top - grabbed, HOUR_PX, span) };
+        setGhost({ ...at, end: at.start + length, label: e.candidate });
+      },
+      (moved) => {
+        setGhost(null);
+        if (!moved) return;
+        // The click that ends a drag is not a click on the event.
+        noClick.current = Date.now();
+        if (!at) return;
+        const startsAt = zonedInstant(at.day, at.start, timeZone);
+        if (Date.parse(startsAt) !== Date.parse(e.startsAt)) move(e, { startsAt, endsAt: new Date(Date.parse(startsAt) + length * 60_000).toISOString() });
+      },
+    );
+  };
+  const openUnlessDragged = (e: CalendarEvent) => {
+    if (Date.now() - noClick.current > 300) open(e);
+  };
   const nowAt = zoned(now, timeZone);
   const cols = { gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` };
 
@@ -198,14 +326,28 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
           {columns.map(({ day, placed }) => (
             <div
               key={day}
-              className={cn("relative min-w-0 overflow-hidden border-l border-[color:var(--line)]", weekdayOf(day) % 6 === 0 && "bg-[color:color-mix(in_srgb,var(--soft)_55%,transparent)]")}
+              data-day={day}
+              onPointerDown={canBook ? (down) => pressGrid(down, day) : undefined}
+              className={cn("relative min-w-0 overflow-hidden border-l border-[color:var(--line)]", canBook && "cursor-cell", weekdayOf(day) % 6 === 0 && "bg-[color:color-mix(in_srgb,var(--soft)_55%,transparent)]")}
             >
               {hours.map((h, i) => (i > 0 ? <i key={h} className="absolute inset-x-0 h-px bg-[color:var(--line)]" style={{ top: i * HOUR_PX }} /> : null))}
               {/* Placed in minutes from midnight; the grid starts at `first`. */}
               <div className="absolute inset-x-0" style={{ top: -first * HOUR_PX, height: 24 * HOUR_PX }}>
                 {placed.map((p) => (
-                  <EventBlock key={p.event.id} placed={p} clock={clock} />
+                  <EventBlock key={p.event.id} placed={p} clock={clock} open={openUnlessDragged} grab={grab} />
                 ))}
+                {ghost?.day === day ? (
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden rounded-lg border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
+                    style={{ top: (ghost.start / 60) * HOUR_PX + 2, height: ((ghost.end - ghost.start) / 60) * HOUR_PX - 4 }}
+                  >
+                    <b className="truncate font-semibold">{ghost.label}</b>
+                    <span className="truncate tabular-nums">
+                      {String(Math.floor(ghost.start / 60)).padStart(2, "0")}:{String(ghost.start % 60).padStart(2, "0")} – {String(Math.floor(ghost.end / 60) % 24).padStart(2, "0")}:{String(ghost.end % 60).padStart(2, "0")}
+                    </span>
+                  </div>
+                ) : null}
                 {day === nowAt.day && nowAt.minutes >= first * 60 && nowAt.minutes <= last * 60 ? (
                   <em
                     aria-hidden
@@ -223,7 +365,7 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
 }
 
 /** design/tats's month (`.mo-grid`): six weeks, a day's first three interviews, the rest in its day view. */
-function MonthGrid({ cells, timeZone, today, dept }: { cells: MonthCell<CalendarEvent>[]; timeZone: string; today: Ymd; dept: string | null }) {
+function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<CalendarEvent>[]; timeZone: string; today: Ymd; dept: string | null; open: (e: CalendarEvent) => void }) {
   const clock = useClock(timeZone);
   return (
     <>
@@ -263,6 +405,7 @@ function MonthGrid({ cells, timeZone, today, dept }: { cells: MonthCell<Calendar
                 <Link
                   key={e.id}
                   href={e.href}
+                  onClick={opener(e, open)}
                   title={[e.candidate, `${clock(e.startsAt)} – ${clock(e.endsAt)}`, [e.step, e.job].filter(Boolean).join(" · "), e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
                   className="flex h-[22px] min-w-0 items-center gap-[5px] rounded-[5px] px-[5px] text-[12.5px] text-foreground transition-colors hover:bg-[color:var(--hover)] max-md:hidden"
                 >
@@ -331,7 +474,7 @@ function StatusPill({ past }: { past: boolean }) {
 const CT_GRID = "grid grid-cols-[110px_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_120px_110px_minmax(160px,1.2fr)] items-center gap-3.5 px-5";
 
 /** design/tats's interviews table (`.ct-row`): the rows in the order given, each opening the interview. */
-function ListOf({ rows, timeZone, now, empty }: { rows: CalendarEvent[]; timeZone: string; now: number; empty: string }) {
+function ListOf({ rows, timeZone, now, empty, open }: { rows: CalendarEvent[]; timeZone: string; now: number; empty: string; open: (e: CalendarEvent) => void }) {
   const clock = useClock(timeZone);
   return (
     <section aria-label="Interviews" className="pb-10">
@@ -357,7 +500,7 @@ function ListOf({ rows, timeZone, now, empty }: { rows: CalendarEvent[]; timeZon
               return (
                 <div role="row" key={e.id} className={cn(CT_GRID, "relative min-h-[52px] border-t border-[color:var(--line)] text-[13px] transition-colors hover:bg-[color:var(--hover)]")}>
                   {/* The whole row opens the interview; the location link sits above it. */}
-                  <Link href={e.href} aria-label={`${e.candidate}, ${e.step}, ${day} ${time}`} className="absolute inset-0" />
+                  <Link href={e.href} onClick={opener(e, open)} aria-label={`${e.candidate}, ${e.step}, ${day} ${time}`} className="absolute inset-0" />
                   <span role="cell">
                     <StatusPill past={Date.parse(e.endsAt) <= now} />
                   </span>
@@ -420,6 +563,7 @@ export function ScheduleView({
   dept,
   q,
   truncated,
+  canBook,
 }: {
   view: View;
   /** The `?date=`; null is the browser's today. */
@@ -433,6 +577,8 @@ export function ScheduleView({
   /** The `?q=`; null is the calendar, anything else the table of matches. */
   q: string | null;
   truncated: boolean;
+  /** May book on some job: not an interviewer. Which jobs is the dialog's read, and the policies' at the write. */
+  canBook: boolean;
 }) {
   const router = useRouter();
   const timeZone = React.useSyncExternalStore(noSubscribe, browserZone, serverZone);
@@ -445,6 +591,11 @@ export function ScheduleView({
   const today = timeZone ? todayIn(timeZone, now) : null;
   const shown = anchor ?? today;
 
+  const [flow, setFlow] = React.useState<Flow | null>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
+  const openEvent = React.useCallback((event: CalendarEvent) => setFlow({ kind: "event", event }), []);
+  const bookAt = (find: boolean) => setFlow({ kind: "book", find, ...(shown ? { at: { day: shown, minutes: 10 * 60, length: 60 } } : {}) });
+
   // Every key is a shortcut for a link here; `/` puts the cursor in the search.
   const search = React.useRef<HTMLDivElement>(null);
   const bindings: Record<string, KeyHandler> = {
@@ -453,6 +604,7 @@ export function ScheduleView({
       input?.focus();
       input?.select();
     },
+    ...(canBook && timeZone ? { n: () => bookAt(false), f: () => bookAt(true) } : {}),
   };
   if (shown) {
     for (const key of SCHEDULE_KEYS) {
@@ -466,6 +618,13 @@ export function ScheduleView({
     ...(q ? [] : [{ keys: "← / →", label: "Previous, next" }]),
     { keys: ".", label: "Today" },
     { keys: "/", label: "Search interviews" },
+    ...(canBook
+      ? [
+          { keys: "N", label: "Book an interview" },
+          { keys: "F", label: "Find a time" },
+          { keys: "Drag", label: "Book in the grid, or move an interview" },
+        ]
+      : []),
   ]);
 
   const days = shown ? daysOf(view, shown) : [];
@@ -489,6 +648,22 @@ export function ScheduleView({
             {/* Keyed by the search: the box holds what it was given, and the URL can change under it. */}
             <SearchBox key={q ?? ""} action="/client/schedule" defaultValue={q ?? ""} placeholder="Search interviews…" label="Search interviews" keep={{ view, date: anchor, dept }} />
           </div>
+          {canBook ? (
+            <>
+              <button type="button" onClick={() => bookAt(false)} disabled={!timeZone} title="Book an interview (N)" className={cn(cxBtn, "rounded-lg px-3 disabled:opacity-50")}>
+                Book
+              </button>
+              <button
+                type="button"
+                onClick={() => bookAt(true)}
+                disabled={!timeZone}
+                title="Suggests a time every interviewer is free (F)"
+                className="inline-flex h-8 items-center gap-2 rounded-lg border border-transparent bg-[color:var(--accent)] px-3 text-[13.5px] font-medium whitespace-nowrap text-[color:var(--accent-ink)] transition-[filter] hover:brightness-105 disabled:opacity-50"
+              >
+                Find a time
+              </button>
+            </>
+          ) : null}
         </PageBar>
       }
       bleed
@@ -561,6 +736,7 @@ export function ScheduleView({
           ))}
         </nav>
       </div>
+      <div role="status">{notice ? <Notice className="mx-5 mt-3">{notice}</Notice> : null}</div>
       {truncated ? (
         <Notice className="mx-5 mt-3">
           {q ? "Too many interviews to search them all; the oldest are left out." : "Too many interviews to show at once here; some later ones are left off. Try the day or week view."}
@@ -569,16 +745,31 @@ export function ScheduleView({
       {!timeZone || !today ? (
         <div aria-busy className="h-[668px]" />
       ) : q ? (
-        <ListOf rows={searchOrder(inDept, now)} timeZone={timeZone} now={now} empty={`No interviews match “${q}”.`} />
+        <ListOf rows={searchOrder(inDept, now)} timeZone={timeZone} now={now} empty={`No interviews match “${q}”.`} open={openEvent} />
       ) : view === "list" ? (
-        <ListOf rows={inOrder} timeZone={timeZone} now={now} empty="No interviews this month." />
+        <ListOf rows={inOrder} timeZone={timeZone} now={now} empty="No interviews this month." open={openEvent} />
       ) : (
         <div className="pb-10">
-          {view === "month" ? <MonthGrid cells={cells} timeZone={timeZone} today={today} dept={dept} /> : <TimeGrid days={days} events={inView} timeZone={timeZone} today={today} now={now} />}
+          {view === "month" ? (
+            <MonthGrid cells={cells} timeZone={timeZone} today={today} dept={dept} open={openEvent} />
+          ) : (
+            <TimeGrid
+              days={days}
+              events={inView}
+              timeZone={timeZone}
+              today={today}
+              now={now}
+              canBook={canBook}
+              open={openEvent}
+              book={(at) => setFlow({ kind: "book", find: false, at })}
+              move={(event, to) => setFlow({ kind: "move", event, to })}
+            />
+          )}
           {visible.length ? null : <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews this {view}.</Empty>}
           <Legend tones={legend} gutter={view !== "month"} />
         </div>
       )}
+      {flow && timeZone ? <ScheduleDialog key={flow.kind === "book" ? "book" : "event"} flow={flow} timeZone={timeZone} now={now} go={setFlow} close={() => setFlow(null)} done={setNotice} /> : null}
     </Page>
   );
 }

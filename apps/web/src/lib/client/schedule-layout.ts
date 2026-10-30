@@ -111,6 +111,35 @@ export function zoned(iso: string | number, timeZone: string): { day: Ymd; minut
 
 export const todayIn = (timeZone: string, now: number): Ymd => zoned(now, timeZone).day;
 
+/**
+ * The instant a wall-clock time names in `timeZone`, as UTC ISO: `minutes`
+ * after that date's midnight, which may run past it into the next day. Across
+ * a daylight-saving change, a time the clocks skip lands an hour on, and one
+ * they pass twice is the earlier.
+ */
+export function zonedInstant(day: Ymd, minutes: number, timeZone: string): string {
+  const wall = toUtc(day) + minutes * 60_000;
+  const wallAt = (ms: number) => {
+    const z = zoned(ms, timeZone);
+    return toUtc(z.day) + z.minutes * 60_000;
+  };
+  // The offsets in force a day either side: the same one, or both sides of a change.
+  const before = wallAt(wall - DAY_MS) - (wall - DAY_MS);
+  const after = wallAt(wall + DAY_MS) - (wall + DAY_MS);
+  const real = [wall - before, wall - after].filter((t) => wallAt(t) === wall);
+  return new Date(real.length ? Math.min(...real) : wall - before).toISOString();
+}
+
+/** What a drag on the grid snaps to, as in design/tats. */
+export const SNAP_MINUTES = 15;
+
+/** The minutes after midnight a pointer `offsetPx` down a day's grid stands for, snapped and kept on the grid. */
+export function minutesAt(offsetPx: number, hourPx: number, span: { first: number; last: number }): number {
+  const raw = span.first * 60 + (offsetPx / hourPx) * 60;
+  const snapped = Math.round(raw / SNAP_MINUTES) * SNAP_MINUTES;
+  return Math.max(span.first * 60, Math.min(span.last * 60 - SNAP_MINUTES, snapped));
+}
+
 export type Timed = { startsAt: string; endsAt: string };
 
 export type Placed<T> = {

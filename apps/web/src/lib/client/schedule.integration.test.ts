@@ -145,7 +145,10 @@ describe("the Calendar's read", () => {
       endsAt: expect.any(String),
       step: "Screen",
       interviewers: ["Ivy Interviewer", "Ben Builder"],
+      interviewerIds: [IVY, BEN],
       locationOrLink: "https://meet.google.com/abc-defg-hij",
+      status: "done",
+      eventLink: null,
     });
     expect(Date.parse(items.find((i) => i.interviewId === iv(1))!.startsAt)).toBe(Date.parse(at(-26)));
     // Platform sits in Engineering, so it is coloured and named as Engineering.

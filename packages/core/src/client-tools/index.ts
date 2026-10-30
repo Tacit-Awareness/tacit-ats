@@ -19,7 +19,8 @@ export {
 } from "./interviews.js";
 export type {
   CalendarOutcome, FeedbackEntry, FeedbackRating, FeedbackSummary, InterviewConflicts, InterviewStatus, MyInterview,
-  RatingInput, Recommendation, ScheduleResult, SchedulingDeps, UpdateInterviewResult,
+  RatingInput, Recommendation, ScheduleInput, SchedulePreview, ScheduleResult, SchedulingDeps, UpdateInterviewInput, UpdateInterviewResult,
+  UpdatePreview,
 } from "./interviews.js";
 export {
   DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS, findInterviewTimes, unknownText,

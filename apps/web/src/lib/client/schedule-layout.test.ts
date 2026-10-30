@@ -17,6 +17,8 @@ import {
   toneFor,
   weekStart,
   zoned,
+  minutesAt,
+  zonedInstant,
 } from "./schedule-layout";
 
 const ev = (id: string, startsAt: string, endsAt: string) => ({ id, startsAt, endsAt });
@@ -292,5 +294,54 @@ describe("department tones", () => {
     const unseen = toneFor("7f9c2b1e-0000-4000-8000-000000000001", new Map());
     expect(unseen).not.toBe("gray");
     expect(toneFor("7f9c2b1e-0000-4000-8000-000000000001", new Map())).toBe(unseen);
+  });
+});
+
+describe("a wall-clock time as an instant", () => {
+  test("in the member's zone", () => {
+    expect(zonedInstant("2030-01-07", 10 * 60, "America/New_York")).toBe("2030-01-07T15:00:00.000Z");
+    expect(zonedInstant("2030-07-08", 10 * 60, "America/New_York")).toBe("2030-07-08T14:00:00.000Z");
+    expect(zonedInstant("2030-01-07", 10 * 60, "Asia/Kolkata")).toBe("2030-01-07T04:30:00.000Z");
+    expect(zonedInstant("2030-01-07", 10 * 60, "UTC")).toBe("2030-01-07T10:00:00.000Z");
+  });
+
+  test("agrees with `zoned` both ways, either side of midnight", () => {
+    for (const zone of ["America/Los_Angeles", "Pacific/Auckland", "Asia/Tokyo"]) {
+      for (const minutes of [0, 15, 12 * 60, 23 * 60 + 45]) {
+        expect(zoned(zonedInstant("2030-03-20", minutes, zone), zone)).toEqual({ day: "2030-03-20", minutes });
+      }
+    }
+  });
+
+  test("the hour the clocks skip lands an hour on, never on the day before", () => {
+    // 10 March 2030: 02:00 becomes 03:00 in New York.
+    expect(zonedInstant("2030-03-10", 2 * 60 + 30, "America/New_York")).toBe("2030-03-10T07:30:00.000Z");
+    expect(zoned("2030-03-10T07:30:00.000Z", "America/New_York")).toEqual({ day: "2030-03-10", minutes: 3 * 60 + 30 });
+  });
+
+  test("the hour the clocks pass twice is the earlier", () => {
+    // 3 November 2030: 02:00 goes back to 01:00 in New York.
+    expect(zonedInstant("2030-11-03", 90, "America/New_York")).toBe("2030-11-03T05:30:00.000Z");
+  });
+
+  test("either side of a change keeps its own offset", () => {
+    expect(zonedInstant("2030-03-09", 10 * 60, "America/New_York")).toBe("2030-03-09T15:00:00.000Z");
+    expect(zonedInstant("2030-03-11", 10 * 60, "America/New_York")).toBe("2030-03-11T14:00:00.000Z");
+  });
+});
+
+describe("a pointer on the grid", () => {
+  const span = { first: 8, last: 19 };
+
+  test("snaps to a quarter of an hour", () => {
+    expect(minutesAt(0, 56, span)).toBe(8 * 60);
+    expect(minutesAt(56, 56, span)).toBe(9 * 60);
+    expect(minutesAt(56 + 8, 56, span)).toBe(9 * 60 + 15);
+    expect(minutesAt(56 + 6, 56, span)).toBe(9 * 60);
+  });
+
+  test("stays on the grid above and below it", () => {
+    expect(minutesAt(-300, 56, span)).toBe(8 * 60);
+    expect(minutesAt(5000, 56, span)).toBe(19 * 60 - 15);
   });
 });

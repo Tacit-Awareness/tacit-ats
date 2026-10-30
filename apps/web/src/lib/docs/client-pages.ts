@@ -372,6 +372,8 @@ When the job has an interview plan, the step must be one of its steps. Schedulin
 
 \`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free.
 
+On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
+
 ## Connect your calendar
 
 Open **Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.

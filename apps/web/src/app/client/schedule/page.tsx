@@ -1,5 +1,6 @@
 import { safeHref } from "@/lib/client/applicant-queue";
 import { readAllInterviews, readSchedule } from "@/lib/client/schedule";
+import { schedulableRoles } from "@/lib/client/schedule-choices";
 import { departmentTones, isScheduleView, parseYmd, readWindow, toneFor } from "@/lib/client/schedule-layout";
 import { matchesSearch, parseSearch } from "@/lib/client/schedule-search";
 import { resolveClient } from "@/lib/client/session";
@@ -7,7 +8,7 @@ import { Refusal } from "../refusal";
 import { ScheduleView, type CalendarEvent } from "./view";
 
 // design/tats's Calendar: the interviews the member can see, by day, week or
-// month, or as a month's list, read-only. Read with the signed-in member's own
+// month, or as a month's list. Read with the signed-in member's own
 // token (lib/client/schedule.ts), so an interviewer sees their own interviews
 // only. Not /client/calendar, which is the Google Calendar connect redirect.
 //
@@ -23,9 +24,13 @@ import { ScheduleView, type CalendarEvent } from "./view";
 // interviews as instants to view.tsx, a client component that places them in
 // the browser's own zone. With no `?date=`, "today" is the browser's today.
 //
-// Left out from the prototype: drag to create or move, "Find a time", holds,
-// and the popover's move and cancel. An event opens the interview on the
-// Interviews page.
+// Book, move, cancel and Find a time are view.tsx's and booking.tsx's, through
+// the route that reaches calendar grants. Here is only who may: `canChange` is
+// an interview still ahead on a job the member may schedule on, asked the way a
+// write asks, and the write asks again. An interviewer changes nothing.
+//
+// Left out from the prototype: holds. An event the member cannot change opens
+// the interview on the Interviews page.
 
 export default async function ClientSchedule({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const gate = await resolveClient();
@@ -48,6 +53,9 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
   const asDept = one(sp.dept);
   const dept = names.includes(asDept) ? asDept : null;
 
+  const ahead = (i: (typeof items)[number]) => i.status === "scheduled" && Date.parse(i.startsAt) > now.getTime();
+  const schedulable = accessLevel === "limited" ? new Set<string>() : await schedulableRoles(db, items.filter(ahead).map((i) => i.jobId));
+
   const events: CalendarEvent[] = (q ? items.filter((i) => matchesSearch(i, q)) : items).map((i) => ({
     id: i.interviewId,
     href: `/client/interviews?i=${encodeURIComponent(i.interviewId)}`,
@@ -61,6 +69,9 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
     startsAt: i.startsAt,
     endsAt: i.endsAt,
     tone: toneFor(i.departmentId, tones),
+    interviewerIds: i.interviewerIds,
+    eventLink: i.eventLink ? safeHref(i.eventLink) : null,
+    canChange: ahead(i) && schedulable.has(i.jobId),
   }));
 
   return (
@@ -72,6 +83,7 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
       dept={dept}
       q={q}
       truncated={truncated}
+      canBook={accessLevel !== "limited"}
     />
   );
 }
