@@ -3,7 +3,8 @@
 // unit tests can drive it. The refresh token goes straight into the database
 // through client_connect_calendar on the member's own token
 // (calendar_connections, tacit-internal migration 20261017120000), which no
-// member token can read back; the client connector (apps/mcp) books with it.
+// member token can read back; the client connector (apps/mcp) and the Calendar's
+// route (lib/member-calendar) book with it.
 
 type Env = Record<string, string | undefined>;
 

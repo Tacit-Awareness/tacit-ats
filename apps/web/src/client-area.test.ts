@@ -99,6 +99,77 @@ describe("the client area never holds a privileged database client", () => {
   });
 });
 
+/**
+ * Book, move and cancel need members' calendar grants, which no member token
+ * can read, so they reach the service role by one way only: the route below,
+ * in a route group, outside the roots above, reading through one module. These
+ * hold that way shut: what the route reaches, who imports the module, what the
+ * module hands out, and what the route checks before anything else.
+ */
+describe("the one way to a member's calendar grants", () => {
+  const ROUTE = join(SRC, "app/(member-calendar)/client/schedule/api/route.ts");
+  const GRANTS = join(SRC, "lib/member-calendar/grants.ts");
+  const nonTest = walk(SRC);
+
+  test("the route and the module are where this says", () => {
+    expect(existsSync(ROUTE)).toBe(true);
+    expect(existsSync(GRANTS)).toBe(true);
+  });
+
+  test("everything in the route group is that one route", () => {
+    expect(walk(join(SRC, "app/(member-calendar)")).map(rel)).toEqual([rel(ROUTE)]);
+  });
+
+  test("only the route imports the module", () => {
+    const importers = nonTest.filter((f) => f !== GRANTS && importsOf(f).some((spec) => resolveLocal(f, spec) === GRANTS));
+    expect(importers.map(rel)).toEqual([rel(ROUTE)]);
+  });
+
+  test("nothing in the client area imports the route", () => {
+    const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
+    expect(roots.filter((f) => importsOf(f).some((spec) => resolveLocal(f, spec) === ROUTE)).map(rel)).toEqual([]);
+  });
+
+  test("past the session's own binding, only the module names a privileged client", () => {
+    const offenders: string[] = [];
+    const seen = new Set<string>();
+    const visit = (file: string) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      if (ALLOWED.has(file) || file === GRANTS) return;
+      if (PRIVILEGED.test(readFileSync(file, "utf8"))) offenders.push(rel(file));
+      for (const spec of importsOf(file)) {
+        const next = resolveLocal(file, spec);
+        if (next) visit(next);
+      }
+    };
+    visit(ROUTE);
+    expect(offenders).toEqual([]);
+  });
+
+  test("the module hands out a function, never a client", () => {
+    const text = readFileSync(GRANTS, "utf8");
+    expect([...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class|type)\s+(\w+)/gm)].map((m) => m[1])).toEqual(["memberCalendar"]);
+    // The client is built inside the read, and stops there.
+    expect(text.match(/getSupabaseServiceClient/g)).toHaveLength(2);
+    expect(text).toMatch(/await getSupabaseServiceClient\(\)\s*\.from\("calendar_connections"\)/);
+  });
+
+  test("the route is one POST, asks who is calling first, and checks where it came from before it reads the body", () => {
+    const text = readFileSync(ROUTE, "utf8");
+    expect([...text.matchAll(/^export\s+(?:async\s+)?(?:function|const)\s+(\w+)/gm)].map((m) => m[1])).toEqual(["POST"]);
+    const body = text.slice(text.indexOf("export async function POST"));
+    const steps = ["await resolveClient()", "sameOrigin(request.headers)", "request.text()", "parseScheduleRequest(body)", "memberCalendar("];
+    const at = steps.map((s) => body.indexOf(s));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+
+  test("the proxy's sign-in covers its address", () => {
+    expect(rel(ROUTE).replace("app/(member-calendar)", "").replace("/route.ts", "")).toMatch(/^\/client\//);
+  });
+});
+
 describe("the public job pages hold no session and no client but the publishable key", () => {
   // /careers/[org], /jobs/[slug] and /api/jobs/[slug]/apply are outside the proxy's sign-in
   // check on purpose. What they can reach must not be able to act as anyone:

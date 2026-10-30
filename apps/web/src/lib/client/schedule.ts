@@ -33,7 +33,13 @@ export type ScheduleItem = {
   endsAt: string;
   step: string | null;
   interviewers: string[];
+  applicationId: string;
+  /** The same people's ids, for Find a time when it is moved. */
+  interviewerIds: string[];
   locationOrLink: string | null;
+  status: string;
+  /** Its event in Google Calendar, when it has one. */
+  eventLink: string | null;
 };
 
 export type Schedule = {
@@ -52,6 +58,8 @@ type InterviewRow = {
   step: string | null;
   interviewer_actor_ids: string[];
   location_or_link: string | null;
+  status?: string;
+  google_event_link?: string | null;
 };
 
 const toolCtx = (m: Member): clientTools.ClientToolCtx => ({ ...m, source: "claude" });
@@ -72,7 +80,7 @@ async function inChunks<T>(ids: string[], read: (chunk: string[]) => Promise<T[]
 async function scanInterviews(db: Db, { window, ascending, max }: { window: { from: string; to: string } | null; ascending: boolean; max: number }): Promise<InterviewRow[]> {
   const rows = new Map<string, InterviewRow>();
   for (let from = 0; from <= max; from += PAGE) {
-    let query = db.from("interviews").select("id, application_id, starts_at, ends_at, step, interviewer_actor_ids, location_or_link").neq("status", "cancelled");
+    let query = db.from("interviews").select("id, application_id, starts_at, ends_at, step, interviewer_actor_ids, location_or_link, status, google_event_link").neq("status", "cancelled");
     if (window) query = query.lt("starts_at", window.to).gt("ends_at", window.from);
     const { data, error } = await query
       .order("starts_at", { ascending })
@@ -145,6 +153,7 @@ async function assemble(db: Db, member: Member, rows: InterviewRow[], max: numbe
       const app = apps.get(i.application_id!)!;
       return {
         interviewId: i.id,
+        applicationId: i.application_id!,
         ...app,
         departmentId: departmentOf.get(app.jobId) ?? null,
         startsAt: i.starts_at,
@@ -152,7 +161,10 @@ async function assemble(db: Db, member: Member, rows: InterviewRow[], max: numbe
         step: i.step,
         // Interviewers no longer at the company drop out, as on the Interviews page.
         interviewers: i.interviewer_actor_ids.flatMap((id) => (names.get(id) ? [names.get(id)!] : [])),
+        interviewerIds: i.interviewer_actor_ids.filter((id) => names.has(id)),
         locationOrLink: i.location_or_link,
+        status: i.status ?? "scheduled",
+        eventLink: i.google_event_link ?? null,
       };
     }),
     departments,
