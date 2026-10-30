@@ -4873,6 +4873,41 @@ body, .app { background: var(--frame); }
 .su-check { background: var(--paper); }
 .su-frame { background: var(--soft); }
 
+/* v67: lines in two weights, so the wireframe reads at a glance.
+   Structure (page edges, headers, list | reader splits, table heads) is stronger;
+   hairlines inside a box stay quiet. Boxes get a crisper edge. */
+:root {
+  --line: #E3E4E9;
+  --line-strong: #CFD1D8;
+  --edge: rgba(34, 35, 38, 0.12);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px rgba(34, 35, 38, 0.05), 0 4px 12px -6px rgba(34, 35, 38, 0.08);
+  --elev-hi: 0 0 0 1px rgba(34, 35, 38, 0.16), 0 2px 4px rgba(34, 35, 38, 0.06), 0 12px 28px -10px rgba(34, 35, 38, 0.16);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --line: rgba(244, 245, 248, 0.08); --line-strong: rgba(244, 245, 248, 0.15); --edge: rgba(244, 245, 248, 0.1);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.4); } }
+:root[data-theme="dark"] { --line: rgba(244, 245, 248, 0.08); --line-strong: rgba(244, 245, 248, 0.15); --edge: rgba(244, 245, 248, 0.1);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.4); }
+
+/* structure: page header, sub-headers, the split between a list and its reader */
+.bar, .cx-bar, .ib-bar { border-bottom: 1px solid var(--line-strong); }
+.hm-nav, .crm-tabs, .subbar { border-bottom: 1px solid var(--line-strong); }
+.ib-col, .tk .mlist, .ivw-list, .mlist { border-right: 1px solid var(--line-strong); }
+.ib-top, .rc-head, .pt { border-bottom-color: var(--line-strong); }
+/* tables: a firm head, quiet rows, a firm foot */
+.crm-head { border-bottom: 1px solid var(--line-strong); }
+.crm-h, .h-head, .hm-st-head, .su-mx-h { border-bottom: 1px solid var(--line-strong); }
+.crm-r > * { border-left-color: var(--line); }
+.crm-r { border-bottom-color: var(--line); }
+.crm-foot { border-top: 1px solid var(--line-strong); }
+/* lanes and groups read as regions */
+.board .col { background: var(--band); box-shadow: inset 0 0 0 1px var(--line); border-radius: 10px; }
+.board .col-head { padding: 6px 8px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+.group-head { background: var(--band); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.ib-gh, .iv-gh { border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+/* inside a box, sections split with a hairline */
+.hm-f, .rc-sec, .su-row, .su-sk, .su-mx-r, .su-cov-r, .hm-st-list { border-color: var(--line); }
+.rc-cols > .rc-col + .rc-col { border-left: 1px solid var(--line-strong); }
+
 </style>
 
 <div class="app" id="app">
