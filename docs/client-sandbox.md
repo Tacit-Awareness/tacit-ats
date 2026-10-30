@@ -58,3 +58,108 @@ About 30 minutes. Times are from the booking; the cron runs every two minutes.
   `cancelled_in_google`, `started`, `no_bot`).
 - **The bot itself**: if Tacit delivered (`sent` in the cron's answer) and
   nothing appeared in Slack, the problem is on the bot's side.
+
+## Trying the new client pages
+
+The pages ported from design/tats (2026-10-29) have not been used by a signed-in
+person yet. Walk through them on https://ats.tacitawareness.com once they are
+deployed, about 15 minutes. You need three sign-ins to see every role: Ryan as
+**Admin**, plus a **Hiring team** member (the Team page's access levels; give
+them one job) and an **Interviewer**, both invited from Team to addresses you
+can read. The sidebar shows the level under the member's name. Set up first: at
+least two open jobs, a few candidates spread across stages (add them from a
+job's board, or use the client connector), one interview booked with a second
+person as interviewer, and one application from a public job post
+(`/jobs/<slug>`) so Applicant Tickets has something in it.
+
+Roles in short: **Admin** and **Hiring team** see the pages below; a Hiring
+team member sees only the jobs they are on. An **Interviewer** (limited) gets
+a pointer back to Home on Pipeline, CRM and Applicant Tickets, because their
+token cannot read applications.
+
+### Home: the Recruiting Overview (`/client`)
+
+- [ ] Admin: cards for new applications (against the period before),
+  candidates in process by column, waiting for review, waiting to be
+  scheduled, interviewer feedback on time and workload by interviewer.
+- [ ] Switch the period (7 / 30 / 90 days) and a job tab; the numbers and the
+  URL (`?days=`, `?job=`) change together.
+- [ ] Bottlenecks: open a row, check it lists the longest waits and that a
+  name opens the candidate page. Time in stage and the average stay per stage
+  sit beside it.
+- [ ] Hiring team: the numbers count only their job. The feedback card is
+  there only if they manage a job, and with a job picked it says "every job
+  you manage".
+- [ ] Interviewer: not the overview, but the older Home: the people they
+  interview, the jobs they can see, the team.
+- Left out on purpose: Testbench, targets and alerts, interview efficiency
+  (pass rates, interviews per hire), the team filter, "Compare styles".
+
+### CRM and the candidate page (`/client/candidates`)
+
+- [ ] Admin: one table of every candidate. Try the view tabs (All, In process,
+  Hired, Rejected, Withdrew; counts can add up past All because a candidate
+  is in each view one of their applications puts them in), the search (name,
+  email, headline, job title), sorting by a column and paging at 50.
+- [ ] A candidate in no job shows as Prospect. The footer says so if the
+  table stopped short of everyone.
+- [ ] Open a row: the candidate page shows each job with stage, source,
+  owner and next action (red when overdue), the profile summary, contact,
+  tags, pools, file names and the activity feed, newest first.
+- [ ] A made-up id (`/client/candidates/00000000-0000-0000-0000-000000000000`)
+  is a 404, the same as a candidate you cannot see.
+- [ ] Hiring team: only candidates on their job. Interviewer: the CRM points
+  home; the candidate page, opened from Interviews, shows just the card, the
+  resume, their own notes and interviews.
+- Left out: a Silver medalists view (no rule for it yet), file downloads
+  (names only), the Grokbot "court", Testbench and sentiment. Nothing here
+  edits a candidate.
+
+### Applicant Tickets (`/client/applicants`) (this one moves stages)
+
+- [ ] Admin: new job-board applicants (source job board, still at the first
+  stage) grouped by job, newest first. Open one: name, email and phone, every
+  answer, resume and LinkedIn as links only if they are http(s) URLs, and the
+  source.
+- [ ] Below it the routing bar: **Interview**, **Move to screening**,
+  **Decline**. Decline needs a rejection reason from the list. Each moves the
+  application's stage and opens the next ticket; check the candidate's
+  activity feed shows the move.
+- [ ] Open the same ticket in two tabs, route it in one, then in the other:
+  the second does not move it twice.
+- [ ] Hiring team: only their job's applicants, and the routing bar only
+  where they can edit that job's pipeline. Interviewer: pointed home.
+- Left out: the reply email (the web app has no mailer; email the candidate
+  from Claude's connector).
+
+### Pipeline (`/client/pipeline`)
+
+- [ ] Admin: every open job's live applications on one board. The columns are
+  computed: New, Screening, Scheduling (interviewing, nothing booked),
+  Interview booked, Your call (interviews held, nothing booked next), Offer.
+  Hired, rejected and withdrawn are not on it. Move one candidate to match
+  (book an interview, let it pass) and see its card change column.
+- [ ] Job tabs, the name filter, and "Show all" on a column over a dozen cards.
+- [ ] A card: the person, the job, one status line in relative times
+  ("Interview in 2d"), red when stalled, and the owner. The name opens the
+  candidate page.
+- [ ] Hiring team: only their job's cards. Interviewer: pointed home.
+- Left out: moving cards (it is read-only; edit on a job's own board,
+  `/client/jobs/<id>`).
+
+### Interviews (`/client/interviews`)
+
+- [ ] Admin: a list grouped as Upcoming, then past interviews by verdict
+  (Pass, Fail, Mixed, Read pending) from the feedback you may read. Cancelled
+  interviews are not listed.
+- [ ] Pick one: the candidate's loop (planned rounds, then off-plan ones; this
+  round highlighted, later ones faded) with who ran each and Filed / Not
+  filed / Not visible to you, then this interview's feedback: recommendation,
+  rating, scorecard and notes.
+- [ ] File feedback as the second person, then reload as Admin: the verdict
+  changes from Read pending.
+- [ ] Hiring team: interviews on their job; whether others' feedback shows
+  follows the org's feedback visibility, and a line says when some is hidden.
+- [ ] Interviewer: only the interviews they sit on, with only their own
+  feedback.
+- Left out: a "reviewed" check, and Granola notes and transcripts.
