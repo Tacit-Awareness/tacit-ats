@@ -261,7 +261,7 @@ export function SectionHead({
   );
 }
 
-/** A card. `flush` puts the body edge to edge (tables), with the heading in its own ruled band. */
+/** A card. `flush` is design/tats's `.cardbox`: the body edge to edge (tables, ruled rows), the heading in its own ruled band. */
 export function Section({
   title,
   count,
@@ -282,7 +282,7 @@ export function Section({
     <section
       className={cn(
         "grid min-w-0 content-start rounded-[12px] border border-[color:var(--line)] bg-card text-[13px]",
-        flush ? "gap-0 overflow-hidden" : "gap-2.5 px-4 py-3.5",
+        flush ? "grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden rounded-[10px]" : "gap-2.5 px-4 py-3.5",
         className,
       )}
       {...props}
@@ -293,7 +293,7 @@ export function Section({
           count={count}
           aside={aside}
           icon={icon}
-          className={flush ? "border-b border-[color:var(--line)] px-4 py-3" : undefined}
+          className={flush ? "min-h-10 border-b border-[color:var(--line)] px-3.5 [&>h2]:font-medium" : undefined}
         />
       )}
       {children}
@@ -372,8 +372,16 @@ export function ListReader({
 }
 
 /** The list-row container; rows bleed 8px so their hover reaches the card padding. */
-export function Rows({ tight = false, className, ...props }: React.ComponentProps<"div"> & { tight?: boolean }) {
-  return <div data-tight={tight || undefined} className={cn("group/rows -mx-2 grid", className)} {...props} />;
+/** `ruled` is design/tats's `.lrow.pol`, for a `flush` Section: 56px rows edge to edge with a line between, the meta under the text on a phone. */
+export function Rows({ tight = false, ruled = false, className, ...props }: React.ComponentProps<"div"> & { tight?: boolean; ruled?: boolean }) {
+  return (
+    <div
+      data-tight={tight || undefined}
+      data-ruled={ruled || undefined}
+      className={cn("group/rows grid", ruled ? "divide-y divide-[color:var(--line)]" : "-mx-2", className)}
+      {...props}
+    />
+  );
 }
 
 /** One compact row: icon, a bold line over a muted one, meta right-aligned. */
@@ -398,19 +406,20 @@ export function Row({
 }) {
   const cls = cn(
     "flex min-w-0 items-center gap-[11px] rounded-lg px-2 py-2 text-left group-data-[tight]/rows:py-1.5",
+    "group-data-[ruled]/rows:min-h-14 group-data-[ruled]/rows:rounded-none group-data-[ruled]/rows:px-3.5 max-sm:group-data-[ruled]/rows:flex-wrap",
     href && "transition-colors hover:bg-accent",
     className,
   );
   const body = (
     <>
       {icon}
-      <span className="grid min-w-0 flex-1">
+      <span className="grid min-w-0 flex-1 max-sm:group-data-[ruled]/rows:basis-[calc(100%-41px)]">
         <b className="max-w-full justify-self-start truncate text-[13px] font-medium text-foreground">{title}</b>
         {sub && <span className="max-w-full justify-self-start truncate text-xs text-muted-foreground">{sub}</span>}
         {children}
       </span>
       {meta && (
-        <span className={cn("flex flex-none items-center gap-2.5 text-xs", metaTone === "late" ? "text-negative" : "text-foreground/75")}>
+        <span className={cn("flex flex-none items-center gap-2.5 text-xs max-sm:group-data-[ruled]/rows:max-w-full max-sm:group-data-[ruled]/rows:flex-wrap", metaTone === "late" ? "text-negative" : "text-foreground/75")}>
           {meta}
         </span>
       )}
@@ -575,25 +584,15 @@ export function Empty({ className, ...props }: React.ComponentProps<"p">) {
   return <p className={cn("my-1 text-[12.5px] text-faint", className)} {...props} />;
 }
 
-/** The green "connected" dot with its label. */
-export function Live({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-foreground/80">
-      <i className="size-1.5 rounded-full bg-positive shadow-[0_0_6px_var(--green-bright)]" />
-      {children}
-    </span>
-  );
-}
-
 /** Inline text link: quiet until hovered, the accent on hover. */
 export const textLink = "inline-flex items-center gap-1 text-[12.5px] text-foreground/75 transition-colors hover:text-[color:var(--accent)]";
 
-/** A 30px app tile for connector rows: a glyph or an icon on the raised fill. */
+/** A 30px app tile for connector rows, design/tats's `.set-tile`. */
 export function AppTile({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <span
       className={cn(
-        "grid size-[30px] flex-none place-items-center rounded-lg bg-raised font-pixel text-xs text-foreground shadow-[inset_0_0_0_1px_var(--line-strong)]",
+        "grid size-[30px] flex-none place-items-center rounded-[7px] border border-[color:var(--line)] bg-[color:var(--paper)]",
         className,
       )}
     >
