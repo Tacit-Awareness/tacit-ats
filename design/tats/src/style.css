@@ -4146,13 +4146,9 @@ a.pt-n:hover { border-color: var(--line-strong); }
     50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 24%, transparent), 0 0 24px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
   }
 }
-.act-glow { --glow: #f2b01e; background: color-mix(in srgb, var(--glow) 14%, var(--paper)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 22%, transparent), 0 0 26px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes actGlow {
-    0%, 100% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 80%, transparent), 0 0 0 4px color-mix(in srgb, var(--glow) 20%, transparent), 0 0 18px 2px color-mix(in srgb, var(--glow) 38%, transparent); }
-    50% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 95%, transparent), 0 0 0 6px color-mix(in srgb, var(--glow) 28%, transparent), 0 0 32px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  }
-}
+/* No glow: the picked move just carries the hover highlight. */
+.act-glow, .act-glow:hover { background: none; box-shadow: none; animation: none; }
+.act-glow button.on { background: var(--hover); border-color: var(--line-strong); box-shadow: none; }
 
 /* v56: off-white surfaces, darker hairlines, and shading that says where one pane ends */
 :root {

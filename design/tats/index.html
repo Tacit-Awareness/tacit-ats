@@ -4153,13 +4153,9 @@ a.pt-n:hover { border-color: var(--line-strong); }
     50% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 24%, transparent), 0 0 24px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
   }
 }
-.act-glow { --glow: #f2b01e; background: color-mix(in srgb, var(--glow) 14%, var(--paper)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 85%, transparent), 0 0 0 5px color-mix(in srgb, var(--glow) 22%, transparent), 0 0 26px 4px color-mix(in srgb, var(--glow) 45%, transparent); }
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes actGlow {
-    0%, 100% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 80%, transparent), 0 0 0 4px color-mix(in srgb, var(--glow) 20%, transparent), 0 0 18px 2px color-mix(in srgb, var(--glow) 38%, transparent); }
-    50% { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--glow) 95%, transparent), 0 0 0 6px color-mix(in srgb, var(--glow) 28%, transparent), 0 0 32px 6px color-mix(in srgb, var(--glow) 55%, transparent); }
-  }
-}
+/* No glow: the picked move just carries the hover highlight. */
+.act-glow, .act-glow:hover { background: none; box-shadow: none; animation: none; }
+.act-glow button.on { background: var(--hover); border-color: var(--line-strong); box-shadow: none; }
 
 /* v56: off-white surfaces, darker hairlines, and shading that says where one pane ends */
 :root {
@@ -7342,12 +7338,6 @@ function triagePage() {
   return `<div class="inbox2 tk tk-nohead ${state.dvFull ? "dv-full" : ""}">
     <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
     <div class="reader" id="reader">
-      <header class="tk-top">${candAv(a, "xl")}
-        <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
-        <div class="tk-acts"><button class="cx-btn" data-act="askGrok" data-id="${a.id}">${botAv(ME)}Ask Grokbot</button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
-      </header>
-      <div class="tk-meta"><span class="label">${esc(ROLES[a.role].title)}</span>${labelsOf(a).map(labelChip).join("")}<button class="label add" data-act="menuLabels" data-id="${a.id}">${ico("plus")}Tag</button>
-</div>
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}

@@ -2545,12 +2545,6 @@ function triagePage() {
   return `<div class="inbox2 tk tk-nohead ${state.dvFull ? "dv-full" : ""}">
     <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
     <div class="reader" id="reader">
-      <header class="tk-top">${candAv(a, "xl")}
-        <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
-        <div class="tk-acts"><button class="cx-btn" data-act="askGrok" data-id="${a.id}">${botAv(ME)}Ask Grokbot</button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
-      </header>
-      <div class="tk-meta"><span class="label">${esc(ROLES[a.role].title)}</span>${labelsOf(a).map(labelChip).join("")}<button class="label add" data-act="menuLabels" data-id="${a.id}">${ico("plus")}Tag</button>
-</div>
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
