@@ -468,7 +468,7 @@ Claude picks the matching reason, calls \`update_stage\` with it and your note, 
 
 > Make Lee an admin.
 
-\`set_member_access\` (admins) sets a member to interviewer, hiring team or admin. Your company always keeps at least one admin who has signed in, so the last admin cannot be lowered. Claude tells you exactly what will change and waits for a yes.
+\`set_member_access\` (admins) sets a member to interviewer, hiring team or admin. Your company always keeps at least one admin who has signed in, so the last admin cannot be lowered. Claude tells you exactly what will change and waits for a yes. Admins can make the same change on the Interviewers page, under Members.
 
 ## Read-only connector
 

@@ -5,29 +5,40 @@ import { buttonVariants } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { levelName } from "@/lib/client/levels";
+import { soleAdmin } from "@/lib/client/member-access";
+import { AccessForm } from "./access-form";
 import { inviteAction, withdrawAction } from "./actions";
 
 // Under the interviewers: everyone on the team with their access, and for an
-// admin who has been invited and not signed in yet, with the invite form.
-// Props only (page.tsx does the reads). Hiding the forms from others is
-// presentation, not the control: the invite functions check the caller again.
+// admin the picker that changes it, who has been invited and not signed in yet,
+// and the invite form. Props only (page.tsx does the reads). Hiding the forms
+// from others, and the picker from the only admin, is presentation, not the
+// control: the definer functions check the caller and the last admin again.
 
 export type TeamMember = { id: string; display_name: string; email: string | null; access_level: string };
 
 export function TeamSections({
   members,
+  membersTruncated,
   pending,
   actorId,
   isAdmin,
+  rendered,
 }: {
   members: TeamMember[];
+  /** The read stopped at its cap, so the list may not hold every admin. */
+  membersTruncated: boolean;
   pending: Awaited<ReturnType<typeof listPendingInvites>>;
   actorId: string;
   isAdmin: boolean;
+  /** When this request rendered: keys the pickers, so each comes back from an action showing the saved level. */
+  rendered: number;
 }) {
+  const onlyAdmin = soleAdmin(members, membersTruncated);
   return (
     <>
       <Section title="Members" count={members.length}>
+        {membersTruncated ? <p className="m-0 pb-2 text-xs text-muted-foreground">Showing the first {members.length.toLocaleString("en-US")}; there are more.</p> : null}
         <Rows>
           {members.map((m) => (
             <Row
@@ -40,7 +51,16 @@ export function TeamSections({
                 </>
               }
               sub={m.email ?? undefined}
-              meta={<span className="text-faint">{levelName(m.access_level)}</span>}
+              meta={
+                isAdmin && m.id !== onlyAdmin ? (
+                  <AccessForm key={`${m.id}:${rendered}`} actorId={m.id} name={m.display_name} level={m.access_level} isSelf={m.id === actorId} />
+                ) : (
+                  <span className="text-faint" title={isAdmin ? "Your company needs an admin. Make someone else an admin to change this." : undefined}>
+                    {levelName(m.access_level)}
+                    {isAdmin ? " · only admin" : ""}
+                  </span>
+                )
+              }
             />
           ))}
         </Rows>
