@@ -40,8 +40,8 @@ const gridOf = (feedback: boolean) =>
   cn(
     "grid items-center gap-3 px-3.5",
     feedback
-      ? "grid-cols-[minmax(170px,1.3fr)_84px_132px_62px_72px_minmax(110px,1fr)_60px_minmax(170px,1fr)_44px]"
-      : "grid-cols-[minmax(170px,1.3fr)_84px_132px_62px_72px_minmax(110px,1fr)_60px_44px]",
+      ? "grid-cols-[minmax(170px,1.3fr)_84px_146px_62px_72px_minmax(110px,1fr)_60px_minmax(170px,1fr)_44px]"
+      : "grid-cols-[minmax(170px,1.3fr)_84px_146px_62px_72px_minmax(110px,1fr)_60px_44px]",
   );
 
 /** design/tats's `.lbar` and its number: the bar is loadMeter's. */
@@ -206,7 +206,7 @@ export function InterviewersView({
           <Empty className="px-3.5 py-3">{empty}</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[1090px]" : "min-w-[880px]")}>
+            <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[1042px]" : "min-w-[860px]")}>
               <div role="row" className={cn(grid, "h-[34px] border-b border-[color:var(--line)] text-xs whitespace-nowrap text-faint")}>
                 <span role="columnheader">Interviewer</span>
                 <span role="columnheader" title="Whether they like interviewing, as they said">

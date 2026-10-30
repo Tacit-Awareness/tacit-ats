@@ -172,6 +172,14 @@ function ProfileDialog({ actorId, name, self, profile, onClose }: { actorId: str
 export function ProfileEditor({ actorId, name, self, profile }: { actorId: string; name: string; self: boolean; profile: StoredProfile | null }) {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  // Removing an open <dialog> drops focus on the body, where the browser's own
+  // close would have put it back: a keyboard user would start again from the top.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) button.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
   return (
     <>
       {notice ? (
@@ -180,6 +188,7 @@ export function ProfileEditor({ actorId, name, self, profile }: { actorId: strin
         </span>
       ) : null}
       <button
+        ref={button}
         type="button"
         aria-label={self ? "Edit your interviewer profile" : `Edit ${name}'s interviewer profile`}
         onClick={() => {

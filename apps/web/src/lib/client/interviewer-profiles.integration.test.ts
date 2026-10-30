@@ -185,6 +185,43 @@ describe("setInterviewerProfile", () => {
     expect(await row(IVY)).toMatchObject({ focus_areas: ["\u{1F468}‍\u{1F4BB} pairing"], away_until: "0001-01-01" });
   });
 
+  test("a connector set to read-only stops the connector and not the dashboard", async () => {
+    must(await db().from("orgs").update({ connector_access: "read_only" }).eq("id", ACME));
+    expect(await clientTools.setInterviewerProfile(...ivy(), { memberId: IVY, expectedUpdatedAt: null, profile: FULL })).toEqual({ outcome: "changed" });
+    const [client, level] = lee();
+    await expect(clientTools.setInterviewerProfile(client, { ...level, source: "claude" }, { memberId: LEE, expectedUpdatedAt: null, profile: FULL })).rejects.toMatchObject({ code: "forbidden" });
+    expect(await row(LEE)).toBeNull();
+  });
+
+  test("past the hourly limit nothing is written, on the real claim", async () => {
+    must(await db().from("audit_log").insert(Array.from({ length: 300 }, () => ({ org_id: ACME, actor_id: IVY, source: "dashboard", action: "interviewer_profile.update", entity: "actor", after: {} }))));
+    await expect(clientTools.setInterviewerProfile(...ivy(), { memberId: IVY, expectedUpdatedAt: null, profile: FULL })).rejects.toMatchObject({ code: "rate_limited" });
+    expect(await row(IVY)).toBeNull();
+  });
+
+  test("a member's token straight at the table gets no further than the tool does", async () => {
+    await clientTools.setInterviewerProfile(...lee(), { memberId: LEE, expectedUpdatedAt: null, profile: FULL });
+    const before = await row(LEE);
+    const [ivyDb] = ivy();
+    const [adaDb] = ada();
+    const gus = member("user_profile_gus", "org_itest_profile_globex");
+
+    expect((await ivyDb.from("interviewer_profiles").select("actor_id").eq("actor_id", LEE)).data).toEqual([]);
+    expect((await ivyDb.from("interviewer_profiles").update({ focus_areas: ["taken"] }).eq("actor_id", LEE).select("actor_id")).data).toEqual([]);
+    expect((await ivyDb.from("interviewer_profiles").upsert({ actor_id: LEE, focus_areas: ["taken"] })).error?.code).toBe("42501");
+    expect((await gus.from("interviewer_profiles").select("actor_id").eq("actor_id", LEE)).data).toEqual([]);
+    expect((await gus.from("interviewer_profiles").update({ focus_areas: ["taken"] }).eq("actor_id", LEE).select("actor_id")).data).toEqual([]);
+    expect((await adaDb.from("interviewer_profiles").upsert({ actor_id: GUS, focus_areas: ["taken"] })).error?.code).toBe("42501");
+    // Not on the column grants, so an admin cannot move a row or back-date a version.
+    expect((await adaDb.from("interviewer_profiles").update({ org_id: GLOBEX } as never).eq("actor_id", LEE)).error?.code).toBe("42501");
+    expect((await adaDb.from("interviewer_profiles").update({ updated_at: "2000-01-01" } as never).eq("actor_id", LEE)).error?.code).toBe("42501");
+    expect((await adaDb.from("interviewer_profiles").update({ actor_id: IVY }).eq("actor_id", LEE)).error?.code).toBe("22023");
+    expect((await adaDb.from("interviewer_profiles").delete().eq("actor_id", LEE)).error?.code).toBe("42501");
+
+    expect(await row(LEE)).toEqual(before);
+    expect(await row(GUS)).toBeNull();
+  });
+
   test("a repeat only the table sees is refused as a sentence on the field", async () => {
     // Dotted I: JS and Postgres may not lower it alike, and either way a table refusal has to read as one.
     const areas = ["İstanbul", "i̇stanbul"];
