@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { scheduleHref } from "./schedule-layout";
 import { matchesSearch, parseSearch, searchOrder } from "./schedule-search";
 
 const interview = { candidateName: "José Núñez", jobTitle: "Founding Engineer", step: "Onsite", interviewers: ["Ada Admin", "Ben Builder"] };
@@ -65,5 +66,19 @@ describe("the order of the matches", () => {
     const events = [ev("b", 21), ev("a", 21)];
     expect(searchOrder(events, NOW).map((e) => e.id)).toEqual(["a", "b"]);
     expect(events.map((e) => e.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("a search that does not sit neatly in 100 characters", () => {
+  test("cut in the middle of an emoji, it still makes a link", () => {
+    const q = parseSearch(`${"a".repeat(99)}😀`)!;
+    expect(() => encodeURIComponent(q)).not.toThrow();
+    expect(() => scheduleHref({ view: "week", date: null, dept: "Eng", q })).not.toThrow();
+  });
+
+  test("nothing left to match is no search", () => {
+    // A lone combining accent, once folded, is no words: it would match everything.
+    expect(parseSearch("\u0301")).toBeNull();
+    expect(parseSearch("\u0301 \u0300")).toBeNull();
   });
 });

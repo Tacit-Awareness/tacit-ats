@@ -224,6 +224,48 @@ describe("the Calendar's read", () => {
   });
 });
 
+describe("the Calendar under load and by role", () => {
+  test("an interviewer past a request's worth of interviews still sees their newest", async () => {
+    // my_interviews() is oldest first and PostgREST stops at 1,000 rows: unpaged,
+    // their application map ends before anything they have coming up.
+    const rows = Array.from({ length: 1001 }, (_, n) => ({
+      org_id: ACME,
+      application_id: app(1),
+      starts_at: new Date(NOW - 400 * 24 * H + n * 60_000).toISOString(),
+      ends_at: new Date(NOW - 400 * 24 * H + (n + 30) * 60_000).toISOString(),
+      status: "done" as const,
+      step: `Bulk ${n}`,
+      interviewer_actor_ids: [IVY],
+    }));
+    must(await db().from("interviews").insert(rows));
+    const { items } = await readSchedule(ivy.db, ivy.member, { from: at(-72), to: at(15 * 24) }, new Date(NOW));
+    expect(ids(items)).toEqual([iv(1), iv(5)].sort());
+    const all = await readAllInterviews(ivy.db, ivy.member, new Date(NOW));
+    expect(all.items).toHaveLength(1003);
+    expect(all.items[0]).toMatchObject({ interviewId: iv(5), candidateName: "Candidate 3", jobTitle: "Founding Engineer" });
+  });
+
+  test("an external recruiter sees and finds only the candidates they added", async () => {
+    const rex = "e51a0000-0000-4000-8000-0000000000e5";
+    must(await db().from("actors").insert({ id: rex, org_id: ACME, slug: "itest-sc-rex", display_name: "Rex Recruiter", email: "rex@sc.test", access_level: "elevated", auth_subject: "user_sc_rex" }));
+    const { data: role } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+    must(await db().from("job_access").insert({ org_id: ACME, role_id: ENGINEER, actor_id: rex, access_role_id: role!.id }));
+    must(await db().from("applications").update({ added_by_actor_id: rex }).eq("id", app(3)));
+    const who = { db: client("user_sc_rex", ACME_WORKOS), member: { actorId: rex, orgId: ACME, accessLevel: "elevated" } satisfies Member };
+    const { items } = await readAllInterviews(who.db, who.member, new Date(NOW));
+    expect(ids(items)).toEqual([iv(5)]);
+    expect(items[0]).toMatchObject({ candidateName: "Candidate 3", jobTitle: "Founding Engineer" });
+    expect(items.filter((i) => matchesSearch(i, "Candidate 1"))).toEqual([]);
+  });
+
+  test("a member on no job finds nothing and the page still has its shape", async () => {
+    must(await db().from("actors").insert({ id: "e51a0000-0000-4000-8000-0000000000e6", org_id: ACME, slug: "itest-sc-nat", display_name: "Nat Nojob", email: "nat@sc.test", access_level: "elevated", auth_subject: "user_sc_nat" }));
+    const who = { db: client("user_sc_nat", ACME_WORKOS), member: { actorId: "e51a0000-0000-4000-8000-0000000000e6", orgId: ACME, accessLevel: "elevated" } satisfies Member };
+    expect((await readAllInterviews(who.db, who.member, new Date(NOW))).items).toEqual([]);
+    expect((await read(who)).items).toEqual([]);
+  });
+});
+
 describe("the Calendar's search", () => {
   const found = async (who: { db: ReturnType<typeof client>; member: Member }, q: string) =>
     ids((await readAllInterviews(who.db, who.member, new Date(NOW))).items.filter((i) => matchesSearch(i, q)));

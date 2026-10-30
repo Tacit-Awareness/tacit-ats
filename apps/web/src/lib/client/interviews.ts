@@ -68,12 +68,19 @@ async function namesFor(db: Db, actorIds: string[]) {
   return names;
 }
 
-/** Every interview the member can see but cancelled ones, with what the list shows. */
-export async function readInterviews(db: Db, member: Member, now: Date): Promise<InterviewListItem[]> {
+const COLUMNS = "id, application_id, starts_at, ends_at, status, step, interviewer_actor_ids";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Every interview the member can see but cancelled ones, with what the list
+ * shows. `asked` is the `?i=`: the Calendar and its search reach further back
+ * than LIST_MAX, so an interview they open is read here even past the cap.
+ */
+export async function readInterviews(db: Db, member: Member, now: Date, asked?: string): Promise<InterviewListItem[]> {
   const [{ data: rows, error }, mine] = await Promise.all([
     db
       .from("interviews")
-      .select("id, application_id, starts_at, ends_at, status, step, interviewer_actor_ids")
+      .select(COLUMNS)
       .neq("status", "cancelled")
       .order("starts_at", { ascending: false })
       .limit(LIST_MAX),
@@ -81,6 +88,11 @@ export async function readInterviews(db: Db, member: Member, now: Date): Promise
   ]);
   if (error) throw new Error(error.message);
   const interviews = (rows ?? []) as InterviewRow[];
+  if (asked && UUID.test(asked) && !interviews.some((i) => i.id === asked)) {
+    const { data: one, error: oneError } = await db.from("interviews").select(COLUMNS).eq("id", asked).neq("status", "cancelled").maybeSingle();
+    if (oneError) throw new Error(oneError.message);
+    if (one) interviews.push(one as InterviewRow);
+  }
 
   // Who and for which job: the application where the member may read it, else their own my_interviews() row.
   const apps = new Map<string, { candidateName: string | null; jobId: string; jobTitle: string }>();

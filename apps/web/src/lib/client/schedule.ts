@@ -65,10 +65,12 @@ async function inChunks<T>(ids: string[], read: (chunk: string[]) => Promise<T[]
 /**
  * Up to `max` + 1 of the interviews the member can read, but cancelled ones:
  * one past the cap, a page at a time, so the caller can tell there were more.
- * The id breaks ties, so no row is read twice or missed across pages.
+ * The id breaks ties, so the order is total; an interview booked while the
+ * pages are read still moves the rest along by one, so a row can come back on
+ * the next page, and the first copy is the one kept.
  */
 async function scanInterviews(db: Db, { window, ascending, max }: { window: { from: string; to: string } | null; ascending: boolean; max: number }): Promise<InterviewRow[]> {
-  const rows: InterviewRow[] = [];
+  const rows = new Map<string, InterviewRow>();
   for (let from = 0; from <= max; from += PAGE) {
     let query = db.from("interviews").select("id, application_id, starts_at, ends_at, step, interviewer_actor_ids, location_or_link").neq("status", "cancelled");
     if (window) query = query.lt("starts_at", window.to).gt("ends_at", window.from);
@@ -77,10 +79,10 @@ async function scanInterviews(db: Db, { window, ascending, max }: { window: { fr
       .order("id", { ascending })
       .range(from, Math.min(from + PAGE - 1, max));
     if (error) throw new Error(error.message);
-    rows.push(...((data ?? []) as InterviewRow[]));
+    for (const row of (data ?? []) as InterviewRow[]) if (!rows.has(row.id)) rows.set(row.id, row);
     if ((data ?? []).length < PAGE) break;
   }
-  return rows;
+  return [...rows.values()];
 }
 
 /** Every interview the member can see that overlaps [from, to), but cancelled ones, soonest first. */

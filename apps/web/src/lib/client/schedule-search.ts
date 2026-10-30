@@ -7,13 +7,18 @@ export type Searchable = { candidateName: string | null; jobTitle: string; step:
 
 const SEARCH_MAX_CHARS = 100;
 
-/** The URL's `?q=`, trimmed and bounded as the CRM's; empty is no search. */
-export function parseSearch(raw: string): string | null {
-  return raw.trim().slice(0, SEARCH_MAX_CHARS).trim() || null;
-}
-
 /** Lower case with the accents off, so "jose" finds José. */
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/**
+ * The URL's `?q=`, trimmed and bounded as the CRM's, by whole characters: half
+ * an emoji is a string `encodeURIComponent` throws on. Empty is no search, and
+ * so is one of accents alone, which folds to no words and would match everything.
+ */
+export function parseSearch(raw: string): string | null {
+  const q = [...raw.trim()].slice(0, SEARCH_MAX_CHARS).join("").trim();
+  return fold(q).trim() ? q : null;
+}
 
 /** The candidate, an interviewer, the job or the step containing every word of the search. */
 export function matchesSearch(i: Searchable, q: string): boolean {
