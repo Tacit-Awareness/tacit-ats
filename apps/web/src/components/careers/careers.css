@@ -109,6 +109,9 @@
   & .desc { font-size: 16px; line-height: 1.7; }
   & .desc p { margin: 0 0 14px; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
   & .desc p:first-child { margin-bottom: 18px; font-size: 21px; line-height: 1.5; letter-spacing: -0.012em; color: var(--strong); text-wrap: pretty; }
+  & .desc h3 { margin: 28px 0 10px; font-size: 16px; font-weight: 500; line-height: 1.4; color: var(--strong); overflow-wrap: anywhere; }
+  & .desc ul { margin: 0 0 14px; padding-left: 20px; color: var(--text); }
+  & .desc li { margin-bottom: 4px; overflow-wrap: anywhere; }
 
   /* application */
   & .form { border-radius: 6px; background: var(--card); box-shadow: var(--shadow); }
