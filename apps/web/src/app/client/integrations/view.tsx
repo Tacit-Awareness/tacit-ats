@@ -1,5 +1,5 @@
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
-import { AppTile, Live, Notice, Page, PageBar, Row, Rows, Section, textLink } from "@/components/page";
+import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
@@ -9,9 +9,9 @@ import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
 } from "./messages";
 
-// /client/integrations, laid out like the Connectors card on Tacit's internal
-// home (tacit-internal apps/internal (workspace)/page.tsx): one row per
-// connector, Connect or its connected state. Both Connects run a sign-in on
+// /client/integrations, design/tats's settings cards (`.cardbox` around
+// `.lrow.pol`): one ruled row per connector, Connect or its connected state,
+// the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
 // (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
 // Props only, so page.tsx does every read.
@@ -43,12 +43,12 @@ export function IntegrationsView({
       : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
-    <Page narrow bar={<PageBar title="Integrations" />}>
+    <Page bar={<PageBar title="Integrations" />}>
       {errorText ? <Notice tone="error">{errorText}</Notice> : null}
       {noticeText ? <Notice>{noticeText}</Notice> : null}
 
-      <Section title="Connectors">
-        <Rows>
+      <Section flush title="Connectors">
+        <Rows ruled>
           <ConnectorRow
             icon={
               <AppTile>
@@ -71,9 +71,9 @@ export function IntegrationsView({
               ) : null
             }
           />
-          <div id="granola" className="grid">
+          <div id="granola" className="grid scroll-mt-4">
             <ConnectorRow
-              icon={<GranolaIcon className="size-[30px] rounded-lg" />}
+              icon={<GranolaIcon className="size-[30px] rounded-[7px]" />}
               name="Granola"
               detail={
                 granola
@@ -108,12 +108,12 @@ function ConnectorRow({
   detail: React.ReactNode;
   action?: React.ReactNode;
 }) {
-  return <Row icon={icon} title={name} sub={detail} meta={action} className="py-2.5" />;
+  return <Row icon={icon} title={name} sub={detail} meta={action} />;
 }
 
 function ActionLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} className={buttonVariants({ size: "sm" })}>
+    <a href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>
       {children}
     </a>
   );
@@ -122,14 +122,14 @@ function ActionLink({ href, children }: { href: string; children: React.ReactNod
 function Connected({ disconnect, manageHref }: { disconnect: () => Promise<void>; manageHref?: string }) {
   return (
     <>
-      <Live>Connected</Live>
+      <Pill tone="green">Connected</Pill>
       {manageHref ? (
-        <a href={manageHref} className={textLink}>
+        <a href={manageHref} className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground" })}>
           Reconnect
         </a>
       ) : null}
       <form action={disconnect}>
-        <button type="submit" className={`${textLink} cursor-pointer hover:text-negative`}>
+        <button type="submit" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground hover:text-negative" })}>
           Disconnect
         </button>
       </form>
