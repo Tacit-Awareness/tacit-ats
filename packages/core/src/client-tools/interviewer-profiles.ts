@@ -64,9 +64,10 @@ export type ProfileRow = {
 // The table's trigger, code point for code point (interviewer_profiles_validate):
 // EDGE is what cannot start or end an item, INLINE what cannot be in one.
 const CONTROL = "\\u0000-\\u001f\\u007f-\\u009f";
-const EDGE = `[${CONTROL} \\u00a0\\u00ad\\u1680\\u2000-\\u200f\\u2028-\\u202f\\u205f-\\u206f\\u3000\\ufeff]`;
-const OUTER = new RegExp(`^${EDGE}+|${EDGE}+$`, "gu");
-const INLINE = new RegExp(`[${CONTROL}\\u2028-\\u202e\\u2066-\\u2069]`, "u");
+// Every one is a single UTF-16 unit, so trimEdges reads a string unit by unit.
+const EDGE = new RegExp(`^[${CONTROL} \\u00a0\\u00ad\\u1680\\u2000-\\u200f\\u2028-\\u202f\\u205f-\\u206f\\u3000\\ufeff]$`, "u");
+// Plus half of a surrogate pair, which the table never sees: the database refuses the request.
+const INLINE = new RegExp(`[${CONTROL}\\u2028-\\u202e\\u2066-\\u2069\\ud800-\\udfff]`, "u");
 
 const FOCUS_INVALID = `Keep what they know to ${FOCUS_AREAS_MAX} areas, one per line, each ${FOCUS_AREA_MAX} characters at most.`;
 
@@ -84,6 +85,19 @@ function isDate(s: string): boolean {
 }
 
 /**
+ * A loop and not a regex: this runs on whatever a form sent, before the hourly
+ * limit, and `x+$` scans from every space in a run, so a pasted line of spaces
+ * would hold a request for minutes.
+ */
+function trimEdges(s: string): string {
+  let start = 0;
+  let end = s.length;
+  while (start < end && EDGE.test(s[start]!)) start += 1;
+  while (end > start && EDGE.test(s[end - 1]!)) end -= 1;
+  return s.slice(start, end);
+}
+
+/**
  * Trims each area of what cannot show, drops the blank ones and any repeat
  * (ignoring case and composition, keeping the first as written), then refuses
  * what the table would.
@@ -92,7 +106,7 @@ export function cleanFocusAreas(areas: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of areas) {
-    const area = raw.replace(OUTER, "");
+    const area = trimEdges(raw);
     const folded = area.toLowerCase().normalize("NFC");
     if (!area || seen.has(folded)) continue;
     seen.add(folded);

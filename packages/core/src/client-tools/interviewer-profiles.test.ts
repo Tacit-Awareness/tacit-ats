@@ -54,6 +54,20 @@ describe("cleanFocusAreas", () => {
     expect(cleanFocusAreas(["​Go﻿", " Rust　", "‮C⁩", "\u0000Zig\u001f"])).toEqual(["Go", "Rust", "C", "Zig"]);
   });
 
+  test("a long run of spaces inside a pasted line costs a straight read, not a scan from every space", () => {
+    // A server action takes a megabyte, and this runs before the hourly limit: a regex with `\s+$` took 12s here.
+    const line = `a${" ".repeat(200_000)}b`;
+    const started = performance.now();
+    expect(thrown(() => cleanFocusAreas([line]))).toMatchObject({ code: "invalid", field: "focusAreas" });
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  test("half of a surrogate pair is refused here: the database cannot read it, and it would leave a claim open", () => {
+    expect(thrown(() => cleanFocusAreas(["a\ud800b"]))).toMatchObject({ code: "invalid", field: "focusAreas" });
+    expect(thrown(() => cleanFocusAreas(["\udc00"]))).toMatchObject({ code: "invalid", field: "focusAreas" });
+    expect(cleanFocusAreas(["\u{1F600} pairing"])).toEqual(["\u{1F600} pairing"]);
+  });
+
   test("a joiner inside an area stays: joined emoji need one", () => {
     expect(cleanFocusAreas(["\u{1F468}‍\u{1F4BB} pairing"])).toEqual(["\u{1F468}‍\u{1F4BB} pairing"]);
   });
