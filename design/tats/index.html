@@ -4809,6 +4809,70 @@ li:hover > .je-x, .je-qh:hover > .je-x, .je-x:focus-visible { opacity: 1; }
 .sb-tour.on { background: var(--sel); color: var(--ink); }
 .sb-tour .ico { width: 15px; height: 15px; stroke-linejoin: round; }
 
+/* v66: Linear's palette. Mercury White (#F4F5F8) for the frame, white panels, Nordic Gray (#222326) for ink,
+   cool greys between, Linear's desaturated indigo as the one accent. Every box gets the same quiet elevation. */
+:root {
+  --frame: #F4F5F8;
+  --surface: #F7F8FA;
+  --paper: #FFFFFF;
+  --raised: #FFFFFF;
+  --pane: #FAFAFB;
+  --ink: #222326;
+  --muted: #6B6F76;
+  --faint: #9B9EA5;
+  --line: #E9EAEE;
+  --line-strong: #DCDDE3;
+  --soft: #F2F3F6;
+  --soft-strong: #E7E8EC;
+  --band: #F4F5F8;
+  --hover: rgba(34, 35, 38, 0.04);
+  --sel: #EDEEF2;
+  --accent: #5E6AD2;
+  --accent-soft: #EEEFFB;
+  --scrim: rgba(34, 35, 38, 0.32);
+  --elev: 0 0 0 1px rgba(34, 35, 38, 0.06), 0 1px 2px rgba(34, 35, 38, 0.04), 0 3px 10px -4px rgba(34, 35, 38, 0.06);
+  --elev-hi: 0 0 0 1px rgba(34, 35, 38, 0.07), 0 2px 4px rgba(34, 35, 38, 0.05), 0 12px 28px -10px rgba(34, 35, 38, 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --frame: #0F1012; --surface: #151619; --paper: #1A1B1E; --raised: #222326; --pane: #18191C;
+    --ink: #F4F5F8; --muted: #A2A5AD; --faint: #6F737B;
+    --line: rgba(244, 245, 248, 0.07); --line-strong: rgba(244, 245, 248, 0.12);
+    --soft: rgba(244, 245, 248, 0.05); --soft-strong: rgba(244, 245, 248, 0.08); --band: rgba(244, 245, 248, 0.035);
+    --hover: rgba(244, 245, 248, 0.04); --sel: rgba(244, 245, 248, 0.07);
+    --accent: #7C85E6; --accent-soft: rgba(124, 133, 230, 0.16);
+    --elev: 0 0 0 1px rgba(244, 245, 248, 0.06), 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+    --elev-hi: 0 0 0 1px rgba(244, 245, 248, 0.08), 0 12px 32px -10px rgba(0, 0, 0, 0.6);
+  }
+}
+:root[data-theme="dark"] {
+  --frame: #0F1012; --surface: #151619; --paper: #1A1B1E; --raised: #222326; --pane: #18191C;
+  --ink: #F4F5F8; --muted: #A2A5AD; --faint: #6F737B;
+  --line: rgba(244, 245, 248, 0.07); --line-strong: rgba(244, 245, 248, 0.12);
+  --soft: rgba(244, 245, 248, 0.05); --soft-strong: rgba(244, 245, 248, 0.08); --band: rgba(244, 245, 248, 0.035);
+  --hover: rgba(244, 245, 248, 0.04); --sel: rgba(244, 245, 248, 0.07);
+  --accent: #7C85E6; --accent-soft: rgba(124, 133, 230, 0.16);
+  --elev: 0 0 0 1px rgba(244, 245, 248, 0.06), 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+  --elev-hi: 0 0 0 1px rgba(244, 245, 248, 0.08), 0 12px 32px -10px rgba(0, 0, 0, 0.6);
+}
+/* the frame and the one panel on it */
+body, .app { background: var(--frame); }
+.panel { background: var(--paper); border: 0; border-radius: 10px; box-shadow: var(--elev); }
+/* every box: the same quiet edge and lift instead of a plain border */
+.hm-card, .hm-box, .crm, .su-card, .su-check, .draft-card, .blk, .ib-read .blk, .chat-compose, .pt-card, .pt-n, .cardbox, .board .card, .ivw-read .rc, .tour-card, .set-link, .ref-side, .rc-sec .gc, .dv .pg {
+  border-color: transparent; box-shadow: var(--elev);
+}
+.hm-card.link:hover, .board .card:hover, .set-link:hover, a.pt-n:hover { box-shadow: var(--elev-hi); }
+.pt-n.cur { box-shadow: var(--elev), 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
+.modal, .palette, .menu, .toast, .hcard { box-shadow: var(--elev-hi); border-color: transparent; }
+/* reading panes sit one step back from the list, like Linear's */
+.ib-reader, .tk .reader, .ivw-read, .ib-top { background: var(--pane); }
+.ib-col, .tk .mlist, .ivw-list { border-right-color: var(--line); }
+/* selection is neutral, as in Linear; the accent is kept for the one primary action */
+.ib.iss.sel, .mrow.sel, .tk .mrow.sel, .ivr.sel, .sb-item.on, .crm-tab.on, .hm-nav a.on, .af-r.sel { background: var(--sel); }
+.su-check { background: var(--paper); }
+.su-frame { background: var(--soft); }
+
 </style>
 
 <div class="app" id="app">
