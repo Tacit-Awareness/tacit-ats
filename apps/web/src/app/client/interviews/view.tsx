@@ -5,11 +5,13 @@ import { Avatar, Empty, ListReader, PageBar } from "@/components/page";
 import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
 import type { LoopPerson, LoopRound as Round } from "@/lib/client/interview-loop";
 import { cn } from "@/lib/utils";
+import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 
 // The Interviews page's markup, props only (page.tsx does the reads):
 // design/tats's Interviews as a list and a reader under one bar. The list is a
 // bar of how past interviews went, then Upcoming and the verdict groups, a row
-// each. The reader is one card: its head, the candidate's loop as a tree (each round, who ran it and whether
+// each, a past one with its reviewed check (review.tsx). The reader is one
+// card: its head, the candidate's loop as a tree (each round, who ran it and whether
 // they filed; this round highlighted, later ones faded), then this
 // interview's feedback as far as the member may read it, then the member's own
 // Granola notes when page.tsx passes them (./granola.tsx). Notes are the
@@ -118,24 +120,22 @@ function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verd
             <span className="font-normal text-faint tabular-nums">{g.rows.length}</span>
           </h2>
           {g.rows.map((r) => (
-            <Link
-              key={r.interviewId}
-              href={r.href}
-              data-key-item
-              aria-current={r.selected ? "page" : undefined}
-              className={cn(
-                "grid grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-[3px] px-[18px] py-3 transition-colors",
-                r.selected ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]",
-              )}
-            >
-              <span className="row-span-2">
-                <Avatar name={r.candidate} size="row" candidate />
-              </span>
-              <b className="truncate text-[13.5px] font-medium">{r.candidate}</b>
-              <span className="truncate text-[12.5px] text-faint" title={r.whenTitle}>
-                {r.line}
-              </span>
-            </Link>
+            <ReviewRow key={r.interviewId} id={r.interviewId} candidate={r.candidate} selected={r.selected}>
+              <Link
+                href={r.href}
+                data-key-item
+                aria-current={r.selected ? "page" : undefined}
+                className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-[3px] py-3 pr-3 pl-[18px]"
+              >
+                <span className="row-span-2">
+                  <Avatar name={r.candidate} size="row" candidate />
+                </span>
+                <b className="truncate text-[13.5px] font-medium group-data-[reviewed]:font-normal group-data-[reviewed]:text-muted-foreground">{r.candidate}</b>
+                <span className="truncate text-[12.5px] text-faint" title={r.whenTitle}>
+                  {r.line}
+                </span>
+              </Link>
+            </ReviewRow>
           ))}
         </section>
       ))}
@@ -308,7 +308,7 @@ function InterviewReader({ reader, granola }: { reader: Reader; granola: React.R
 export function InterviewsView({
   groups,
   counts,
-  toReview,
+  reviewed,
   reader,
   granola,
   open,
@@ -316,7 +316,8 @@ export function InterviewsView({
 }: {
   groups: ListGroup[];
   counts: { verdict: Verdict; n: number }[];
-  toReview: number;
+  /** The past interviews this member has checked off; null when that could not be read. */
+  reviewed: string[] | null;
   reader: Reader | null;
   /** The member's own Granola notes on this interview, already behind its Suspense boundary. Null when there can be none. */
   granola: React.ReactNode;
@@ -324,20 +325,29 @@ export function InterviewsView({
   open: boolean;
   readerError: string | null;
 }) {
+  const past = groups.filter((g) => g.key !== "upcoming").flatMap((g) => g.rows.map((r) => r.interviewId));
+  const selected = groups.flatMap((g) => g.rows).find((r) => r.selected)?.interviewId ?? null;
   return (
-    <ListReader
-      listLabel="Interviews"
-      readerLabel="Interview"
-      open={open}
-      bar={<PageBar title="Interviews" count={toReview ? `${toReview} read pending` : "All read"} />}
-      list={<InterviewList groups={groups} counts={counts} />}
-      reader={
-        reader ? (
-          <InterviewReader reader={reader} granola={granola} />
-        ) : (
-          <Empty className="p-2">{readerError ?? "Pick an interview to read its loop and feedback."}</Empty>
-        )
-      }
-    />
+    <ReviewProvider past={past} saved={reviewed} selected={selected}>
+      <ListReader
+        listLabel="Interviews"
+        readerLabel="Interview"
+        open={open}
+        bar={<PageBar title="Interviews" count={<ReviewCount />} />}
+        list={
+          <>
+            <InterviewList groups={groups} counts={counts} />
+            <ReviewKey />
+          </>
+        }
+        reader={
+          reader ? (
+            <InterviewReader reader={reader} granola={granola} />
+          ) : (
+            <Empty className="p-2">{readerError ?? "Pick an interview to read its loop and feedback."}</Empty>
+          )
+        }
+      />
+    </ReviewProvider>
   );
 }

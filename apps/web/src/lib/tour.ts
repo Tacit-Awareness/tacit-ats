@@ -25,7 +25,7 @@ export const TOUR: TourStep[] = [
     href: "/client",
     targets: ['[data-tour="kpis"]'],
     title: "The numbers that matter",
-    body: "Applications coming in, who's in process, how long each step takes, and how much interviewing the team is doing.",
+    body: "Applications coming in, who's in process, how long each step takes, and how much interviewing the team is doing. Admins can set a target on a card.",
   },
   {
     href: "/client",
@@ -67,7 +67,7 @@ export const TOUR: TourStep[] = [
     href: "/client/interviews",
     targets: ['[data-tour="interviews"]'],
     title: "Interviews",
-    body: "Where a candidate is in their loop, who has met them, and how each round went.",
+    body: "Where a candidate is in their loop, who has met them, and how each round went. Check one off when you have been through it, or press E.",
   },
   {
     href: "/client/referrals",

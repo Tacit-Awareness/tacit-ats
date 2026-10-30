@@ -1,11 +1,14 @@
 // The Interviewers page's arithmetic, pure: who counts as an interviewer, how
 // many interviews each has this week, next week and in the last 30 days, the
 // jobs they are on, and the department sections they fall into. The reads are
-// lib/client/interviewers.ts.
+// lib/client/interviewers.ts. A member's profile only rides along: nothing here
+// decides who is a row by it.
 //
 // Weeks are calendar weeks, Monday to Sunday, in UTC: an org has no time zone
 // yet, so an interview late on a Sunday in the Americas counts in the week
 // after.
+
+import type { StoredProfile } from "./interviewer-profile";
 
 const DAY = 86_400_000;
 
@@ -33,6 +36,8 @@ export type Interviewer = {
   departments: string[];
   /** Null when the member may not read interviewer activity, or it has nothing on them. */
   feedback: Feedback | null;
+  /** Null when they have not said, or the member may not read it. */
+  profile: StoredProfile | null;
 };
 
 export type InterviewerGroup = { label: string | null; interviewers: Interviewer[] };
@@ -103,6 +108,7 @@ export function assembleInterviewers(input: {
   jobs: JobRef[];
   departments: DepartmentRef[];
   names: Map<string, string>;
+  profiles: Map<string, StoredProfile>;
   feedback: Map<string, Feedback> | null;
   now: Date;
 }): Interviewer[] {
@@ -138,6 +144,7 @@ export function assembleInterviewers(input: {
         jobs: mine.map((j) => ({ id: j.id, title: j.title })),
         departments,
         feedback: input.feedback?.get(actorId) ?? null,
+        profile: input.profiles.get(actorId) ?? null,
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name) || a.actorId.localeCompare(b.actorId));

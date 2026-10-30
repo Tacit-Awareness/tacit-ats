@@ -1,8 +1,9 @@
 import type { Db } from "@tacit/db";
 import { departmentScope, inScope, type DepartmentNode, type DepartmentOption } from "./department-tree";
 import { readDepartments } from "./departments";
+import { parseChannel } from "../public/channel";
 import { readPipeline } from "./pipeline";
-import { readFrom, sourceGroup, type CareersApp, type ExplorerApp, type ExplorerNames, type RangeKey } from "./analytics-metrics";
+import { readFrom, sourceGroup, type CareersData, type ExplorerApp, type ExplorerNames, type RangeKey } from "./analytics-metrics";
 
 // Analytics' reads (design/tats's #analytics), on the member's OWN client
 // (never a privileged one), so every number counts only what their token can
@@ -11,8 +12,11 @@ import { readFrom, sourceGroup, type CareersApp, type ExplorerApp, type Explorer
 // lib/client/analytics-metrics.ts does the counting.
 //
 // The careers page: `applications` added since the start of the period
-// before this one, with their source, and every job's title the member can
-// see (a closed job's applications count too). The Pipeline explorer: the
+// before this one, with their source and channel, `job_post_views` over the
+// same days, and every job's title the member can see (a closed job's
+// applications count too). Views are a separate policy from applications, so
+// a member who reads one job's applications may read another job's views or
+// none: each number is still only what their token can read. The explorer: the
 // Pipeline board's read (open jobs, live applications, computed columns) and
 // those applications' interviews with who sits on them.
 //
@@ -42,38 +46,53 @@ type Scoped = {
   departmentId: string | null;
 };
 
-export type CareersRead = Scoped & {
-  apps: CareersApp[];
+export type CareersRead = Scoped & CareersData & {
   /** Job titles by id, every job the member can see. */
   jobs: Record<string, string>;
   truncated: boolean;
 };
 
 export async function readCareers(db: Db, input: { range: RangeKey; departmentId: string | null }, now: Date): Promise<CareersRead> {
-  const [structure, roles, apps] = await Promise.all([
+  const from = readFrom(input.range, now.getTime());
+  const [structure, roles, apps, views, firstView] = await Promise.all([
     readDepartments(db),
     scanRows<{ id: string; title: string }>((from, to) => db.from("roles").select("id, title").order("id").range(from, to)),
-    scanRows<{ created_at: string; role_id: string; source: string; source_detail: string | null }>((from, to) =>
+    scanRows<{ created_at: string; role_id: string; source: string; source_detail: string | null; channel: string | null }>((start, to) =>
       // A merged application is the same candidate counted twice: only live ones count.
       db
         .from("applications")
-        .select("created_at, role_id, source, source_detail")
+        .select("created_at, role_id, source, source_detail, channel")
         .is("merged_into_id", null)
-        .gte("created_at", readFrom(input.range, now.getTime()))
+        .gte("created_at", from)
         .order("created_at", { ascending: false })
         .order("id")
-        .range(from, to),
+        .range(start, to),
     ),
+    // Never the rate limit's columns, which say nothing about a post.
+    scanRows<{ job_post_id: string; day: string; views: number; job_posts: { role_id: string } | null }>((start, to) =>
+      db
+        .from("job_post_views")
+        .select("job_post_id, day, views, job_posts(role_id)")
+        .gte("day", from.slice(0, 10))
+        .order("day", { ascending: false })
+        .order("job_post_id")
+        .range(start, to),
+    ),
+    // Views begin once, for every post: the whole org's first, so a department picked does not change when that was.
+    db.from("job_post_views").select("day").order("day").limit(1).maybeSingle(),
   ]);
+  if (firstView.error) throw new Error(firstView.error.message);
   const scope = departmentScope(structure, input.departmentId);
   return {
     departments: scope.options,
     departmentId: scope.departmentId,
     apps: apps.rows
       .filter((a) => inScope(scope, a.role_id))
-      .map((a) => ({ createdAt: a.created_at, roleId: a.role_id, group: sourceGroup(a.source, a.source_detail) })),
+      .map((a) => ({ createdAt: a.created_at, roleId: a.role_id, group: sourceGroup(a.source, a.source_detail), channel: parseChannel(a.channel) })),
+    views: views.rows.flatMap((v) => (v.job_posts && inScope(scope, v.job_posts.role_id) ? [{ day: v.day, roleId: v.job_posts.role_id, views: v.views }] : [])),
+    viewsFrom: firstView.data?.day ?? null,
     jobs: Object.fromEntries(roles.rows.map((r) => [r.id, r.title])),
-    truncated: apps.truncated || roles.truncated,
+    truncated: apps.truncated || roles.truncated || views.truncated,
   };
 }
 

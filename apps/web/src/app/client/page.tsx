@@ -15,7 +15,8 @@ import { Refusal } from "./refusal";
 // reads, lib/client/home-metrics.ts counts, home-props.ts words it,
 // home-view.tsx draws), with the period (?days=7|30|90), the department
 // (?department=, none for an org without departments) and the job (?job=)
-// in the URL. An interviewer keeps the page they had: the people they
+// in the URL. An admin sets each card's target from the card; the hiring team
+// sees them. An interviewer keeps the page they had: the people they
 // interview, the jobs, the team. Every number is read with the member's own
 // token, so it counts only what their access allows and nothing is filtered
 // here.
@@ -36,7 +37,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
     { days, jobId: one(sp.job) || null, departmentId: one(sp.department) || null },
     now,
   );
-  return <HomeView {...overviewProps(read, days, now.getTime())} />;
+  return <HomeView {...overviewProps(read, days, now.getTime(), ctx.accessLevel === "admin")} />;
 }
 
 /** An interviewer's home: the people they interview, the jobs they can see, the team. */
