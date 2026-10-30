@@ -1,3 +1,5 @@
+import { SEND_ERRORS } from "@/lib/client/email-messages";
+
 // What /client/inbox says after dealing with an issue. The action redirects
 // with a code and the page looks the sentence up here, so no name rides in a URL.
 export const INBOX_NOTICES = {
@@ -16,6 +18,7 @@ export const INBOX_NOTICES = {
   dismissed: "Moved to Done.",
   restored: "Back in your Inbox.",
   restore_gone: "That was already back in your Inbox.",
+  sent: "Sent.",
 } as const;
 
 export const INBOX_ERRORS = {
@@ -30,6 +33,7 @@ export const INBOX_ERRORS = {
   dismiss_refused: "You can't set that aside. Nothing was changed.",
   dismiss_failed: "That didn't work. Nothing was set aside: try again.",
   restore_failed: "That didn't work, so it's still under Done: try again.",
+  ...SEND_ERRORS,
 } as const;
 
 export type InboxNotice = keyof typeof INBOX_NOTICES;

@@ -11,8 +11,9 @@ import { ClientToolError, type ClientToolCtx } from "./context.js";
  * calendar.ts), here with the member's grant instead of a teammate's.
  *
  * The refresh tokens are a secret no member token can read: they arrive
- * through `ClientCalendar.connections`, which apps/mcp implements with the
- * service role (src/client/calendar.ts). It is called only with the caller
+ * through `ClientCalendar.connections`, which apps/mcp (src/client/calendar.ts)
+ * and apps/web's Calendar route (lib/member-calendar/grants.ts) implement with
+ * the service role. It is called only with the caller
  * and interviewers the caller has already been allowed to name (members of
  * their company, on a job they may schedule on), or the member whose
  * calendar holds an interview the caller's own token has read and may

@@ -40,13 +40,14 @@ export {
 } from "./interviews.js";
 export type {
   CalendarOutcome, FeedbackEntry, FeedbackRating, FeedbackSummary, InterviewConflicts, InterviewStatus, MyInterview,
-  RatingInput, Recommendation, ScheduleResult, SchedulingDeps, UpdateInterviewResult,
+  RatingInput, Recommendation, ScheduleInput, SchedulePreview, ScheduleResult, SchedulingDeps, UpdateInterviewInput, UpdateInterviewResult,
+  UpdatePreview,
 } from "./interviews.js";
 export {
   DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS, findInterviewTimes, unknownText,
 } from "./calendar.js";
 export type { CalendarConnection, ClientCalendar, FoundTimes, Person, Slot, UnknownReason } from "./calendar.js";
-export { GRANOLA_MCP_URL, GRANOLA_TEXT_MAX, GRANOLA_TRANSCRIPT_MAX, getInterviewNotes } from "./granola.js";
+export { GRANOLA_MCP_URL, GRANOLA_NOTE_ID, GRANOLA_TEXT_MAX, GRANOLA_TRANSCRIPT_MAX, getInterviewNotes, granolaGrantAccess } from "./granola.js";
 export type { ClientGranola, GranolaAccess, GranolaMatch, GranolaNearby, InterviewNotes } from "./granola.js";
 export {
   OFFER_STATUSES, REJECTION_KINDS,
@@ -68,7 +69,7 @@ export { TAG_NAME_MAX, archiveTag, createTag, listTags, tagCandidate, untagCandi
 export type { CreateTagResult, Tag, TagResult } from "./tags.js";
 export {
   CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, TEMPLATE_NAME_MAX,
-  createEmailTemplate, draftEmail, listEmailTemplates, listEmails, sendEmail, updateEmailTemplate,
+  addressesOnFile, createEmailTemplate, draftEmail, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
 } from "./email.js";
 export type {
   CandidateEmail, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,

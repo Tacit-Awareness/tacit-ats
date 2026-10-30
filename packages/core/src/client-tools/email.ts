@@ -224,16 +224,16 @@ export async function updateEmailTemplate(
 // Emails
 // ---------------------------------------------------------------------------
 
-/** The candidate's addresses the member can read: the email column, then any email identifiers. */
-async function addressesOnFile(db: Db, personId: string, primary: string | null): Promise<string[]> {
+/** The candidate's addresses the member can read: the email column, then any email identifiers. Exported so apps/web can name the recipient before a draft exists. */
+export async function addressesOnFile(db: Db, personId: string, primary: string | null): Promise<string[]> {
   const { data, error } = await db.from("person_identifiers").select("value").eq("person_id", personId).eq("kind", "email");
   if (error) throw new Error(error.message);
   const all = [primary, ...(data ?? []).map((r) => r.value)].map((e) => e?.trim().toLowerCase());
   return [...new Set(all.filter((e): e is string => connector.isPlainEmail(e)))];
 }
 
-/** Who the email is from: the member's name at the company, and their own address for replies. */
-async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
+/** Who the email is from: the member's name at the company, and their own address for replies. Exported so apps/web can show it on a draft before Send. */
+export async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
   const [me, org] = await Promise.all([
     db.from("org_members").select("display_name, email").eq("id", ctx.actorId).maybeSingle(),
     db.from("orgs").select("name").eq("id", ctx.orgId).maybeSingle(),
@@ -437,7 +437,15 @@ export async function sendEmail(
     }
     if (claimError?.code === "42501") throw new ClientToolError("forbidden", "You can no longer email this candidate. Nothing was sent.");
     if (claimError) throw new Error(claimError.message);
-    if (!claimed?.length) throw new ClientToolError("invalid", "That email is already being sent.");
+    if (!claimed?.length) {
+      // No row is either another send taking it or the policy, which refuses an
+      // update in silence: someone who can no longer change the candidate must
+      // not read that their email is on its way.
+      const { data: allowed, error: permError } = await db.rpc("can_edit_person", { p_person: draft.person_id });
+      if (permError) throw new Error(permError.message);
+      if (allowed !== true) throw new ClientToolError("forbidden", "You can no longer email this candidate. Nothing was sent.");
+      throw new ClientToolError("invalid", "That email is already being sent.");
+    }
 
     const before = { status: "draft" };
     let providerId: string;

@@ -32,6 +32,11 @@ import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js
  * and the cancellation. A DRAFT email (email.ts) is written for them as well,
  * which the member reads and sends.
  *
+ * `dryRun` (the web app's Calendar, 2026-10-30) runs the same decisions up to
+ * the first write and says what the real call would do, so a confirmation can
+ * name who holds the event and who hears from Google. It reads busy times and
+ * refreshes tokens, and writes nothing: no audit claim, no row, no event.
+ *
  * Feedback is private to the company's hiring team: nothing here sends it
  * anywhere, and its notes and the ratings' notes are kept out of the audit row.
  */
@@ -306,7 +311,53 @@ export type ScheduleResult =
   /** Someone is busy and the caller did not say to book anyway. Nothing was written. */
   | { outcome: "conflicts"; interviewId: null; startsAt: string; endsAt: string; conflicts: InterviewConflicts };
 
+/** What scheduleInterview would do. Nothing was written. */
+export type SchedulePreview = {
+  outcome: "preview";
+  interviewId: null;
+  startsAt: string;
+  endsAt: string;
+  calendar:
+    | {
+        status: "would_invite";
+        organizer: Person;
+        /** The address Google would invite, or null when the candidate has no usable one. */
+        candidateEmail: string | null;
+        invited: Person[];
+        notInvited: Person[];
+        /** No location was given, so the event would get a Meet link. */
+        meetLink: boolean;
+      }
+    /** Recorded in Tacit only, or (connection_expired) refused unless the caller says so with send_invites: false. */
+    | { status: "not_sent"; reason: "not_connected" | "not_set_up" | "not_asked" | "in_the_past" | "connection_expired"; connectUrl: string | null };
+  conflicts: InterviewConflicts;
+};
+
+/** What updateInterview would do to the interview's event. Nothing was written. */
+export type UpdatePreview = {
+  outcome: "preview";
+  changed: string[];
+  startsAt: string;
+  endsAt: string;
+  calendar:
+    | {
+        status: "would_follow";
+        action: "move" | "update" | "cancel";
+        organizer: Person;
+        /** The candidate's address on file, or null when they have no usable one, so Google has nobody to tell. */
+        candidateEmail: string | null;
+      }
+    /** The event cannot follow; the real call refuses unless told to leave it (update_calendar: false). */
+    | { status: "blocked"; reason: "not_connected" | "not_set_up"; organizer: Person | null; yours: boolean }
+    | { status: "left_alone" }
+    | { status: "none" };
+  conflicts: InterviewConflicts;
+};
+
 const firstNames = (people: Person[]) => people.map((p) => p.name).join(", ");
+
+/** The way out of a refusal, for the connector's model. The web app's Calendar offers it as a button, not a parameter. */
+const recordOnlyHint = (ctx: ClientToolCtx, sentence: string) => (ctx.source === "dashboard" ? "" : sentence);
 
 function conflictsOf(avail: Availability | null, busyIds: string[], people: Array<{ id: string; name: string }>): InterviewConflicts {
   const name = (id: string) => people.find((p) => p.id === id)?.name ?? "(no name)";
@@ -389,26 +440,35 @@ function inviteesOf(
   return { emails: [...new Set(emails)], invited, notInvited };
 }
 
+export type ScheduleInput = {
+  applicationId: string;
+  startsAt: string;
+  endsAt: string;
+  interviewerIds: string[];
+  locationOrLink?: string | null;
+  step?: string | null;
+  /** Default: invite when an interviewer's calendar or the caller's is connected. True = refuse unless one is; false = Tacit only. */
+  sendInvites?: boolean;
+  bookDespiteConflicts?: boolean;
+  /** What the event is anchored in and the candidate's draft is written in. */
+  timezone?: string;
+  /** Default true when candidate email is set up. */
+  draftCandidateEmail?: boolean;
+  /**
+   * The new interview's id, made by the caller, so a retry of a booking that
+   * did go through finds it instead of booking it twice. Default: a new one.
+   */
+  interviewId?: string;
+};
+
+export function scheduleInterview(db: Db, ctx: ClientToolCtx, input: ScheduleInput & { dryRun: true }, deps?: SchedulingDeps): Promise<SchedulePreview>;
+export function scheduleInterview(db: Db, ctx: ClientToolCtx, input: ScheduleInput & { dryRun?: false }, deps?: SchedulingDeps): Promise<ScheduleResult>;
 export async function scheduleInterview(
   db: Db,
   ctx: ClientToolCtx,
-  input: {
-    applicationId: string;
-    startsAt: string;
-    endsAt: string;
-    interviewerIds: string[];
-    locationOrLink?: string | null;
-    step?: string | null;
-    /** Default: invite when an interviewer's calendar or the caller's is connected. True = refuse unless one is; false = Tacit only. */
-    sendInvites?: boolean;
-    bookDespiteConflicts?: boolean;
-    /** What the event is anchored in and the candidate's draft is written in. */
-    timezone?: string;
-    /** Default true when candidate email is set up. */
-    draftCandidateEmail?: boolean;
-  },
+  input: ScheduleInput & { dryRun?: boolean },
   deps: SchedulingDeps = {},
-): Promise<ScheduleResult> {
+): Promise<ScheduleResult | SchedulePreview> {
   const startsAt = instant(input.startsAt, "starts_at");
   const endsAt = instant(input.endsAt, "ends_at");
   span(startsAt, endsAt);
@@ -447,23 +507,28 @@ export async function scheduleInterview(
     status: "not_sent", reason: input.sendInvites === false ? "not_asked" : past ? "in_the_past" : "not_set_up", connectUrl: calendar?.connectUrl ?? null,
   };
   let conflicts: InterviewConflicts = { busy: [], unknown: [] };
+  // What a dry run says when the real call would refuse instead of going on.
+  let preflight: Extract<SchedulePreview["calendar"], { status: "not_sent" }> | null = null;
   if (calendar && input.sendInvites !== false && !past) {
     const people = await interviewerDetails(db, ids);
     const avail = await availability(calendar, ctx, people, { startIso: startsAt, endIso: endsAt });
     // The event goes on an interviewer's calendar, so they organize it: the caller's when they interview, else the first connected.
     const holder = [ctx.actorId, ...ids].find((id) => ids.includes(id) && avail.tokens.has(id)) ?? (avail.callerToken ? ctx.actorId : null);
+    const withoutInvites = recordOnlyHint(ctx, " Nothing was scheduled; or pass send_invites: false to record it without invites.");
     if (!holder && avail.callerExpired) {
-      throw new ClientToolError("forbidden", `Your Google connection has expired, and no interviewer's calendar is connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
-    }
-    if (!holder) {
+      if (!input.dryRun) {
+        throw new ClientToolError("forbidden", `Your Google connection has expired, and no interviewer's calendar is connected. ${connectHint(calendar)}${withoutInvites}`);
+      }
+      preflight = { status: "not_sent", reason: "connection_expired", connectUrl: calendar.connectUrl };
+    } else if (!holder) {
       if (input.sendInvites === true) {
-        throw new ClientToolError("forbidden", `Neither your calendar nor any interviewer's is connected. ${connectHint(calendar)} Nothing was scheduled; or pass send_invites: false to record it without invites.`);
+        throw new ClientToolError("forbidden", `Neither your calendar nor any interviewer's is connected. ${connectHint(calendar)}${withoutInvites}`);
       }
       notSent = { status: "not_sent", reason: "not_connected", connectUrl: calendar.connectUrl };
     } else {
       const busy = busyIn(avail, Date.parse(startsAt), Date.parse(endsAt));
       conflicts = conflictsOf(avail, busy, people);
-      if (busy.length && !input.bookDespiteConflicts) return { outcome: "conflicts", interviewId: null, startsAt, endsAt, conflicts };
+      if (busy.length && !input.bookDespiteConflicts && !input.dryRun) return { outcome: "conflicts", interviewId: null, startsAt, endsAt, conflicts };
       const organizer = people.find((p) => p.id === holder) ?? (await interviewerDetails(db, [holder]))[0];
       invite = {
         holder, organizer: { userId: holder, name: organizer.name }, token: avail.tokens.get(holder)!, avail, people,
@@ -472,17 +537,37 @@ export async function scheduleInterview(
     }
   }
 
+  if (input.dryRun) {
+    if (!invite) {
+      const sent = preflight ?? (notSent as Extract<CalendarOutcome, { status: "not_sent" }>);
+      return { outcome: "preview", interviewId: null, startsAt, endsAt, calendar: sent, conflicts };
+    }
+    const to = inviteesOf(invite.people, invite.avail, invite.holder, invite.detail.candidateEmail);
+    return {
+      outcome: "preview", interviewId: null, startsAt, endsAt, conflicts,
+      calendar: {
+        status: "would_invite", organizer: invite.organizer, candidateEmail: invite.detail.candidateEmail,
+        invited: to.invited, notInvited: to.notInvited, meetLink: !location,
+      },
+    };
+  }
+
   const scheduled = await withAudit<{ interviewId: string; calendar: CalendarOutcome }>(db, ctx, { action: "interview.schedule", entity: "interview" }, async () => {
-    const interviewId = globalThis.crypto.randomUUID();
+    const interviewId = input.interviewId ?? globalThis.crypto.randomUUID();
     const row = {
       id: interviewId, application_id: app.id, starts_at: startsAt, ends_at: endsAt,
       interviewer_actor_ids: ids, location_or_link: location, step,
       ...(invite ? { calendar_actor_id: invite.holder } : {}),
     };
     const { error: insertError } = await db.from("interviews").insert(row);
+    // The caller's own id again: this booking already went through, so nothing is booked twice.
+    if (insertError?.code === "23505" && input.interviewId && /interviews_pkey/.test(insertError.message)) {
+      throw new ClientToolError("invalid", "This interview is already booked.", "interview_id");
+    }
     // interviews_one_active_per_step: one scheduled interview per step of an application.
     if (insertError?.code === "23505") {
-      throw new ClientToolError("invalid", `This candidate already has a scheduled "${step}" interview. Move or cancel it with update_interview.`);
+      const move = ctx.source === "dashboard" ? "Move or cancel it on the Calendar." : "Move or cancel it with update_interview.";
+      throw new ClientToolError("invalid", `This candidate already has a scheduled "${step}" interview. ${move}`);
     }
     if (insertError) throw new Error(insertError.message);
     if (!invite) return { result: { interviewId, calendar: notSent }, entityId: interviewId, after: row, changed: true };
@@ -551,25 +636,29 @@ export type UpdateInterviewResult =
     }
   | { outcome: "conflicts"; changed: string[]; startsAt: string; endsAt: string; conflicts: InterviewConflicts };
 
+export type UpdateInterviewInput = {
+  interviewId: string;
+  startsAt?: string;
+  endsAt?: string;
+  interviewerIds?: string[];
+  locationOrLink?: string | null;
+  status?: InterviewStatus;
+  bookDespiteConflicts?: boolean;
+  /** False = Tacit's record only; the calendar event stays as it is. */
+  updateCalendar?: boolean;
+  timezone?: string;
+  /** Default true when candidate email is set up: a move or a cancellation drafts a note to the candidate. */
+  draftCandidateEmail?: boolean;
+};
+
+export function updateInterview(db: Db, ctx: ClientToolCtx, input: UpdateInterviewInput & { dryRun: true }, deps?: SchedulingDeps): Promise<UpdateInterviewResult | UpdatePreview>;
+export function updateInterview(db: Db, ctx: ClientToolCtx, input: UpdateInterviewInput & { dryRun?: false }, deps?: SchedulingDeps): Promise<UpdateInterviewResult>;
 export async function updateInterview(
   db: Db,
   ctx: ClientToolCtx,
-  input: {
-    interviewId: string;
-    startsAt?: string;
-    endsAt?: string;
-    interviewerIds?: string[];
-    locationOrLink?: string | null;
-    status?: InterviewStatus;
-    bookDespiteConflicts?: boolean;
-    /** False = Tacit's record only; the calendar event stays as it is. */
-    updateCalendar?: boolean;
-    timezone?: string;
-    /** Default true when candidate email is set up: a move or a cancellation drafts a note to the candidate. */
-    draftCandidateEmail?: boolean;
-  },
+  input: UpdateInterviewInput & { dryRun?: boolean },
   deps: SchedulingDeps = {},
-): Promise<UpdateInterviewResult> {
+): Promise<UpdateInterviewResult | UpdatePreview> {
   if (input.status !== undefined && !INTERVIEW_STATUSES.includes(input.status)) {
     throw new ClientToolError("invalid", `An interview's status is one of ${INTERVIEW_STATUSES.join(", ")}.`);
   }
@@ -624,9 +713,16 @@ export async function updateInterview(
   // New interviewers replace the event's guest list, which keeps the candidate on it.
   let candidateEmail: string | null = null;
   let conflicts: InterviewConflicts = { busy: [], unknown: [] };
+  let eventPreview: UpdatePreview["calendar"] = !eventId || !touchesEvent ? { status: "none" } : { status: "left_alone" };
+  const blocked = (outcome: Extract<UpdatePreview["calendar"], { status: "blocked" }>): UpdatePreview => ({
+    outcome: "preview", changed, startsAt, endsAt, calendar: outcome, conflicts,
+  });
   if (touchesEvent && input.updateCalendar !== false) {
     const calendar = deps.calendar ?? null;
-    if (!calendar) throw notSetUp("Nothing was changed; pass update_calendar: false to change Tacit's record only.");
+    if (!calendar) {
+      if (input.dryRun) return blocked({ status: "blocked", reason: "not_set_up", organizer: null, yours: false });
+      throw notSetUp(recordOnlyHint(ctx, "Nothing was changed; pass update_calendar: false to change Tacit's record only.") || "Nothing was changed.");
+    }
     const holder = current.calendar_actor_id ?? ctx.actorId;
     const people = await interviewerDetails(db, [...new Set([holder, ...ids])]);
     const interviewing = people.filter((p) => ids.includes(p.id));
@@ -639,7 +735,7 @@ export async function updateInterview(
       for (const c of avail.checked.values()) c.busy = c.busy.filter((b) => !(b.start === own.start && b.end === own.end));
       const busy = busyIn(avail, Date.parse(startsAt), Date.parse(endsAt));
       conflicts = conflictsOf(avail, busy, people);
-      if (busy.length && !input.bookDespiteConflicts) return { outcome: "conflicts", changed, startsAt, endsAt, conflicts };
+      if (busy.length && !input.bookDespiteConflicts && !input.dryRun) return { outcome: "conflicts", changed, startsAt, endsAt, conflicts };
       if (avail.callerToken) google = { token: avail.callerToken, holder, people: interviewing, avail };
     } else {
       const connections = await calendar.connections(ctx.orgId, [...new Set([holder, ...ids])]);
@@ -650,14 +746,24 @@ export async function updateInterview(
     if (google && reinvite && !cancelling) candidateEmail = (await applicationDetail(db, current.application_id)).candidateEmail;
     if (!google) {
       const name = people.find((p) => p.id === holder)?.name ?? "the member who booked it";
+      if (input.dryRun) {
+        return blocked({ status: "blocked", reason: "not_connected", organizer: { userId: holder, name }, yours: holder === ctx.actorId });
+      }
       throw new ClientToolError(
         "forbidden",
         holder === ctx.actorId
-          ? `This interview's event is on your calendar, which is not connected now. ${connectHint(calendar)} Nothing was changed; or pass update_calendar: false to change Tacit's record only.`
-          : `This interview's event is on ${name}'s calendar, which is not connected now. They can connect it again, or pass update_calendar: false to change Tacit's record only (the event then stays as it is). Nothing was changed.`,
+          ? `This interview's event is on your calendar, which is not connected now. ${connectHint(calendar)} Nothing was changed${recordOnlyHint(ctx, "; or pass update_calendar: false to change Tacit's record only")}.`
+          : `This interview's event is on ${name}'s calendar, which is not connected now. They can connect it again${recordOnlyHint(ctx, ", or pass update_calendar: false to change Tacit's record only (the event then stays as it is)")}. Nothing was changed.`,
       );
     }
+    const organizer = people.find((p) => p.id === holder);
+    eventPreview = {
+      status: "would_follow", action: cancelling ? "cancel" : moved ? "move" : "update",
+      organizer: { userId: holder, name: organizer?.name ?? "the member who booked it" },
+      candidateEmail: input.dryRun ? (await applicationDetail(db, current.application_id)).candidateEmail : null,
+    };
   }
+  if (input.dryRun) return { outcome: "preview", changed, startsAt, endsAt, calendar: eventPreview, conflicts };
 
   const before = Object.fromEntries(changed.map((k) => [k, (current as Record<string, unknown>)[k]]));
   const done = await withAudit(db, ctx, { action: "interview.update", entity: "interview" }, async () => {

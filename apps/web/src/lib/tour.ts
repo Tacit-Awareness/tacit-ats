@@ -37,7 +37,7 @@ export const TOUR: TourStep[] = [
     href: "/client/inbox",
     targets: ['[data-tour="inbox-keys"]', '[data-tour="inbox"]'],
     title: "Inbox",
-    body: "Only what's stuck or waiting on you. F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first.",
+    body: "Only what's stuck or waiting on you. F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
   },
   {
     href: "/client/candidates",
@@ -55,7 +55,7 @@ export const TOUR: TourStep[] = [
     href: "/client/applicants",
     targets: ['[data-tour="route"]', '[data-tour="tickets"]'],
     title: "Applicant Tickets",
-    body: "New applicants, read like email. Pick Interview, Move to screening or Decline, and the next one opens.",
+    body: "New applicants, read like email. R writes a reply: you read the draft, then Send. Pick Interview, Move to screening or Decline, and the next one opens.",
   },
   {
     href: "/client/pipeline",

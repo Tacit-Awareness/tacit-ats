@@ -40,7 +40,7 @@ export function OfferTerms({ lines }: { lines: TermLine[] }) {
 }
 
 /** Inside the form, for its pending state: tells the dialog when the post has settled. */
-function Settled({ busy, done }: { busy: React.RefObject<boolean>; done: () => void }) {
+export function Settled({ busy, done }: { busy: React.RefObject<boolean>; done: () => void }) {
   const { pending } = useFormStatus();
   useEffect(() => {
     const settled = busy.current && !pending;

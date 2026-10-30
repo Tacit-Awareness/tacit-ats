@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
+import { readSender } from "@/lib/client/email";
 import { readDone, readDoneStory, readInbox, readIssue } from "@/lib/client/inbox";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
-import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue } from "@/lib/client/inbox-issues";
+import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
+import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import { Refusal } from "../refusal";
 import { DoneView } from "./done-view";
 import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice } from "./messages";
@@ -19,7 +22,8 @@ import { InboxView } from "./view";
 // reader's card. `?i=` picks the issue, `?tab=done` the Done tab, where `?i=` is
 // a dismissal's id. An interviewer gets the pointer home.
 
-function card(i: Issue, decidable: boolean): { title: string; detail: string } {
+function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
+  const decidable = fix.type === "decide";
   switch (i.reason) {
     case "feedback":
       return { title: "Waiting on feedback", detail: `${i.why}. Nothing here can remind them yet.` };
@@ -35,7 +39,13 @@ function card(i: Issue, decidable: boolean): { title: string; detail: string } {
     case "approval":
       return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
     case "draft":
-      return { title: "Not sent", detail: "Sending isn't in the web app yet: send it with the client connector's send_email." };
+      return {
+        title: "Not sent",
+        detail:
+          fix.type === "send" && fix.canSend
+            ? "Read it, then Send here. It only goes out after you confirm."
+            : "Email isn't set up on this deployment, so it can't go out from here. The client connector's send_email may still send it.",
+      };
   }
 }
 
@@ -129,7 +139,9 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
 
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
-  const fix = open ? issueFix(open, detail?.canEdit ?? false) : null;
+  const mailer = webMailer();
+  const fix = open ? issueFix(open, detail?.canEdit ?? false, mailer !== null) : null;
+  const sender = open?.draft ? await readSender(db, toolCtx(gate.ctx), mailer) : null;
   const decision = open && fix ? decisionProps(fix, open, detail?.reasons ?? []) : null;
 
   return (
@@ -153,8 +165,8 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 instance: { key: open.key, reason: open.reason, at: open.at },
                 what: open.what,
                 subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
-                card: card(open, fix.type === "decide"),
-                draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body } : null,
+                card: card(open, fix),
+                draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body, from: sender?.from ?? null, replyTo: sender?.replyTo ?? null } : null,
                 fix,
                 decision,
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,

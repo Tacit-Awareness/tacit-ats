@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { clientTools } from "@tacit-ats/core";
+import { granolaReadable } from "@/lib/client/interview-granola";
 import { GROUPS, RECOMMENDATION_LABEL, groupInterviews, verdictOf, type Recommendation, type Verdict } from "@/lib/client/interview-groups";
 import { hiddenOn, loopRounds } from "@/lib/client/interview-loop";
 import { readReviewed } from "@/lib/client/interview-reviews";
@@ -6,6 +8,7 @@ import { readInterview, readInterviews, type InterviewDetail, type InterviewList
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
+import { GranolaLoading, GranolaNotes } from "./granola";
 import { InterviewsView, type ListGroup, type Reader } from "./view";
 
 // design/tats's Interviews: every interview the member can see, Upcoming and
@@ -15,10 +18,14 @@ import { InterviewsView, type ListGroup, type Reader } from "./view";
 // the feedback the org's feedback_visibility lets them read. Feedback is filed
 // from the client connector (submit_feedback); the page's one write is the
 // member's own reviewed check (review.tsx, which saves through review/route.ts).
+// On an interview the member ran, their own Granola notes stream in below the
+// rest (./granola.tsx): `?note=` is the meeting they picked when nothing matched,
+// `?transcript=1` asks for the transcript too, both read from the URL like `?i=`.
 
 const href = (id: string) => `/client/interviews?i=${encodeURIComponent(id)}`;
 const utc = (iso: string) => `${iso.slice(0, 16).replace("T", " ")} UTC`;
 const isPast = (i: InterviewListItem, now: number) => i.status !== "scheduled" || Date.parse(i.endsAt) < now;
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 const whoRan = (names: string[]) => (names.length > 1 ? `${names[0]} +${names.length - 1}` : (names[0] ?? null));
 const when = (i: InterviewListItem, now: number) => (isPast(i, now) ? ago(i.startsAt, now) : until(i.startsAt, now));
 
@@ -66,7 +73,7 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
   const member: Member = { actorId, orgId: org.id, accessLevel };
 
   const sp = await searchParams;
-  const asked = (Array.isArray(sp.i) ? sp.i[0] : sp.i) ?? "";
+  const asked = first(sp.i);
   const now = new Date();
   const nowMs = now.getTime();
 
@@ -87,6 +94,17 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
       readerError = "This interview is no longer there for you to read.";
     }
   }
+
+  // `?note=` belongs to the interview it was picked on, and a malformed one is ignored rather than refused.
+  const note = first(sp.note);
+  const noteId = selected?.interviewId === asked && clientTools.GRANOLA_NOTE_ID.test(note) ? note : undefined;
+  const transcript = first(sp.transcript) === "1";
+  const granola =
+    selected && granolaReadable(selected, nowMs) ? (
+      <Suspense key={`${selected.interviewId}:${noteId ?? ""}:${transcript}`} fallback={<GranolaLoading />}>
+        <GranolaNotes db={db} accessLevel={accessLevel} interviewId={selected.interviewId} noteId={noteId} transcript={transcript} />
+      </Suspense>
+    ) : null;
 
   // A check is a convenience: if it cannot be read the page still does its job, without them.
   const past = grouped.filter((g) => g.key !== "upcoming").flatMap((g) => g.items.map((i) => i.interviewId));
@@ -124,6 +142,7 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
       counts={counts}
       reviewed={reviewed}
       reader={reader}
+      granola={granola}
       open={!!asked && selected?.interviewId === asked}
       readerError={readerError}
     />

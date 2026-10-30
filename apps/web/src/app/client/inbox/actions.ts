@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { sendDraft } from "@/lib/client/email";
 import { clearOverdueAction, decideInboxApplication, decideInboxApproval, dismissIssue, noteResolved, restoreIssue, touchApplication } from "@/lib/client/inbox";
 import { approvalNotice, parseDecision } from "@/lib/client/inbox-decisions";
 import { isIssueKey, parseInstance } from "@/lib/client/inbox-done";
+import { webMailer } from "@/lib/client/mailer";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { InboxError, InboxNotice } from "./messages";
@@ -13,10 +15,12 @@ import type { InboxError, InboxNotice } from "./messages";
 // Two are the candidate page's: clear an overdue next action, through the
 // audited clientTools, or log a touch, core's pipeline function. A decision is
 // clientTools' too: approve or reject an approval, or move the team's call to
-// offer or rejected. A fix that changed something also leaves a `resolved` row
-// for the Done tab. E and Undo are the member's own inbox_dismissals row, which
+// offer or rejected. Send here is clientTools' sendEmail, on the draft the
+// dialog showed. A fix that changed something also leaves a `resolved` row for
+// the Done tab. E and Undo are the member's own inbox_dismissals row, which
 // nothing else reads. Posted fields are request data, so they are re-read. A
-// reason, a note and an offer's terms never go in the URL or the log.
+// reason, a note, an offer's terms and an email's words never go in the URL or
+// the log.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -136,4 +140,29 @@ export async function restoreIssueAction(form: FormData): Promise<void> {
 
   revalidatePath("/client/inbox");
   return back({ i: isIssueKey(restored.key) ? restored.key : null, notice: "restored" });
+}
+
+/** Send, in the dialog that showed the draft: that stored draft, exactly as stored, and only its author's. */
+export async function sendDraftAction(form: FormData): Promise<void> {
+  const member = await requireClient();
+  const draftId = form.get("draftId");
+  if (typeof draftId !== "string" || !UUID.test(draftId)) return back({ error: "send_gone" });
+  const here = `draft-${draftId}`;
+
+  let done: { notice: InboxNotice } | { error: InboxError };
+  try {
+    const outcome = await sendDraft(member.db, toolCtx(member), webMailer(), draftId);
+    done = outcome.ok ? { notice: "sent" } : { error: outcome.error };
+  } catch (err) {
+    console.error("[client-inbox] send failed:", err instanceof Error ? err.message : err);
+    done = { error: "send_failed" };
+  }
+  revalidatePath("/client/inbox");
+  if ("error" in done) return back({ i: here, error: done.error });
+
+  await noteResolved(member.db, parseInstance(form, here));
+  revalidatePath("/client/applicants");
+  revalidatePath("/client/pipeline");
+  // On to the next issue, as the page sent it.
+  return back({ i: nextKey(form), notice: done.notice });
 }

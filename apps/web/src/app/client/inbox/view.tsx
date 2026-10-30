@@ -8,11 +8,13 @@ import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
+import { SendBar, type SendProps } from "./send-bar";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
 // #inbox as a list and a reader under one bar. The list is the queue by kind,
 // a row each: an icon, what is wrong, who it waits on and why, its age. The
-// reader: the same heading, the one fix (fix-bar.tsx, key F) or the decision
+// reader: the same heading, the one fix (fix-bar.tsx, key F), Send here on an
+// unsent draft (send-bar.tsx, key F, after a dialog) or the decision
 // (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E), the card
 // saying what is waiting, an offer's terms for the approver reading it, then
 // the candidate's story. Open and Done are tabs in the bar; done-view.tsx is
@@ -28,7 +30,7 @@ export type IssueReaderProps = {
   subject: string;
   card: { title: string; detail: string };
   /** An unsent draft, for its author's eyes. */
-  draft: { to: string; subject: string; body: string } | null;
+  draft: SendProps | null;
   fix: IssueFix;
   /** The buttons and what they confirm, when the fix is a decision. */
   decision: DecisionProps | null;
@@ -142,6 +144,12 @@ function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; trunca
 function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   return (
     <dl className="m-0 mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-[color:var(--line)] pt-3 text-[13px]">
+      {draft.from ? (
+        <>
+          <dt className="text-muted-foreground">From</dt>
+          <dd className="m-0 min-w-0 break-words">{draft.from}</dd>
+        </>
+      ) : null}
       <dt className="text-muted-foreground">To</dt>
       <dd className="m-0 min-w-0 break-words">{draft.to}</dd>
       <dt className="text-muted-foreground">Subject</dt>
@@ -158,6 +166,8 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
       <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">{issue.subject}</p>
       {issue.decision ? (
         <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
+      ) : issue.fix.type === "send" && issue.draft ? (
+        <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
       ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
         <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
       ) : null}

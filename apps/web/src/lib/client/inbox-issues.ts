@@ -80,11 +80,32 @@ export type InboxDraft = {
   personId: string;
   personName: string;
   jobTitle: string | null;
+  applicationId: string | null;
   toEmail: string;
   subject: string;
   body: string;
+  createdAt: string;
   updatedAt: string;
 };
+
+/** What makes a draft out of date: a newer email by the same member on the same application. */
+export type LaterEmail = { applicationId: string; createdAt: string };
+
+/**
+ * The drafts still worth a place in the queue. A draft can't be changed or
+ * discarded (the database's "an email does not change once drafted"), so
+ * changing one writes another. The older one stays a draft for good, and is
+ * dropped here: once a newer draft, or an email sent, exists for that
+ * application, it is out of date and must not be offered to send. A draft on no
+ * application is never out of date.
+ */
+export function currentDrafts<T extends { applicationId: string | null; createdAt: string }>(drafts: T[], later: LaterEmail[]): T[] {
+  const newest = new Map<string, number>();
+  for (const e of [...later, ...drafts]) {
+    if (e.applicationId) newest.set(e.applicationId, Math.max(newest.get(e.applicationId) ?? 0, Date.parse(e.createdAt)));
+  }
+  return drafts.filter((d) => !d.applicationId || Date.parse(d.createdAt) >= (newest.get(d.applicationId) ?? 0));
+}
 
 export type Issue = {
   /** Stable while the issue stands: `?i=` in the URL, so ids only. */
@@ -294,11 +315,14 @@ export type IssueFix =
   | { type: "write"; write: "done" | "touch"; label: string; applicationId: string; /** What "Mark it done" clears, so a changed one is left alone. */ nextAction: string | null }
   | { type: "link"; label: string; href: string }
   | { type: "approval"; requestId: string; kind: InboxApproval["kind"] }
+  /** An unsent draft: Send here, always after a dialog showing it. `canSend` false: no mailer here, so the button is off and says why. */
+  | { type: "send"; label: string; draftId: string; canSend: boolean }
   | { type: "decide"; applicationId: string; /** Where A goes: booking a round isn't in the web app, so it is their page. */ nextRoundHref: string };
 
 const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
 
-export function issueFix(i: Issue, canEdit: boolean): IssueFix {
+export function issueFix(i: Issue, canEdit: boolean, canSend = false): IssueFix {
+  if (i.draft) return { type: "send", label: "Send here", draftId: i.draft.draftId, canSend };
   if (i.reason === "overdue" && canEdit && i.applicationId) return { type: "write", write: "done", label: "Mark it done", applicationId: i.applicationId, nextAction: i.nextAction };
   if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId, nextAction: null };
   if (i.reason === "feedback" && i.interviewId) return { type: "link", label: "Open the interview", href: `/client/interviews?i=${i.interviewId}` };
