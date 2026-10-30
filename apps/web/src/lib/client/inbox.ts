@@ -2,7 +2,7 @@ import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
 import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
-import { currentDrafts, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue, type LaterEmail } from "./inbox-issues";
+import { DRAFT_LATE_MS, currentDrafts, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue, type LaterEmail } from "./inbox-issues";
 import { readPipeline } from "./pipeline";
 
 // The Inbox's reads and writes, on the member's OWN client (never a
@@ -41,7 +41,7 @@ export type InboxRead = {
   draftsCapped: boolean;
 };
 
-type DraftHead = { id: string; application_id: string | null; created_at: string };
+type DraftHead = { id: string; application_id: string | null; created_at: string; updated_at: string };
 
 type DraftRow = {
   id: string;
@@ -57,22 +57,23 @@ type DraftRow = {
 };
 
 /**
- * The member's current drafts, newest DRAFTS_MAX. A draft can't be discarded,
- * so replaced ones pile up for good: they are dropped before the cap, by ids and
- * times alone, or they would push out a draft still worth sending. Only the
- * drafts kept bring their text.
+ * The member's forgotten drafts, newest DRAFTS_MAX: current (a draft can't be
+ * discarded, so replaced ones pile up for good) and older than DRAFT_LATE_MS.
+ * Both are settled before the cap, by ids and times alone, or dead drafts or a
+ * batch still being written would push out one worth sending. Only the drafts
+ * kept bring their text.
  */
-async function readDrafts(db: Db, actorId: string): Promise<{ drafts: InboxDraft[]; capped: boolean }> {
+async function readDrafts(db: Db, actorId: string, now: Date): Promise<{ drafts: InboxDraft[]; capped: boolean }> {
   const { data: heads, error } = await db
     .from("candidate_emails")
-    .select("id, application_id, created_at")
+    .select("id, application_id, created_at, updated_at")
     .eq("status", "draft")
     .eq("author_actor_id", actorId)
     .order("updated_at", { ascending: false })
     .limit(DRAFT_SCAN_MAX)
     .overrideTypes<DraftHead[], { merge: false }>();
   if (error) throw new Error(error.message);
-  const scanned = (heads ?? []).map((d) => ({ draftId: d.id, applicationId: d.application_id, createdAt: d.created_at }));
+  const scanned = (heads ?? []).map((d) => ({ draftId: d.id, applicationId: d.application_id, createdAt: d.created_at, updatedAt: d.updated_at }));
   if (!scanned.length) return { drafts: [], capped: false };
 
   // The member's emails that left draft since the oldest of these, newest first.
@@ -89,7 +90,7 @@ async function readDrafts(db: Db, actorId: string): Promise<{ drafts: InboxDraft
   if (othersError) throw new Error(othersError.message);
   const later: LaterEmail[] = (others ?? []).flatMap((o) => (o.application_id ? [{ applicationId: o.application_id, createdAt: o.created_at }] : []));
 
-  const current = currentDrafts(scanned, later);
+  const current = currentDrafts(scanned, later).filter((d) => now.getTime() - Date.parse(d.updatedAt) > DRAFT_LATE_MS);
   const capped = current.length > DRAFTS_MAX || scanned.length >= DRAFT_SCAN_MAX;
   const ids = current.slice(0, DRAFTS_MAX).map((d) => d.draftId);
   if (!ids.length) return { drafts: [], capped };
@@ -127,7 +128,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
       throw err;
     }),
     clientTools.listMyApprovals(db, ctx),
-    readDrafts(db, member.actorId),
+    readDrafts(db, member.actorId, now),
   ]);
 
   const names = new Map((activity?.interviewers ?? []).map((i) => [i.userId, i.name]));

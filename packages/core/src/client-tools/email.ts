@@ -224,8 +224,8 @@ export async function updateEmailTemplate(
 // Emails
 // ---------------------------------------------------------------------------
 
-/** The candidate's addresses the member can read: the email column, then any email identifiers. */
-async function addressesOnFile(db: Db, personId: string, primary: string | null): Promise<string[]> {
+/** The candidate's addresses the member can read: the email column, then any email identifiers. Exported so apps/web can name the recipient before a draft exists. */
+export async function addressesOnFile(db: Db, personId: string, primary: string | null): Promise<string[]> {
   const { data, error } = await db.from("person_identifiers").select("value").eq("person_id", personId).eq("kind", "email");
   if (error) throw new Error(error.message);
   const all = [primary, ...(data ?? []).map((r) => r.value)].map((e) => e?.trim().toLowerCase());

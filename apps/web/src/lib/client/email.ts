@@ -18,6 +18,8 @@ export type LastEmail = { at: string; subject: string; by: string };
 export type ReplyRead = {
   /** can_edit_person: anyone else gets no reply box. */
   canEmail: boolean;
+  /** Who a new draft goes to, as core picks it: the first address on file, identifiers included. Null: nobody to write to. */
+  to: string | null;
   /** The member's newest email on this application, when that is an unsent draft. */
   draft: ShownDraft | null;
   /** The member's newest email here, when it failed: its words, to write again. */
@@ -47,7 +49,11 @@ export async function readReply(
 ): Promise<ReplyRead> {
   const allowed = await db.rpc("can_edit_person", { p_person: input.candidateId });
   if (allowed.error) throw new Error(allowed.error.message);
-  if (allowed.data !== true) return { canEmail: false, draft: null, failed: null, sent: null, sender: null };
+  if (allowed.data !== true) return { canEmail: false, to: null, draft: null, failed: null, sent: null, sender: null };
+
+  const person = await db.from("people").select("email").eq("id", input.candidateId).maybeSingle();
+  if (person.error) throw new Error(person.error.message);
+  const onFile = await clientTools.addressesOnFile(db, input.candidateId, person.data?.email ?? null);
 
   // Newest first, and the policy shows a draft to its author alone.
   const emails = (await clientTools.listEmails(db, ctx, { candidateId: input.candidateId })).filter((e) => e.applicationId === input.applicationId);
@@ -57,6 +63,7 @@ export async function readReply(
   const sent = emails.find((e) => e.status === "sent" || e.status === "sending") ?? null;
   return {
     canEmail: true,
+    to: onFile[0] ?? null,
     draft: draft ? { draftId: draft.emailId, to: draft.to, subject: draft.subject, body: draft.body } : null,
     failed: mine?.status === "failed" ? { subject: mine.subject, body: mine.body } : null,
     sent: sent ? { at: sent.sentAt ?? sent.createdAt, subject: sent.subject, by: sent.mine ? "You" : (sent.author ?? "Someone") } : null,

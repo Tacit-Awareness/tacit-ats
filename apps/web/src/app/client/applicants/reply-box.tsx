@@ -185,14 +185,19 @@ export function ReplyBox({ reply }: { reply: Reply }) {
     <section ref={box} aria-label="Reply" className={shell}>
       {sent}
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
+      {failed ? <p className="m-0 text-[12.5px] text-muted-foreground">Your last reply here didn&apos;t go out, so here are its words to write again.</p> : null}
       <form
         action={action}
         className="grid gap-2"
         onKeyDown={(e) => {
           if (e.key === "Escape" && !changing) setOpen(false);
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !pending) {
+          if (e.key !== "Enter") return;
+          if ((e.metaKey || e.ctrlKey) && !pending) {
             e.preventDefault();
             e.currentTarget.requestSubmit();
+          } else if (e.target instanceof HTMLInputElement) {
+            // Enter in the subject would submit: a draft can't be discarded, so one is only ever asked for.
+            e.preventDefault();
           }
         }}
       >

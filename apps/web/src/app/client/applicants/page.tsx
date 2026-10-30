@@ -75,7 +75,7 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
         ? {
             applicationId: open.applicationId,
             candidateId: open.candidateId,
-            to: open.email,
+            to: reply.to,
             enabled: mailer !== null,
             draft: reply.draft,
             sender: reply.sender,

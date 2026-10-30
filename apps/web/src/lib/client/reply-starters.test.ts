@@ -27,6 +27,15 @@ describe("replyStarters", () => {
     }
   });
 
+  test("single braces can't be left to close up into a placeholder either", () => {
+    const s = replyStarters({ ...base, candidateName: "{}}{oops}{{}", jobTitle: "{}}{job_title}{{}", company: "{}}{x}{{}" });
+    expect([s.subject, ...Object.values(s.bodies)].join("\n")).not.toMatch(/\{\{|\}\}/);
+  });
+
+  test("a member with no name on file signs off with nothing, not their email address", () => {
+    expect(replyStarters({ ...base, sender: "ada@acme.test" }).bodies.blank).toBe("Hi Nia,");
+  });
+
   test("double braces in someone's name can't become a placeholder core refuses", () => {
     const s = replyStarters({ ...base, candidateName: "{{job_title}} Smith", jobTitle: "Eng {{oops}}" });
     expect([s.subject, ...Object.values(s.bodies)].join("\n")).not.toMatch(/\{\{|\}\}/);

@@ -75,4 +75,9 @@ describe("the reply box", () => {
     expect(out).toContain("Kept body");
     expect(out).toContain("Review draft");
   });
+
+  test("and says why it is open: it may be a visit long after the send failed", () => {
+    expect(html({ failed: { subject: "Kept subject", body: "Kept body" } })).toContain("didn&#x27;t go out");
+    expect(html()).not.toContain("didn&#x27;t go out");
+  });
 });

@@ -4,6 +4,7 @@ import { clientTools } from "@tacit-ats/core";
 
 import { draftReply, readReply, sendDraft } from "./email";
 import { readInbox } from "./inbox";
+import { DRAFT_LATE_MS } from "./inbox-issues";
 
 /**
  * Candidate email under stress, on members' own tokens with a FAKE mailer:
@@ -309,6 +310,39 @@ describe("a stale page", () => {
   });
 });
 
+describe("who a reply would go to", () => {
+  test("a candidate whose only address is an identifier can be replied to, and the box names it", async () => {
+    must(await db().from("person_identifiers").insert({ org_id: ORG, person_id: person(4), kind: "email", value: "Second@ES.test" }));
+    const m = members.admin;
+    const read = await readReply(client(m), ctx(m), fakeMailer().mailer, { candidateId: person(4), applicationId: app(4) });
+    expect(read.to).toBe("second@es.test");
+    const out = await draftReply(client(m), ctx(m), fakeMailer().mailer, { candidateId: person(4), applicationId: app(4), subject: "s", body: "b" });
+    expect(out.ok).toBe(true);
+    expect((await readReply(client(m), ctx(m), fakeMailer().mailer, { candidateId: person(4), applicationId: app(4) })).draft?.to).toBe("second@es.test");
+  });
+
+  test("a primary that isn't an address doesn't show as the recipient: the draft's real one does", async () => {
+    must(await db().from("people").update({ email: "n/a" }).eq("id", person(4)));
+    must(await db().from("person_identifiers").insert({ org_id: ORG, person_id: person(4), kind: "email", value: "real@es.test" }));
+    const m = members.admin;
+    expect((await readReply(client(m), ctx(m), fakeMailer().mailer, { candidateId: person(4), applicationId: app(4) })).to).toBe("real@es.test");
+  });
+
+  test("nobody on file is nobody: the box says so", async () => {
+    const m = members.admin;
+    expect((await readReply(client(m), ctx(m), fakeMailer().mailer, { candidateId: person(4), applicationId: app(4) })).to).toBeNull();
+  });
+
+  test("a draft that vanished under a stale page (anonymized) sends nothing and says it's gone", async () => {
+    const m = members.admin;
+    const id = await write(m);
+    must(await db().from("candidate_emails").delete().eq("id", id));
+    const { send, mailer } = fakeMailer();
+    expect(await sendDraft(client(m), ctx(m), mailer, id)).toEqual({ ok: false, error: "send_gone" });
+    expect(send).not.toHaveBeenCalled();
+  });
+});
+
 describe("what a member can type", () => {
   const m = members.admin;
   const typed = (over: Partial<typeof reply>) => draftReply(client(m), ctx(m), fakeMailer().mailer, { ...reply, ...over });
@@ -412,6 +446,20 @@ describe("a member with thousands of dead drafts", () => {
     const read = await readInbox(client(m), ctx(m), later());
     expect(read.issues.filter((i) => i.reason === "draft")).toHaveLength(100);
     expect(read.draftsCapped).toBe(true);
+  });
+
+  test("a pile of drafts still being written doesn't hide one that has been forgotten", async () => {
+    // One late, then more than the list holds of fresh ones: what matters is the late one, and fresh ones never show.
+    const forgotten = await write(m, { candidateId: person(2), applicationId: app(2), subject: "Forgotten" });
+    const { updated_at } = await row(forgotten);
+    const at = new Date(Date.parse(updated_at) + DRAFT_LATE_MS + 1);
+    await new Promise((r) => setTimeout(r, 25));
+    const fresh = Array.from({ length: 120 }, () => ({ org_id: ORG, person_id: person(1), author_actor_id: ADMIN, to_email: "cam@es.test", subject: "Fresh", body: "Fresh" }));
+    must(await db().from("candidate_emails").insert(fresh));
+
+    const read = await readInbox(client(m), ctx(m), at);
+    expect(read.issues.filter((i) => i.reason === "draft").map((i) => i.draft?.draftId)).toEqual([forgotten]);
+    expect(read.draftsCapped).toBe(false);
   });
 
   test("an empty org's Inbox has no drafts and no notice", async () => {
