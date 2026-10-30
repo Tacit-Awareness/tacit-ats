@@ -67,7 +67,7 @@ const P = {
   db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
   chevU: "M4 10l4-4 4 4",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
-  gear: "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1",
+  gear: "M12.61 6.05 L14.22 6.48 L14.22 9.52 L12.61 9.95 L12.63 9.88 L13.47 11.32 L11.32 13.47 L9.88 12.63 L9.95 12.61 L9.52 14.22 L6.48 14.22 L6.05 12.61 L6.12 12.63 L4.68 13.47 L2.53 11.32 L3.37 9.88 L3.39 9.95 L1.78 9.52 L1.78 6.48 L3.39 6.05 L3.37 6.12 L2.53 4.68 L4.68 2.53 L6.12 3.37 L6.05 3.39 L6.48 1.78 L9.52 1.78 L9.95 3.39 L9.88 3.37 L11.32 2.53 L13.47 4.68 L12.63 6.12Z M10.2 8a2.2 2.2 0 1 1-4.4 0a2.2 2.2 0 1 1 4.4 0Z",
   alert: "M8 2.5 14 13H2ZM8 6.5v3M8 11.3h.01",
   help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
   pause: "M5.5 3.5v9M10.5 3.5v9",
@@ -247,7 +247,7 @@ const chOf = (id) => (PEOPLE[id].ch === "slack" ? "slack" : "imessage");
 function seed(a) {
   let t = a.when - 9 * DAY;
   const step = (m) => (t += m * MIN);
-  const src = a.src.startsWith("Referral") ? `Referred by ${a.src.split("· ")[1]}` : a.src === "Tacit" ? "Sent by Tacit" : "Applied";
+  const src = a.src.startsWith("Referral") ? `Referred by ${a.src.split("· ")[1]}` : a.src.startsWith("Backchannel") ? `Vouched for by ${a.src.split("· ")[1]}` : a.src === "Tacit" ? "Sent by Tacit" : "Applied";
   ev(a, step(0), "orch", `${src} for ${esc(ROLES[a.role].title)}`);
   if (a.tb && a.tb.state === "done") {
     const r = startRun(a, "Send the Testbench", ME, step(40), "testbench");
@@ -476,7 +476,11 @@ function nudgeRun(r) {
 }
 
 /* ---------------- sidebar ---------------- */
-const queue = () => APPLICANTS.filter((a) => a.state === "new").sort((x, y) => y.when - x.when);
+// New applicants, grouped by the team they applied to; within a team, warmest source first, then newest.
+const queue = () => {
+  const teams = Object.keys(TEAMS);
+  return APPLICANTS.filter((a) => a.state === "new").sort((x, y) => teams.indexOf(ROLES[x.role].team) - teams.indexOf(ROLES[y.role].team) || SRC_KINDS[srcKind(x.src)][0] - SRC_KINDS[srcKind(y.src)][0] || y.when - x.when);
+};
 /* ---------------- your court ---------------- */
 const senti = (v) => `<span class="senti" title="Sentiment ${v.toFixed(2)}"><i style="width:${Math.round(v * 100)}%"></i></span>`;
 function liveFeed(n = 7) {
@@ -505,8 +509,13 @@ function profile(a) {
     ${a.exp.length ? `<div class="exp">${a.exp.map(([co, ti, yr]) => `<div><b>${esc(co)}</b><span>${esc(ti)}</span><span class="faint">${esc(yr)}</span></div>`).join("")}</div>` : ""}
     ${a.links.length ? `<div class="links">${a.links.map((l) => `<a href="#" data-act="noop">${ico("link")}${esc(l)}</a>`).join("")}</div>` : ""}`;
 }
-const srcTag = (a) => (a.src.startsWith("Referral") ? "Referral" : a.src === "Tacit" ? "Tacit" : "Cold");
-const srcLong = (a) => (a.src.startsWith("Referral") ? `Referred by ${a.src.split("· ")[1]}` : a.src === "Tacit" ? "Sent by Tacit" : "Applied cold");
+// Where an applicant came from, warmest first: a referral, a backchannel (someone on the team vouched), Tacit, then cold.
+const SRC_KINDS = { ref: [0, "Referral"], back: [1, "Backchannel"], tacit: [2, "Tacit"], cold: [3, "Cold"] };
+const srcKind = (s) => (s.startsWith("Referral") ? "ref" : s.startsWith("Backchannel") ? "back" : s === "Tacit" ? "tacit" : "cold");
+const srcText = (s) => ({ ref: `Referred by ${s.split("· ")[1]}`, back: `Vouched for by ${s.split("· ")[1]}`, tacit: "Sent by Tacit", cold: "Applied cold" })[srcKind(s)];
+// Analytics and CRM filters count a backchannel with referrals: both are warm intros.
+const srcTag = (a) => ({ ref: "Referral", back: "Referral", tacit: "Tacit", cold: "Cold" })[srcKind(a.src)];
+const srcLong = (a) => srcText(a.src);
 // Days since they applied: how long this person has been waiting on us.
 /* ---------------- scale: hundreds of active applicants, thousands of past applications ---------------- */
 // Generated the same way on every load. Active ones live in Pipeline only (the Inbox, Tickets and
@@ -627,7 +636,7 @@ function scoped() {
     .sort((x, y) => y.when - x.when);
 }
 // Pipeline is every open application. Closed ones are records in the CRM; one person can be in both.
-const hSrc = (h) => (h.src.startsWith("Referral") ? "Referral" : h.src === "Tacit" ? "Tacit" : "Cold");
+const hSrc = (h) => srcTag(h);
 function hscoped() {
   const f = (state.hf ||= {}), tk = state.team, q = (state.q || "").toLowerCase().trim();
   return HISTORY.filter((h) => (tk === "all" || h.team === tk) && (!f.outcome || h.outcome === f.outcome) && (!f.role || h.role === f.role) && (!f.src || hSrc(h) === f.src)
@@ -641,7 +650,7 @@ function openHist(id) {
   if (!h) return;
   if (h.a) return go(`t~${h.a}`);
   openForm({ title: h.name, sub: `${esc(ROLES[h.role].title)} · ${esc(h.outcome)}`, body: `<dl class="dc-mail h-detail">
-      <dt>Applied</dt><dd>${fmtDate(h.applied)} · ${esc(h.src.startsWith("Referral") ? `Referred by ${h.src.split("· ")[1]}` : h.src === "Tacit" ? "Sent by Tacit" : "Applied cold")}</dd>
+      <dt>Applied</dt><dd>${fmtDate(h.applied)} · ${esc(srcText(h.src))}</dd>
       <dt>Background</dt><dd>${esc(h.hl)}</dd>
       <dt>Got to</dt><dd>${esc(h.reached)}${h.iv ? ` with ${esc(PEOPLE[h.iv].name)}` : ""}</dd>
       ${h.score ? `<dt>Testbench</dt><dd>${h.score}/100</dd>` : ""}
@@ -2142,7 +2151,7 @@ function patch(el, html) {
     onBeforeElUpdated: (from, to) => {
       if (from.isEqualNode(to)) return false;
       // Never overwrite what someone is typing.
-      if (from === document.activeElement && /^(INPUT|TEXTAREA)$/.test(from.tagName)) return false;
+      if (from === document.activeElement && (/^(INPUT|TEXTAREA)$/.test(from.tagName) || from.isContentEditable)) return false;
       if (from.classList.contains("sb-count") && from.textContent !== to.textContent) bumped.push(from);
       return true;
     },
@@ -2242,11 +2251,11 @@ function renderSide() {
   const shut = (k) => (closed.has(k) ? "shut" : "");
   const sec = (k, label, hint = "") => `<button class="sb-sec" data-act="sbSec" data-k="${k}" aria-expanded="${!closed.has(k)}" title="${hint}">${label}<svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg></button>`;
   // Counts only where they mean "this many need you", each with a plain-English tooltip.
-  // No counts in the sidebar: a red dot only when something new arrived since you last opened the page.
+  // No counts in the sidebar: a faint red highlight only when something new arrived since you last opened the page.
   if (r.name === "inbox") sbSeen.inbox = new Set(sbKeys.inbox());
   if (r.name === "triage") sbSeen.triage = new Set(sbKeys.triage());
   if (r.name === "bots" && (r.id === "runs" || r.id === "checks")) sbSeen.activity = new Set(sbKeys.activity());
-  const item = (href, icon, label, active, dot, tone = "", tip = "") => `<a class="sb-item ${on(active)}" href="${href}" title="${dot ? tip : label}"><span class="sb-ico">${icon}</span><span class="trunc">${label}</span>${dot ? `<span class="sb-dot" aria-label="${esc(tip)}"></span>` : ""}</a>`;
+  const item = (href, icon, label, active, dot, tone = "", tip = "") => `<a class="sb-item ${on(active)} ${dot ? "new" : ""}" href="${href}" title="${dot ? tip : label}"${dot ? ` aria-description="${esc(tip)}"` : ""}><span class="sb-ico">${icon}</span><span class="trunc">${label}</span></a>`;
   const faces = (ids) => `<span class="sb-faces" aria-hidden="true">${ids.slice(0, 3).map((id) => personAv(id)).join("")}</span>`;
   patch($("#side"), `<div class="sb">
     <div class="sb-ws"><button class="sb-org" data-act="palette"><span class="ws-logo">${ORG.initials}</span><b class="trunc">${ORG.name}</b><svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
@@ -2273,7 +2282,7 @@ function renderSide() {
     </nav>
     <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
     <button class="sb-chat ${on(r.name === "chat")}" data-act="goChat">${botAv(ME)}<span class="trunc">Chat with your Grokbot</span></button>
-    <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><span class="grow"></span><a class="sb-help ${on(r.name === "settings")}" href="#settings" aria-label="Settings" title="Settings">${ico("gear")}</a></div>
+    <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
   </div>`);
 }
 
@@ -2541,7 +2550,7 @@ function mrow(a, sel) {
   return `<button class="mrow ${sel ? "sel" : ""}" data-act="triSel" data-id="${a.id}" id="m-${a.id}">
     ${candAv(a, "lg")}
     <span class="m1"><b class="trunc" data-hc="a:${a.id}">${esc(a.name)}</b><span class="mt">${ago(a.when)}</span></span>
-    <span class="m2 trunc">${esc(ROLES[a.role].title)}${tb}</span>
+    <span class="m2 trunc">${srcKind(a.src) !== "cold" ? `<span class="m-src ${srcKind(a.src)}" title="${esc(srcText(a.src))}">${srcKind(a.src) === "tacit" ? "Tacit" : esc(a.src)}</span>` : ""}${esc(ROLES[a.role].title)}${tb}</span>
   </button>`;
 }
 const filesOf = (a) => [
@@ -2621,14 +2630,9 @@ function triagePage() {
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
   return `<div class="inbox2 tk tk-nohead ${state.dvFull ? "dv-full" : ""}">
-    <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
+    <div class="mlist" id="mlist">${Object.keys(TEAMS).map((tk) => { const xs = q.filter((x) => ROLES[x.role].team === tk);
+      return xs.length ? `<div class="m-team">${teamKey(tk)}<b>${esc(TEAMS[tk].name)}</b><span>${xs.length}</span></div>${xs.map((x) => mrow(x, x.id === a.id)).join("")}` : ""; }).join("")}</div>
     <div class="reader" id="reader">
-      <header class="tk-top">${candAv(a, "xl")}
-        <div class="grow"><h1>${esc(a.name)}</h1><p>${esc(a.hl)} · ${esc(a.loc)} · ${esc(srcLong(a))}</p></div>
-        <div class="tk-acts"><button class="cx-btn" data-act="askGrok" data-id="${a.id}">${botAv(ME)}Ask Grokbot</button><a class="cx-btn icon" href="#t~${a.id}" title="Open the full ticket (↵)" aria-label="Open the full ticket">${ico("arrowR")}</a></div>
-      </header>
-      <div class="tk-meta"><span class="label">${esc(ROLES[a.role].title)}</span>${labelsOf(a).map(labelChip).join("")}<button class="label add" data-act="menuLabels" data-id="${a.id}">${ico("plus")}Tag</button>
-</div>
       ${docViewer(a)}
       <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
         ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
@@ -2773,11 +2777,12 @@ function openFile(a, k) {
   openForm({ title: f.name, sub: `${esc(f.sub)} · from ${esc(a.name)}`, body, wide: true });
 }
 function jobsPage() {
+  if (state.route.id) return jobEditor(state.route.id);
   const shut = (state.jpShut ||= new Set());
   const live = Object.values(ROLES).filter((r) => r.status !== "paused").length;
   const applied = (k) => APPLICANTS.filter((a) => a.role === k).length;
   const row = ([k, r]) => `<button class="jp-row ${r.status === "paused" ? "paused" : ""}" data-act="editJob" data-k="${k}">
-      ${ico("file")}<span class="jp-t"><b>${esc(r.title)}</b><span>${r.status === "paused" ? "Paused" : "On-site"}</span>${r.posted ? `<span class="jp-new">New</span>` : ""}</span>
+      ${ico("file")}<span class="jp-t"><b>${esc(r.title)}</b><span>${r.status === "paused" ? "Paused" : esc(r.where || "On-site")}</span>${r.posted ? `<span class="jp-new">New</span>` : ""}</span>
       <span class="jp-n">${applied(k) ? `${applied(k)} in pipeline` : ""}</span>
       <span class="jp-loc">${esc(r.loc || "San Francisco")}</span><span class="jp-edit">Edit</span></button>`;
   return `<div class="bar cx-bar"><h1 class="cx-title">Job Postings</h1><span class="faint tk-count">${live} live</span><span class="spacer"></span>
@@ -2798,25 +2803,135 @@ function jobsPage() {
     </div>
   </div></div>`;
 }
-function openJobForm(k, team) {
-  const r = k ? ROLES[k] : null;
-  openForm({
-    title: r ? `Edit ${r.title}` : "New Job Posting", sub: "Drafted from the team's notes.", submit: r ? "Save" : "Post the job",
-    body: `<label class="fm-f"><span>Title</span><input name="title" value="${esc(r ? r.title : "")}" placeholder="Staff Engineer, Inference" required></label>
-      <div class="fm-row"><label class="fm-f"><span>Team</span><select name="team">${Object.entries(TEAMS).map(([tk, t]) => `<option value="${tk}" ${(r ? r.team : team) === tk ? "selected" : ""}>${t.name}</option>`).join("")}</select></label>
-      <label class="fm-f"><span>Location</span><input name="loc" value="${esc(r ? r.loc || "San Francisco" : "San Francisco")}"></label>
-      <label class="fm-f"><span>Status</span><select name="status"><option value="live">Live</option><option value="paused" ${r && r.status === "paused" ? "selected" : ""}>Paused</option></select></label></div>
-      <label class="fm-f"><span>Testbench</span><input name="tb" value="${esc(r ? r.tb : "")}" placeholder="What the take-home asks them to build"></label>
-      <label class="fm-f"><span>The post</span><textarea name="desc" rows="6">${esc(r && r.desc ? r.desc : "We're a small team building the infrastructure our models run on. You'll own systems end to end, from design to on-call, and work closely with research.\n\nYou might be a fit if you've run production systems at scale and like writing things down.")}</textarea></label>`,
-    onSubmit: (v) => {
-      if (!v.title.trim()) return false;
-      const key = k || v.title.toLowerCase().replace(/[^a-z]+/g, "-").slice(0, 20);
-      ROLES[key] = { ...(ROLES[key] || { tbLen: "3 hours" }), title: v.title.trim(), team: v.team, loc: v.loc, status: v.status, tb: v.tb || "A take-home in a real coding environment", desc: v.desc, posted: !k || ROLES[key].posted };
-      render();
-      toast(k ? "Saved" : `Posted ${v.title.trim()}. Your Grokbot shared it in #hiring and on the careers page.`);
-    },
+// A role's posting, edited the way an applicant sees it: click any text and type over it.
+const JOB_COPY = {
+  infra: { intro: "Build and run the systems our models train and serve on.", does: ["Own services end to end, from design to on-call", "Make training and inference faster and cheaper", "Work closely with research on what to build next"], fit: ["You've run production systems at scale", "You like writing things down", "You'd rather fix the root cause than the symptom"] },
+  research: { intro: "Make our models better, and prove it with evals the team trusts.", does: ["Design and run post-training experiments", "Build evals that catch regressions before they ship", "Write up what worked, and what didn't"], fit: ["You've trained or evaluated large models", "You care how a number was measured", "You read a codebase and a paper with the same care"] },
+  product: { intro: "Shape what customers see and touch, from the first screen to the last detail.", does: ["Build the product's front end and the APIs behind it", "Turn rough ideas into polished, fast interfaces", "Talk to users and ship changes the same week"], fit: ["You have product work you're proud of", "You notice details others miss", "You're as happy in TypeScript as in a design file"] },
+};
+const JOB_QS = [{ q: "Are you authorized to work in the US?", kind: "yesno", req: true }, { q: "Will you need visa sponsorship now or in the future?", kind: "yesno", req: true }, { q: "Earliest start date", kind: "date", req: true }];
+const Q_KINDS = [["yesno", "Yes / No"], ["text", "Short answer"], ["date", "Date"]];
+const JOB_PICKS = { type: ["Full time", "Part time", "Contract", "Internship"], where: ["On-site", "Hybrid", "Remote"] };
+function jobDraft(k) {
+  if (state.job && state.job.k === k) return state.job;
+  const r = k === "new" ? null : ROLES[k], team = r ? r.team : state.jobTeam || "infra", c = JOB_COPY[team] || JOB_COPY.infra;
+  return (state.job = {
+    k, tab: "overview", preview: false, title: r ? r.title : "", team, status: (r && r.status) || "live",
+    loc: (r && r.loc) || "San Francisco", type: (r && r.type) || "Full time", where: (r && r.where) || "On-site", comp: (r && r.comp) || "$180K – $240K", equity: r && r.equity != null ? r.equity : "Offers equity",
+    intro: (r && r.intro) || c.intro, does: [...((r && r.does) || c.does)], fit: [...((r && r.fit) || c.fit)], steps: [...((r && r.steps) || state.process.slice(1, -1))],
+    qs: ((r && r.qs) || JOB_QS).map((q) => ({ ...q })), tb: (r && r.tb) || "", tbLen: (r && r.tbLen) || "3 hours",
   });
 }
+function jobEditor(k) {
+  const d = jobDraft(k), pv = d.preview;
+  const ed = (f, v, ph, i) => `<span class="je-ed" data-f="${f}"${i != null ? ` data-i="${i}"` : ""} data-ph="${esc(ph)}" contenteditable="${pv ? "false" : "true"}" spellcheck="false">${esc(v)}</span>`;
+  const pick = (f, opts, v) => (pv ? esc(opts.find((o) => o[0] === v)?.[1] || v) : `<select class="je-sel" data-jf="${f}" aria-label="${f}">${opts.map(([val, n]) => `<option value="${esc(val)}" ${val === v ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>`);
+  const both = (xs) => xs.map((x) => [x, x]);
+  const x = (f, i, what) => (pv ? "" : `<button class="je-x" data-act="jeDel" data-f="${f}" data-i="${i}" aria-label="Remove ${what}" title="Remove">${ico("x")}</button>`);
+  const add = (f, label) => (pv ? "" : `<button class="je-add" data-act="jeAdd" data-f="${f}">${ico("plus")}${label}</button>`);
+  const list = (f, ph) => `<ul class="je-list">${d[f].map((v, i) => `<li>${ed(f, v, ph, i)}${x(f, i, "line")}</li>`).join("")}</ul>${add(f, "Add a line")}`;
+  const fact = (label, body) => `<div class="je-fact"><b>${label}</b><span>${body}</span></div>`;
+  const answer = (q) => (q.kind === "yesno" ? `<span class="je-yn"><i>Yes</i><i>No</i></span>` : `<span class="je-box ${q.kind}">${q.kind === "date" ? "MM / DD / YYYY" : ""}</span>`);
+  const overview = `<div class="je-doc">
+      <p class="je-intro">${ed("intro", d.intro, "One or two sentences on what this person will do")}</p>
+      <h3>What you'll do</h3>${list("does", "Something they'll do")}
+      <h3>You might be a fit if</h3>${list("fit", "Something that makes a good fit")}
+      <h3>How we hire</h3><ol class="je-steps">${d.steps.map((v, i) => `<li><em>${i + 1}</em>${ed("steps", v, "A step", i)}${x("steps", i, "step")}</li>`).join("")}</ol>${add("steps", "Add a step")}
+    </div>`;
+  const field = (n, req) => `<label class="je-field"><span>${n}${req ? "<i>*</i>" : ""}</span><span class="je-box"></span></label>`;
+  const application = `<div class="je-doc je-app">
+      ${pv ? "" : `<p class="je-fixed">Resume, About you and Why this role are on every application. Questions are yours to change.</p>`}
+      <h3>Resume<i>*</i></h3><div class="je-drop">${ico("file")}<b>Drop your resume or browse</b><small>PDF or Word, up to 10 MB</small></div>
+      <h3>About you</h3><div class="je-grid">${field("Name", 1)}${field("Email", 1)}${field("Phone")}${field("Location")}${field("LinkedIn", 1)}${field("Website")}</div>
+      <h3>Why this role<i>*</i></h3><span class="je-box tall"></span>
+      <h3>Questions</h3>
+      ${d.qs.map((q, i) => `<div class="je-q"><div class="je-qh">${ed("qs", q.q, "Type a question", i)}${q.req ? "<i>*</i>" : ""}${x("qs", i, "question")}</div>${answer(q)}
+        ${pv ? "" : `<div class="je-qo">${pick("kind", Q_KINDS, q.kind).replace('data-jf="kind"', `data-jf="kind" data-i="${i}"`)}<label class="je-req"><input type="checkbox" data-jf="req" data-i="${i}" ${q.req ? "checked" : ""}>Required</label></div>`}</div>`).join("")}
+      ${add("qs", "Add a question")}
+      <p class="je-eeo">Voluntary self-identification <span>Optional</span></p>
+      <button class="je-submit" disabled>Submit application</button>
+    </div>`;
+  const isNew = k === "new";
+  return `<div class="bar je-bar"><div class="crumbs"><a href="#jobs">Job Postings</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b class="je-crumb">${esc(d.title || "New role")}</b></div><span class="spacer"></span>
+    <div class="cx-seg sm" role="tablist" aria-label="Mode">${[["edit", "Edit"], ["preview", "Preview as applicant"]].map(([v, n]) => `<button class="${(v === "preview") === pv ? "on" : ""}" data-act="jePreview" data-v="${v}">${n}</button>`).join("")}</div>
+    <button class="chip je-status" data-act="jeStatus" title="${d.status === "paused" ? "Hidden from the careers page" : "Shown on the careers page"}"><i class="ldot" style="background:${d.status === "paused" ? "var(--faint)" : "var(--green, #3fa66b)"}"></i>${d.status === "paused" ? "Paused" : "Live"}</button>
+    <button class="cx-primary je-save" data-act="jeSave">${isNew ? "Post the job" : "Save"}</button></div>
+  <div class="scroll" id="scroller"><div class="je ${pv ? "pv" : ""}">
+    <article class="je-sheet">
+      ${pv ? "" : `<p class="je-hint">This is what applicants see. Click any text to change it.</p>`}
+      <h1 class="je-title">${ed("title", d.title, "Role title")}</h1>
+      <div class="je-cols">
+        <aside class="je-facts">
+          ${fact("Location", ed("loc", d.loc, "City"))}
+          ${fact("Employment type", pick("type", both(JOB_PICKS.type), d.type))}
+          ${fact("Location type", pick("where", both(JOB_PICKS.where), d.where))}
+          ${fact("Department", pick("team", Object.entries(TEAMS).map(([tk, t]) => [tk, t.name]), d.team))}
+          ${fact("Compensation", `${ed("comp", d.comp, "$150K – $200K")}<small>${ed("equity", d.equity, "Equity, bonus or benefits")}</small>`)}
+        </aside>
+        <div class="je-main">
+          <div class="je-tabs" role="tablist">${[["overview", "Overview"], ["application", "Application"]].map(([v, n]) => `<button role="tab" aria-selected="${d.tab === v}" class="${d.tab === v ? "on" : ""}" data-act="jeTab" data-v="${v}">${n}</button>`).join("")}</div>
+          ${d.tab === "application" ? application : overview}
+        </div>
+      </div>
+    </article>
+    ${pv ? "" : `<section class="je-private"><h4>Only your team sees this</h4>
+      <div class="je-fact"><b>Testbench</b><span>${ed("tb", d.tb, "What the take-home asks them to build")}</span></div>
+      <div class="je-fact"><b>Time it takes</b><span>${ed("tbLen", d.tbLen, "3 hours")}</span></div></section>`}
+  </div></div>`;
+}
+function jeFocus(f, i) {
+  const el = $(`.je [data-f="${f}"]${i != null ? `[data-i="${i}"]` : ""}`);
+  if (!el) return;
+  el.focus();
+  const s = getSelection(); s.selectAllChildren(el); s.collapseToEnd();
+}
+function jeAdd(f, at) {
+  const d = state.job, i = at == null ? d[f].length : at;
+  d[f].splice(i, 0, f === "qs" ? { q: "", kind: "text", req: false } : "");
+  render(); jeFocus(f, i);
+}
+function jeSave() {
+  const d = state.job;
+  if (!d.title.trim()) { toast("Give the role a title first"); jeFocus("title"); return; }
+  let k = d.k;
+  if (k === "new") { const base = d.title.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "").slice(0, 20) || "role"; k = base; for (let n = 2; ROLES[k]; n++) k = `${base}-${n}`; }
+  const lines = (xs) => xs.map((s) => s.trim()).filter(Boolean);
+  ROLES[k] = { ...(ROLES[k] || {}), title: d.title.trim(), team: d.team, status: d.status, loc: d.loc.trim(), type: d.type, where: d.where, comp: d.comp.trim(), equity: d.equity.trim(),
+    intro: d.intro.trim(), does: lines(d.does), fit: lines(d.fit), steps: lines(d.steps), qs: d.qs.filter((q) => q.q.trim()), tb: d.tb.trim() || "A take-home in a real coding environment", tbLen: d.tbLen.trim() || "3 hours", posted: d.k === "new" || ROLES[k].posted };
+  state.job = null;
+  go("jobs");
+  toast(d.k === "new" ? `Posted ${d.title.trim()}. Your Grokbot shared it in #hiring and on the careers page.` : "Saved");
+}
+const newJob = (team) => { state.job = null; state.jobTeam = team; go("jobs~new"); };
+// Typing on the posting: Enter in a list starts the next line, Backspace on an empty one removes it.
+document.addEventListener("keydown", (e) => {
+  const el = e.target.closest && e.target.closest(".je [data-f]");
+  if (!el) return;
+  const f = el.dataset.f, i = el.dataset.i != null ? +el.dataset.i : null, d = state.job, many = Array.isArray(d[f]) && f !== "qs";
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (many) jeAdd(f, i + 1); else el.blur(); }
+  if (e.key === "Backspace" && many && !el.textContent && d[f].length > 1) { e.preventDefault(); d[f].splice(i, 1); render(); jeFocus(f, Math.max(0, i - 1)); }
+});
+document.addEventListener("paste", (e) => {
+  if (!e.target.closest || !e.target.closest(".je [data-f]")) return;
+  e.preventDefault();
+  document.execCommand("insertText", false, e.clipboardData.getData("text/plain").replace(/\s*\n\s*/g, " "));
+});
+document.addEventListener("input", (e) => {
+  const el = e.target.closest && e.target.closest(".je [data-f]");
+  if (!el || !state.job) return;
+  const f = el.dataset.f, v = el.textContent, i = el.dataset.i;
+  if (i == null) state.job[f] = v; else if (f === "qs") state.job.qs[+i].q = v; else state.job[f][+i] = v;
+  if (f === "title") $(".je-crumb").textContent = v.trim() || "New role";
+});
+document.addEventListener("change", (e) => {
+  const f = e.target.dataset && e.target.dataset.jf;
+  if (!f || !state.job) return;
+  const i = e.target.dataset.i;
+  if (f === "kind") state.job.qs[+i].kind = e.target.value;
+  else if (f === "req") state.job.qs[+i].req = e.target.checked;
+  else state.job[f] = e.target.value;
+  render();
+});
 const BOT_COLORS = ["#5b7c99", "#8a5a83", "#4f7a6a", "#9a6b3c", "#6a5fa0"];
 function openAddBot() {
   openForm({
@@ -3329,7 +3444,8 @@ function parseHash() {
   if (name === "settings") return { name };
   if (name === "run" && RUNS.some((r) => r.id === a)) { state.runSel = a; return { name: "bots", id: "runs" }; }
   if (name === "analytics") return { name, id: a === "pipeline" || a === "interviews" ? "pipeline" : "posts" };
-  if (["triage", "calendar", "jobs"].includes(name)) return { name };
+  if (name === "jobs") return { name, id: a === "new" || ROLES[a] ? a : undefined };
+  if (["triage", "calendar"].includes(name)) return { name };
   return { name: "inbox" };
 }
 function render() {
@@ -3467,7 +3583,7 @@ function openPalette(ctx) {
     { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
     { sec: "Go to", label: "Pipeline", icon: ico("people"), hint: "G A", run: () => go("all") },
     { sec: "Go to", label: "Job Postings", icon: ico("brief"), hint: "G J", run: () => go("jobs") },
-    { sec: "Do", label: "New Job Posting", icon: ico("plus"), run: () => openJobForm() },
+    { sec: "Do", label: "New Job Posting", icon: ico("plus"), run: () => newJob() },
     { sec: "Do", label: "Add a Grokbot", icon: ico("plus"), run: () => openAddBot() },
     { sec: "Do", label: "Set up people and teams", icon: ico("users"), run: () => go("setup~people") },
     { sec: "Go to", label: "Applicants board", icon: ico("board"), run: () => { state.view = "board"; go("all"); } },
@@ -3699,8 +3815,14 @@ const ACT = {
   emailCand: (el) => openEmail(A[el.dataset.id]),
   emailSugg: (el) => { const ta = $(".fm textarea[name=body]"); const a = A[state.route.name === "t" ? state.route.id : state.tri.sel]; if (ta && a) ta.value = EMAIL_SUGG[el.dataset.v](a); },
   openFile: (el) => openFile(A[el.dataset.id], el.dataset.k),
-  newJob: (el) => openJobForm(null, el.dataset.team),
-  editJob: (el) => openJobForm(el.dataset.k),
+  newJob: (el) => newJob(el.dataset.team),
+  editJob: (el) => { state.job = null; go(`jobs~${el.dataset.k}`); },
+  jeTab: (el) => { state.job.tab = el.dataset.v; render(); },
+  jePreview: (el) => { state.job.preview = el.dataset.v === "preview"; render(); },
+  jeStatus: () => { state.job.status = state.job.status === "paused" ? "live" : "paused"; render(); },
+  jeAdd: (el) => jeAdd(el.dataset.f),
+  jeDel: (el) => { state.job[el.dataset.f].splice(+el.dataset.i, 1); render(); },
+  jeSave: () => jeSave(),
   addBot: () => openAddBot(),
   openTicketPop: (el) => go(`t~${el.dataset.id}`),
   sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); renderSide(); },
