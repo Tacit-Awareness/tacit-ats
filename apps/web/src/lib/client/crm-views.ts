@@ -59,6 +59,8 @@ export type CrmCandidate = {
   name: string | null;
   headline: string | null;
   email: string | null;
+  /** As typed: shown as text in the Profile column, never a link. */
+  linkedinUrl?: string | null;
   addedAt: string;
   applications: CrmApplication[];
 };
@@ -67,6 +69,7 @@ export type CrmRow = {
   candidateId: string;
   name: string;
   headline: string | null;
+  linkedinUrl: string | null;
   /** The jobs this row is about, the lead one first. */
   jobs: { jobId: string; title: string }[];
   /** The lead application's stage; null for a prospect, in no job the member can see. */
@@ -100,6 +103,7 @@ export function rowFor(c: CrmCandidate, view: CrmView): CrmRow | null {
     candidateId: c.candidateId,
     name: c.name?.trim() || "Unnamed",
     headline: c.headline,
+    linkedinUrl: c.linkedinUrl ?? null,
     jobs,
     stage: lead?.stage ?? null,
     ownerName: lead?.ownerName ?? null,

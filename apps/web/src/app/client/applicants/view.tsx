@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { Avatar, Count, KeyValues, ListReader, MiniTitle, Notice, textLink } from "@/components/page";
+import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page";
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
 import { cn } from "@/lib/utils";
 import { RoutingBar, type Routing } from "./routing-bar";
 
 // Applicant Tickets' markup, props only (page.tsx does the reads): the queue
-// grouped by job on the left, the open application as one document on the
-// right, and design/tats's composer under it as the routing bar
+// grouped by job on the left (a fixed 340px list), the open application as
+// one white page on the right, and design/tats's composer under it as the routing bar
 // (routing-bar.tsx). J/K walk the tickets (components/keys.tsx). Everything
 // an applicant typed is rendered as text; React escapes it, and only an
 // http(s) URL becomes a link (applicant-queue.ts's safeHref).
@@ -28,18 +28,15 @@ export type Ticket = {
   routing: Routing | null;
 };
 
-function TicketList({ total, groups }: { total: number; groups: TicketGroup[] }) {
+function TicketList({ groups }: { groups: TicketGroup[] }) {
   return (
-    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid gap-3" data-tour="tickets">
-      <h1 className="m-0 flex items-center gap-2 px-2 pt-1.5 text-[15px] font-semibold">
-        Applicant Tickets <Count>{total}</Count>
-      </h1>
-      {groups.length === 0 ? <p className="m-0 px-2 text-[13px] text-faint">No new applicants.</p> : null}
-      {groups.map((g) => (
+    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid content-start gap-0.5" data-tour="tickets">
+      {groups.length === 0 ? <p className="m-0 px-3 pt-1 text-[13px] text-faint">No new applicants.</p> : null}
+      {groups.map((g, i) => (
         <section key={g.jobId} aria-label={g.jobTitle} className="grid gap-0.5">
-          <h2 className="m-0 flex items-center gap-2 rounded-md bg-[color:var(--band)] px-2 py-1 text-[12.5px] font-medium">
-            <span className="truncate">{g.jobTitle}</span>
-            <Count>{g.rows.length}</Count>
+          <h2 className={cn("m-0 flex min-w-0 items-center gap-2 px-3 pb-1 text-[12.5px] font-normal text-muted-foreground", i === 0 ? "pt-1" : "pt-3")}>
+            <b className="truncate font-medium text-foreground">{g.jobTitle}</b>
+            <span className="text-faint tabular-nums">{g.rows.length}</span>
           </h2>
           {g.rows.map((r) => (
             <Link
@@ -48,16 +45,20 @@ function TicketList({ total, groups }: { total: number; groups: TicketGroup[] })
               data-key-item
               aria-current={r.active ? "true" : undefined}
               className={cn(
-                "flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-2 transition-colors",
-                r.active ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]",
+                "relative grid grid-cols-[36px_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-[10px] p-3 transition-colors",
+                r.active
+                  ? "bg-[color:var(--sel)] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-sm before:bg-[color:var(--accent)]"
+                  : "hover:bg-[color:var(--hover)]",
               )}
             >
-              <Avatar name={r.name} size="md" />
-              <span className="grid min-w-0 flex-1">
-                <b className="truncate text-[13px] font-medium">{r.name}</b>
-                <span className="truncate text-xs text-muted-foreground">{r.line}</span>
+              <span className="row-span-2">
+                <Avatar name={r.name} size="ticket" candidate />
               </span>
-              <span className="flex-none text-xs text-faint">{r.when}</span>
+              <span className="flex min-w-0 items-center gap-2">
+                <b className="flex-1 truncate text-[14px] font-medium">{r.name}</b>
+                <span className="flex-none text-xs text-faint">{r.when}</span>
+              </span>
+              <span className="truncate text-[13px] text-muted-foreground">{r.line}</span>
             </Link>
           ))}
         </section>
@@ -66,54 +67,51 @@ function TicketList({ total, groups }: { total: number; groups: TicketGroup[] })
   );
 }
 
-function Reader({ ticket }: { ticket: Ticket }) {
+/** The application as one white page (design/tats's `.pg`), the same in both themes, like a document. */
+function Paper({ ticket }: { ticket: Ticket }) {
   const source = ticket.post ? `Job board · ${ticket.post}` : "Job board";
+  const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[#5e6ad2]";
   return (
-    <article className="grid content-start gap-5">
-      <Link href="/client/applicants" className={cn(textLink, "md:hidden")}>
-        ← All applicants
-      </Link>
-      <header className="flex items-center gap-3.5">
-        <Avatar name={ticket.name} size="xl" />
-        <div className="grid min-w-0 gap-0.5">
-          <h2 className="m-0 truncate text-xl font-semibold tracking-[-0.02em]">{ticket.name}</h2>
-          <p className="m-0 flex flex-wrap gap-x-3 text-[13px] text-muted-foreground">
-            {ticket.email ? <span className="select-all">{ticket.email}</span> : null}
-            {ticket.phone ? <span>{ticket.phone}</span> : null}
-          </p>
-        </div>
+    <article className="relative mx-auto w-[640px] max-w-full rounded-[3px] bg-white px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[#1f2023] shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_-12px_rgba(0,0,0,0.16)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
+      <header className="mb-[18px] border-b border-[#e6e6e8] pb-3.5">
+        <h1 className="m-0 text-[22px] leading-tight font-semibold tracking-[-0.015em] break-words">{ticket.name}</h1>
+        <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[12px] text-[#6b6e75]">
+          {ticket.email ? <span className="select-all">{ticket.email}</span> : null}
+          {ticket.phone ? <span>{ticket.phone}</span> : null}
+        </p>
       </header>
-
-      <KeyValues
-        items={[
+      <dl className="m-0 grid">
+        {(
           [
-            "Job",
-            <Link key="job" href={ticket.jobHref} className={textLink}>
-              {ticket.jobTitle}
-            </Link>,
-          ],
-          ["Applied", ticket.applied],
-          ["Source", source],
-        ]}
-      />
-
-      <section aria-label="Application" className="grid gap-4 border-t border-[color:var(--line)] pt-5">
-        {ticket.answers.length === 0 ? <p className="m-0 text-[13px] text-faint">No other answers.</p> : null}
-        {ticket.answers.map((a) => (
-          <div key={a.questionId} className="grid gap-1">
-            <MiniTitle className="mt-0">{a.label}</MiniTitle>
-            {a.href ? (
-              <a href={a.href} target="_blank" rel="noopener noreferrer nofollow" className="text-[13.5px] break-all text-[color:var(--accent)] hover:underline">
-                {a.value}
-              </a>
-            ) : (
-              <p className="m-0 text-[13.5px] leading-relaxed break-words whitespace-pre-wrap">{a.value}</p>
-            )}
+            [
+              "Job",
+              <Link key="job" href={ticket.jobHref} className="text-[#1f2023] underline decoration-[#c9cad1] underline-offset-2 hover:decoration-[#5e6ad2]">
+                {ticket.jobTitle}
+              </Link>,
+            ],
+            ["Applied", ticket.applied],
+            ["Source", source],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="grid gap-0 py-[3px] md:grid-cols-[150px_minmax(0,1fr)] md:gap-3">
+            <dt className="font-semibold">{k}</dt>
+            <dd className="m-0 min-w-0 break-words">{v}</dd>
           </div>
         ))}
-      </section>
-
-      {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
+      </dl>
+      {ticket.answers.length === 0 ? <p className="m-0 mt-5 text-[#8f9198]">No other answers.</p> : null}
+      {ticket.answers.map((a) => (
+        <section key={a.questionId}>
+          <h2 className={h2}>{a.label}</h2>
+          {a.href ? (
+            <a href={a.href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-[#5e6ad2] hover:underline">
+              {a.value}
+            </a>
+          ) : (
+            <p className="m-0 break-words whitespace-pre-wrap">{a.value}</p>
+          )}
+        </section>
+      ))}
     </article>
   );
 }
@@ -133,24 +131,38 @@ export function ApplicantsView({
   error: string | null;
   open: boolean;
 }) {
+  const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
   return (
     <ListReader
       listLabel="New applicants"
       readerLabel="Application"
       open={open}
-      list={<TicketList total={total} groups={groups} />}
+      narrowList
+      flushReader
+      // design/tats shows no bar while a ticket is open; the empty queue gets one, so the page still says where you are.
+      bar={ticket ? undefined : <PageBar title="Applicant Tickets" count={total} />}
+      list={<TicketList groups={groups} />}
       reader={
-        <div className="mx-auto grid max-w-[760px] content-start gap-4">
-          {error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null}
-          {ticket ? (
-            <Reader ticket={ticket} />
-          ) : (
+        ticket ? (
+          <div className="flex min-h-full flex-col bg-[color:var(--soft)]">
+            <div className="grid flex-1 content-start gap-3 p-3 md:px-6 md:pt-5 md:pb-10">
+              <Link href="/client/applicants" className={cn(textLink, "md:hidden")}>
+                ← All applicants
+              </Link>
+              {flash ? <div className="mx-auto w-[640px] max-w-full">{flash}</div> : null}
+              <Paper ticket={ticket} />
+            </div>
+            {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
+          </div>
+        ) : (
+          <div className="mx-auto grid max-w-[760px] content-start gap-4">
+            {flash}
             <div className="grid place-items-center gap-1 py-24 text-center">
-              <h2 className="m-0 text-[15px] font-semibold">No new applicants</h2>
+              <h2 className="m-0 text-[15px] font-medium">No new applicants</h2>
               <p className="m-0 text-[13px] text-muted-foreground">Everyone who applied through a job post has been routed.</p>
             </div>
-          )}
-        </div>
+          </div>
+        )
       }
     />
   );
