@@ -136,7 +136,7 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
         name: x.personName,
         line: x.roleTitle,
         wait: fmtHours(x.hours),
-        href: `/client/jobs/${x.roleId}`,
+        href: `/client/candidates/${x.personId}`,
       })),
       more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.key), label: `All ${r.people.length} in Pipeline` } : null,
     })),

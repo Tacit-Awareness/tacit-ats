@@ -116,7 +116,7 @@ export const WAIT_SEGMENTS = [
   { label: "Over 3 days", lo: 72, hi: Infinity },
 ] as const;
 
-export type Waiting = { applicationId: string; roleId: string; roleTitle: string; personName: string; column: ColumnKey; hours: number; stalled: boolean; lastTouchAt: string };
+export type Waiting = { applicationId: string; personId: string; roleId: string; roleTitle: string; personName: string; column: ColumnKey; hours: number; stalled: boolean; lastTouchAt: string };
 
 export type StageRow = {
   key: ColumnKey;

@@ -87,6 +87,7 @@ describe("how long someone has waited", () => {
 
 const w = (column: Waiting["column"], hours: number, extra: Partial<Waiting> = {}): Waiting => ({
   applicationId: `${column}-${hours}`,
+  personId: `p-${hours}`,
   roleId: "r",
   roleTitle: "Role",
   personName: `P ${hours}`,

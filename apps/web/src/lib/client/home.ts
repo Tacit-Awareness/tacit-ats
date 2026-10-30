@@ -124,6 +124,7 @@ export async function readHome(
 
   const waiting: Waiting[] = entries.map((e) => ({
     applicationId: e.applicationId,
+    personId: e.personId,
     roleId: e.roleId,
     roleTitle: e.roleTitle,
     personName: e.personName,
