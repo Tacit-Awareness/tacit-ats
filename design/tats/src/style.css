@@ -4900,3 +4900,58 @@ body, .app { background: var(--frame); }
 /* inside a box, sections split with a hairline */
 .hm-f, .rc-sec, .su-row, .su-sk, .su-mx-r, .su-cov-r, .hm-st-list { border-color: var(--line); }
 .rc-cols > .rc-col + .rc-col { border-left: 1px solid var(--line-strong); }
+
+/* v68 Inbox as a digest card, after the reference: one centred card, problems first, each opens a drafted fix */
+.ibx-page { background: var(--frame); }
+.ibx { max-width: 760px; margin: 48px auto 56px; padding: var(--s6) var(--s6) 0; border-radius: 20px; background: var(--raised); box-shadow: var(--elev); }
+.ibx-h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); margin-bottom: var(--s5); }
+.ibx-h h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.ibx-h p { margin: 4px 0 0; color: var(--muted); font-size: 14.5px; }
+.ibx-seg { display: inline-flex; padding: 3px; border-radius: 14px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); }
+.ibx-seg button { height: 34px; padding: 0 16px; border-radius: 11px; color: var(--muted); font-size: 14px; }
+.ibx-seg button:hover { color: var(--ink); }
+.ibx-seg button.on { background: var(--raised); color: var(--ink); font-weight: 500; box-shadow: var(--elev); }
+.ibx-g { padding-bottom: var(--s3); }
+.ibx-g + .ibx-g { padding-top: var(--s3); }
+.ibx-gh { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; color: var(--muted); font-size: 14px; }
+.ibx-gh .ico { width: 16px; height: 16px; }
+.ibx-gh b { font-weight: 500; color: var(--muted); }
+.ibx-gh span { color: var(--faint); font-variant-numeric: tabular-nums; }
+.ibx-g.need .ibx-gh, .ibx-g.need .ibx-gh b { color: var(--ink); }
+.ibx-r { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: var(--s3); align-items: start; margin: 0 calc(-1 * var(--s3)); padding: var(--s3); border-radius: 12px; cursor: pointer; transition: background 0.12s; }
+.ibx-r:hover { background: var(--hover); }
+.ibx-src { width: 22px; height: 22px; display: grid; place-items: center; margin-top: 1px; }
+.ibx-src svg { width: 20px; height: 20px; }
+.ibx-grok .bot .av { width: 22px; height: 22px; font-size: 8px; }
+.ibx-grok .bot > i { display: none; }
+.ibx-m { display: grid; gap: 6px; min-width: 0; }
+.ibx-what { font-size: 15.5px; line-height: 1.45; color: var(--ink); }
+.ibx-meta { display: flex; align-items: center; gap: var(--s2); color: var(--muted); font-size: 14px; }
+.ibx-avs { display: inline-flex; }
+.ibx-avs .av { width: 22px; height: 22px; font-size: 8.5px; box-shadow: 0 0 0 2px var(--raised); }
+.ibx-avs .av + .av { margin-left: -6px; }
+.ibx-acts { display: flex; gap: 2px; color: var(--faint); }
+.ibx-acts .icon-btn { width: 32px; height: 32px; color: var(--faint); }
+.ibx-acts .icon-btn:hover { color: var(--ink); background: var(--soft); }
+.ibx-acts .ico { width: 16px; height: 16px; }
+.ibx-zero { display: grid; justify-items: center; gap: 6px; padding: 48px 0; color: var(--muted); }
+.ibx-zero .ico { width: 22px; height: 22px; color: var(--ok); }
+.ibx-zero b { color: var(--ink); font-size: 15px; font-weight: 500; }
+.ibx-f { display: flex; align-items: center; justify-content: space-between; margin: var(--s3) calc(-1 * var(--s6)) 0; padding: var(--s4) var(--s4) var(--s4) var(--s6); border-top: 1px solid var(--line); }
+.ibx-by { display: inline-flex; align-items: center; gap: var(--s2); color: var(--muted); font-size: 14px; }
+.ibx-by .bot .av { width: 20px; height: 20px; font-size: 7.5px; }
+.ibx-all { height: 44px; padding: 0 26px; border-radius: 14px; background: #0D0E10; color: #fff; font-size: 15px; font-weight: 500; }
+.ibx-all:hover { background: var(--ink); }
+/* the pop-up: a drafted message, ready to send */
+.ibp-mail { border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden; }
+.ibp-hd { display: grid; gap: 6px; padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); background: var(--soft); font-size: 13.5px; color: var(--ink); }
+.ibp-hd em { display: inline-block; width: 64px; font-style: normal; color: var(--faint); }
+.ibp-ch { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; font-weight: 500; }
+.ibp-ch svg { width: 14px; height: 14px; }
+.ibp-mail textarea { display: block; width: 100%; min-height: 140px; padding: var(--s4); border: 0; outline: none; resize: vertical; background: var(--raised); font: inherit; font-size: 14.5px; line-height: 1.6; color: var(--ink); }
+.ibp-draft { display: flex; align-items: center; gap: var(--s2); margin: 0; color: var(--muted); font-size: 13px; }
+.ibp-draft .bot .av { width: 18px; height: 18px; font-size: 7px; }
+.ibp-q { margin: 0; padding: var(--s3) var(--s4); border-left: 2px solid var(--line-strong); color: var(--ink); font-size: 15px; line-height: 1.5; }
+.ibp-notes { margin: 0; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.ibp-dec { display: flex; align-items: center; gap: var(--s2); }
+.ibp-dec .btn .ico { width: 13px; height: 13px; }

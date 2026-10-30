@@ -1119,8 +1119,8 @@ const TOUR = [
   ["home", '.sb-item[href="#home"]', "Home", "Start here. Recruiting Overview shows where hiring is slow, and links each delay to the page that clears it."],
   ["home", ".hm-grid6", "The numbers that matter", "Applications coming in, who's in process, how long each step takes, and how much interviewing the team is doing. Set your own targets."],
   ["home", ".hm-row.stuck", "Where candidates are stuck", "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it."],
-  ["inbox", ".ib-col", "Inbox", "Only what's broken or waiting on you: bot failures, unsent invites, overdue replies and decisions."],
-  ["inbox", ".kb-bar", "One key per action", "F runs the fix, E dismisses, / asks your Grokbot. J and K move between issues."],
+  ["inbox", ".ibx", "Inbox", "What's worth your time from everything that happened: what needs you, what was decided, what got booked."],
+  ["inbox", ".ibx-g.need", "Needs you", "Click a problem and it opens with the fix already drafted. Read it, edit it, send it."],
   ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
   ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
   ["all", ".board", "Pipeline", "Every open candidate, by stage."],
@@ -2466,25 +2466,87 @@ function ibReader(a) {
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
+/* ---------------- Inbox as a digest: what's worth your time from everything that happened ---------------- */
+// One card. Problems that need you come first and open a pop-up with the fix already drafted;
+// below them, what was decided, what got booked, and what's worth knowing.
+const IB_RANGES = [[1, "1 day"], [3, "3 days"], [7, "1 week"]];
+const hhmm = (t) => new Date(t).toTimeString().slice(0, 5);
+const ibWhen = (t) => (dayStart(t) === dayStart(Date.now()) ? hhmm(t) : `${WD[new Date(t).getDay()].slice(0, 3)} ${hhmm(t)}`);
+const ISSUE_SRC = { bot: "slack", invite: "gmail", late: "slack", decide: "slack" };
+function ibDigest() {
+  const days = state.ibRange || 1, from = Date.now() - days * DAY, read = (state.ibRead ||= new Set());
+  const needs = inboxRows().filter((x) => x.inInbox).sort((x, y) => ISSUE_RANK[x.iss.k] - ISSUE_RANK[y.iss.k] || y.iss.at - x.iss.at).map((x) => {
+    const i = x.iss, a = x.a;
+    const what = ({ bot: () => `${possessive(first(i.run.bot))} Grokbot couldn't send ${possessive(a.name)} interview brief.`, invite: () => `${possessive(a.name)} interview invite is drafted in ${possessive(first(a.iv))} Gmail but not sent.`,
+      late: () => i.run ? `${first(i.run.on)} still owes feedback on ${a.name}, ${dur(i.late)} after the interview.` : `${a.name} hasn't started the Testbench, ${dur(i.late)} after it went out.`,
+      decide: () => `${a.read ? first(a.read.by) : "The interviewer"} read ${a.name} as ${a.read ? a.read.verdict.toLowerCase() : "in"}; the next step is your call.` })[i.k]();
+    const who = i.k === "late" && !i.run ? [candAv(a)] : i.k === "decide" && a.read ? [personAv(a.read.by), candAv(a)] : [i.k === "bot" ? personAv(i.run.bot) : personAv(a.iv || ME), candAv(a)];
+    const names = i.k === "late" && !i.run ? a.name : `${i.k === "bot" ? PEOPLE[i.run.bot].name : PEOPLE[a.iv || ME].name} +1`;
+    return { key: `n-${a.id}`, kind: "need", a, iss: i, src: i.k === "late" && !i.run ? "testbench" : ISSUE_SRC[i.k], what, who, meta: `${names} · ${esc(ROLES[a.role].title)} · ${ibWhen(i.at)}` };
+  });
+  const evs = [];
+  everyone().forEach((a) => (TRACE[a.id] || []).forEach((e) => { if (e.at >= from) evs.push({ a, e }); }));
+  const total = evs.length + needs.length;
+  const decided = [], booked = [], fyi = [];
+  evs.forEach(({ a, e }) => {
+    const t = plain(e.html), key = `${a.id}-${e.at}`;
+    if (read.has(key) || a.bulk) return;
+    let m;
+    if (e.actor === "me" && /^Assigned to/.test(t)) decided.push({ key, a, src: "grok", what: `${a.name} goes to ${TEAMS[a.team] ? TEAMS[a.team].name : "a team"} for an interview.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "orch" && (m = t.match(/^Picked (\w+)/))) decided.push({ key, a, src: "grok", what: `${m[1]} will interview ${a.name}: ${t.split(": ")[1] || "best fit this week"}.`, who: [personAv(a.iv), candAv(a)], meta: `${TEAMS[a.team] ? TEAMS[a.team].name : ""} Grokbots · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "me" && /^(Rejected|Moved to offer|Passed)/.test(t)) decided.push({ key, a, src: "grok", what: /offer/.test(t) ? `${a.name} moves to an offer.` : `${a.name} is a no. The note went out from the interviewer.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${ibWhen(e.at)}`, at: e.at });
+    else if (/picked .*On both calendars/.test(t)) booked.push({ key, a, src: "cal", what: `${a.name} is booked with ${first(a.iv)}${a.at ? ` for ${fmtWhen(a.at)}` : ""}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} +1 · Calendar · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "tb" && /Scored/.test(t)) fyi.push({ key, a, src: "testbench", what: `${a.name} finished the Testbench: ${a.tb.score}/100, better than ${a.tb.pct}% of applicants.`, who: [candAv(a)], meta: `${a.name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
+    else if (/^Read:/.test(t)) fyi.push({ key, a, src: "slack", what: `${first(a.iv)} sent a read on ${a.name}: ${(a.read || {}).verdict || "in"}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} +1 · Slack · ${ibWhen(e.at)}`, at: e.at });
+  });
+  const byTime = (x, y) => y.at - x.at;
+  const groups = [["need", "Needs you", "alert", needs], ["decided", "Decisions made", "flag", decided.sort(byTime).slice(0, 6)], ["booked", "Booked", "cal", booked.sort(byTime).slice(0, 6)], ["fyi", "FYI", "help", fyi.sort(byTime).slice(0, 6)]].filter((g) => g[3].length);
+  return { groups, total, shown: groups.reduce((n, g) => n + g[3].length, 0), infoKeys: decided.concat(booked, fyi).map((r) => r.key) };
+}
+const SRC_ICO = (k) => (k === "grok" ? `<span class="ibx-grok">${botAv(ME)}</span>` : CH[k] || CH.slack);
 function inboxPage() {
-  const f = state.ibFilter === "done" ? "done" : "all";
-  const xs = inboxItems(f);
-  const sel = state.ibSel && A[state.ibSel];
-  const left = inboxLeft();
-  const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done">Done</button></div>`;
-  if (!state.kbHint && f === "all" && xs.length) { state.kbHint = true; setTimeout(() => toast("F fixes the issue, E dismisses it, J and K move between issues."), 600); }
-  const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
-  if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
-    <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
-  return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
-    <div class="ib-col">
-      ${f === "done" ? `` : ""}
-      <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
-        : Object.keys(ISSUE_KINDS).map((k) => { const g = xs.filter((x) => x.iss.k === k); return g.length ? `<div class="ib-gh ${k}" data-tid="gh-${k}">${ISSUE_KINDS[k]}<span>${g.length}</span></div>${g.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")}` : ""; }).join("")}
-        ${xs.length ? "" : `<p class="ib-none">Nothing here yet.</p>`}</div>
-    </div>
-    <div class="ib-reader">${sel ? ibReader(sel) : ""}</div>
-  </div>`;
+  const d = ibDigest(), days = state.ibRange || 1;
+  const row = (r) => `<div class="ibx-r ${r.kind === "need" ? "need" : ""}" role="button" tabindex="0" data-act="${r.kind === "need" ? "ibOpen" : "ibGo"}" data-id="${r.a.id}" data-tid="${r.key}">
+      <span class="ibx-src">${SRC_ICO(r.src)}</span>
+      <span class="ibx-m"><span class="ibx-what">${esc(r.what)}</span><span class="ibx-meta"><span class="ibx-avs">${r.who.join("")}</span>${r.meta}</span></span>
+      <span class="ibx-acts"><a class="icon-btn" href="#t~${r.a.id}" title="Open the ticket" aria-label="Open the ticket">${ico("arrowUR")}</a><button class="icon-btn" data-act="ibCheck" data-id="${r.a.id}" data-k="${r.key}" data-need="${r.kind === "need" ? 1 : ""}" title="${r.kind === "need" ? "Dismiss" : "Mark read"}" aria-label="${r.kind === "need" ? "Dismiss" : "Mark read"}">${ico("check")}</button></span></div>`;
+  return `<div class="scroll ibx-page" id="scroller"><section class="ibx">
+    <header class="ibx-h"><div><h1>Welcome back</h1><p>${d.shown} worth your time, from ${d.total.toLocaleString()} update${d.total === 1 ? "" : "s"}</p></div>
+      <div class="ibx-seg" role="tablist">${IB_RANGES.map(([n, l]) => `<button class="${days === n ? "on" : ""}" data-act="ibRange" data-v="${n}" role="tab" aria-selected="${days === n}">${l}</button>`).join("")}</div></header>
+    ${d.groups.map(([k, l, ic, rows]) => `<div class="ibx-g ${k}"><div class="ibx-gh">${ico(ic)}<b>${l}</b><span>${rows.length}</span></div>${rows.map(row).join("")}</div>`).join("") || `<div class="ibx-zero">${ico("check")}<b>You're all caught up</b><span>Nothing new in the last ${IB_RANGES.find((r) => r[0] === days)[1]}.</span></div>`}
+    <footer class="ibx-f"><span class="ibx-by">${botAv(ME)}Summarized by your Grokbot</span><button class="ibx-all" data-act="ibAllRead">Mark all as read</button></footer>
+  </section></div>`;
+}
+// The pop-up: the problem, what we know, and the fix already drafted. Send does it.
+function ibDraft(a, i) {
+  const iv = a.iv && PEOPLE[a.iv];
+  if (i.k === "bot") return { ch: "gmail", to: `${PEOPLE[i.run.bot].name} <${first(i.run.bot).toLowerCase()}@meridian.com>`, subject: `Interview brief: ${a.name}, ${ROLES[a.role].title}`,
+    body: `Hi ${first(i.run.bot)},\n\nYou're meeting ${a.name} ${a.at ? fmtWhen(a.at) : "this week"}. ${a.hl}.\n\n${(a.sum || []).map((x) => `· ${x}`).join("\n")}${a.tb && a.tb.state === "done" ? `\n· Testbench ${a.tb.score}/100, better than ${a.tb.pct}% of applicants` : ""}\n\nWorth probing: how they'd own this end to end.\n\nThanks,\n${first(ME)}`,
+    why: `Slack access for ${possessive(first(i.run.bot))} Grokbot expired, so the brief didn't go out. This sends it by email instead.`, send: "Send by email", act: () => retryRun(i.run) };
+  if (i.k === "invite") return { ch: "gmail", to: `${a.name} <${emailOf(a)}>`, from: `${iv.name}`, subject: `Interview with Meridian: ${ROLES[a.role].title}`,
+    body: `Hi ${first2(a)},\n\nWould either of these work for a first conversation? ${(a.slots || []).join(" or ")}. Pick one and it goes on both calendars.\n\n${first(a.iv)}`,
+    why: `Drafted in ${possessive(first(a.iv))} Gmail ${dur(i.late)} ago and not sent. This sends it from ${possessive(first(a.iv))} account.`, send: "Send invite", act: () => sendInvite(a) };
+  if (i.k === "late" && i.run) return { ch: "slack", to: `${PEOPLE[i.run.on].name} (DM)`, body: `Hey ${first(i.run.on)}, how did ${a.name} go? A yes or no and a line on why is enough. I'll take it from there.`,
+    why: `The interview ended ${dur(i.late)} ago and no feedback has come in.`, send: `Send to ${first(i.run.on)}`, act: () => nudgeRun(i.run) };
+  if (i.k === "late") return { ch: "gmail", to: `${a.name} <${emailOf(a)}>`, subject: "Your Meridian Testbench", body: `Hi ${first2(a)},\n\nJust checking the Testbench link reached you. It takes about ${ROLES[a.role].tbLen || "three hours"}, any time this week. Reply here if anything's in the way.\n\n${first(ME)}`,
+    why: `The Testbench went out ${dur(i.late)} ago and hasn't been started.`, send: "Send reminder", act: () => nudgeCand(a) };
+  return null;
+}
+function ibOpen(id) {
+  const a = A[id], i = issueOf(a);
+  if (!i) return go(`t~${id}`);
+  if (i.k === "decide") {
+    const r = a.read || {};
+    return openForm({ title: a.name, sub: `${esc(ROLES[a.role].title)} · ${esc(r.by ? PEOPLE[r.by].name : "")}'s read: ${esc(r.verdict || "")}`, wide: true,
+      body: `<blockquote class="ibp-q">“${esc(r.quote || "")}”</blockquote>${(r.notes || []).length ? `<ul class="ibp-notes">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+        <div class="ibp-dec"><button class="btn primary" data-act="advance" data-id="${a.id}" data-close>${ico("arrowR")}Next round</button><button class="btn" data-act="offer" data-id="${a.id}" data-close>Move to offer</button><button class="btn" data-act="reject" data-id="${a.id}" data-close>Reject</button><span class="grow"></span><a class="linkish" href="#t~${a.id}" data-close>Open ticket</a></div>` });
+  }
+  const d = ibDraft(a, i);
+  openForm({ title: ({ bot: "Send the interview brief", invite: "Send the interview invite", late: i.run ? "Ask for feedback" : "Remind the candidate" })[i.k], sub: esc(d.why), wide: true, submit: d.send,
+    body: `<div class="ibp-mail"><div class="ibp-hd"><span class="ibp-ch">${CH[d.ch]}${d.ch === "slack" ? "Slack" : "Gmail"}</span>${d.from ? `<span><em>From</em>${esc(d.from)}</span>` : ""}<span><em>To</em>${esc(d.to)}</span>${d.subject ? `<span><em>Subject</em>${esc(d.subject)}</span>` : ""}</div>
+      <textarea name="body" rows="${d.body.split("\n").length + 1}" spellcheck="false">${esc(d.body)}</textarea></div>
+      <p class="ibp-draft">${botAv(ME)}Drafted by your Grokbot. Edit anything before it goes.</p>`,
+    onSubmit: () => { d.act(); toast(`${d.send.replace(/^Send( by)?/, "Sent$1").replace(/^Sent invite/, "Invite sent").replace(/^Send reminder/, "Reminder sent")}: ${a.name}`); } });
 }
 function ibMove(d) {
   const xs = inboxItems();
@@ -2522,7 +2584,7 @@ function ibDone(id) {
   archived.set(id, Date.now());
   if (state.ibSel === id) { const nx = xs[i + 1] || xs[i - 1]; state.ibSel = nx ? nx.a.id : null; }
   render();
-  toast(`${A[id].name} moved to Done`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
+  toast(`Dismissed: ${A[id].name}`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
 }
 
 /* ---------------- Applicant Tickets: one email each, a reply ready ---------------- */
@@ -3457,7 +3519,6 @@ function render() {
   if (draft && state.tri && draft.dataset.dirty) state.tri.draft = draft.value;
   const r = state.route;
   if (r.name === "inbox") {
-    if (!state.ibSel && innerWidth >= 768) { const first = inboxItems()[0]; if (first) state.ibSel = first.a.id; }
     if (state.ibNeed && state.ibNeed === state.ibSel && !issueOf(A[state.ibNeed])) autoClear(state.ibNeed);
     state.ibIss = state.ibSel && state.ibFilter !== "done" ? issueOf(A[state.ibSel]) : null;
     state.ibNeed = state.ibIss ? state.ibSel : null;
@@ -3749,6 +3810,11 @@ const ACT = {
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
   goChat: () => go("chat"),
+  ibOpen: (el) => ibOpen(el.dataset.id),
+  ibGo: (el) => go(`t~${el.dataset.id}`),
+  ibRange: (el) => { state.ibRange = +el.dataset.v; render(); },
+  ibCheck: (el) => { if (el.dataset.need) return ibDone(el.dataset.id); (state.ibRead ||= new Set()).add(el.dataset.k); render(); },
+  ibAllRead: () => { const d = ibDigest(); d.infoKeys.forEach((k) => (state.ibRead ||= new Set()).add(k)); render(); toast(d.groups.some((g) => g[0] === "need") ? "Marked read. Needs you stays until it's handled." : "All caught up"); },
   suBot: (el) => { const p = PEOPLE[el.dataset.id]; p.bot = p.bot === "on" ? "off" : "on"; render(); },
   suImport: () => { [["Ravi Menon", "ML infra engineer"], ["Elif Demir", "Forward deployed engineer"], ["Kenji Ito", "Research engineer"]].forEach(([n, r]) => { if (!Object.values(PEOPLE).some((p) => p.name === n)) addPerson(n, "", r); }); render(); },
   suTeam: (el) => { const id = el.dataset.id, k = el.dataset.v, m = TEAMS[k].members, i = m.indexOf(id); if (i >= 0) { if (teamsOf(id).length === 1) return toast("Everyone needs at least one team"); m.splice(i, 1); } else m.push(id); PEOPLE[id].team = teamsOf(id)[0]; render(); },
