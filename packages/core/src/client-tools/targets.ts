@@ -32,7 +32,7 @@ const notAdmin = () => new ClientToolError("forbidden", "Only an admin at your c
 function storable(value: number): number {
   if (!Number.isFinite(value)) throw new ClientToolError("invalid", "A target is a number.");
   const rounded = Math.round(value * 100) / 100;
-  if (rounded < 0 || rounded > HOME_TARGET_MAX) throw new ClientToolError("invalid", `A target is 0 to ${HOME_TARGET_MAX.toLocaleString("en-US")}.`);
+  if (value < 0 || rounded > HOME_TARGET_MAX) throw new ClientToolError("invalid", `A target is 0 to ${HOME_TARGET_MAX.toLocaleString("en-US")}.`);
   if (value > 0 && rounded === 0) throw new ClientToolError("invalid", "A target is at least 0.01.");
   return rounded;
 }

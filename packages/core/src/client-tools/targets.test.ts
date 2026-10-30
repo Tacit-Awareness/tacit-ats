@@ -74,6 +74,8 @@ describe("setHomeTarget", () => {
     [Number.NaN], [Number.POSITIVE_INFINITY], [Number.NEGATIVE_INFINITY], [-1], [-0.01], [HOME_TARGET_MAX + 1], [HOME_TARGET_MAX + 0.01],
     // Rounds to 0 at two places: what the database would keep is not what was asked for.
     [0.004],
+    // Rounds to -0, which is not below 0: it would land as a target of 0.
+    [-0.004],
   ])("%s is refused before any claim", async (value) => {
     const fake = new FakeSupabase();
     expect((await refusal(setHomeTarget(fake.asDb(), ctx(), { metric: "review", value }))).code).toBe("invalid");

@@ -53,10 +53,26 @@ describe("saveTargetAction", () => {
     expect(setHomeTarget).not.toHaveBeenCalled();
   });
 
-  test("nothing changed redraws nothing", async () => {
+  // Another admin got there first, so nothing changed here, and this page still draws what was there before them.
+  test("the same number another admin just set still redraws Home", async () => {
     setHomeTarget.mockResolvedValue({ outcome: "unchanged", previous: 48, value: 48 });
     expect(await saveTargetAction(IDLE, form({ metric: "review", value: "2", unit: "d" }))).toEqual({ status: "saved" });
-    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith("/client");
+  });
+
+  test("a target another admin just removed still redraws Home", async () => {
+    clearHomeTarget.mockResolvedValue({ outcome: "unchanged", previous: null, value: null });
+    expect(await saveTargetAction(IDLE, form({ metric: "review", value: "2", unit: "d", clear: "on" }))).toEqual({ status: "saved" });
+    expect(revalidatePath).toHaveBeenCalledWith("/client");
+  });
+
+  test("a post with no number and no Remove removes nothing", async () => {
+    const file = form({ metric: "review", unit: "d" });
+    file.set("value", new File(["2"], "2.txt"));
+    for (const post of [form({ metric: "review", unit: "d" }), file]) {
+      expect(await saveTargetAction(IDLE, post)).toEqual({ status: "error", error: "invalid" });
+    }
+    expect(clearHomeTarget).not.toHaveBeenCalled();
   });
 
   test.each([

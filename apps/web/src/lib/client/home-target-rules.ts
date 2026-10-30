@@ -81,8 +81,11 @@ export function parseTarget(input: { metric: unknown; value: unknown; unit: unkn
   if (!clientTools.isHomeTargetMetric(input.metric)) return { ok: false, error: "invalid" };
   const metric = input.metric;
   const { kind } = TARGET_RULES[metric];
-  const raw = typeof input.value === "string" ? input.value.trim() : "";
-  if (input.clear === "on" || raw === "") return { ok: true, metric, value: null };
+  if (input.clear === "on") return { ok: true, metric, value: null };
+  // The field is always posted, blank or not, so its absence is a tampered post and never a removal.
+  if (typeof input.value !== "string") return { ok: false, error: "invalid" };
+  const raw = input.value.trim();
+  if (raw === "") return { ok: true, metric, value: null };
   if (raw.length > FIELD_MAX || !DECIMAL.test(raw)) return { ok: false, error: "not_number" };
   const n = Number(raw);
   if (kind === "count" && !Number.isInteger(n)) return { ok: false, error: "not_whole" };

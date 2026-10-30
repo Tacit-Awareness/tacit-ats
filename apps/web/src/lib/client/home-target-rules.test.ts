@@ -110,8 +110,14 @@ describe("parseTarget", () => {
   test("blank means no target, as the prototype, and the field's edges are ignored", () => {
     expect(post("review", "")).toEqual({ ok: true, metric: "review", value: null });
     expect(post("review", "   ")).toEqual({ ok: true, metric: "review", value: null });
-    expect(post("review", null)).toEqual({ ok: true, metric: "review", value: null });
     expect(post("review", " 2 ", "d")).toEqual({ ok: true, metric: "review", value: 48 });
+  });
+
+  test("a post with no number in it is tampered, not a blank field, and removes nothing", () => {
+    expect(post("review", null)).toEqual({ ok: false, error: "invalid" });
+    expect(post("review", undefined)).toEqual({ ok: false, error: "invalid" });
+    expect(post("review", new File(["2"], "2.txt"))).toEqual({ ok: false, error: "invalid" });
+    expect(post("review", null, "d", "on")).toEqual({ ok: true, metric: "review", value: null });
   });
 
   test("Remove wins over whatever is in the field", () => {

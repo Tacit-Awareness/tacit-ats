@@ -1,7 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
-import { SubmitButton } from "@/components/submit-button";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
 import type { TargetKind, TargetMetric, TargetUnit } from "@/lib/client/home-target-rules";
@@ -51,10 +50,9 @@ function Words({ label, shown, off, offNote }: Pick<TargetChipProps, "label" | "
 
 const IDLE: TargetState = { status: "idle" };
 
-function TargetDialog({ metric, card, label, sub, kind, field, shown, close }: TargetChipProps & { close: () => void }) {
+export function TargetDialog({ metric, card, label, sub, kind, field, shown, close }: TargetChipProps & { close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, action, pending] = useActionState(saveTargetAction, IDLE);
-  // Held here, not left to the inputs: React resets a form when its action settles, which would take what was typed along with a refusal.
   const [value, setValue] = useState(field.value);
   const [unit, setUnit] = useState(field.unit);
   const [clear, setClear] = useState(false);
@@ -80,7 +78,19 @@ function TargetDialog({ metric, card, label, sub, kind, field, shown, close }: T
       }}
       className="m-auto w-[calc(100%-32px)] max-w-[420px] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
-      <form action={action} className="grid gap-3.5 p-5">
+      {/*
+        Not <form action>: React resets that when the action settles, and the
+        select, having no default, would go back to Days with the state still on
+        Hours, so a Save after a refusal would store 5 hours as 5 days.
+      */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const post = new FormData(e.currentTarget);
+          startTransition(() => action(post));
+        }}
+        className="grid gap-3.5 p-5"
+      >
         <input type="hidden" name="metric" value={metric} />
         <div>
           <h2 id={titleId} className="m-0 text-[15px] font-medium">
@@ -130,9 +140,9 @@ function TargetDialog({ metric, card, label, sub, kind, field, shown, close }: T
           <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => dialog.current?.close()}>
             Cancel
           </Button>
-          <SubmitButton size="sm" pendingLabel="Saving…">
-            Save
-          </SubmitButton>
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Saving…" : "Save"}
+          </Button>
         </div>
       </form>
     </dialog>

@@ -14,6 +14,7 @@ export async function saveTargetAction(_prev: TargetState, form: FormData): Prom
   if (!target.ok) return { status: "error", error: target.error };
   const saved = await saveHomeTarget(member.db, toolCtx(member), target);
   if (!saved.ok) return { status: "error", error: saved.error };
-  if (saved.changed) revalidatePath("/client");
+  // Even when nothing changed: another admin may have got there first, and this page still draws what was there before them.
+  revalidatePath("/client");
   return { status: "saved" };
 }
