@@ -106,6 +106,8 @@ export type {
   DayStats, InterviewerActivity, InterviewerRow, JobFirstHire, OfferReport, OutstandingFeedback, PipelineReport, RejectionReport, RejectionRow,
   SourceReport, SourceRow, StageRow, TimeToHire,
 } from "./reports.js";
+export { HOME_TARGET_MAX, HOME_TARGET_METRICS, clearHomeTarget, getHomeTargets, isHomeTargetMetric, setHomeTarget } from "./targets.js";
+export type { HomeTargetChange, HomeTargetMetric, HomeTargets } from "./targets.js";
 export {
   EEOC_DISABILITY, EEOC_GENDERS, EEOC_MIN_CELL, EEOC_RACES, EEOC_VETERAN,
   eeocReport, recordEeoc,

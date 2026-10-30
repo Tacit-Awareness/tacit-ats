@@ -386,6 +386,15 @@ src/
                         thrown. FileStore gained the optional remove();
                         getFileLink accepts <org>/<any person uuid>/<id>,
                         since a merged file keeps the path it was uploaded at
+                        targets.ts (2026-10-30): Home's targets,
+                        tacit-internal's home_targets. getHomeTargets;
+                        setHomeTarget / clearHomeTarget, admins only and
+                        audited here, as the migration leaves audit_log
+                        to the caller: home_target.set / .clear with the
+                        metric and the number before and after, no
+                        entity id. A value is judged as numeric(10, 2)
+                        keeps it, so one rounding to 0 is refused. For
+                        apps/web's Home; no connector tool yet.
                         reports.ts (2026-10-16): pipelineReport (per
                         stage: now, reached (a skipped stage counts as
                         passed), conversion to the next forward stage,
@@ -399,7 +408,9 @@ src/
                         over the jobs they manage; on time = within
                         FEEDBACK_ON_TIME_HOURS = 24 of the end; a filing
                         the caller's token cannot see is not_visible,
-                        told apart from not filed by can_see_feedback) and
+                        told apart from not filed by can_see_feedback;
+                        medianHoursToFeedback overall, over every filing
+                        counted, beside each interviewer's own) and
                         offerReport. Plain reads on the member's token, no
                         SQL function, so each counts only what the member
                         reads; scan() pages 1,000 rows (the API's max) up

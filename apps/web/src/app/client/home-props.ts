@@ -2,7 +2,9 @@ import { clientTools } from "@tacit-ats/core";
 import { OUTSTANDING_PREVIEW, type HomeRead } from "@/lib/client/home";
 import { departmentTabs } from "@/lib/client/department-tree";
 import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
+import { isOffTarget, targetField, targetRule, targetWords, type TargetMetric } from "@/lib/client/home-target-rules";
 import { PIPELINE_COLUMNS } from "@/lib/client/pipeline-columns";
+import type { TargetChipProps } from "./home-target";
 import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 
 // Home's read (lib/client/home.ts) shaped for home-view.tsx: the period,
@@ -14,6 +16,15 @@ const SHORT: Record<string, string> = { new: "New", screening: "Screen", schedul
 const STAGE_NAMES: Record<string, string> = { sourced: "Sourced", contacted: "Contacted", screening: "Screening", interviewing: "Interviewing", offer: "Offer" };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Each card's name, the target dialog's title. */
+const TARGET_CARDS: Record<TargetMetric, string> = {
+  new_applications: "New applications",
+  review: "Waiting for review",
+  schedule: "Waiting to be scheduled",
+  feedback: "Typical time to feedback",
+  workload: "Interview workload",
+};
 
 /** Each bottleneck's tile and the page that clears it (design/tats's "Decide in Inbox", here the Pipeline's own columns). */
 const BOTTLENECK_GO: Record<BottleneckKey, { icon: BottleneckIcon; label: string }> = {
@@ -40,7 +51,7 @@ function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what:
   }
 }
 
-export function overviewProps(read: HomeRead, days: number, now: number): HomeViewProps {
+export function overviewProps(read: HomeRead, days: number, now: number, canEditTargets: boolean): HomeViewProps {
   const job = read.jobId;
   const department = read.departmentId;
   // interviewerActivity has no job filter: with a job or a department picked, its numbers still cover every job they manage.
@@ -65,18 +76,46 @@ export function overviewProps(read: HomeRead, days: number, now: number): HomeVi
     return `/client/pipeline${qs ? `?${qs}` : ""}`;
   };
 
+  /**
+   * A card's target chip, or null when there is nothing to show: no target and
+   * nobody here to set one, or the targets could not be read, when "Set a
+   * target" might be offering to replace one that is there.
+   */
+  const target = (metric: TargetMetric, value: number | null): TargetChipProps | null => {
+    if (read.targets === null) return null;
+    const set = read.targets[metric] ?? null;
+    if (set === null && !canEditTargets) return null;
+    const rule = targetRule(metric);
+    return {
+      metric,
+      card: TARGET_CARDS[metric],
+      label: rule.label,
+      shown: set === null ? null : targetWords(metric, set),
+      off: isOffTarget(metric, value, set),
+      offNote: rule.flag === "below" ? "Below target" : "Over target",
+      sub: rule.sub,
+      kind: rule.kind,
+      field: targetField(metric, set),
+      canEdit: canEditTargets,
+    };
+  };
+
   const rows = stageRows(read.waiting);
-  const waitCard = (column: "new" | "scheduling"): WaitCard => {
+  const waitCard = (column: "new" | "scheduling", metric: "review" | "schedule"): WaitCard => {
     const row = rows.find((r) => r.key === column)!;
+    const set = read.targets?.[metric];
     return {
       typical: row.medianHours === null ? null : fmtHours(row.medianHours),
       waiting: row.people.length,
       oldest: row.longestHours === null ? null : fmtHours(row.longestHours),
-      buckets: ageBuckets(row.people.map((p) => p.hours)).map((b) => ({
+      // Past the target the bars read red, as design/tats; with none set, the two oldest buckets (3 days and over).
+      buckets: ageBuckets(row.people.map((p) => p.hours)).map((b, i) => ({
         n: b.n,
         label: b.label,
         title: `${b.n} waiting ${b.label}`,
+        late: set === undefined ? i >= 3 : b.lo >= set,
       })),
+      target: target(metric, row.medianHours),
     };
   };
 
@@ -114,19 +153,21 @@ export function overviewProps(read: HomeRead, days: number, now: number): HomeVi
     days,
     filters,
     pipelineHref: pipeline(),
-    newApps: { value: read.applications.current, change: read.applications.change, bars },
+    newApps: { value: read.applications.current, change: read.applications.change, bars, target: target("new_applications", read.applications.current) },
     inProcess: {
       value: read.waiting.length,
       bars: rows.map((r) => ({ n: r.people.length, label: SHORT[r.key], title: `${r.people.length} in ${r.label}` })),
     },
-    review: waitCard("new"),
-    schedule: waitCard("scheduling"),
+    review: waitCard("new", "review"),
+    schedule: waitCard("scheduling", "schedule"),
     feedback: fb && {
       onTimeShare: fb.onTimeShare,
       filed: fb.filed,
       onTime: fb.onTime,
       outstanding: fb.outstanding,
       onTimeHours: clientTools.FEEDBACK_ON_TIME_HOURS,
+      typical: read.feedbackMedianHours === null ? null : fmtHours(read.feedbackMedianHours),
+      target: target("feedback", read.feedbackMedianHours),
       allJobs,
       interviewers: fb.interviewers.slice(0, 7).map((x) => ({
         id: x.userId,
@@ -141,6 +182,7 @@ export function overviewProps(read: HomeRead, days: number, now: number): HomeVi
       interviews: load.interviews,
       held: load.held,
       booked: load.booked,
+      target: target("workload", load.hours),
       people: load.byInterviewer.slice(0, 6).map((x) => ({
         id: x.id,
         name: read.names[x.id] ?? "Unknown",
@@ -148,8 +190,12 @@ export function overviewProps(read: HomeRead, days: number, now: number): HomeVi
         label: `${Math.round(x.hours * 10) / 10}h`,
       })),
     },
-    bottlenecks: bottlenecks(read.waiting, fb ? fb.outstanding : null, now).map((b) => ({
+    bottlenecks: bottlenecks(read.waiting, fb ? fb.outstanding : null, now, {
+      ...read.targets,
+      oldestFeedbackHours: read.outstanding[0] ? (now - Date.parse(read.outstanding[0].endsAt)) / 3_600_000 : null,
+    }).map((b) => ({
       key: b.key,
+      over: b.overTarget,
       ...bottleneckWords(b, days, allJobs),
       ...BOTTLENECK_GO[b.key],
       href: b.key === "feedback" ? "/client/interviews" : pipeline(b.key === "review" ? "new" : b.key === "schedule" ? "scheduling" : b.key === "decide" ? "decide" : undefined),
