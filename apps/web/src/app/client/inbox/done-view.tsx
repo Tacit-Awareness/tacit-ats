@@ -4,7 +4,7 @@ import { KeyList } from "@/components/keys";
 import { ListReader, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
-import { button, plain } from "./fix-bar";
+import { button, plain } from "./buttons";
 import { MoveBackButton } from "./set-aside";
 import { InboxBar, Row, type IssueRow } from "./view";
 
@@ -103,7 +103,7 @@ export function DoneView({
         </KeyList>
       }
       reader={
-        <div className="grid content-start gap-3 md:px-6 md:pt-3 md:pb-10">
+        <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 md:px-6 md:pt-3 md:pb-10">
           <Link href="/client/inbox?tab=done" className={cn(textLink, "md:hidden")}>
             ← All done
           </Link>

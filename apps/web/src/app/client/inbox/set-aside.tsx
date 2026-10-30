@@ -8,7 +8,7 @@ import type { IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown, onePress } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { dismissIssueAction, restoreIssueAction } from "./actions";
-import { button, plain } from "./fix-bar";
+import { button, plain } from "./buttons";
 
 // Setting an issue aside (design/tats's E, `ibDone`) and getting it back. E
 // isn't confirmed, as the prototype: it changes only this member's queue, and

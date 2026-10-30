@@ -225,7 +225,7 @@ export function InboxView({
       bar={<InboxBar tab="open" openCount={rows.length} />}
       list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} />}
       reader={
-        <div className="grid content-start gap-3 md:px-6 md:pt-3 md:pb-10">
+        <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 md:px-6 md:pt-3 md:pb-10">
           <Link href="/client/inbox" className={cn(textLink, "md:hidden")}>
             ← All issues
           </Link>

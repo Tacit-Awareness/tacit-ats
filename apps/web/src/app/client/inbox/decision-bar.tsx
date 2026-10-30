@@ -9,7 +9,7 @@ import type { IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { decideIssueAction } from "./actions";
-import { button, plain, primary } from "./fix-bar";
+import { button, plain, primary } from "./buttons";
 import { DismissButton } from "./set-aside";
 
 // A decision in the reader, on design/tats's keys: on an approval A approves
