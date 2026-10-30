@@ -17,6 +17,7 @@ const GLOBEX = "d2000000-0000-4000-8000-0000000000f2";
 const ADMIN = "d1a00000-0000-4000-8000-0000000000f1";
 const LEAD = "d1a00000-0000-4000-8000-0000000000f2";
 const SITTER = "d1a00000-0000-4000-8000-0000000000f3";
+const RECRUITER = "d1a00000-0000-4000-8000-0000000000f4";
 const JOB = "d1b00000-0000-4000-8000-0000000000f1";
 const OTHER_JOB = "d1b00000-0000-4000-8000-0000000000f2";
 const DEPT = "d1e00000-0000-4000-8000-0000000000f1";
@@ -34,7 +35,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  for (const table of ["person_tags", "tags", "application_events", "applications", "hiring_team", "people", "roles", "departments", "companies"] as const) {
+  for (const table of ["person_tags", "tags", "application_events", "applications", "job_access", "hiring_team", "people", "roles", "departments", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("actors").delete().in("org_id", ids);
@@ -47,7 +48,9 @@ const member = (subject: string, workosOrgId: string) => {
 };
 const adminDb = () => member("user_vw_ada", "org_itest_views_acme");
 const leadDb = () => member("user_vw_lee", "org_itest_views_acme");
+const recruiterDb = () => member("user_vw_rae", "org_itest_views_acme");
 const asAdmin = { actorId: ADMIN, orgId: ACME, accessLevel: "admin" as const };
+const asRecruiter = { actorId: RECRUITER, orgId: ACME, accessLevel: "elevated" as const };
 const asLead = { actorId: LEAD, orgId: ACME, accessLevel: "elevated" as const };
 
 beforeEach(async () => {
@@ -60,6 +63,7 @@ beforeEach(async () => {
     { id: ADMIN, org_id: ACME, slug: "itest-vw-admin", display_name: "Ada Admin", email: "ada@vw.test", access_level: "admin", auth_subject: "user_vw_ada" },
     { id: LEAD, org_id: ACME, slug: "itest-vw-lead", display_name: "Lee Lead", email: "lee@vw.test", access_level: "elevated", auth_subject: "user_vw_lee" },
     { id: SITTER, org_id: ACME, slug: "itest-vw-sitter", display_name: "Sam Sitter", email: "sam@vw.test", access_level: "limited", auth_subject: "user_vw_sam" },
+    { id: RECRUITER, org_id: ACME, slug: "itest-vw-recruiter", display_name: "Rae Recruiter", email: "rae@vw.test", access_level: "elevated", auth_subject: "user_vw_rae" },
   ]));
   must(await db().from("departments").insert({ id: DEPT, org_id: ACME, name: "Infra" }));
   const { data: acme } = must(await db().from("companies").insert({ org_id: ACME, name: "Acme" }).select("id").single());
@@ -77,7 +81,7 @@ beforeEach(async () => {
     { id: GLOBEX_PERSON, org_id: GLOBEX, display_name: "Gil Globex" },
   ]));
   must(await db().from("applications").insert([
-    { id: app(1), org_id: ACME, person_id: person(1), role_id: JOB, stage: "screening", source: "referral" },
+    { id: app(1), org_id: ACME, person_id: person(1), role_id: JOB, stage: "screening", source: "referral", added_by_actor_id: RECRUITER },
     { id: app(2), org_id: ACME, person_id: person(2), role_id: JOB, stage: "sourced", source: "job_board" },
     { id: app(3), org_id: ACME, person_id: person(3), role_id: OTHER_JOB, stage: "sourced", source: "job_board" },
     { id: "d2d00000-0000-4000-8000-0000000000f1", org_id: GLOBEX, person_id: GLOBEX_PERSON, role_id: GLOBEX_JOB, stage: "sourced", source: "referral" },
@@ -86,6 +90,8 @@ beforeEach(async () => {
     { id: TAG, org_id: ACME, name: "Competing offer" },
     { id: GLOBEX_TAG, org_id: GLOBEX, name: "Globex label" },
   ]));
+  const { data: external } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+  must(await db().from("job_access").insert({ org_id: ACME, actor_id: RECRUITER, role_id: JOB, access_role_id: external!.id }));
   must(await db().from("person_tags").insert([
     { org_id: ACME, person_id: person(1), tag_id: TAG },
     { org_id: ACME, person_id: person(3), tag_id: TAG },
@@ -97,21 +103,37 @@ afterAll(clear);
 
 describe("readViews", () => {
   test("an admin gets every row, the org's tags and the departments with their jobs", async () => {
-    const read = await readViews(adminDb(), asAdmin, new Date());
+    const read = await readViews(adminDb(), new Date());
     expect(read.rows).toHaveLength(3);
     expect(read.rows.find((r) => r.source === "referral")).toEqual({ roleId: JOB, column: "screening", source: "referral", tagIds: [TAG] });
     expect(read.tags).toEqual([{ id: TAG, name: "Competing offer" }]);
     expect(read.departments).toEqual([{ id: DEPT, path: "Infra", roleIds: [JOB] }]);
+    expect(read.capped).toBe(false);
+  });
+
+  test("an archived label is not on offer, though a view on it still filters", async () => {
+    must(await db().from("tags").update({ archived_at: new Date().toISOString() }).eq("id", TAG));
+    expect((await readViews(adminDb(), new Date())).tags).toEqual([]);
+    expect(await readPersonTags(adminDb(), [person(1)], TAG)).toEqual(new Map([[person(1), [TAG]]]));
+  });
+
+  test("an external recruiter counts only the people they added, and their marks are those", async () => {
+    const read = await readViews(recruiterDb(), new Date());
+    expect(read.rows).toEqual([{ roleId: JOB, column: "screening", source: "referral", tagIds: [TAG] }]);
+    expect(await readPersonTags(recruiterDb(), [person(2), person(3)])).toEqual(new Map());
+    const marks = await readMarks(recruiterDb(), asRecruiter, new Date());
+    expect(marks.tickets).toEqual([]);
+    expect(marks.inbox).toEqual(expect.any(Array));
   });
 
   test("a hiring manager's rows are their own job's: the count never shows more than they can read", async () => {
-    const read = await readViews(leadDb(), asLead, new Date());
+    const read = await readViews(leadDb(), new Date());
     expect(read.rows).toHaveLength(2);
     expect(read.rows.every((r) => r.roleId === JOB)).toBe(true);
   });
 
   test("no name goes to the browser", async () => {
-    const read = await readViews(adminDb(), asAdmin, new Date());
+    const read = await readViews(adminDb(), new Date());
     expect(JSON.stringify(read.rows)).not.toMatch(/Riley|Casey|Dana/);
   });
 });

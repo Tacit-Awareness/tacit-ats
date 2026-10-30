@@ -89,6 +89,34 @@ describe("with storage blocked", () => {
     expect(m.get()).toEqual({ value: 2, kept: false });
   });
 
+  test("full: a second change builds on the first, not on the copy storage could not take", () => {
+    const area = fakeArea({ [KEY]: "1" });
+    area.setItem = () => {
+      throw new DOMException("full", "QuotaExceededError");
+    };
+    const m = createMemory({ key: KEY, area: () => area, parse });
+    m.update((v) => v + 1);
+    m.update((v) => v + 1);
+    expect(m.get()).toEqual({ value: 3, kept: false });
+  });
+
+  test("full, then room again: memory is what gets written, and another tab's write counts once more", () => {
+    const area = fakeArea({ [KEY]: "1" });
+    const setItem = area.setItem;
+    area.setItem = () => {
+      throw new DOMException("full", "QuotaExceededError");
+    };
+    const m = createMemory({ key: KEY, area: () => area, parse });
+    m.update((v) => v + 1);
+    area.setItem = setItem;
+    m.update((v) => v + 1);
+    expect(m.get()).toEqual({ value: 3, kept: true });
+    expect(area.data[KEY]).toBe("3");
+    area.data[KEY] = "10";
+    m.update((v) => v + 1);
+    expect(m.get().value).toBe(11);
+  });
+
   test("no window, as on the server: browserArea is null and the memory is empty", () => {
     expect(browserArea()).toBeNull();
     expect(createMemory({ key: KEY, area: browserArea, parse }).get()).toEqual({ value: 0, kept: false });

@@ -32,15 +32,16 @@ export const BUILT_IN_VIEWS: readonly SavedView[] = [
 ];
 
 const isSource = (v: unknown): v is SourceGroup => SOURCE_GROUPS.some((s) => s.key === v);
-const isUuid = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
+/** Lower case, as the database's own: a filter compares it with the ids a read gives back. */
+const uuidOf = (v: unknown): string | null => (typeof v === "string" && UUID.test(v) ? v.toLowerCase() : null);
 
 /** The view's filters out of the URL; anything we did not write is no filter, as `?department=` already is. */
 export function parseViewFilters(raw: { department?: string; stage?: string; source?: string; tag?: string }): ViewFilters {
   return {
-    department: isUuid(raw.department) ? raw.department : null,
+    department: uuidOf(raw.department),
     stage: isColumnKey(raw.stage) ? raw.stage : null,
     source: isSource(raw.source) ? raw.source : null,
-    tag: isUuid(raw.tag) ? raw.tag : null,
+    tag: uuidOf(raw.tag),
   };
 }
 
@@ -99,10 +100,10 @@ function parseView(raw: unknown): SavedView | null {
     id: v.id,
     name,
     desc: typeof v.desc === "string" ? v.desc.slice(0, DESC_MAX) : "",
-    department: isUuid(v.department) ? v.department : null,
+    department: uuidOf(v.department),
     stage: isColumnKey(v.stage) ? v.stage : null,
     source: isSource(v.source) ? v.source : null,
-    tag: isUuid(v.tag) ? v.tag : null,
+    tag: uuidOf(v.tag),
   };
 }
 

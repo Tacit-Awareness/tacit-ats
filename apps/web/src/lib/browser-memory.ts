@@ -64,16 +64,17 @@ export function createMemory<T>({ key, area, parse }: { key: string; area: () =>
   return {
     get,
     update(next) {
-      // From storage when it answers, so a write in another tab is not lost.
+      // From storage when it answers, so a write in another tab is not lost;
+      // from memory once a write has failed, as storage then holds an older copy.
       const got = read(area, key);
-      const base = got.ok && got.raw !== null ? parse(got.raw) : get().value;
+      const base = got.ok && got.raw !== null && state?.kept !== false ? parse(got.raw) : get().value;
       const value = next(base);
       state = { value, kept: write(area, key, value) };
       emit();
     },
     reload() {
       const got = read(area, key);
-      if (!got.ok || got.raw === null) return;
+      if (!got.ok || got.raw === null || state?.kept === false) return;
       state = { value: parse(got.raw), kept: true };
       emit();
     },

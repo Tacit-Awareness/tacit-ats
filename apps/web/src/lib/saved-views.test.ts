@@ -56,6 +56,16 @@ describe("the URL's filters", () => {
     expect(hasFilters(none)).toBe(false);
   });
 
+  test("an id reads the same however it was cased: the database's are lower case", () => {
+    expect(parseViewFilters({ department: DEPT.toUpperCase().replace(/^1/, "A"), tag: "ABCDEF01-2222-4222-8222-222222222222" })).toEqual({
+      ...none,
+      department: "a1111111-1111-4111-8111-111111111111",
+      tag: "abcdef01-2222-4222-8222-222222222222",
+    });
+    const stored = parseViews({ custom: [{ ...view(), tag: "ABCDEF01-2222-4222-8222-222222222222" }] });
+    expect(stored.custom[0].tag).toBe("abcdef01-2222-4222-8222-222222222222");
+  });
+
   test("?view= is a built-in or one made here", () => {
     expect(parseViewId("referrals")).toBe("referrals");
     expect(parseViewId("v1700000000000")).toBe("v1700000000000");

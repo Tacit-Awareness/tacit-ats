@@ -14,7 +14,7 @@ import { ViewsView } from "./view";
 export default async function ClientViews() {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
-  const { db, actorId, accessLevel, org } = gate.ctx;
+  const { db, accessLevel } = gate.ctx;
 
   if (accessLevel === "limited") {
     return (
@@ -32,5 +32,5 @@ export default async function ClientViews() {
     );
   }
 
-  return <ViewsView {...await readViews(db, { actorId, orgId: org.id, accessLevel }, new Date())} />;
+  return <ViewsView {...await readViews(db, new Date())} />;
 }

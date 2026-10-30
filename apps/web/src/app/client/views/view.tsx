@@ -198,7 +198,7 @@ function NewView({ onClose, departments, tags }: { onClose: () => void } & Pick<
   );
 }
 
-export function ViewsView({ rows, departments, tags }: ViewsRead) {
+export function ViewsView({ rows, departments, tags, capped }: ViewsRead) {
   const { state, kept, togglePin, remove } = useViews();
   const [creating, setCreating] = useState(false);
   const roles = useMemo(() => new Map(departments.map((d) => [d.id, new Set(d.roleIds)])), [departments]);
@@ -254,6 +254,7 @@ export function ViewsView({ rows, departments, tags }: ViewsRead) {
           );
         })}
       </Band>
+      {capped ? <p className="m-0 text-[12.5px] text-faint">A job has more than 1,000 applications, so these counts may stop short.</p> : null}
       {kept ? null : <p className="m-0 text-[12.5px] text-faint">This browser isn&apos;t keeping views, so your pins and new views will be gone when you reload.</p>}
       {creating ? <NewView onClose={() => setCreating(false)} departments={departments} tags={tags} /> : null}
     </Page>

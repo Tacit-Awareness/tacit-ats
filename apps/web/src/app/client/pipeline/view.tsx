@@ -97,6 +97,7 @@ export function PipelineView({
   search,
   view,
   empty,
+  capped,
 }: {
   total: number;
   columns: BoardColumn[];
@@ -108,6 +109,8 @@ export function PipelineView({
   /** A saved view is on: its id, and what the URL's filters say for a view this browser does not have. */
   view: { id: string | null; fallback: string } | null;
   empty: string | null;
+  /** A job is past what the board can read (`PipelineRead`). */
+  capped: boolean;
 }) {
   return (
     <Page
@@ -145,6 +148,7 @@ export function PipelineView({
         </>
       }
     >
+      {capped ? <p className="m-0 mb-3 text-[12.5px] text-faint">A job has more than 1,000 applications, so this board may stop short of the people touched most recently.</p> : null}
       {empty ? (
         <Empty>{empty}</Empty>
       ) : (

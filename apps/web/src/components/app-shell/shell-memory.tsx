@@ -45,18 +45,22 @@ export function ShellMemory({ actorId, children }: { actorId: string; children: 
 
   const lastRead = useRef<number | null>(null);
   const reading = useRef(false);
+  // Bumped each time a page draws its list, which is newer than a read already out.
+  const drawn = useRef(0);
   const refresh = useCallback(async () => {
     if (reading.current || document.hidden || !marksStale(lastRead.current, Date.now())) return;
     reading.current = true;
     lastRead.current = Date.now();
+    const asked = drawn.current;
     try {
       // `redirect: "error"`: a lapsed session redirects to sign-in, and that is not an answer.
       const res = await fetch("/client/marks", { cache: "no-store", redirect: "error" });
       if (!res.ok) return;
       const next = parseMarks(await res.json());
+      if (asked !== drawn.current) return;
       setCurrent((c) => ({ inbox: next.inbox ?? c.inbox, tickets: next.tickets ?? c.tickets }));
     } catch {
-      // Offline or signed out: no tint, and the next navigation tries again.
+      // Offline or signed out: the links stay as they were, and the next read after the wait tries again.
     } finally {
       reading.current = false;
     }
@@ -81,6 +85,7 @@ export function ShellMemory({ actorId, children }: { actorId: string; children: 
       seen,
       current,
       show: (mark, ids) => {
+        drawn.current += 1;
         setCurrent((c) => ({ ...c, [mark]: ids }));
         seen.update((s) => ({ ...s, [mark]: ids }));
       },

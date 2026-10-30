@@ -362,6 +362,10 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
       {drawer ? <div className="fixed inset-0 z-40 bg-[color:var(--scrim)] md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
 
       <aside
+        // Any link: a pinned view can be the page you are on with another query, which the pathname effect never sees.
+        onClick={(e) => {
+          if ((e.target as Element).closest("a")) setDrawer(false);
+        }}
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col gap-6 overflow-y-auto bg-frame py-2.5 pr-2 pl-2.5 transition-transform duration-300 [scrollbar-width:none]",
           "md:static md:z-auto md:translate-x-0 md:transition-none",

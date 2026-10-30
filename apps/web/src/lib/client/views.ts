@@ -1,5 +1,4 @@
 import type { Db } from "@tacit/db";
-import { clientTools } from "@tacit-ats/core";
 import { rowSource, type ViewRow } from "../saved-views";
 import { departmentScope, type DepartmentsRead } from "./department-tree";
 import { readDepartments } from "./departments";
@@ -13,6 +12,8 @@ import { readPipeline, type PipelineEntry } from "./pipeline";
 /** People per `person_tags` read, to keep the query string short. */
 const IDS_PER_READ = 150;
 const PAGE = 1000;
+/** The labels New view offers. */
+const TAGS_MAX = 1000;
 
 /** Each person's tag ids, of the people given; `onlyTag` narrows the read to one. */
 export async function readPersonTags(db: Db, personIds: string[], onlyTag?: string): Promise<Map<string, string[]>> {
@@ -35,7 +36,13 @@ export const toViewRows = (entries: PipelineEntry[], tags: Map<string, string[]>
   entries.map((e) => ({ roleId: e.roleId, column: e.column, source: rowSource(e), tagIds: tags.get(e.personId) ?? [] }));
 
 export type ViewDepartment = { id: string; path: string; roleIds: string[] };
-export type ViewsRead = { rows: ViewRow[]; departments: ViewDepartment[]; tags: { id: string; name: string }[] };
+export type ViewsRead = {
+  rows: ViewRow[];
+  departments: ViewDepartment[];
+  tags: { id: string; name: string }[];
+  /** A job is past what the board can read, so a count may stop short (PipelineRead's `capped`). */
+  capped: boolean;
+};
 
 /** The live departments on offer, each with its jobs and those of the departments inside it. */
 export function viewDepartments(read: DepartmentsRead): ViewDepartment[] {
@@ -46,14 +53,20 @@ export function viewDepartments(read: DepartmentsRead): ViewDepartment[] {
   }));
 }
 
-export async function readViews(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, now: Date): Promise<ViewsRead> {
-  // listTags writes no audit row, so the source is never read.
-  const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [pipeline, structure, tags] = await Promise.all([readPipeline(db, now), readDepartments(db), clientTools.listTags(db, ctx)]);
+/**
+ * The org's live labels. Not core's listTags: it counts each label's candidates
+ * through the `person_tags` policy, row by row, which ran a hiring manager's
+ * token into the statement timeout at 30,000 tagged rows, for a number no view
+ * shows.
+ */
+async function readLabels(db: Db) {
+  const { data, error } = await db.from("tags").select("id, name").is("archived_at", null).order("name").limit(TAGS_MAX);
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
+export async function readViews(db: Db, now: Date): Promise<ViewsRead> {
+  const [pipeline, structure, tags] = await Promise.all([readPipeline(db, now), readDepartments(db), readLabels(db)]);
   const byPerson = await readPersonTags(db, pipeline.entries.map((e) => e.personId));
-  return {
-    rows: toViewRows(pipeline.entries, byPerson),
-    departments: viewDepartments(structure),
-    tags: tags.map((t) => ({ id: t.tagId, name: t.name })),
-  };
+  return { rows: toViewRows(pipeline.entries, byPerson), departments: viewDepartments(structure), tags, capped: pipeline.capped };
 }

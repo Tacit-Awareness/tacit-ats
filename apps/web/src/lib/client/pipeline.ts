@@ -15,9 +15,20 @@ import { columnOf, type ColumnKey, type InterviewTimes } from "./pipeline-column
 
 /** Application ids per `interviews` read, to keep the query string short. */
 const IDS_PER_READ = 150;
+/**
+ * The most applications getRolePipeline gets back for a job: it does not page,
+ * so PostgREST's row limit ends it, and it reads the stalest first, closed ones
+ * included. The fix is paging in tacit-internal's `pipelinesFor`.
+ */
+const ROLE_ROWS_MAX = 1000;
 
 export type PipelineEntry = PipelineCard & { roleId: string; roleTitle: string; column: ColumnKey; interviews: InterviewTimes[] };
-export type PipelineRead = { jobs: { id: string; title: string }[]; entries: PipelineEntry[] };
+export type PipelineRead = {
+  jobs: { id: string; title: string }[];
+  entries: PipelineEntry[];
+  /** A job reached ROLE_ROWS_MAX, so the people touched most recently may be missing from it. */
+  capped: boolean;
+};
 
 async function interviewsFor(db: Db, applicationIds: string[]) {
   const byApp = new Map<string, InterviewTimes[]>();
@@ -56,5 +67,5 @@ export async function readPipeline(db: Db, now: Date): Promise<PipelineRead> {
     const column = columnOf(card.stage, ivs, now.getTime());
     if (column) entries.push({ ...card, column, interviews: ivs });
   }
-  return { jobs: pipelines.map((p) => ({ id: p.roleId, title: p.roleTitle })), entries };
+  return { jobs: pipelines.map((p) => ({ id: p.roleId, title: p.roleTitle })), entries, capped: pipelines.some((p) => p.cards.length >= ROLE_ROWS_MAX) };
 }

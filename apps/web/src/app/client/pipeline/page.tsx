@@ -143,6 +143,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     <PipelineView
       total={shown.length}
       columns={columns}
+      capped={pipeline.capped}
       departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null, leaveView: true }))}
       job={
         jobs.length
