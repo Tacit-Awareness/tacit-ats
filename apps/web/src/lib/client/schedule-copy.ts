@@ -73,8 +73,9 @@ export function changeLines(calendar: ChangeCalendar): string[] {
 }
 
 /** The line under the bar once it is done: what is now true, and what was not. */
-export function doneSentence(answer: Extract<ScheduleAnswer, { ok: true; kind: "booked" | "changed" | "unchanged" }>): string {
+export function doneSentence(answer: Extract<ScheduleAnswer, { ok: true; kind: "booked" | "changed" | "unchanged" | "already_booked" }>): string {
   if (answer.kind === "unchanged") return "Nothing changed: it was already that way.";
+  if (answer.kind === "already_booked") return "Booked. The earlier try went through, so nothing was booked twice.";
   if (answer.kind === "booked") {
     const c = answer.calendar;
     if (c.status === "not_sent") return "Booked in Tacit only. Nobody was invited.";

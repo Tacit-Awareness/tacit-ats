@@ -173,7 +173,7 @@ describe("booking", () => {
     const google = fakeGoogle({ busy: free });
     const deps = { calendar: calendarOf(google), now };
     expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toMatchObject({ ok: true, kind: "booked" });
-    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toEqual({ ok: true, kind: "unchanged" });
+    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toEqual({ ok: true, kind: "already_booked" });
     expect(google.eventCalls()).toHaveLength(1);
     expect(must(await db().from("interviews").select("id").eq("id", NEW_ID)).data).toHaveLength(1);
     expect(await row(NEW_ID)).toMatchObject({ status: "scheduled" });

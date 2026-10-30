@@ -55,7 +55,7 @@ async function changeable(db: Db, interviewId: string, now: Date, was?: string |
 function refusal(err: unknown): ScheduleAnswer {
   if (err instanceof clientTools.ClientToolError) {
     // The dialog's own id again: an earlier try went through and its answer never came.
-    if (err.field === "interview_id") return { ok: true, kind: "unchanged" };
+    if (err.field === "interview_id") return { ok: true, kind: "already_booked" };
     // Core's not_found sentences are for the connector's model, and name its tools.
     if (err.code === "not_found") return { ok: false, code: "not_found", message: "That candidate or teammate is no longer there for you." };
     return { ok: false, code: err.code, message: err.message };

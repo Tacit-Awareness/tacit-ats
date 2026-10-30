@@ -5,6 +5,12 @@ const dana = { userId: "a", name: "Dana" };
 const lee = { userId: "b", name: "Lee" };
 const sam = { userId: "c", name: "Sam" };
 
+describe("a booking that had gone through already", () => {
+  test("reads as booked: a member who retried must not think it failed", () => {
+    expect(doneSentence({ ok: true, kind: "already_booked" })).toMatch(/^Booked\./);
+  });
+});
+
 describe("a candidate with nobody to hear from", () => {
   test("is not promised Google will tell them", () => {
     const lines = changeLines({ status: "would_follow", action: "move", organizer: dana, candidateEmail: null });

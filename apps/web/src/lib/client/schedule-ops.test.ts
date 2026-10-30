@@ -167,7 +167,7 @@ describe("what is no longer there to change", () => {
 
   test("the same booking again, after an answer that never came, is the booking", async () => {
     scheduleInterview.mockRejectedValue(new clientTools.ClientToolError("invalid", "This interview is already booked.", "interview_id"));
-    expect(await runScheduleRequest(ahead, ctx, { ...book, confirmed: true }, deps)).toEqual({ ok: true, kind: "unchanged" });
+    expect(await runScheduleRequest(ahead, ctx, { ...book, confirmed: true }, deps)).toEqual({ ok: true, kind: "already_booked" });
   });
 
   test("a clash that turned up since the dry run comes back with nothing written", async () => {

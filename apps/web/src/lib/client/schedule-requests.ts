@@ -90,6 +90,8 @@ export type ScheduleAnswer =
   | { ok: true; kind: "changed"; op: "move" | "cancel"; calendar: Extract<clientTools.UpdateInterviewResult, { outcome: "updated" | "unchanged" }>["calendar"] }
   /** Already as asked: nothing to do. */
   | { ok: true; kind: "unchanged" }
+  /** This dialog's booking again: an earlier try went through, and its answer never came. */
+  | { ok: true; kind: "already_booked" }
   | { ok: false; code: ScheduleErrorCode; message: string };
 
 /** When the answer never came: nobody is told a change did, or did not, happen. */

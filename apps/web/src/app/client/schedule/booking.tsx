@@ -159,7 +159,7 @@ function ConfirmCard({ c, back, backLabel, done, setBusy, reread }: { c: Confirm
       }));
       return;
     }
-    if (answer.kind === "booked" || answer.kind === "changed" || answer.kind === "unchanged") done(doneSentence(answer));
+    if (answer.kind === "booked" || answer.kind === "changed" || answer.kind === "unchanged" || answer.kind === "already_booked") done(doneSentence(answer));
   };
 
   return (
