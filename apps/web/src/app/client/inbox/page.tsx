@@ -93,8 +93,8 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
               decision,
               terms: detail?.terms ? offerTermLines(detail.terms) : null,
               next: nextIssue(issues, open.key)?.key ?? null,
-              secondary: secondaryLink(open, fix),
-              story: open.candidate ? (detail?.story ?? []) : null,
+              secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
+              story: open.candidate ? (detail?.story ?? null) : null,
               now: nowMs,
             }
           : null

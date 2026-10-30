@@ -105,8 +105,10 @@ export function parseDecision(f: Fields): Decision | null {
 }
 
 /** What the page says after a decision on an approval, as a code for inbox/messages.ts. */
-export function approvalNotice(outcome: clientTools.DecisionResult["outcome"], kind: clientTools.ApprovalKind) {
+export function approvalNotice(outcome: clientTools.DecisionResult["outcome"] | "reset", kind: clientTools.ApprovalKind) {
   switch (outcome) {
+    case "reset":
+      return "approval_reset" as const;
     case "advanced":
       return "approved_step" as const;
     case "approved":

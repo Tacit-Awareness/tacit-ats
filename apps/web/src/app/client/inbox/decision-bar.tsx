@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { ConfirmCopy, ConfirmMode, DecisionAction, DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
+import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { decideIssueAction } from "./actions";
 import { button, plain, primary } from "./fix-bar";
@@ -145,20 +146,19 @@ function ConfirmDialog({
         if (busy.current) e.preventDefault();
       }}
       onMouseDown={(e) => {
+        // The form fills the dialog, so only the backdrop lands here.
         if (e.target === e.currentTarget) dismiss();
       }}
-      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-4 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      // On the dialog, not the form: a click on its text moves focus to the dialog itself.
+      onKeyDown={(e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !busy.current && !blocked) {
+          e.preventDefault();
+          form.current?.requestSubmit();
+        }
+      }}
+      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
-      <form
-        ref={form}
-        action={decideIssueAction}
-        onKeyDown={(e) => {
-          if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !busy.current && !blocked) {
-            e.preventDefault();
-            form.current?.requestSubmit();
-          }
-        }}
-      >
+      <form ref={form} action={decideIssueAction} className="p-4">
         <Settled busy={busy} done={close} />
         <input type="hidden" name={decision.target.name} value={decision.target.value} />
         <input type="hidden" name="decision" value={mode} />
@@ -200,14 +200,15 @@ export function DecisionBar({
 }) {
   const [open, setOpen] = useState<Extract<DecisionAction, { mode: ConfirmMode }> | null>(null);
   const link = useRef<HTMLAnchorElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
   const press = (a: DecisionAction) => ("href" in a ? link.current?.click() : setOpen(a));
-  useKeys(Object.fromEntries(decision.actions.map((a) => [a.key, () => press(a)])), open === null);
+  useKeys(Object.fromEntries(decision.actions.map((a) => [a.key, () => void (isShown(bar.current) && press(a))])), open === null);
   useKeyHelp(
     "Inbox",
     decision.actions.map((a) => ({ keys: a.key.toUpperCase(), label: "href" in a ? a.label : `${a.label}, after you confirm` })),
   );
   return (
-    <div data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
+    <div ref={bar} data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
       {decision.actions.map((a) =>
         "href" in a ? (
           <Link key={a.key} ref={link} href={a.href} aria-keyshortcuts={a.key.toUpperCase()} className={cn(button, a.primary ? primary : plain)}>

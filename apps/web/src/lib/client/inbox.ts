@@ -128,17 +128,19 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
  * member may edit the job, the reasons a rejection can give, and an offer's
  * terms. The terms are read here, for the one open, and never reach the queue:
  * `my_approvals` shows them to whoever must approve, who can't decide without
- * them, and they go no further than this member's page.
+ * them, and they go no further than this member's page. An approver may have no
+ * access to the job (finance, an exec): the story is null then, and `canOpen`
+ * false, so the reader doesn't link to a page that would 404.
  */
 export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, issue: Issue) {
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
   const offerRequest = issue.approval?.kind === "offer" ? issue.approval.requestId : null;
-  const [story, canEdit, terms, reasons] = await Promise.all([
+  const [story, canEdit, terms, reasons, jobSeen] = await Promise.all([
     issue.candidate
       ? clientTools.getActivity(db, ctx, { candidateId: issue.candidate.id, limit: STORY_MAX }).then(
           (a) => a.entries,
           (err: unknown) => {
-            if (err instanceof clientTools.ClientToolError && err.code === "not_found") return [];
+            if (err instanceof clientTools.ClientToolError && err.code === "not_found") return null;
             throw err;
           },
         )
@@ -153,8 +155,14 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
     issue.reason === "decide"
       ? clientTools.listRejectionReasons(db, ctx).then((all): CloseReason[] => all.filter((r) => r.kind === "rejected"))
       : ([] as CloseReason[]),
+    issue.approval && !issue.candidate && issue.job.id
+      ? db.from("roles").select("id").eq("id", issue.job.id).maybeSingle().then((r) => {
+          if (r.error) throw new Error(r.error.message);
+          return r.data !== null;
+        })
+      : true,
   ]);
-  return { story, canEdit, terms, reasons };
+  return { story, canEdit, terms, reasons, canOpen: story !== null && jobSeen };
 }
 
 /** "Mark it done": clears the next action, only while it is still the overdue one the page showed. */
@@ -172,7 +180,8 @@ export async function clearOverdueAction(db: Db, ctx: clientTools.ClientToolCtx,
 export const touchApplication = (db: Db, actorId: string, applicationId: string) => logCandidateTouch(db, actorId, { applicationId, note: null });
 
 export type ApprovalOutcome =
-  | { ok: true; outcome: clientTools.DecisionResult["outcome"]; kind: clientTools.ApprovalKind }
+  /** `reset`: nobody decided it. Its terms or approvers changed, or the offer was withdrawn. */
+  | { ok: true; outcome: clientTools.DecisionResult["outcome"] | "reset"; kind: clientTools.ApprovalKind }
   | { ok: false; error: "not_found" | "not_approver" | "reason_required" | "rate_limited" };
 
 /** A or R on an approval: clientTools' decideApproval, the connector's approve and reject. A reason is the approver's own words, and core keeps it out of the audit row. */
@@ -184,7 +193,8 @@ export async function decideInboxApproval(
   if (input.decision === "reject" && !input.reason?.trim()) return { ok: false, error: "reason_required" };
   try {
     const r = await clientTools.decideApproval(db, ctx, input);
-    return { ok: true, outcome: r.outcome, kind: r.kind };
+    const reset = r.outcome === "not_pending" && (r.status === "reset" || r.status === "cancelled");
+    return { ok: true, outcome: reset ? "reset" : r.outcome, kind: r.kind };
   } catch (err) {
     if (err instanceof clientTools.ClientToolError) {
       if (err.code === "not_found" || err.code === "rate_limited") return { ok: false, error: err.code };

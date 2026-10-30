@@ -170,6 +170,11 @@ describe("a decision's fix", () => {
     // Next round is already their page.
     expect(secondaryLink(decide, issueFix(decide, true))).toBeNull();
   });
+
+  test("an approver who can't open the page behind it gets no link to a 404", () => {
+    expect(secondaryLink(offer, issueFix(offer, true), false)).toBeNull();
+    expect(secondaryLink(job, issueFix(job, true), false)).toBeNull();
+  });
 });
 
 describe("issueFix", () => {

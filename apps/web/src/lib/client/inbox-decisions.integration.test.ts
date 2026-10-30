@@ -226,6 +226,118 @@ describe("deciding an approval", () => {
   });
 });
 
+/** A member's client that does `meanwhile` once, right after `moveCandidate`'s gate has read the application: someone else, between the check and the write. */
+const interrupted = (client: ReturnType<typeof token>, meanwhile: () => Promise<unknown>) => {
+  let done = false;
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop !== "rpc") return Reflect.get(target, prop, receiver);
+      return async (...args: Parameters<typeof target.rpc>) => {
+        const result = await target.rpc(...args);
+        if (args[0] === "can_on_role" && !done) {
+          done = true;
+          await meanwhile();
+        }
+        return result;
+      };
+    },
+  });
+};
+
+/** A member's client whose `application_events` inserts fail, as a database or network failure would. */
+const eventsFailing = (client: ReturnType<typeof token>) =>
+  new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop !== "from") return Reflect.get(target, prop, receiver);
+      return (table: string) => {
+        if (table === "application_events") throw new Error("the database went away");
+        return target.from(table as "applications");
+      };
+    },
+  });
+
+describe("under stress", () => {
+  test("twenty presses at once: one decision, one audit row, the rest told so", async () => {
+    const client = token("user_dc_ada");
+    const all = await Promise.all(Array.from({ length: 20 }, () => decideInboxApproval(client, dashboard(ada), { requestId: JOB_REQUEST, decision: "approve", reason: null })));
+    expect(all.filter((r) => r.ok && r.outcome === "approved")).toHaveLength(1);
+    expect(all.filter((r) => r.ok && r.outcome === "not_pending")).toHaveLength(19);
+    expect(must(await db().from("approval_decisions").select("id").eq("request_id", JOB_REQUEST)).data).toHaveLength(1);
+    expect(await audit("approval.approve")).toHaveLength(1);
+  });
+
+  test("an approver who isn't on the job finishes the chain, and the reader offers no page they can't open", async () => {
+    await decideInboxApproval(token("user_dc_ada"), dashboard(ada), { requestId: OFFER_REQUEST, decision: "approve", reason: null });
+    const client = token("user_dc_fin");
+    const { issues } = await readInbox(client, fin, NOW);
+    const detail = await readIssue(client, fin, issues.find((i) => i.key === `appr-${OFFER_REQUEST}`)!);
+    expect(detail.terms?.salary).toBe(SECRET_SALARY);
+    expect(detail.canOpen).toBe(false);
+    expect(detail.story).toBeNull();
+    expect(await decideInboxApproval(client, dashboard(fin), { requestId: OFFER_REQUEST, decision: "approve", reason: "Fine by finance" })).toEqual({ ok: true, outcome: "approved", kind: "offer" });
+  });
+
+  test("a job's approver who can't see the job is offered no link to it; one who can, is", async () => {
+    const flow = must(await db().from("approval_flows").select("id").eq("role_id", DESIGNER).eq("kind", "job_open").single()).data!;
+    must(await db().from("approval_flow_approvers").insert({ org_id: ACME, flow_id: flow.id, step: 1, actor_id: FINANCE }));
+    const client = token("user_dc_fin");
+    const finIssue = (await readInbox(client, fin, NOW)).issues.find((i) => i.key === `appr-${JOB_REQUEST}`)!;
+    expect((await readIssue(client, fin, finIssue)).canOpen).toBe(false);
+    const adaClient = token("user_dc_ada");
+    const adaIssue = (await readInbox(adaClient, ada, NOW)).issues.find((i) => i.key === `appr-${JOB_REQUEST}`)!;
+    expect((await readIssue(adaClient, ada, adaIssue)).canOpen).toBe(true);
+  });
+
+  test("an offer's terms changing resets the request: not reported as someone else deciding", async () => {
+    must(await db().from("offers").update({ salary: 1 }).eq("id", OFFER));
+    expect(await decideInboxApproval(token("user_dc_ada"), dashboard(ada), { requestId: OFFER_REQUEST, decision: "approve", reason: null })).toEqual({ ok: true, outcome: "reset", kind: "offer" });
+    expect(await requestOf(OFFER_REQUEST)).toMatchObject({ status: "reset" });
+    expect(must(await db().from("approval_decisions").select("id").eq("request_id", OFFER_REQUEST)).data).toEqual([]);
+  });
+
+  test("a rejection landing just before another keeps the first reason and note", async () => {
+    const client = interrupted(token("user_dc_lee"), () =>
+      decideInboxApplication(token("user_dc_ada"), dashboard(ada), move(1, "rejected", { reasonId: SKILLS, note: "Ada's words" })),
+    );
+    const other = must(await db().from("rejection_reasons").insert({ org_id: ACME, kind: "rejected", name: "Stress test reason" }).select("id").single()).data!;
+    expect(await decideInboxApplication(client, dashboard(lee), move(1, "rejected", { reasonId: other.id, note: "Lee's words" }))).toEqual({ ok: false, error: "changed" });
+    expect(await stageOf(1)).toEqual({ stage: "rejected", rejection_reason_id: SKILLS, rejection_note: "Ada's words" });
+    expect(await audit("application.close_reason")).toEqual([]);
+  });
+
+  test("the failure a page can't call 'nothing changed': the stage moved, then its event failed", async () => {
+    await expect(decideInboxApplication(eventsFailing(token("user_dc_lee")), dashboard(lee), move(1, "offer"))).rejects.toThrow("the database went away");
+    expect(await stageOf(1)).toMatchObject({ stage: "offer" });
+  });
+
+  test("a hiring team member sees the call but can't make it, and an external recruiter makes it only for their own", async () => {
+    const CORA = "e8a00000-0000-4000-8000-0000000000f5";
+    const REX = "e8a00000-0000-4000-8000-0000000000f6";
+    must(await db().from("actors").insert([
+      { id: CORA, org_id: ACME, slug: "itest-dc-cora", display_name: "Cora Coordinator", email: "cora@dc.test", access_level: "elevated", auth_subject: "user_dc_cora" },
+      { id: REX, org_id: ACME, slug: "itest-dc-rex", display_name: "Rex Recruiter", email: "rex@dc.test", access_level: "elevated", auth_subject: "user_dc_rex" },
+    ]));
+    must(await db().from("hiring_team").insert({ org_id: ACME, role_id: ENGINEER, actor_id: CORA, team_role: "coordinator" }));
+    const external = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single()).data!;
+    must(await db().from("job_access").insert({ org_id: ACME, actor_id: REX, role_id: ENGINEER, access_role_id: external.id, source: "manual" }));
+    must(await db().from("applications").update({ added_by_actor_id: REX }).eq("id", app(2)));
+    const cora = { actorId: CORA, orgId: ACME, accessLevel: "elevated" as const };
+    const rex = { actorId: REX, orgId: ACME, accessLevel: "elevated" as const };
+
+    const coraClient = token("user_dc_cora");
+    expect(await decideInboxApplication(coraClient, { ...cora, source: "dashboard" }, move(1, "offer"))).toEqual({ ok: false, error: "forbidden" });
+    expect(await decideInboxApplication(coraClient, { ...cora, source: "dashboard" }, move(1, "rejected", { reasonId: SKILLS }))).toEqual({ ok: false, error: "forbidden" });
+    const issue = (await readInbox(coraClient, cora, NOW)).issues.find((i) => i.key === `app-${app(1)}`)!;
+    expect((await readIssue(coraClient, cora, issue)).canEdit).toBe(false);
+
+    const rexClient = token("user_dc_rex");
+    expect(await keysFor(rexClient, rex)).toEqual([`app-${app(2)}`]);
+    expect(await decideInboxApplication(rexClient, { ...rex, source: "dashboard" }, move(1, "offer"))).toEqual({ ok: false, error: "not_found" });
+    expect(await decideInboxApplication(rexClient, { ...rex, source: "dashboard" }, move(2, "offer"))).toMatchObject({ ok: true, changed: true });
+    expect(await stageOf(1)).toMatchObject({ stage: "interviewing" });
+  });
+});
+
 describe("deciding the team's call", () => {
   test("O moves to offer, audited, and the issue leaves", async () => {
     const client = token("user_dc_lee");

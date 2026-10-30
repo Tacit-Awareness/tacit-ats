@@ -2,6 +2,7 @@ import { clientTools } from "@tacit-ats/core";
 import { describe, expect, test } from "vitest";
 import { approvalNotice, confirmCopy, decisionProps, offerTermLines, parseDecision, type DecisionAction } from "./inbox-decisions";
 import type { IssueFix } from "./inbox-issues";
+import { INBOX_ERRORS } from "../../app/client/inbox/messages";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const REASON = "22222222-2222-4222-8222-222222222222";
@@ -96,6 +97,14 @@ describe("the notice", () => {
     expect(approvalNotice("rejected", "offer")).toBe("rejected_offer");
     expect(approvalNotice("rejected", "job_open")).toBe("rejected_job");
     expect(approvalNotice("not_pending", "job_open")).toBe("already_decided");
+  });
+
+  test("a request reset or withdrawn wasn't decided by anyone, and says so", () => {
+    expect(approvalNotice("reset", "offer")).toBe("approval_reset");
+  });
+
+  test("a failure doesn't promise nothing changed: a move can land and its event fail", () => {
+    expect(INBOX_ERRORS.failed).not.toMatch(/nothing was changed/i);
   });
 });
 

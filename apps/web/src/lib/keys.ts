@@ -22,6 +22,13 @@ export function isTyping(target: EventTarget | null): boolean {
 export const modalOpen = (): boolean => typeof document !== "undefined" && document.querySelector("dialog:modal") !== null;
 
 /**
+ * Whether an element is on screen. A reader on a phone's list is mounted but
+ * hidden: its keys must not act on an issue nobody can see, and a modal opened
+ * in there draws nothing and leaves the whole page inert.
+ */
+export const isShown = (el: { getClientRects(): { length: number } } | null): boolean => !!el && el.getClientRects().length > 0;
+
+/**
  * A page key never fires while typing, with ⌘, Ctrl or Alt held (those
  * belong to the browser and the OS, and ⌘K to the shell), once something
  * else has handled the event, or behind a modal dialog. Shift is allowed: `?`

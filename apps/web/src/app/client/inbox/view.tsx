@@ -33,7 +33,7 @@ export type IssueReaderProps = {
   terms: TermLine[] | null;
   next: string | null;
   secondary: { label: string; href: string } | null;
-  /** Null for an issue with no candidate (a job's approval). */
+  /** Null for an issue with no candidate (a job's approval), or one the member can't read (an approver not on the job). */
   story: clientTools.ActivityEntry[] | null;
   now: number;
 };

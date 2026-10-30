@@ -245,9 +245,9 @@ export function issueFix(i: Issue, canEdit: boolean): IssueFix {
   return { type: "link", label: "Open candidate", href: candidateHref(i) };
 }
 
-/** The page behind the issue as a second way out, when the fix is not already it. */
-export function secondaryLink(i: Issue, fix: IssueFix): { label: string; href: string } | null {
-  if (fix.type === "decide") return null;
+/** The page behind the issue as a second way out, when the fix is not already it and the member can open it. */
+export function secondaryLink(i: Issue, fix: IssueFix, canOpen = true): { label: string; href: string } | null {
+  if (fix.type === "decide" || !canOpen) return null;
   if (!i.candidate) return fix.type === "approval" ? { label: "Open the job", href: candidateHref(i) } : null;
   const href = candidateHref(i);
   return fix.type === "link" && fix.href === href ? null : { label: "Open candidate", href };

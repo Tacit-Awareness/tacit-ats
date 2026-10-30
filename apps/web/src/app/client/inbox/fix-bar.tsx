@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { IssueFix } from "@/lib/client/inbox-issues";
+import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { fixIssueAction } from "./actions";
 
@@ -44,7 +45,7 @@ function Submit({ label, refFn }: { label: string; refFn: (b: HTMLButtonElement 
 
 function LinkFix({ fix }: { fix: Extract<IssueFix, { type: "link" }> }) {
   const link = useRef<HTMLAnchorElement>(null);
-  useKeys({ f: () => link.current?.click() });
+  useKeys({ f: () => void (isShown(link.current) && link.current?.click()) });
   useKeyHelp("Inbox", [{ keys: "F", label: fix.label }]);
   return (
     <Link ref={link} href={fix.href} aria-keyshortcuts="F" className={cn(button, primary)}>
@@ -59,7 +60,7 @@ function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; ne
   const submit = useRef<HTMLButtonElement | null>(null);
   return (
     <form ref={form} action={fixIssueAction}>
-      <FixKey press={() => submit.current && form.current?.requestSubmit(submit.current)} label={fix.label} />
+      <FixKey press={() => void (submit.current && isShown(form.current) && form.current?.requestSubmit(submit.current))} label={fix.label} />
       <input type="hidden" name="applicationId" value={fix.applicationId} />
       <input type="hidden" name="write" value={fix.write} />
       {fix.nextAction !== null ? <input type="hidden" name="expected" value={fix.nextAction} /> : null}
