@@ -2515,10 +2515,9 @@ function docViewer(a) {
   const pages = docPages(a), z = state.dvZoom || 1;
   const file = `${a.name.toLowerCase().replace(/\s+/g, "-")}-application.pdf`;
   return `<div class="dv">
-    <div class="dv-bar">${ico("file")}<b class="trunc">${file}</b><span class="dv-pg">Page 1 of ${pages.length}</span><span class="grow"></span>
+    <div class="dv-bar dv-float">
       <button class="icon-btn" data-act="dvZoom" data-d="-1" aria-label="Zoom out" title="Zoom out">${ico("minus")}</button><span class="dv-z">${Math.round(z * 100)}%</span><button class="icon-btn" data-act="dvZoom" data-d="1" aria-label="Zoom in" title="Zoom in">${ico("plus")}</button>
-      <i class="dv-sep"></i><button class="icon-btn" data-act="dvDownload" data-k="${file}" aria-label="Download" title="Download">${ico("download")}</button>
-      <button class="icon-btn" data-act="dvFull" aria-label="${state.dvFull ? "Exit full view" : "Full view"}" title="${state.dvFull ? "Exit full view" : "Full view"}">${ico(state.dvFull ? "shrink" : "expand")}</button></div>
+      <i class="dv-sep"></i><button class="icon-btn" data-act="dvDownload" data-k="${file}" aria-label="Download" title="Download ${esc(file)}">${ico("download")}</button></div>
     <div class="dv-body">
       <nav class="dv-rail" aria-label="Pages">${pages.map((p, i) => `<button class="dv-th ${i ? "" : "on"}" data-act="dvGo" data-i="${i}"><span class="dv-mini"><i></i><i></i><i></i><i></i><i></i></span><span>${esc(p.name)}</span></button>`).join("")}</nav>
       <div class="dv-pages" id="dvPages" style="--z:${z}">${pages.map((p, i) => `<article class="pg pg-${p.k}" data-i="${i}">${p.html}<footer>${esc(a.name)} · ${i + 1} / ${pages.length}</footer></article>`).join("")}</div>
@@ -2543,8 +2542,7 @@ function triagePage() {
   if (!a) return `${head}<div class="scroll"><div class="tri-done">${ico("check", "ico big")}<h2>No new applicants</h2><p>Every applicant ticket has been answered.</p><a class="btn" href="#inbox">Back to Inbox</a></div></div>`;
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
-  return `${head}
-  <div class="inbox2 tk ${state.dvFull ? "dv-full" : ""}">
+  return `<div class="inbox2 tk tk-nohead ${state.dvFull ? "dv-full" : ""}">
     <div class="mlist" id="mlist">${q.map((x) => mrow(x, x.id === a.id)).join("")}</div>
     <div class="reader" id="reader">
       <header class="tk-top">${candAv(a, "xl")}

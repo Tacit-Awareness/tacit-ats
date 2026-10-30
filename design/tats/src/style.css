@@ -4568,3 +4568,12 @@ html.pal-prev .hm { background: linear-gradient(180deg, color-mix(in srgb, var(-
 .sb-dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 16%, transparent); flex-shrink: 0; }
 .sb-collapsed .sb-dot { position: absolute; top: 7px; right: 7px; margin: 0; }
 .sb-collapsed .sb-item { position: relative; }
+
+/* v63 Applicant Tickets: no page header; the list and the application run full height. The PDF keeps only zoom and download, floating on the page. */
+.tk-nohead { height: 100%; }
+.tk-nohead .mlist { padding-top: var(--s2); }
+.tk-nohead .tk-top { padding-top: var(--s4); }
+.dv { position: relative; }
+.dv-bar.dv-float { position: absolute; top: var(--s3); right: var(--s4); z-index: 2; height: 36px; padding: 0 4px; gap: 2px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--raised); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.dv-float .dv-z { min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12.5px; }
+.dv-float .dv-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
