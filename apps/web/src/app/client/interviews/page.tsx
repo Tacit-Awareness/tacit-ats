@@ -1,6 +1,7 @@
 import { clientTools } from "@tacit-ats/core";
 import { GROUPS, RECOMMENDATION_LABEL, groupInterviews, verdictOf, type Recommendation, type Verdict } from "@/lib/client/interview-groups";
 import { hiddenOn, loopRounds } from "@/lib/client/interview-loop";
+import { readReviewed } from "@/lib/client/interview-reviews";
 import { readInterview, readInterviews, type InterviewDetail, type InterviewListItem, type Member } from "@/lib/client/interviews";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
@@ -11,8 +12,9 @@ import { InterviewsView, type ListGroup, type Reader } from "./view";
 // then the past ones by how they went, and a reader with the candidate's loop
 // and this interview's feedback. Read with the signed-in member's own token
 // (lib/client/interviews.ts), so an interviewer sees their own interviews and
-// the feedback the org's feedback_visibility lets them read. Read-only:
-// feedback is filed from the client connector (submit_feedback).
+// the feedback the org's feedback_visibility lets them read. Feedback is filed
+// from the client connector (submit_feedback); the page's one write is the
+// member's own reviewed check (review.tsx, which saves through review/route.ts).
 
 const href = (id: string) => `/client/interviews?i=${encodeURIComponent(id)}`;
 const utc = (iso: string) => `${iso.slice(0, 16).replace("T", " ")} UTC`;
@@ -86,6 +88,16 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
     }
   }
 
+  // A check is a convenience: if it cannot be read the page still does its job, without them.
+  const past = grouped.filter((g) => g.key !== "upcoming").flatMap((g) => g.items.map((i) => i.interviewId));
+  const reviewed = await readReviewed(db, actorId, past).then(
+    (ids) => [...ids],
+    (err: unknown) => {
+      console.error("[client-interviews] reviewed read failed:", err instanceof Error ? err.message : "read failed");
+      return null;
+    },
+  );
+
   const groups: ListGroup[] = grouped.map((g) => ({
     key: g.key,
     label: g.label,
@@ -110,7 +122,7 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
     <InterviewsView
       groups={groups}
       counts={counts}
-      toReview={counts.find((c) => c.verdict === "pending")?.n ?? 0}
+      reviewed={reviewed}
       reader={reader}
       open={!!asked && selected?.interviewId === asked}
       readerError={readerError}
