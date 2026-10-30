@@ -1,16 +1,25 @@
 import Link from "next/link";
-import { Page, PageBar, Section, textLink } from "@/components/page";
+import { listPendingInvites } from "@tacit-ats/core";
+import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readInterviewers } from "@/lib/client/interviewers";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
+import { TEAM_ERRORS, TEAM_NOTICES, isTeamError, isTeamNotice } from "./messages";
+import { TeamSections, type TeamMember } from "./team";
 import { InterviewersView, type InterviewerViewGroup } from "./view";
 
 // Who interviews (design/tats's Interviewers, `#bots~people`), read with the
 // signed-in member's own token (lib/client/interviewers.ts): one row per
 // member on a hiring team as an interviewer or with interviews, grouped by
-// department when their jobs have one. Read-only, and counts only.
+// department when their jobs have one. Read-only, and counts only. Under them
+// the whole team (team.tsx); an admin also invites, re-sends and withdraws.
+// Whether someone is an admin is the database's answer (current_access_level).
 
-export default async function ClientInterviewers() {
+export default async function ClientInterviewers({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string; error?: string }>;
+}) {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
   const { db, actorId, accessLevel, org } = gate.ctx;
@@ -31,7 +40,16 @@ export default async function ClientInterviewers() {
     );
   }
 
-  const { groups, feedback, truncated } = await readInterviewers(db, { actorId, orgId: org.id, accessLevel }, new Date());
+  const { notice, error } = await searchParams;
+  const isAdmin = accessLevel === "admin";
+  const [{ groups, feedback, truncated }, team, pending] = await Promise.all([
+    readInterviewers(db, { actorId, orgId: org.id, accessLevel }, new Date()),
+    db.from("org_members").select("id, display_name, email, access_level").order("display_name"),
+    isAdmin ? listPendingInvites(db) : Promise.resolve([]),
+  ]);
+  if (team.error) throw new Error(team.error.message);
+  const pendingIds = new Set(pending.map((p) => p.actorId));
+  const members = (team.data ?? []).filter((m) => m.id && !pendingIds.has(m.id)) as TeamMember[];
   const view: InterviewerViewGroup[] = groups.map((g) => ({
     label: g.label,
     rows: g.interviewers.map((i) => ({
@@ -51,6 +69,14 @@ export default async function ClientInterviewers() {
       feedback={feedback}
       note={truncated ? "Counted from the first 5,000 interviews; there are more." : null}
       empty={view.length === 0 ? "Nobody interviews yet. Add interviewers to a job's hiring team, or schedule an interview." : null}
-    />
+      notices={
+        <>
+          {isTeamNotice(notice) ? <Notice>{TEAM_NOTICES[notice]}</Notice> : null}
+          {isTeamError(error) ? <Notice tone="error">{TEAM_ERRORS[error]}</Notice> : null}
+        </>
+      }
+    >
+      <TeamSections members={members} pending={pending} actorId={actorId} isAdmin={isAdmin} />
+    </InterviewersView>
   );
 }

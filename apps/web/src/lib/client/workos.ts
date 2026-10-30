@@ -3,7 +3,7 @@ import type { IdentityProvider } from "@tacit/core";
 import type { InvitationRevoker } from "@tacit-ats/core";
 
 /**
- * WorkOS for the client area's own invitations (/client/team): send one, and
+ * WorkOS for the client area's own invitations (/client/interviewers): send one, and
  * revoke what is still pending for an address. The same WorkOS client AuthKit
  * signs members in with; no database client here. Creating organizations is
  * Tacit staff's (tacit-internal's ATS Admin, /admin/orgs) and is refused from this side.
