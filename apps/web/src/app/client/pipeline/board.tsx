@@ -133,16 +133,20 @@ function Column({
   onDrop: () => void;
   children: React.ReactNode;
 }) {
+  // Both events: crossing into a child (every card is one) fires dragenter, not
+  // dragover, and the browser decides the drop on that. Allowed even on a column
+  // that means no stage, so the drop can say why.
+  const allow = (e: React.DragEvent) => {
+    if (takes === null) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    onOver();
+  };
   return (
     <section
       aria-label={column.label}
-      onDragOver={(e) => {
-        if (takes === null) return;
-        // Allowed even on a column that means no stage, so the drop can say why.
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "move";
-        onOver();
-      }}
+      onDragEnter={allow}
+      onDragOver={allow}
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) onLeave();
       }}
