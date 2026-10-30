@@ -175,6 +175,26 @@ describe("the Interviews page's reads", () => {
     expect(read.feedback.feedback.map((f) => [f.notes, f.mine])).toEqual([["Mine.", true]]);
   });
 
+  test("an interview a link asks for is read even past the list's cap, if the member could read it anyway", async () => {
+    // 500 ahead fill the list, so the Calendar's older ones are off it.
+    must(await db().from("interviews").insert(Array.from({ length: 500 }, (_, n) => ({
+      org_id: ACME, application_id: app(2), starts_at: at(100 + n), ends_at: at(101 + n), status: "scheduled" as const, step: `Bulk ${n}`, interviewer_actor_ids: [BEN],
+    }))));
+    const now = new Date(NOW);
+    expect(ids(await readInterviews(admin.db, admin.member, now))).not.toContain(iv(1));
+    const asked = await readInterviews(admin.db, admin.member, now, iv(1));
+    expect(asked).toHaveLength(501);
+    expect(asked.find((i) => i.interviewId === iv(1))).toMatchObject({ candidateName: "Candidate 1", step: "Screen" });
+
+    // Never one they could not: another company's, a cancelled one, or a job they are not on.
+    expect(ids(await readInterviews(admin.db, admin.member, now, GLOBEX_IV))).not.toContain(GLOBEX_IV);
+    expect(ids(await readInterviews(admin.db, admin.member, now, iv(4)))).not.toContain(iv(4));
+    expect(ids(await readInterviews(lead.db, lead.member, now, iv(3)))).not.toContain(iv(3));
+    expect(ids(await readInterviews(ivy.db, ivy.member, now, iv(2)))).not.toContain(iv(2));
+    // A tampered id is no interview, not a database error.
+    await expect(readInterviews(admin.db, admin.member, now, "not-a-uuid'; drop table interviews")).resolves.toHaveLength(500);
+  });
+
   test("another company never appears, and theirs never reaches us", async () => {
     const theirs = await readInterviews(globex.db, globex.member, new Date(NOW));
     expect(ids(theirs)).toEqual([GLOBEX_IV]);

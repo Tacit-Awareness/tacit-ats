@@ -19,7 +19,11 @@ export function isTyping(target: EventTarget | null): boolean {
 }
 
 /** True while a modal <dialog> is open: the page behind it is inert, so its keys are too. */
-export const modalOpen = (): boolean => typeof document !== "undefined" && document.querySelector("dialog:modal") !== null;
+export function modalOpen(target?: EventTarget | null): boolean {
+  const own = (target as { ownerDocument?: { querySelector(selector: string): unknown } | null } | null | undefined)?.ownerDocument;
+  const doc = own ?? (typeof document === "undefined" ? null : document);
+  return !!doc?.querySelector("dialog:modal");
+}
 
 /**
  * Whether an element is on screen. A reader on a phone's list is mounted but
@@ -34,7 +38,7 @@ export const isShown = (el: { getClientRects(): { length: number } } | null): bo
  * else has handled the event, or behind a modal dialog. Shift is allowed: `?`
  * needs it.
  */
-export function ignoreKey(e: KeyEventLike, modal = modalOpen()): boolean {
+export function ignoreKey(e: KeyEventLike, modal = modalOpen(e.target)): boolean {
   return modal || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
 }
 

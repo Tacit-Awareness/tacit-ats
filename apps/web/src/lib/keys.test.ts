@@ -58,6 +58,12 @@ describe("the modifier guard", () => {
   it("skips an event something else already handled", () => {
     expect(ignoreKey(ev({ defaultPrevented: true }))).toBe(true);
   });
+
+  it("skips a key while a modal dialog is open, wherever focus is", () => {
+    const inDocument = (modal: unknown) => ({ tagName: "BODY", ownerDocument: { querySelector: (s: string) => (s === "dialog:modal" ? modal : null) } }) as unknown as EventTarget;
+    expect(ignoreKey(ev({ target: inDocument({}) }))).toBe(true);
+    expect(ignoreKey(ev({ target: inDocument(null) }))).toBe(false);
+  });
 });
 
 describe("the G chord", () => {
