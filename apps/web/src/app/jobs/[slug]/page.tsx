@@ -1,12 +1,15 @@
 import { Fragment, cache } from "react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
 import { guideSteps } from "@/lib/public/application";
+import { landingChannel, withVia } from "@/lib/public/channel";
 import { readJobPost } from "@/lib/public/jobs";
 import { parsePostText } from "@/lib/public/post-text";
 import { ApplicationForm, answerField } from "./application-form";
+import { CountView } from "./count-view";
 import { ApplicationBar, ApplicationGuide } from "./guide";
 
 // A client's public job post (design/careers's role page): one sheet with
@@ -17,7 +20,10 @@ import { ApplicationBar, ApplicationGuide } from "./guide";
 // draft, a closed post and a post on a job that is not open are all the same
 // 404. The form posts to /api/jobs/[slug]/apply, which redirects back here with
 // a code; the tabs are links and the form is plain HTML, so all of it works
-// with no script, and the checklist only reads the form.
+// with no script, and the checklist only reads the form. The one thing that
+// takes a script is counting the view (count-view.tsx), which no crawler or
+// link preview runs. Where the reader came from is worked out here and rides
+// in the links (lib/public/channel.ts).
 
 const post = cache(readJobPost);
 
@@ -42,16 +48,19 @@ export default async function JobPostPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ tab?: string; applied?: string; error?: string; q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { slug } = await params;
   const read = await post(slug);
   if (!read) notFound();
-  const { tab, applied, error, q } = await searchParams;
+  const query = await searchParams;
+  const { tab, applied, error, q } = query as { tab?: string; applied?: string; error?: string; q?: string };
+  const h = await headers();
+  const channel = landingChannel(query, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   const application = tab === "application" || Boolean(applied || error);
   const asked = q ? (read.questions.find((x) => x.id === q)?.label ?? null) : null;
   const notice = error && NOTICES[error] ? NOTICES[error](asked) : null;
-  const boardHref = read.orgSlug ? `/careers/${read.orgSlug}` : null;
+  const boardHref = read.orgSlug ? withVia(`/careers/${read.orgSlug}`, channel) : null;
   const steps = guideSteps(read.questions, answerField);
   const facts = [
     ["Location", read.location],
@@ -62,6 +71,8 @@ export default async function JobPostPage({
 
   return (
     <CareersFrame company={read.company} boardHref={boardHref} allRoles>
+      {/* The form's redirect back is the same visit, so it counts no view; the tabs keep this mounted. */}
+      {applied || error ? null : <CountView slug={slug} />}
       <div className={`wrap role${filling ? " has-mbar" : ""}`}>
         <div className="sheet">
           <h1 className="h1">{read.title}</h1>
@@ -84,10 +95,10 @@ export default async function JobPostPage({
             ) : null}
             <div>
               <nav className="tabbar" aria-label={read.title}>
-                <Link href={`/jobs/${slug}`} aria-current={application ? undefined : "page"}>
+                <Link href={withVia(`/jobs/${slug}`, channel)} aria-current={application ? undefined : "page"}>
                   Overview
                 </Link>
-                <Link href={`/jobs/${slug}?tab=application`} aria-current={application ? "page" : undefined}>
+                <Link href={withVia(`/jobs/${slug}?tab=application`, channel)} aria-current={application ? "page" : undefined}>
                   Application
                 </Link>
               </nav>
@@ -108,7 +119,7 @@ export default async function JobPostPage({
                     </div>
                   </div>
                 ) : application ? (
-                  <ApplicationForm slug={slug} company={read.company} questions={read.questions} notice={notice} />
+                  <ApplicationForm slug={slug} company={read.company} questions={read.questions} notice={notice} channel={channel} />
                 ) : (
                   <>
                     {read.description ? (
@@ -129,7 +140,7 @@ export default async function JobPostPage({
                         )}
                       </div>
                     ) : null}
-                    <Link className="btn dark wide" href={`/jobs/${slug}?tab=application`}>
+                    <Link className="btn dark wide" href={withVia(`/jobs/${slug}?tab=application`, channel)}>
                       Apply for this role
                     </Link>
                   </>

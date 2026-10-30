@@ -6,10 +6,10 @@ import {
   METRICS,
   METRIC_KEYS,
   RANGES,
+  ORIGINS,
   RANGE_KEYS,
   SEGMENTS,
   SLICES,
-  SOURCE_GROUPS,
   axisTop,
   dailyRows,
   explore,
@@ -28,8 +28,8 @@ import { Refusal } from "../refusal";
 import { CareersView, ExplorerView, type AnalyticsHeader } from "./view";
 
 // design/tats's Analytics (#analytics, under Applicant Tickets in Top of
-// Funnel): two tabs. Job Postings (the default) is the careers page's
-// applications: the range (?range=week|month|quarter), the metric charted
+// Funnel): two tabs. Job Postings (the default) is the careers page's views
+// and applications: the range (?range=week|month|quarter), the metric charted
 // (?metric=), line or bars (?chart=bar) and the period before (?compare=1).
 // Pipeline (?tab=pipeline) is the explorer: ?measure=, ?slice=, ?segment=.
 // Both take the department filter (?department=). lib/client/analytics.ts
@@ -135,8 +135,8 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
   const range = parseRange(sp.range);
   const metric = parseMetric(sp.metric);
   const read = await readCareers(db, { range, departmentId: sp.department || null }, now);
-  const { current, previous } = periodTotals(read.apps, range, now.getTime());
-  const s = series(read.apps, metric, range, now.getTime());
+  const { current, previous } = periodTotals(read, range, now.getTime());
+  const s = series(read, metric, range, now.getTime());
   const compare = sp.compare === "1";
   const share = METRICS[metric].share;
   const peak = Math.max(0, ...s.points.flatMap((x) => [x.current ?? 0, compare ? (x.previous ?? 0) : 0]));
@@ -148,7 +148,7 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
       key: k,
       label: METRICS[k].label,
       def: METRICS[k].def,
-      value: v === null ? "None" : METRICS[k].share ? `${Math.round(v)}%` : v.toLocaleString("en-US"),
+      value: v === null ? "None" : METRICS[k].share ? `${v.toFixed(METRICS[k].digits)}%` : v.toLocaleString("en-US"),
       change: d === null ? null : { text: METRICS[k].share ? `${Math.abs(d).toFixed(1)} pts` : `${Math.abs(d).toFixed(1)}%`, up: d >= 0 },
       href: href({ metric: k === "applications" ? "" : k }),
       active: k === metric,
@@ -167,10 +167,10 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
         jobs: [...current.byJob]
           .map(([id, n]) => ({ label: read.jobs[id] ?? "A job you can't see", n, href: `/client/jobs/${id}` }))
           .sort((a, b) => b.n - a.n || a.label.localeCompare(b.label)),
-        sources: SOURCE_GROUPS.map((g) => ({ label: g.label, n: current.bySource[g.key] }))
+        sources: ORIGINS.map((o) => ({ label: o.label, n: current.byOrigin[o.key] }))
           .filter((x) => x.n)
           .sort((a, b) => b.n - a.n),
-        exportRows: dailyRows(read.apps, range, now.getTime()),
+        exportRows: dailyRows(read, range, now.getTime()),
         exportName: `applications-${RANGES[range].days}d-${now.toISOString().slice(0, 10)}.csv`,
         truncated: read.truncated,
       }}

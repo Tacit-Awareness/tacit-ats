@@ -5,6 +5,7 @@ import {
   explore,
   metricChange,
   metricValue,
+  originOf,
   axisTop,
   parseMeasure,
   parseMetric,
@@ -16,6 +17,7 @@ import {
   series,
   sourceGroup,
   type CareersApp,
+  type CareersData,
   type ExplorerApp,
   type ExplorerNames,
   type SourceGroup,
@@ -24,14 +26,17 @@ import {
 const NOW = Date.parse("2026-10-30T15:00:00Z");
 const H = 3_600_000;
 const at = (offsetH: number) => new Date(NOW + offsetH * H).toISOString();
-const app = (offsetH: number, group: SourceGroup = "careers", roleId = "eng"): CareersApp => ({ createdAt: at(offsetH), roleId, group });
+const app = (offsetH: number, group: SourceGroup = "careers", roleId = "eng", channel: CareersApp["channel"] = null): CareersApp => ({ createdAt: at(offsetH), roleId, group, channel });
+const only = (apps: CareersApp[]): CareersData => ({ apps, views: [], viewsFrom: null });
+/** Views a number of UTC days before NOW's. */
+const viewed = (daysAgo: number, views: number, roleId = "eng") => ({ day: new Date(NOW - daysAgo * 24 * H).toISOString().slice(0, 10), roleId, views });
 
 describe("the URL", () => {
   test("anything unknown falls back to the defaults", () => {
     expect(parseRange("quarter")).toBe("quarter");
     for (const raw of [undefined, "", "year", "toString"]) expect(parseRange(raw)).toBe("month");
-    expect(parseMetric("warm")).toBe("warm");
-    expect(parseMetric("views")).toBe("applications");
+    for (const m of ["views", "rate", "warm"]) expect(parseMetric(m)).toBe(m);
+    expect(parseMetric("careers")).toBe("applications");
     expect([parseMeasure("interviews"), parseSlice("interviewer"), parseSegment("stage")]).toEqual(["interviews", "interviewer", "stage"]);
     expect([parseMeasure("runs"), parseSlice("constructor"), parseSegment("priority")]).toEqual(["applicants", "stage", "source"]);
   });
@@ -52,13 +57,94 @@ describe("sources as channels", () => {
   });
 });
 
+describe("where they came from", () => {
+  test("splits the public form's applications by the channel it recorded, and nothing else", () => {
+    expect(originOf("careers", "linkedin")).toBe("linkedin");
+    expect(originOf("careers", "hackernews")).toBe("hackernews");
+    expect(originOf("careers", "direct")).toBe("direct");
+    expect(originOf("careers", "other")).toBe("site");
+    expect(originOf("careers", null)).toBe("careers");
+    expect(originOf("referral", "linkedin")).toBe("referral");
+    expect(originOf("other", "other")).toBe("other");
+  });
+
+  test("the origins add up to the applications, and warm is untouched by them", () => {
+    const apps = [app(-1, "careers", "eng", "linkedin"), app(-2, "careers", "eng", "other"), app(-3), app(-4, "referral")];
+    const { current } = periodTotals(only(apps), "week", NOW);
+    expect(current.byOrigin).toMatchObject({ linkedin: 1, site: 1, careers: 1, referral: 1, other: 0 });
+    expect(Object.values(current.byOrigin).reduce((s, n) => s + n, 0)).toBe(current.applications);
+    expect(current.bySource.careers).toBe(3);
+    expect(current.warm).toBe(1);
+  });
+});
+
+describe("page views", () => {
+  const from = viewed(40, 0).day;
+
+  test("are summed by UTC day, and the rate is public form applications per view", () => {
+    const data: CareersData = { apps: [app(-1), app(-2, "careers", "eng", "linkedin"), app(-3, "referral")], views: [viewed(0, 30), viewed(3, 70, "des"), viewed(9, 40)], viewsFrom: from };
+    const { current, previous } = periodTotals(data, "week", NOW);
+    expect(current.views).toBe(100);
+    expect(metricValue("views", current)).toBe(100);
+    expect(metricValue("rate", current)).toBe(2);
+    expect(previous.views).toBe(40);
+    expect(metricChange("views", current, previous)).toBe(150);
+    expect(metricChange("rate", current, previous)).toBe(2);
+  });
+
+  test("a rate needs a view, and no views at all is none and not 0%", () => {
+    const { current } = periodTotals(only([app(-1)]), "week", NOW);
+    expect(metricValue("views", current)).toBe(0);
+    expect(metricValue("rate", current)).toBeNull();
+  });
+
+  test("applications before the first view are left out of the rate, not of Applications", () => {
+    // Views began two days ago; the month's other applications could never have been counted against one.
+    const apps = [app(-1), ...Array.from({ length: 20 }, (_, i) => app(-24 * (5 + i)))];
+    const { current } = periodTotals({ apps, views: [viewed(1, 50)], viewsFrom: viewed(2, 0).day }, "month", NOW);
+    expect(current.applications).toBe(21);
+    expect(current.viewed).toBe(1);
+    expect(metricValue("rate", current)).toBe(2);
+  });
+
+  test("a period before that views only reach part of is nothing to compare", () => {
+    const data: CareersData = { apps: [app(-1), app(-24 * 8)], views: [viewed(1, 50), viewed(8, 100)], viewsFrom: viewed(9, 0).day };
+    const { current, previous } = periodTotals(data, "week", NOW);
+    expect(previous.viewsPartial).toBe(true);
+    expect(metricChange("views", current, previous)).toBeNull();
+    expect(metricChange("rate", current, previous)).toBeNull();
+    expect(metricChange("applications", current, previous)).not.toBeNull();
+  });
+
+  test("a quiet first day of the period before is still a fair comparison: views began long ago", () => {
+    const { current, previous } = periodTotals({ apps: [], views: [viewed(1, 50), viewed(8, 100)], viewsFrom: from }, "week", NOW);
+    expect(previous.viewsPartial).toBe(false);
+    expect(metricChange("views", current, previous)).toBe(-50);
+  });
+
+  test("a fall to nothing is a fall, and views from nothing have nothing to compare", () => {
+    const { current, previous } = periodTotals({ apps: [], views: [viewed(8, 100)], viewsFrom: from }, "week", NOW);
+    expect(metricChange("views", current, previous)).toBe(-100);
+    expect(metricChange("views", previous, current)).toBeNull();
+  });
+
+  test("chart by day, the rate null on a day with no views", () => {
+    const data: CareersData = { apps: [app(-1), app(-24 * 7 - 1)], views: [viewed(0, 4), viewed(7, 8)], viewsFrom: from };
+    const views = series(data, "views", "week", NOW).points;
+    expect(views[6]).toEqual({ label: "Oct 30", current: 4, previous: 8 });
+    expect(views[5].current).toBe(0);
+    const rate = series(data, "rate", "week", NOW).points;
+    expect(rate[6]).toEqual({ label: "Oct 30", current: 25, previous: 12.5 });
+    expect(rate[5].current).toBeNull();
+  });
+});
+
 describe("the careers page's periods", () => {
   test("are UTC days, today included, against the same number of days before", () => {
     // NOW is 15:00 UTC: -14h is today, -16h yesterday.
     const apps = [app(-14), app(-16, "referral"), app(-6 * 24, "tacit", "des"), app(-7 * 24 - 16), app(-14 * 24 - 16), app(-2 * 24, "careers", "des")];
-    const { current, previous } = periodTotals(apps, "week", NOW);
+    const { current, previous } = periodTotals(only(apps), "week", NOW);
     expect(current.applications).toBe(4);
-    expect(current.careers).toBe(2);
     expect(current.warm).toBe(2);
     expect(current.bySource).toMatchObject({ careers: 2, referral: 1, tacit: 1, sourced: 0 });
     expect(Object.fromEntries(current.byJob)).toEqual({ eng: 2, des: 2 });
@@ -70,13 +156,12 @@ describe("the careers page's periods", () => {
   });
 
   test("a count's change is in percent, a share's in points, and none with nothing before", () => {
-    const { current, previous } = periodTotals([app(-1, "referral"), app(-2), app(-24 * 8, "referral"), app(-24 * 9, "referral")], "week", NOW);
+    const { current, previous } = periodTotals(only([app(-1, "referral"), app(-2), app(-24 * 8, "referral"), app(-24 * 9, "referral")]), "week", NOW);
     expect(metricValue("applications", current)).toBe(2);
     expect(metricChange("applications", current, previous)).toBe(0);
     expect(metricValue("warm", current)).toBe(50);
     expect(metricChange("warm", current, previous)).toBe(-50);
-    expect(metricChange("careers", current, previous)).toBeNull();
-    const empty = periodTotals([], "week", NOW);
+    const empty = periodTotals(only([]), "week", NOW);
     expect(metricValue("warm", empty.current)).toBeNull();
     expect(metricChange("warm", current, empty.previous)).toBeNull();
   });
@@ -84,7 +169,7 @@ describe("the careers page's periods", () => {
 
 describe("the chart's series", () => {
   test("a week is a point a day, oldest first, with the period before at the same offset", () => {
-    const { step, points } = series([app(-1), app(-2), app(-24 * 7 - 1)], "applications", "week", NOW);
+    const { step, points } = series(only([app(-1), app(-2), app(-24 * 7 - 1)]), "applications", "week", NOW);
     expect(step).toBe(1);
     expect(points).toHaveLength(7);
     expect(points[0].label).toBe("Oct 24");
@@ -92,23 +177,23 @@ describe("the chart's series", () => {
   });
 
   test("a quarter is a point a week, the last cut short", () => {
-    const { step, points } = series([app(-1)], "applications", "quarter", NOW);
+    const { step, points } = series(only([app(-1)]), "applications", "quarter", NOW);
     expect(step).toBe(7);
     expect(points).toHaveLength(13);
     expect(points.at(-1)?.current).toBe(1);
   });
 
   test("a share is null on a day with no applications", () => {
-    const { points } = series([app(-1, "referral")], "warm", "week", NOW);
+    const { points } = series(only([app(-1, "referral")]), "warm", "week", NOW);
     expect(points[6].current).toBe(100);
     expect(points[5].current).toBeNull();
   });
 
   test("the export is a row a day under a header of channels", () => {
-    const rows = dailyRows([app(-1, "referral"), app(-2)], "week", NOW);
-    expect(rows[0]).toEqual(["Date (UTC)", "Applications", "Referred", "Sent by Tacit", "Careers page", "Sourced", "Agency", "Event", "Other"]);
+    const rows = dailyRows({ apps: [app(-1, "referral"), app(-2), app(-3, "careers", "eng", "hackernews")], views: [viewed(0, 12)], viewsFrom: viewed(5, 0).day }, "week", NOW);
+    expect(rows[0]).toEqual(["Date (UTC)", "Page views", "Applications", "Referred", "Sent by Tacit", "LinkedIn", "Hacker News", "Direct", "Other sites", "Careers page, not recorded", "Sourced", "Agency", "Event", "Other"]);
     expect(rows).toHaveLength(8);
-    expect(rows[7]).toEqual(["2026-10-30", "2", "1", "0", "1", "0", "0", "0", "0"]);
+    expect(rows[7]).toEqual(["2026-10-30", "12", "3", "1", "0", "0", "1", "0", "0", "1", "0", "0", "0", "0"]);
   });
 });
 

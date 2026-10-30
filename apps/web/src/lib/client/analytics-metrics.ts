@@ -1,16 +1,14 @@
+import type { Channel } from "../public/channel";
 import { PIPELINE_COLUMNS, type ColumnKey } from "./pipeline-columns";
 
-// Analytics' arithmetic (design/tats's #analytics): the careers page's
-// applications per UTC day against the period before, where they came from,
-// and the Pipeline explorer's measure × slice × segment. Pure:
+// Analytics' arithmetic (design/tats's #analytics): the careers page's views
+// and applications per UTC day against the period before, where they came
+// from, and the Pipeline explorer's measure × slice × segment. Pure:
 // lib/client/analytics.ts reads, this counts, the page draws.
 //
 // Days are UTC calendar days: an org has no time zone yet (the Interviewers
-// page counts weeks the same way), and a chart needs dated points.
-//
-// Nothing here knows page views: the database records none yet (the plan's
-// job_post_views, a tacit-internal migration), so the prototype's "Page
-// views" and "Views that apply" are left out until it does.
+// page counts weeks the same way), job_post_views is by UTC day, and a chart
+// needs dated points.
 
 const DAY = 86_400_000;
 
@@ -72,14 +70,59 @@ export function sourceGroup(source: string, detail: string | null): SourceGroup 
   }
 }
 
+/**
+ * "Where they came from" and the export: the groups, with the public form's
+ * applications split by the channel it recorded. "Careers page" is then what
+ * has no channel, everything from before channels were recorded. The explorer
+ * keeps the groups: the prototype splits it coarser than this, and its stacks
+ * have no colours for more.
+ */
+export const ORIGINS = [
+  { key: "referral", label: "Referred" },
+  { key: "tacit", label: "Sent by Tacit" },
+  { key: "linkedin", label: "LinkedIn" },
+  { key: "hackernews", label: "Hacker News" },
+  { key: "direct", label: "Direct" },
+  { key: "site", label: "Other sites" },
+  { key: "careers", label: "Careers page, not recorded" },
+  { key: "sourced", label: "Sourced" },
+  { key: "agency", label: "Agency" },
+  { key: "event", label: "Event" },
+  { key: "other", label: "Other" },
+] as const;
+export type Origin = (typeof ORIGINS)[number]["key"];
+
+/** The channel only ever counts on an application from the public form, the one thing that sets it. */
+export function originOf(group: SourceGroup, channel: Channel | null): Origin {
+  if (group !== "careers" || !channel) return group;
+  return channel === "other" ? "site" : channel;
+}
+
 // ---------------------------------------------------------------------------
-// The careers page: applications per day and the period before
+// The careers page: views, applications per day and the period before
 // ---------------------------------------------------------------------------
 
 /** One application, as the careers page counts it. */
-export type CareersApp = { createdAt: string; roleId: string; group: SourceGroup };
+export type CareersApp = { createdAt: string; roleId: string; group: SourceGroup; channel: Channel | null };
 
-export type Totals = { applications: number; careers: number; warm: number; bySource: Record<SourceGroup, number>; byJob: Map<string, number> };
+/** One post's views on one UTC day (`YYYY-MM-DD`). */
+export type CareersViews = { day: string; roleId: string; views: number };
+
+/** What the careers page counts; `viewsFrom` is the first day any view was recorded, or null. */
+export type CareersData = { apps: CareersApp[]; views: CareersViews[]; viewsFrom: string | null };
+
+export type Totals = {
+  applications: number;
+  warm: number;
+  views: number;
+  /** Public form applications on the days views were being recorded, the rate's top half. */
+  viewed: number;
+  /** Views began after this period did, so it is no fair comparison. */
+  viewsPartial: boolean;
+  bySource: Record<SourceGroup, number>;
+  byOrigin: Record<Origin, number>;
+  byJob: Map<string, number>;
+};
 
 const utcDay = (ms: number) => Math.floor(ms / DAY);
 
@@ -89,31 +132,43 @@ export function readFrom(range: RangeKey, now: number): string {
 }
 
 /** Totals over the UTC days [first, last]. */
-function totalsIn(apps: CareersApp[], first: number, last: number): Totals {
+function totalsIn(data: CareersData, first: number, last: number): Totals {
   const bySource = Object.fromEntries(SOURCE_GROUPS.map((g) => [g.key, 0])) as Record<SourceGroup, number>;
+  const byOrigin = Object.fromEntries(ORIGINS.map((o) => [o.key, 0])) as Record<Origin, number>;
   const byJob = new Map<string, number>();
+  const viewsFrom = data.viewsFrom ? utcDay(Date.parse(data.viewsFrom)) : Infinity;
   let applications = 0;
-  for (const a of apps) {
+  let viewed = 0;
+  for (const a of data.apps) {
     const d = utcDay(Date.parse(a.createdAt));
     if (d < first || d > last) continue;
     applications += 1;
     bySource[a.group] += 1;
+    byOrigin[originOf(a.group, a.channel)] += 1;
     byJob.set(a.roleId, (byJob.get(a.roleId) ?? 0) + 1);
+    if (a.group === "careers" && d >= viewsFrom) viewed += 1;
   }
-  return { applications, careers: bySource.careers, warm: WARM.reduce((s, g) => s + bySource[g], 0), bySource, byJob };
+  let views = 0;
+  for (const v of data.views) {
+    const d = utcDay(Date.parse(v.day));
+    if (d >= first && d <= last) views += v.views;
+  }
+  return { applications, warm: WARM.reduce((s, g) => s + bySource[g], 0), views, viewed, viewsPartial: viewsFrom > first, bySource, byOrigin, byJob };
 }
 
 /** This period (the last `days` UTC days, today included) and the one before. */
-export function periodTotals(apps: CareersApp[], range: RangeKey, now: number): { current: Totals; previous: Totals } {
+export function periodTotals(data: CareersData, range: RangeKey, now: number): { current: Totals; previous: Totals } {
   const n = RANGES[range].days;
   const today = utcDay(now);
-  return { current: totalsIn(apps, today - n + 1, today), previous: totalsIn(apps, today - 2 * n + 1, today - n) };
+  return { current: totalsIn(data, today - n + 1, today), previous: totalsIn(data, today - 2 * n + 1, today - n) };
 }
 
+/** design/tats's four, in its order. `digits` are a share's decimals. */
 export const METRICS = {
-  applications: { label: "Applications", def: "Applications added in the period, from every source", share: false },
-  careers: { label: "Careers page", def: "Applications made on your public job posts", share: false },
-  warm: { label: "Warm applicants", def: "Share of applications that were referred or sent by Tacit", share: true },
+  views: { label: "Page views", def: "Times your public job posts were opened: page loads, not people", share: false, digits: 0 },
+  applications: { label: "Applications", def: "Applications added in the period, from every source", share: false, digits: 0 },
+  rate: { label: "Views that apply", def: "Applications made on your public job posts, per page view", share: true, digits: 1 },
+  warm: { label: "Warm applicants", def: "Share of applications that were referred or sent by Tacit", share: true, digits: 0 },
 } as const;
 export type MetricKey = keyof typeof METRICS;
 export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
@@ -122,17 +177,26 @@ export function parseMetric(raw: string | undefined): MetricKey {
   return raw && Object.hasOwn(METRICS, raw) ? (raw as MetricKey) : "applications";
 }
 
-/** A metric's value: a count, or for a share a percentage 0 to 100 (null with no applications to share). */
+/**
+ * A metric's value: a count, or for a share a percentage (null with nothing to
+ * share). The rate counts only public form applications, since a referral or a
+ * submission never opened the post, and only those on days views were being
+ * recorded, so the months of applications before the first view cannot read as
+ * 300%. Nothing caps it at 100: a browser with no scripts applies uncounted.
+ */
 export function metricValue(metric: MetricKey, t: Totals): number | null {
   if (metric === "warm") return t.applications ? (t.warm / t.applications) * 100 : null;
+  if (metric === "rate") return t.views ? (t.viewed / t.views) * 100 : null;
   return t[metric];
 }
 
 /**
  * Against the period before: a count's change in percent, a share's in
- * points. Null when there is nothing to compare with.
+ * points. Null when there is nothing to compare with, which is also a period
+ * before that views only reach part of.
  */
 export function metricChange(metric: MetricKey, current: Totals, previous: Totals): number | null {
+  if ((metric === "views" || metric === "rate") && previous.viewsPartial) return null;
   const c = metricValue(metric, current);
   const p = metricValue(metric, previous);
   if (c === null || p === null) return null;
@@ -149,7 +213,7 @@ const dayLabel = (day: number) => new Date(day * DAY).toLocaleDateString("en-US"
  * for this period and, at the same offset, the one before. A point is
  * labelled with its first day.
  */
-export function series(apps: CareersApp[], metric: MetricKey, range: RangeKey, now: number): { step: number; points: SeriesPoint[] } {
+export function series(data: CareersData, metric: MetricKey, range: RangeKey, now: number): { step: number; points: SeriesPoint[] } {
   const n = RANGES[range].days;
   const step = range === "quarter" ? 7 : 1;
   const first = utcDay(now) - n + 1;
@@ -159,21 +223,21 @@ export function series(apps: CareersApp[], metric: MetricKey, range: RangeKey, n
     const to = Math.min(first + n - 1, from + step - 1);
     points.push({
       label: dayLabel(from),
-      current: metricValue(metric, totalsIn(apps, from, to)),
-      previous: metricValue(metric, totalsIn(apps, from - n, to - n)),
+      current: metricValue(metric, totalsIn(data, from, to)),
+      previous: metricValue(metric, totalsIn(data, from - n, to - n)),
     });
   }
   return { step, points };
 }
 
-/** The export: one row per UTC day of this period, applications by channel. */
-export function dailyRows(apps: CareersApp[], range: RangeKey, now: number): string[][] {
+/** The export: one row per UTC day of this period, its views and applications by where they came from. */
+export function dailyRows(data: CareersData, range: RangeKey, now: number): string[][] {
   const n = RANGES[range].days;
   const first = utcDay(now) - n + 1;
-  const rows = [["Date (UTC)", "Applications", ...SOURCE_GROUPS.map((g) => g.label)]];
+  const rows = [["Date (UTC)", "Page views", "Applications", ...ORIGINS.map((o) => o.label)]];
   for (let d = first; d < first + n; d++) {
-    const t = totalsIn(apps, d, d);
-    rows.push([new Date(d * DAY).toISOString().slice(0, 10), String(t.applications), ...SOURCE_GROUPS.map((g) => String(t.bySource[g.key]))]);
+    const t = totalsIn(data, d, d);
+    rows.push([new Date(d * DAY).toISOString().slice(0, 10), String(t.views), String(t.applications), ...ORIGINS.map((o) => String(t.byOrigin[o.key]))]);
   }
   return rows;
 }
