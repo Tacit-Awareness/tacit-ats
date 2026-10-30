@@ -285,7 +285,7 @@ describe("Done", () => {
   test("every kind of issue's date survives the form the page posts", async () => {
     const later = new Date(NOW.getTime() + 3 * 3_600_000);
     const all = [...(await readInbox(adaDb(), ada, later)).standing, ...(await readInbox(token("user_dm_fin"), fin, later)).standing];
-    expect(new Set(all.map((i) => i.reason))).toEqual(new Set(["feedback", "overdue", "quiet", "draft", "approval"]));
+    expect(new Set(all.map((i) => i.reason))).toEqual(new Set(["feedback", "overdue", "quiet", "decide", "draft", "approval"]));
     for (const i of all) {
       const form = new FormData();
       form.set("issueKey", i.key);
