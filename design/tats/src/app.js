@@ -2151,6 +2151,10 @@ function openNewView() {
 }
 
 /* ---------------- sidebar: live views, agent orchestration, teams ---------------- */
+// What each page showed you last time you opened it.
+const sbSeen = { inbox: null, triage: null, activity: null };
+const sbKeys = { inbox: () => inboxRows().filter((x) => x.inInbox).map((x) => x.iss.key), triage: () => queue().map((a) => a.id), activity: () => RUNS.filter(needsAttention).map((r) => r.id) };
+const sbNew = (k) => { const seen = sbSeen[k]; return sbKeys[k]().some((id) => !seen || !seen.has(id)); };
 function renderSide() {
   const r = state.route;
   const on = (c) => (c ? "on" : "");
@@ -2160,7 +2164,11 @@ function renderSide() {
   const shut = (k) => (closed.has(k) ? "shut" : "");
   const sec = (k, label, hint = "") => `<button class="sb-sec" data-act="sbSec" data-k="${k}" aria-expanded="${!closed.has(k)}" title="${hint}">${label}<svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg></button>`;
   // Counts only where they mean "this many need you", each with a plain-English tooltip.
-  const item = (href, icon, label, active, count, tone = "", tip = "") => `<a class="sb-item ${on(active)}" href="${href}" title="${tip && count ? tip : label}"><span class="sb-ico">${icon}</span><span class="trunc">${label}</span>${count ? `<span class="sb-count ${tone}" aria-label="${tip}">${count}</span>` : ""}</a>`;
+  // No counts in the sidebar: a red dot only when something new arrived since you last opened the page.
+  if (r.name === "inbox") sbSeen.inbox = new Set(sbKeys.inbox());
+  if (r.name === "triage") sbSeen.triage = new Set(sbKeys.triage());
+  if (r.name === "bots" && (r.id === "runs" || r.id === "checks")) sbSeen.activity = new Set(sbKeys.activity());
+  const item = (href, icon, label, active, dot, tone = "", tip = "") => `<a class="sb-item ${on(active)}" href="${href}" title="${dot ? tip : label}"><span class="sb-ico">${icon}</span><span class="trunc">${label}</span>${dot ? `<span class="sb-dot" aria-label="${esc(tip)}"></span>` : ""}</a>`;
   const faces = (ids) => `<span class="sb-faces" aria-hidden="true">${ids.slice(0, 3).map((id) => personAv(id)).join("")}</span>`;
   patch($("#side"), `<div class="sb">
     <div class="sb-ws"><button class="sb-org" data-act="palette"><span class="ws-logo">${ORG.initials}</span><b class="trunc">${ORG.name}</b><svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
@@ -2168,12 +2176,12 @@ function renderSide() {
       <button class="icon-btn sb-toggle" data-act="sbToggle" title="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar ([)" aria-label="${state.sbCollapsed ? "Expand" : "Collapse"} sidebar" aria-expanded="${!state.sbCollapsed}">${ico("sidebar")}</button></div>
     <nav class="sb-group" aria-label="Inbox">
       ${item("#home", ico("home"), "Home", r.name === "home")}
-      ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", inboxLeft(), "", `${inboxLeft()} left to clear`)}
+      ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", sbNew("inbox"), "", "New in your Inbox")}
       ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
     <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
-      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", nQ, "", `${nQ} new applicants waiting on a reply`)}
+      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
     </nav>
     <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
@@ -2183,7 +2191,7 @@ function renderSide() {
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
       ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
-      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), attn, "red", `${attn} Grokbot tasks stuck or failed`)}
+      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
     <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
     <button class="sb-chat ${on(r.name === "chat")}" data-act="goChat">${botAv(ME)}<span class="trunc">Chat with your Grokbot</span></button>
