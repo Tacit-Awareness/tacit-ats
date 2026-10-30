@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { Avatar, initialsOf } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
+import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
 import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
@@ -17,6 +19,9 @@ import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail, ⌘K opens the
 // command menu. No counts: the sidebar is for getting around, not a report.
+// The one signal is design/tats's mark, a faint red tint on Inbox or Applicant
+// Tickets when something arrived since you last opened it (shell-memory.tsx).
+// Saved views you pin sit under Pipeline.
 // Client only for what the server cannot know: which link is active, the
 // drawer on a phone, the menu, the width and the theme toggle.
 
@@ -38,6 +43,7 @@ const ICONS = {
   ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
   cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
+  layers: "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -66,7 +72,7 @@ const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
 const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
-const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
+const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people", activeUnder: ["/client/views"] };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
@@ -100,20 +106,59 @@ function typing(target: EventTarget | null) {
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 }
 
-const itemCls = (active: boolean, rail: boolean) =>
+const itemCls = (active: boolean, rail: boolean, fresh = false) =>
   cn(
     "flex h-[34px] items-center gap-2.5 rounded-lg text-[14.5px] whitespace-nowrap transition-colors duration-100",
     rail ? "justify-center px-0" : "px-2.5",
-    active ? "nav-on font-medium" : "font-[450] hover:bg-[color:var(--hover)]",
+    active ? "nav-on font-medium" : fresh ? "nav-new font-[450]" : "font-[450] hover:bg-[color:var(--hover)]",
   );
 
-function NavItem({ link, active, rail }: { link: NavLink; active: boolean; rail: boolean }) {
+/** `fresh` is the mark's tooltip, when something new is there. */
+function NavItem({ link, active, rail, fresh }: { link: NavLink; active: boolean; rail: boolean; fresh?: string | null }) {
   return (
-    <Link href={link.href} aria-current={active ? "page" : undefined} title={rail ? link.label : undefined} className={itemCls(active, rail)}>
+    <Link
+      href={link.href}
+      aria-current={active ? "page" : undefined}
+      title={fresh ?? (rail ? link.label : undefined)}
+      aria-description={fresh ?? undefined}
+      className={itemCls(active, rail, !!fresh)}
+    >
       <span className="grid size-5 shrink-0 place-items-center">
         <Icon name={link.icon} />
       </span>
       <span className={cn("truncate", rail && "sr-only")}>{link.label}</span>
+    </Link>
+  );
+}
+
+/** Pipeline, and the views pinned under it: only one of them is lit, the view when it is one you pinned. */
+function PipelineLinks({ rail, pathname }: { rail: boolean; pathname: string }) {
+  const isActive = useIsActive();
+  const on = useSearchParams().get("view");
+  const pins = pinnedViews(useViews().state);
+  const onPin = pathname === PIPELINE.href && pins.some((v) => v.id === on);
+  return (
+    <>
+      <NavItem link={PIPELINE} active={isActive(PIPELINE) && !onPin} rail={rail} />
+      {pins.map((v) => (
+        <PinnedView key={v.id} view={v} active={onPin && v.id === on} rail={rail} />
+      ))}
+    </>
+  );
+}
+
+function PinnedView({ view, active, rail }: { view: SavedView; active: boolean; rail: boolean }) {
+  return (
+    <Link
+      href={viewHref(view)}
+      aria-current={active ? "page" : undefined}
+      title={rail ? view.name : undefined}
+      className={cn(itemCls(active, rail), !rail && "pl-7")}
+    >
+      <span className="grid size-5 shrink-0 place-items-center">
+        <Icon name="layers" className="size-[13px]" />
+      </span>
+      <span className={cn("truncate", rail && "sr-only")}>{view.name}</span>
     </Link>
   );
 }
@@ -180,25 +225,32 @@ function OrgLogo({ org }: { org: string }) {
   );
 }
 
-export function ShellFrame({
-  org,
-  user,
-  jobs,
-  sidebar: initial,
-  children,
-}: {
+type ShellProps = {
+  actorId: string;
   org: string;
   user: { name: string; email: string; level: string };
   jobs: ShellJob[];
   sidebar: SidebarState;
   children: React.ReactNode;
-}) {
+};
+
+export function ShellFrame({ actorId, ...props }: ShellProps) {
+  return (
+    <ShellMemory actorId={actorId}>
+      <Frame {...props} />
+    </ShellMemory>
+  );
+}
+
+function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
   const pathname = usePathname();
   const isActive = useIsActive();
   const [drawer, setDrawer] = useState(false);
   const [menu, setMenu] = useState(false);
   const [sb, setSb] = useState(initial);
   const [shut, setShut] = useState<Set<string>>(() => new Set());
+  const views = useViews();
+  const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : null);
   // The drag's start and its live width: the release saves `now`, not the
   // width from the last render, which may not have caught up.
   const drag = useRef<{ x: number; w: number; now: number } | null>(null);
@@ -283,6 +335,7 @@ export function ShellFrame({
     { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
     { group: "Go to", label: ANALYTICS.label, href: ANALYTICS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
+    { group: "Go to", label: "Views", href: "/client/views" },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
     { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
@@ -290,6 +343,7 @@ export function ShellFrame({
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
+    ...allViews(views.state).map((v) => ({ group: "Views", label: v.name, href: viewHref(v) })),
   ];
 
   return (
@@ -341,18 +395,20 @@ export function ShellFrame({
 
         <nav className="grid gap-0.5" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
-          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} />
+          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} />
           <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </nav>
 
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")} rail={rail}>
           <NavItem link={JOBS} active={isActive(JOBS)} rail={rail} />
-          <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} />
+          <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} fresh={marks.tickets ? "New applicants since you last looked" : null} />
           <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
         </Section>
 
         <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
-          <NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />
+          <Suspense fallback={<NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />}>
+            <PipelineLinks rail={rail} pathname={pathname} />
+          </Suspense>
           <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
           <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
