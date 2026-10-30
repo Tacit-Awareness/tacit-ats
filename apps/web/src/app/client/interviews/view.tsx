@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { KeyList } from "@/components/keys";
 import { Avatar, Empty, ListReader, MiniTitle, PageHeader, Section } from "@/components/page";
 import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
 import type { LoopPerson, LoopRound as Round } from "@/lib/client/interview-loop";
@@ -104,7 +105,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
 
 function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[]; toReview: number }) {
   return (
-    <div className="grid content-start gap-1">
+    <KeyList title="Interviews" next="Next interview" mode="select" className="grid content-start gap-1">
       <div className="px-2 pt-2 pb-1">
         <PageHeader title="Interviews" badge={<span className="text-base font-normal text-muted-foreground">{toReview ? `${toReview} read pending` : ""}</span>} />
       </div>
@@ -121,6 +122,7 @@ function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; coun
             <Link
               key={r.interviewId}
               href={r.href}
+              data-key-item
               aria-current={r.selected ? "page" : undefined}
               className={cn(
                 "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-lg px-2 py-2.5 transition-colors",
@@ -141,7 +143,7 @@ function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; coun
           ))}
         </section>
       ))}
-    </div>
+    </KeyList>
   );
 }
 

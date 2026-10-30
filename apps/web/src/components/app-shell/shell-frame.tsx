@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
+import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { Avatar, initialsOf } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
@@ -23,6 +24,7 @@ const ICONS = {
   brief: "M2.5 5.5h11v7.5h-11ZM6 5.5V3.5h4v2M2.5 8.5h11",
   people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
   team: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2",
+  db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
   integrations: "M6 10 4.6 11.4a2.1 2.1 0 0 1-3-3L3 7M10 6l1.4-1.4a2.1 2.1 0 0 1 3 3L13 9M6 10l4-4",
   help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
   search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
@@ -52,18 +54,28 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
 type NavLink = { href: string; label: string; icon: IconName; activeUnder?: string[] };
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
-const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "team" };
+const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "menu" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "menu" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
+const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [
   { href: "/client/team", label: "Team", icon: "team" },
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
 ];
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
+// G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
+const GO: GoKey[] = [
+  { key: "h", label: HOME.label, href: HOME.href },
+  { key: "c", label: CRM.label, href: CRM.href },
+  { key: "j", label: JOBS.label, href: JOBS.href },
+  { key: "t", label: APPLICANTS.label, href: APPLICANTS.href },
+  { key: "a", label: PIPELINE.label, href: PIPELINE.href },
+  { key: "i", label: INTERVIEWS.label, href: INTERVIEWS.href },
+];
 
 export type ShellJob = { id: string; title: string };
 
@@ -264,6 +276,7 @@ export function ShellFrame({
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
     { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
+    { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -349,6 +362,7 @@ export function ShellFrame({
           <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
           <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
+          <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
         </Section>
 
         <div className="mt-auto grid gap-2">
@@ -381,6 +395,7 @@ export function ShellFrame({
               <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
             </Link>
             <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
+              <KeysButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
               <ThemeToggle />
               {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
               <form action="/client/signout" method="post">
@@ -426,6 +441,7 @@ export function ShellFrame({
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />
+      <ShellKeys go={GO} />
     </div>
   );
 }
