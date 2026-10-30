@@ -1,5 +1,6 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
+import type { StoredProfile } from "./interviewer-profile";
 import type { AccessLevel } from "./session";
 import {
   assembleInterviewers,
@@ -20,7 +21,10 @@ import {
 // only their jobs' interviews), departments for the hiring team and admins,
 // and core's interviewerActivity for admins and whoever manages a job.
 // Nothing here filters by org. Not for an interviewer (`limited`), who is
-// refused: the page points them home instead.
+// refused: the page points them home instead. Interviewer profiles come back
+// for whoever the policies let the member read: everyone for an admin or the
+// company's own hiring team, only themselves for an external recruiter, so a
+// row with no profile is nothing to show and not a claim that they have not said.
 
 const PAGE = 1000;
 /** Interview rows the read stops at; the page says so. */
@@ -33,6 +37,8 @@ export type InterviewersRead = {
   feedback: boolean;
   /** The interviews read stopped at SCAN_MAX. */
   truncated: boolean;
+  /** The member's own profile, whether or not they are a row. Null: they have not said. */
+  own: StoredProfile | null;
 };
 
 export async function scanRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
@@ -45,6 +51,16 @@ export async function scanRows<T>(page: (from: number, to: number) => PromiseLik
   }
   return { rows, truncated: true };
 }
+
+/** Who has a profile the member may read, out of these. */
+async function readProfiles(db: Db, ids: string[]): Promise<Map<string, StoredProfile>> {
+  const { data, error } = await db.from("interviewer_profiles").select(clientTools.PROFILE_COLUMNS).in("actor_id", ids);
+  if (error) throw new Error(error.message);
+  return new Map((data ?? []).map((r) => [r.actor_id, clientTools.profileFromRow(r)]));
+}
+
+/** An interviewer's own page: their row is the one they always read. */
+export const readOwnProfile = async (db: Db, actorId: string): Promise<StoredProfile | null> => (await readProfiles(db, [actorId])).get(actorId) ?? null;
 
 type InterviewRow = { starts_at: string; interviewer_actor_ids: string[]; applications: { role_id: string } };
 
@@ -91,13 +107,16 @@ export async function readInterviewers(
     ? new Map<string, Feedback>(activity.interviewers.map((r) => [r.userId, { onTime: r.onTime, late: r.late, notFiled: r.notFiled, notVisible: r.notVisible }]))
     : null;
 
-  const actorIds = new Set<string>([...(seats.data ?? []).map((s) => s.actor_id), ...loads.flatMap((i) => i.interviewerIds), ...(feedback?.keys() ?? [])]);
+  const actorIds = new Set<string>([member.actorId, ...(seats.data ?? []).map((s) => s.actor_id), ...loads.flatMap((i) => i.interviewerIds), ...(feedback?.keys() ?? [])]);
   const names = new Map<string, string>();
+  const profiles = new Map<string, StoredProfile>();
   const ids = [...actorIds];
   for (let i = 0; i < ids.length; i += 150) {
-    const { data, error } = await db.from("org_members").select("id, display_name").in("id", ids.slice(i, i + 150));
+    const slice = ids.slice(i, i + 150);
+    const [{ data, error }, some] = await Promise.all([db.from("org_members").select("id, display_name").in("id", slice), readProfiles(db, slice)]);
     if (error) throw new Error(error.message);
     for (const m of data ?? []) if (m.id) names.set(m.id, m.display_name ?? "");
+    for (const [id, p] of some) profiles.set(id, p);
   }
 
   const interviewers = assembleInterviewers({
@@ -106,8 +125,9 @@ export async function readInterviewers(
     jobs: (jobs.data ?? []).map((j): JobRef => ({ id: j.id, title: j.title, status: j.status, departmentId: j.department_id })),
     departments: (departments.data ?? []).map((d): DepartmentRef => ({ id: d.id, name: d.name, parentId: d.parent_id })),
     names,
+    profiles,
     feedback,
     now,
   });
-  return { groups: groupByDepartment(interviewers), feedback: feedback !== null, truncated: interviews.truncated };
+  return { groups: groupByDepartment(interviewers), feedback: feedback !== null, truncated: interviews.truncated, own: profiles.get(member.actorId) ?? null };
 }
