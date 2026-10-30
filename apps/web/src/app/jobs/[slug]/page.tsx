@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
 import { formNotice, guideSteps } from "@/lib/public/application";
 import { landingChannel, withVia } from "@/lib/public/channel";
-import { readJobPost } from "@/lib/public/jobs";
+import { readJobPost, readOrgBrand } from "@/lib/public/jobs";
 import { parsePostText } from "@/lib/public/post-text";
 import { ApplicationForm, answerField } from "./application-form";
 import { CountView } from "./count-view";
@@ -45,6 +45,7 @@ export default async function JobPostPage({
   const { slug } = await params;
   const read = await post(slug);
   if (!read) notFound();
+  const brand = await readOrgBrand(read.orgSlug);
   const query = await searchParams;
   const { tab, applied, error, q } = query as { tab?: string; applied?: string; error?: string; q?: string };
   const h = await headers();
@@ -62,7 +63,7 @@ export default async function JobPostPage({
   const side = filling || facts.length > 0;
 
   return (
-    <CareersFrame company={read.company} boardHref={boardHref} allRoles>
+    <CareersFrame company={read.company} brand={brand} boardHref={boardHref} allRoles>
       {/* The form's redirect back is the same visit, so it counts no view. Always mounted, so the tabs count nothing, from there either. */}
       <CountView slug={slug} returning={Boolean(applied || error)} />
       <div className={`wrap role${filling ? " has-mbar" : ""}`}>

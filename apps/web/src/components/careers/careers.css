@@ -41,7 +41,8 @@
 
   /* top bar */
   & .top-in { position: relative; display: flex; align-items: center; justify-content: center; height: 72px; max-width: 1280px; margin: 0 auto; padding: 0 20px; }
-  & .brand { max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 18px; letter-spacing: -0.03em; color: var(--strong); }
+  & .brand { display: inline-flex; align-items: center; gap: 9px; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 18px; letter-spacing: -0.03em; color: var(--strong); }
+  & .brand-logo { width: 26px; height: 26px; flex: none; border-radius: 6px; object-fit: contain; }
   & .corner { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); }
   & .navbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px 0 13px; border-radius: 999px; background: var(--fill); color: var(--strong); font-size: 14.5px; font-weight: 500; white-space: nowrap; transition: background-color 160ms ease; }
   & .navbtn:hover { background: rgba(84, 81, 74, 0.14); }

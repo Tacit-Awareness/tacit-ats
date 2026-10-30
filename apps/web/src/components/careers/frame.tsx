@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { PublicBrand } from "@/lib/public/jobs";
 import "./careers.css";
 
 // The public careers pages' frame (design/careers): the company's name in the
@@ -25,18 +26,27 @@ export const ICON = {
 
 export function CareersFrame({
   company,
+  brand,
   boardHref,
   allRoles = false,
   children,
 }: {
   company: string;
+  brand: PublicBrand | null;
   boardHref: string | null;
   /** On a role's page: the way back to the board. */
   allRoles?: boolean;
   children: React.ReactNode;
 }) {
+  const name = (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a stored public file, not a page asset */}
+      {brand?.logoUrl ? <img className="brand-logo" src={brand.logoUrl} alt="" /> : null}
+      {company}
+    </>
+  );
   return (
-    <div className="careers">
+    <div className="careers" style={brand?.colors ? ({ "--solid": brand.colors.solid, "--on-solid": brand.colors.onSolid } as React.CSSProperties) : undefined}>
       <header className="top">
         <div className="top-in">
           {allRoles && boardHref ? (
@@ -49,10 +59,10 @@ export function CareersFrame({
           ) : null}
           {boardHref ? (
             <Link className="brand" href={boardHref}>
-              {company}
+              {name}
             </Link>
           ) : (
-            <span className="brand">{company}</span>
+            <span className="brand">{name}</span>
           )}
         </div>
       </header>

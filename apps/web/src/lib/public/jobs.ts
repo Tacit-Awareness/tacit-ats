@@ -1,3 +1,4 @@
+import { brandTheme, isBrandAccent } from "@tacit/core/dist/brand/theme.js";
 import { createUserClient, type Db } from "@tacit/db";
 import type { BoardRole } from "./board";
 import type { Channel } from "./channel";
@@ -6,12 +7,13 @@ import type { Channel } from "./channel";
  * The public job pages (/careers/[org], /jobs/[slug] and
  * /api/jobs/[slug]/apply): a client's live posts, read and applied to by anyone
  * with the link. No session of any kind, and only the publishable key with no
- * token, so every call goes out as `anon`, which may run exactly four
+ * token, so every call goes out as `anon`, which may run exactly five
  * functions here (packages/db, 20261016150000_client_job_posts,
- * 20261030130000_job_board_public and 20261030180000_job_post_views_channels):
+ * 20261030130000_job_board_public, 20261030180000_job_post_views_channels and
+ * 20261030233000_org_brand):
  * job_board_public, an org's live posts, job_post_page, one post's public
  * fields, submit_job_application, the one way in, and record_job_post_view, a
- * count of one more view. None returns anything about who is on file.
+ * count of one more view, and org_brand_public, an org's accent and logo. None returns anything about who is on file.
  * src/client-area.test.ts fails if anything reachable from the public pages
  * can get another database client or a session.
  */
@@ -97,6 +99,9 @@ export type PublicJobPost = {
 export type PublicJobBoard = { company: string; roles: BoardRole[] };
 
 /** The anon client: the publishable key and never a token. Not memoized; nothing in it is per-user anyway. */
+/** `colors`: the company's accent as the page's primary colour, its light token, since these pages have no dark theme. */
+export type PublicBrand = { colors: { solid: string; onSolid: string } | null; logoUrl: string | null };
+
 function anonDb(): Db {
   return createUserClient(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_PUBLISHABLE_KEY ?? "", () => null);
 }
@@ -130,6 +135,23 @@ export async function readJobBoard(org: string): Promise<PublicJobBoard | null> 
     company: first.company,
     roles: data.map((r) => ({ slug: r.slug, title: r.title, location: r.location, department: r.department })),
   };
+}
+
+/**
+ * A client's accent and logo, or null for one with none. Only looks: a failed
+ * read leaves the page in Tacit's own colours rather than taking it down.
+ */
+export async function readOrgBrand(org: string | null): Promise<PublicBrand | null> {
+  if (!org || !ORG_SLUG.test(org)) return null;
+  const { data, error } = await anonDb().rpc("org_brand_public", { p_org: org });
+  if (error) {
+    console.error("[careers] brand:", error.message);
+    return null;
+  }
+  const row = data?.[0];
+  if (!row) return null;
+  const light = isBrandAccent(row.accent) ? brandTheme(row.accent).light : null;
+  return { colors: light && { solid: light.accent, onSolid: light["accent-ink"] }, logoUrl: row.logo_url };
 }
 
 export type ApplyOutcome =

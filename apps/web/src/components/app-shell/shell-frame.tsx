@@ -217,8 +217,12 @@ function ThemeToggle() {
   );
 }
 
-/** The org's square: its initial on the accent, as design/tats's workspace logo. */
-function OrgLogo({ org }: { org: string }) {
+/** The org's square: its logo, on white so a dark one shows on the dark theme, or its initial on the accent, as design/tats's workspace logo. */
+function OrgLogo({ org, logoUrl }: { org: string; logoUrl: string | null }) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element -- a stored public file, not a page asset
+    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 rounded-md bg-white object-contain" />;
+  }
   return (
     <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
       {initialsOf(org).slice(0, 1)}
@@ -229,6 +233,7 @@ function OrgLogo({ org }: { org: string }) {
 type ShellProps = {
   actorId: string;
   org: string;
+  orgLogoUrl: string | null;
   user: { name: string; email: string; level: string };
   jobs: ShellJob[];
   sidebar: SidebarState;
@@ -243,7 +248,7 @@ export function ShellFrame({ actorId, ...props }: ShellProps) {
   );
 }
 
-function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
+function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
   const pathname = usePathname();
   const isActive = useIsActive();
   const [drawer, setDrawer] = useState(false);
@@ -354,7 +359,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
         <IconButton label="Open the sidebar" onClick={() => setDrawer(true)}>
           <Icon name="menu" className="size-4" />
         </IconButton>
-        <OrgLogo org={org} />
+        <OrgLogo org={org} logoUrl={orgLogoUrl} />
         <span className="truncate text-sm font-semibold">{org}</span>
         <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="ml-auto">
           <Icon name="search" />
@@ -385,7 +390,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
               rail ? "justify-center p-1" : "flex-1 px-2",
             )}
           >
-            <OrgLogo org={org} />
+            <OrgLogo org={org} logoUrl={orgLogoUrl} />
             <span className={cn("truncate", rail && "sr-only")}>{org}</span>
           </button>
           {rail ? null : (

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ShellFrame, type ShellJob } from "@/components/app-shell/shell-frame";
+import { BrandStyle } from "@/components/brand-style";
 import { LEVELS } from "@/lib/client/levels";
 import { resolveClient } from "@/lib/client/session";
 import { SIDEBAR_COOKIE, parseSidebar } from "@/lib/sidebar";
@@ -32,14 +33,18 @@ export default async function ClientLayout({ children }: { children: React.React
   const jobs: ShellJob[] = roles.map((r) => ({ id: r.id, title: r.title }));
 
   return (
-    <ShellFrame
-      actorId={actorId}
-      org={org.name}
-      user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }}
-      jobs={jobs}
-      sidebar={parseSidebar(jar.get(SIDEBAR_COOKIE)?.value)}
-    >
-      {children}
-    </ShellFrame>
+    <>
+      <BrandStyle accent={org.brandAccent} />
+      <ShellFrame
+        actorId={actorId}
+        org={org.name}
+        orgLogoUrl={org.brandLogoUrl}
+        user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }}
+        jobs={jobs}
+        sidebar={parseSidebar(jar.get(SIDEBAR_COOKIE)?.value)}
+      >
+        {children}
+      </ShellFrame>
+    </>
   );
 }
