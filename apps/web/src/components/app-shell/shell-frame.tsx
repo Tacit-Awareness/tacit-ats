@@ -60,6 +60,7 @@ const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "menu" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
+const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [
   { href: "/client/team", label: "Team", icon: "team" },
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
@@ -265,6 +266,7 @@ export function ShellFrame({
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
     { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
+    { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -350,6 +352,7 @@ export function ShellFrame({
           <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
           <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
+          <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
         </Section>
 
         <div className="mt-auto grid gap-2">
