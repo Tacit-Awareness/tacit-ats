@@ -5,7 +5,11 @@ import { LEVELS } from "@/lib/client/levels";
 import { resolveClient } from "@/lib/client/session";
 import { SIDEBAR_COOKIE, parseSidebar } from "@/lib/sidebar";
 
-export const metadata: Metadata = { title: "Tacit" };
+// The tab reads "<Company> · tATS"; a refused sign-in has no company to name.
+export async function generateMetadata(): Promise<Metadata> {
+  const gate = await resolveClient();
+  return { title: gate.status === "ok" ? `${gate.ctx.org.name} · tATS` : "tATS" };
+}
 export const dynamic = "force-dynamic";
 
 // The client area's shell: design/tats's sidebar and inset panel. The
