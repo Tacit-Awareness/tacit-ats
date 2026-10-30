@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { Avatar, initialsOf } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
@@ -30,6 +31,7 @@ const ICONS = {
   search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
   menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
+  tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
 } as const;
 type IconName = keyof typeof ICONS;
@@ -395,6 +397,9 @@ export function ShellFrame({
               <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
             </Link>
             <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
+              <TourButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
+                <Icon name="tour" />
+              </TourButton>
               <KeysButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
               <ThemeToggle />
               {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
@@ -441,6 +446,8 @@ export function ShellFrame({
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />
+      {/* Before ShellKeys: the tour's capture listener is added first, so it takes its keys before G and `?`. */}
+      <ShellTour />
       <ShellKeys go={GO} />
     </div>
   );

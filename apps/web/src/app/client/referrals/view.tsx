@@ -80,7 +80,7 @@ export function ReferralsView({
         subtitle="Everyone referred to your jobs, who referred them and where they are now."
         actions={
           canAdd ? (
-            <Link href="/client/referrals/new" className={buttonVariants({ size: "sm" })}>
+            <Link href="/client/referrals/new" data-tour="refer" className={buttonVariants({ size: "sm" })}>
               Add referral
             </Link>
           ) : null

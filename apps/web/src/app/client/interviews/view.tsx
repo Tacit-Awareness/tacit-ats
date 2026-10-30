@@ -105,7 +105,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
 
 function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[]; toReview: number }) {
   return (
-    <KeyList title="Interviews" next="Next interview" mode="select" className="grid content-start gap-1">
+    <KeyList title="Interviews" next="Next interview" mode="select" className="grid content-start gap-1" data-tour="interviews">
       <div className="px-2 pt-2 pb-1">
         <PageHeader title="Interviews" badge={<span className="text-base font-normal text-muted-foreground">{toReview ? `${toReview} read pending` : ""}</span>} />
       </div>

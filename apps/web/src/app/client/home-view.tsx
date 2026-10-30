@@ -190,7 +190,7 @@ export function HomeView(p: HomeViewProps) {
         </Toolbar>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 min-[1100px]:grid-cols-3">
+      <div data-tour="kpis" className="grid gap-4 md:grid-cols-2 min-[1100px]:grid-cols-3">
         <Card
           label="New applications"
           def="Applications added in the period, applied or sourced"
@@ -280,7 +280,7 @@ export function HomeView(p: HomeViewProps) {
 
       <h2 className="m-0 mt-2 text-[15px] font-semibold">Where are candidates getting stuck?</h2>
 
-      <div className="grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div data-tour="stuck" className="grid items-start gap-4 min-[1100px]:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <Section title="Bottlenecks" count={p.bottlenecks.length}>
           {p.bottlenecks.length === 0 ? (
             <Empty>Nothing is waiting.</Empty>

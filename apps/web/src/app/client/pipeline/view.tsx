@@ -105,7 +105,7 @@ export function PipelineView({
       {empty ? (
         <Empty>{empty}</Empty>
       ) : (
-        <div className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
+        <div data-tour="board" className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
           <div className="flex items-start gap-2">
             {columns.map((column) => (
               <Column key={column.key} column={column} />
