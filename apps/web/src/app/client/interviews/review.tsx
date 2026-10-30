@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { useKeyHelp, useKeys } from "@/components/keys";
-import { isReviewed, reviewCount, reviewSaver, reviewTarget, type ReviewWrite } from "@/lib/client/interview-review-rules";
+import { isReviewed, reviewCount, reviewSaver, reviewTarget, saveReview, type ReviewWrite } from "@/lib/client/interview-review-rules";
 import { cn } from "@/lib/utils";
 
 // The reviewed check, design/tats's `.ivr-check`: a round button on each past
@@ -10,16 +11,15 @@ import { cn } from "@/lib/utils";
 // behind you, so E then J never waits; a write that fails puts the check back
 // and says so. The list keeps its links and server markup: this only wraps them.
 
+// A fetch leaves the router's cache alone, and Back restores a page from it, so
+// a page left after a write would come back with its checks as they were.
+// Coming back after a write reads them again.
+let wrote = false;
+
 const save = async (write: ReviewWrite) => {
-  // `redirect: "error"`: a lapsed session redirects to sign-in, and that is not a yes.
-  const res = await fetch("/client/interviews/review", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(write),
-    redirect: "error",
-    keepalive: true,
-  });
-  return res.ok;
+  const ok = await saveReview(write);
+  if (ok) wrote = true;
+  return ok;
 };
 
 type Review = {
@@ -44,12 +44,22 @@ export function ReviewProvider({ past, saved, selected, children }: { past: stri
   const [set, setSet] = useState<ReadonlyMap<string, boolean>>(new Map());
   const [failed, setFailed] = useState(false);
   const [saver] = useState(() =>
-    reviewSaver(save, ({ interviewId, reviewed }) => {
+    reviewSaver(save, ({ interviewId }, was) => {
       setFailed(true);
-      // Only if it still says what failed: a later press is a write of its own.
-      setSet((s) => (s.get(interviewId) === reviewed ? new Map(s).set(interviewId, !reviewed) : s));
+      setSet((s) => {
+        const back = new Map(s);
+        if (was === null) back.delete(interviewId);
+        else back.set(interviewId, was);
+        return back;
+      });
     }),
   );
+  const router = useRouter();
+  useEffect(() => {
+    if (!wrote) return;
+    wrote = false;
+    router.refresh();
+  }, [router]);
   const pastKey = past.join("\n");
   const savedKey = saved?.join("\n") ?? null;
   const value = useMemo<Review>(() => {
@@ -107,6 +117,7 @@ export function ReviewRow({ id, candidate, selected, children }: { id: string; c
   return (
     <div
       data-review-id={id}
+      data-key-row
       data-reviewed={on ? "" : undefined}
       className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center pr-[18px] transition-colors", selected ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]")}
     >
@@ -114,7 +125,11 @@ export function ReviewRow({ id, candidate, selected, children }: { id: string; c
       {reviewable ? (
         <button
           type="button"
-          onClick={() => toggle(id)}
+          onClick={(event) => {
+            toggle(id);
+            // A pointer's click leaves no ring to show focus stayed here, and E goes by focus: it means the row open.
+            if (event.detail) event.currentTarget.blur();
+          }}
           aria-pressed={on}
           aria-label={`${candidate} reviewed`}
           title={on ? "Mark not reviewed" : "Mark reviewed (E)"}

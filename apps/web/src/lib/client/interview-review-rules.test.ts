@@ -1,6 +1,6 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { isReviewed, parseReviewWrite, reviewCount, reviewSaver, reviewTarget, type ReviewWrite } from "./interview-review-rules";
+import { isReviewed, parseReviewWrite, reviewCount, reviewSaver, reviewTarget, saveReview, type ReviewWrite } from "./interview-review-rules";
 
 const ID = "d1e00000-0000-4000-8000-000000000001";
 
@@ -86,13 +86,78 @@ describe("saving", () => {
   });
 
   test("a no and a throw both count as failed, and what follows still goes", async () => {
+    const other = { interviewId: "d1e00000-0000-4000-8000-000000000002", reviewed: true };
+    const third = { interviewId: "d1e00000-0000-4000-8000-000000000003", reviewed: true };
     const failed = vi.fn();
     const send = vi.fn<(w: ReviewWrite) => Promise<boolean>>().mockResolvedValueOnce(false).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(true);
     const save = reviewSaver(send, failed);
     void save(write(true));
+    void save(other);
+    await save(third);
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(failed.mock.calls).toEqual([[write(true), null], [other, null]]);
+  });
+
+  test("two presses that both fail leave the check as it was loaded, not as the first press asked", async () => {
+    const failed = vi.fn();
+    const save = reviewSaver(async () => false, failed);
+    void save(write(true));
+    await save(write(false));
+    expect(failed.mock.calls).toEqual([[write(false), null]]);
+  });
+
+  test("a failed write with another queued behind it for the same interview is the later write's to answer", async () => {
+    const failed = vi.fn();
+    const send = vi.fn<(w: ReviewWrite) => Promise<boolean>>().mockResolvedValueOnce(false).mockResolvedValue(true);
+    const save = reviewSaver(send, failed);
+    void save(write(true));
     void save(write(false));
     await save(write(true));
-    expect(send).toHaveBeenCalledTimes(3);
-    expect(failed.mock.calls).toEqual([[write(true)], [write(false)]]);
+    expect(failed).not.toHaveBeenCalled();
+  });
+
+  test("a failure goes back to the last state the server took, not the opposite of what failed", async () => {
+    const failed = vi.fn();
+    const send = vi.fn<(w: ReviewWrite) => Promise<boolean>>().mockResolvedValueOnce(true).mockResolvedValue(false);
+    const save = reviewSaver(send, failed);
+    void save(write(true));
+    void save(write(false));
+    await save(write(true));
+    expect(failed.mock.calls).toEqual([[write(true), true]]);
+  });
+
+  test("failed writes queued behind an answer on another interview still answer for their own", async () => {
+    const other = { interviewId: "d1e00000-0000-4000-8000-000000000002", reviewed: true };
+    const failed = vi.fn();
+    const send = vi.fn<(w: ReviewWrite) => Promise<boolean>>().mockResolvedValue(false);
+    const save = reviewSaver(send, failed);
+    void save(write(true));
+    await save(other);
+    expect(failed.mock.calls).toEqual([[write(true), null], [other, null]]);
+  });
+});
+
+describe("sending a write", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const write: ReviewWrite = { interviewId: ID, reviewed: true };
+
+  test("a yes is a 2xx, a redirect to sign-in is an error, and it outlives the page", async () => {
+    const fetch = vi.fn(async (..._: unknown[]) => new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    expect(await saveReview(write)).toBe(true);
+    expect(fetch).toHaveBeenCalledWith("/client/interviews/review", expect.objectContaining({ method: "POST", body: JSON.stringify(write), redirect: "error", keepalive: true }));
+    fetch.mockResolvedValue(new Response(null, { status: 404 }));
+    expect(await saveReview(write)).toBe(false);
+  });
+
+  test("a request that never answers gives up, so the writes queued behind it still go", async () => {
+    vi.stubGlobal(
+      "fetch",
+      (_: string, init: RequestInit) => new Promise((_, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason))),
+    );
+    const failed = vi.fn();
+    const save = reviewSaver((w) => saveReview(w, 5), failed);
+    await save(write);
+    expect(failed).toHaveBeenCalledWith(write, null);
   });
 });

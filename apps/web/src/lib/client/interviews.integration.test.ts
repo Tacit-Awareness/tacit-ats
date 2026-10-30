@@ -167,6 +167,45 @@ describe("the reviewed check", () => {
     expect((await readReviewed(admin.db, ADMIN, [iv(1)])).size).toBe(1);
   });
 
+  test("an external recruiter checks off only the candidates they added", async () => {
+    const REX = "d1a00000-0000-4000-8000-0000000000e5";
+    must(await db().from("actors").insert({ id: REX, org_id: ACME, slug: "itest-iv-rex", display_name: "Rex Recruiter", email: "rex@iv.test", access_level: "elevated", auth_subject: "user_iv_rex" }));
+    const { data: role } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+    must(await db().from("job_access").insert({ org_id: ACME, role_id: ENGINEER, actor_id: REX, access_role_id: role!.id }));
+    must(await db().from("applications").update({ added_by_actor_id: REX }).eq("id", app(1)));
+    const rex = client("user_iv_rex", ACME_WORKOS);
+
+    expect(await setReviewed(rex, REX, { interviewId: iv(1), reviewed: true })).toBe(true);
+    expect(await setReviewed(rex, REX, { interviewId: iv(3), reviewed: true })).toBe(false);
+    must(await db().from("applications").update({ added_by_actor_id: null }).eq("id", app(1)));
+    expect(await setReviewed(rex, REX, { interviewId: iv(2), reviewed: true })).toBe(false);
+  });
+
+  test("ten writes at once, from a double click or a second tab, are one check and no error", async () => {
+    const answers = await Promise.all(Array.from({ length: 10 }, () => setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true })));
+    expect(answers).toEqual(Array(10).fill(true));
+    const { data } = must(await db().from("interview_reviews").select("actor_id").eq("interview_id", iv(1)));
+    expect(data).toHaveLength(1);
+  });
+
+  test("losing the job hides the check with the interview and refuses a new one; getting it back finds it", async () => {
+    await setReviewed(lead.db, LEAD, { interviewId: iv(1), reviewed: true });
+    must(await db().from("hiring_team").delete().eq("org_id", ACME).eq("actor_id", LEAD));
+    expect((await readReviewed(lead.db, LEAD, [iv(1)])).size).toBe(0);
+    expect(await setReviewed(lead.db, LEAD, { interviewId: iv(1), reviewed: true })).toBe(false);
+
+    must(await db().from("hiring_team").insert({ org_id: ACME, role_id: ENGINEER, actor_id: LEAD, team_role: "hiring_manager" }));
+    expect((await readReviewed(lead.db, LEAD, [iv(1)])).size).toBe(1);
+  });
+
+  test("a check writes nothing to audit_log", async () => {
+    const count = async () => (await db().from("audit_log").select("id", { count: "exact", head: true }).eq("org_id", ACME)).count;
+    const before = await count();
+    await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true });
+    await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: false });
+    expect(await count()).toBe(before);
+  });
+
   test("reads every id it is given, past a single request's share", async () => {
     await setReviewed(admin.db, ADMIN, { interviewId: iv(3), reviewed: true });
     const many = [...Array.from({ length: 200 }, (_, n) => `d1e00000-0000-4000-9000-${String(n).padStart(12, "0")}`), iv(3)];

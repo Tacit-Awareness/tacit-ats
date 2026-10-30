@@ -38,7 +38,9 @@ describe("POST /client/interviews/review", () => {
   });
 
   test("a bad body is a 400 and writes nothing", async () => {
-    for (const bad of ["not json", {}, { interviewId: "1", reviewed: true }, { interviewId: ID }]) {
+    const script = '<script>alert(1)</script>';
+    const huge = "a".repeat(2_000_000);
+    for (const bad of ["not json", "", "null", "[]", {}, { interviewId: "1", reviewed: true }, { interviewId: ID }, { interviewId: [ID], reviewed: true }, { interviewId: script, reviewed: true }, { interviewId: huge, reviewed: true }, { interviewId: `${ID}'; drop table interviews;--`, reviewed: true }, { interviewId: "٠".repeat(36), reviewed: false }, { interviewId: ID, reviewed: 1 }]) {
       expect((await post(bad)).status, JSON.stringify(bad)).toBe(400);
     }
     expect(setReviewed).not.toHaveBeenCalled();

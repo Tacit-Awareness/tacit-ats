@@ -32,16 +32,44 @@ export function reviewTarget(focused: string | null, selected: string | null, pa
   return id && past.has(id) ? id : null;
 }
 
+/** How long one write may take: the queue waits on it, and a request can hang for minutes on a bad network. */
+const SAVE_MS = 15_000;
+
+/** One write. `redirect: "error"`: a lapsed session redirects to sign-in, and that is not a yes. */
+export async function saveReview(write: ReviewWrite, ms = SAVE_MS): Promise<boolean> {
+  const res = await fetch("/client/interviews/review", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(write),
+    redirect: "error",
+    keepalive: true,
+    signal: AbortSignal.timeout(ms),
+  });
+  return res.ok;
+}
+
 /**
  * Saves one at a time, in the order they were made, so E twice ends where the
- * screen does. A write that fails or throws goes to `failed`, and the rest still run.
+ * screen does. A write that fails or throws goes to `failed` with what the
+ * server last took for that interview (null: nothing since the page loaded),
+ * which is where the check goes back to; the rest still run. One with a later
+ * write queued for the same interview goes nowhere: the member has moved on,
+ * and the later write answers for the check.
  */
-export function reviewSaver(send: (write: ReviewWrite) => Promise<boolean>, failed: (write: ReviewWrite) => void) {
+export function reviewSaver(send: (write: ReviewWrite) => Promise<boolean>, failed: (write: ReviewWrite, was: boolean | null) => void) {
   let tail: Promise<void> = Promise.resolve();
+  const queued = new Map<string, number>();
+  const took = new Map<string, boolean>();
   return (write: ReviewWrite): Promise<void> => {
+    const id = write.interviewId;
+    queued.set(id, (queued.get(id) ?? 0) + 1);
     tail = tail.then(async () => {
       const ok = await send(write).catch(() => false);
-      if (!ok) failed(write);
+      const left = queued.get(id)! - 1;
+      if (left) queued.set(id, left);
+      else queued.delete(id);
+      if (ok) took.set(id, write.reviewed);
+      else if (!left) failed(write, took.get(id) ?? null);
     });
     return tail;
   };
