@@ -18,7 +18,7 @@ export type LastEmail = { at: string; subject: string; by: string };
 export type ReplyRead = {
   /** can_edit_person: anyone else gets no reply box. */
   canEmail: boolean;
-  /** The member's newest unsent draft on this application. */
+  /** The member's newest email on this application, when that is an unsent draft. */
   draft: ShownDraft | null;
   /** The member's newest email here, when it failed: its words, to write again. */
   failed: { subject: string; body: string } | null;
@@ -51,9 +51,10 @@ export async function readReply(
 
   // Newest first, and the policy shows a draft to its author alone.
   const emails = (await clientTools.listEmails(db, ctx, { candidateId: input.candidateId })).filter((e) => e.applicationId === input.applicationId);
-  const draft = emails.find((e) => e.status === "draft" && e.mine) ?? null;
-  const sent = emails.find((e) => e.status === "sent" || e.status === "sending") ?? null;
   const mine = emails.find((e) => e.mine) ?? null;
+  // Only their newest: a draft can't be discarded, so an older one sits under whatever replaced it, sent or refused.
+  const draft = mine?.status === "draft" ? mine : null;
+  const sent = emails.find((e) => e.status === "sent" || e.status === "sending") ?? null;
   return {
     canEmail: true,
     draft: draft ? { draftId: draft.emailId, to: draft.to, subject: draft.subject, body: draft.body } : null,
@@ -104,10 +105,33 @@ function sendError(err: clientTools.ClientToolError): SendError {
 
 export type SendOutcome = { ok: true } | { ok: false; error: SendError };
 
+/**
+ * Has this member written to this application since that draft? The pages stop
+ * offering such a draft (readReply, inbox-issues.ts's currentDrafts), but a tab
+ * left open still shows it, and a Send there would deliver what they replaced.
+ * The policies hide a draft from all but its author, so anyone else gets false
+ * here and core's refusal. A draft on no application is never out of date.
+ */
+async function replaced(db: Db, ctx: clientTools.ClientToolCtx, draftId: string): Promise<boolean> {
+  const { data: draft, error } = await db.from("candidate_emails").select("application_id, created_at").eq("id", draftId).eq("status", "draft").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!draft?.application_id) return false;
+  const { data: newer, error: newerError } = await db
+    .from("candidate_emails")
+    .select("id")
+    .eq("application_id", draft.application_id)
+    .eq("author_actor_id", ctx.actorId)
+    .gt("created_at", draft.created_at)
+    .limit(1);
+  if (newerError) throw new Error(newerError.message);
+  return (newer?.length ?? 0) > 0;
+}
+
 /** Sends one stored draft, exactly as stored. Only after the member pressed Send on it. */
 export async function sendDraft(db: Db, ctx: clientTools.ClientToolCtx, mailer: clientTools.ClientMailer | null, draftId: string): Promise<SendOutcome> {
   if (!mailer?.send) return { ok: false, error: "send_off" };
   try {
+    if (await replaced(db, ctx, draftId)) return { ok: false, error: "send_stale" };
     await clientTools.sendEmail(db, ctx, mailer, { draftId });
     return { ok: true };
   } catch (err) {

@@ -228,8 +228,17 @@ describe("sendEmail", () => {
 
   test("a draft someone else is sending is not sent twice, and the claim is given back", async () => {
     const send = vi.fn(async () => ({ id: "re_1" }));
-    const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, ME, ACME, { data: "audit-1" }, { data: [] }, { data: null }]);
+    const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, ME, ACME, { data: "audit-1" }, { data: [] }, { data: true }, { data: null }]);
     expect((await refusal(sendEmail(fake.asDb(), ctx(), mailer(send), { draftId: "d-1" }))).message).toMatch(/already being sent/);
+    expect(send).not.toHaveBeenCalled();
+    expect(fake.calls.at(-1)).toMatchObject({ table: "client_finish_write", args: { p_keep: false } });
+  });
+
+  test("no row because the policy refused says so, not that it is on its way", async () => {
+    const send = vi.fn(async () => ({ id: "re_1" }));
+    const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, ME, ACME, { data: "audit-1" }, { data: [] }, { data: false }, { data: null }]);
+    const err = await refusal(sendEmail(fake.asDb(), ctx(), mailer(send), { draftId: "d-1" }));
+    expect(err).toMatchObject({ code: "forbidden", message: expect.stringContaining("no longer email") });
     expect(send).not.toHaveBeenCalled();
     expect(fake.calls.at(-1)).toMatchObject({ table: "client_finish_write", args: { p_keep: false } });
   });

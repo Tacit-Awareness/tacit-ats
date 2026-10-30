@@ -437,7 +437,15 @@ export async function sendEmail(
     }
     if (claimError?.code === "42501") throw new ClientToolError("forbidden", "You can no longer email this candidate. Nothing was sent.");
     if (claimError) throw new Error(claimError.message);
-    if (!claimed?.length) throw new ClientToolError("invalid", "That email is already being sent.");
+    if (!claimed?.length) {
+      // No row is either another send taking it or the policy, which refuses an
+      // update in silence: someone who can no longer change the candidate must
+      // not read that their email is on its way.
+      const { data: allowed, error: permError } = await db.rpc("can_edit_person", { p_person: draft.person_id });
+      if (permError) throw new Error(permError.message);
+      if (allowed !== true) throw new ClientToolError("forbidden", "You can no longer email this candidate. Nothing was sent.");
+      throw new ClientToolError("invalid", "That email is already being sent.");
+    }
 
     const before = { status: "draft" };
     let providerId: string;

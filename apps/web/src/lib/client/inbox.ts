@@ -20,6 +20,8 @@ import { readPipeline } from "./pipeline";
 
 /** Drafts read, newest first; the list says when it stops here. */
 const DRAFTS_MAX = 100;
+/** How many of a member's drafts are looked at for those 100: a request brings back 1,000 at most. */
+const DRAFT_SCAN_MAX = 1000;
 /**
  * How far back missing feedback counts. interviewerActivity scans oldest
  * first up to its caps (5,000 interviews, 200 can_see_feedback checks for a
@@ -35,9 +37,11 @@ export type InboxRead = {
   issues: Issue[];
   /** interviewerActivity stopped at its cap, so some feedback may be missing. */
   truncated: boolean;
-  /** The drafts read reached DRAFTS_MAX, so older ones may not be listed. */
+  /** More current drafts than DRAFTS_MAX, or the scan stopped short, so older ones may not be listed. */
   draftsCapped: boolean;
 };
+
+type DraftHead = { id: string; application_id: string | null; created_at: string };
 
 type DraftRow = {
   id: string;
@@ -52,17 +56,51 @@ type DraftRow = {
   applications: { roles: { title: string } | null } | null;
 };
 
+/**
+ * The member's current drafts, newest DRAFTS_MAX. A draft can't be discarded,
+ * so replaced ones pile up for good: they are dropped before the cap, by ids and
+ * times alone, or they would push out a draft still worth sending. Only the
+ * drafts kept bring their text.
+ */
 async function readDrafts(db: Db, actorId: string): Promise<{ drafts: InboxDraft[]; capped: boolean }> {
-  const { data, error } = await db
+  const { data: heads, error } = await db
     .from("candidate_emails")
-    .select("id, person_id, application_id, to_email, subject, body, created_at, updated_at, people(display_name), applications(roles(title))")
+    .select("id, application_id, created_at")
     .eq("status", "draft")
     .eq("author_actor_id", actorId)
     .order("updated_at", { ascending: false })
-    .limit(DRAFTS_MAX)
-    .overrideTypes<DraftRow[], { merge: false }>();
+    .limit(DRAFT_SCAN_MAX)
+    .overrideTypes<DraftHead[], { merge: false }>();
   if (error) throw new Error(error.message);
-  const rows = (data ?? []).map((d) => ({
+  const scanned = (heads ?? []).map((d) => ({ draftId: d.id, applicationId: d.application_id, createdAt: d.created_at }));
+  if (!scanned.length) return { drafts: [], capped: false };
+
+  // The member's emails that left draft since the oldest of these, newest first.
+  const oldest = scanned.reduce((at, d) => (d.createdAt < at ? d.createdAt : at), scanned[0]!.createdAt);
+  const { data: others, error: othersError } = await db
+    .from("candidate_emails")
+    .select("application_id, created_at")
+    .eq("author_actor_id", actorId)
+    .neq("status", "draft")
+    .not("application_id", "is", null)
+    .gte("created_at", oldest)
+    .order("created_at", { ascending: false })
+    .limit(DRAFT_SCAN_MAX);
+  if (othersError) throw new Error(othersError.message);
+  const later: LaterEmail[] = (others ?? []).flatMap((o) => (o.application_id ? [{ applicationId: o.application_id, createdAt: o.created_at }] : []));
+
+  const current = currentDrafts(scanned, later);
+  const capped = current.length > DRAFTS_MAX || scanned.length >= DRAFT_SCAN_MAX;
+  const ids = current.slice(0, DRAFTS_MAX).map((d) => d.draftId);
+  if (!ids.length) return { drafts: [], capped };
+  const { data, error: rowsError } = await db
+    .from("candidate_emails")
+    .select("id, person_id, application_id, to_email, subject, body, created_at, updated_at, people(display_name), applications(roles(title))")
+    .in("id", ids)
+    .order("updated_at", { ascending: false })
+    .overrideTypes<DraftRow[], { merge: false }>();
+  if (rowsError) throw new Error(rowsError.message);
+  const drafts = (data ?? []).map((d) => ({
     draftId: d.id,
     personId: d.person_id,
     personName: d.people?.display_name ?? d.to_email,
@@ -74,19 +112,7 @@ async function readDrafts(db: Db, actorId: string): Promise<{ drafts: InboxDraft
     createdAt: d.created_at,
     updatedAt: d.updated_at,
   }));
-  const capped = rows.length >= DRAFTS_MAX;
-
-  const applications = [...new Set(rows.flatMap((d) => d.applicationId ?? []))];
-  if (!applications.length) return { drafts: rows, capped };
-  const { data: others, error: othersError } = await db
-    .from("candidate_emails")
-    .select("application_id, created_at")
-    .eq("author_actor_id", actorId)
-    .neq("status", "draft")
-    .in("application_id", applications);
-  if (othersError) throw new Error(othersError.message);
-  const later: LaterEmail[] = (others ?? []).flatMap((o) => (o.application_id ? [{ applicationId: o.application_id, createdAt: o.created_at }] : []));
-  return { drafts: currentDrafts(rows, later), capped };
+  return { drafts, capped };
 }
 
 export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, now: Date): Promise<InboxRead> {

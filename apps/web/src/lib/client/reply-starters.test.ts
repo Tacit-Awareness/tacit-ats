@@ -18,6 +18,15 @@ describe("replyStarters", () => {
     expect(replyStarters({ ...base, candidateName: "   " }).bodies.blank).toBe("Hi,\n\nAda");
   });
 
+  test("a job with no title reads as a sentence, not \"the this role\"", () => {
+    for (const jobTitle of [null, "   ", "{{}}"]) {
+      const s = replyStarters({ ...base, jobTitle });
+      expect(s.subject).toBe("Your application");
+      expect(s.bodies.interview).toContain("Thanks for applying for the role.");
+      expect(s.bodies.decline).toContain("Thank you for applying for the role,");
+    }
+  });
+
   test("double braces in someone's name can't become a placeholder core refuses", () => {
     const s = replyStarters({ ...base, candidateName: "{{job_title}} Smith", jobTitle: "Eng {{oops}}" });
     expect([s.subject, ...Object.values(s.bodies)].join("\n")).not.toMatch(/\{\{|\}\}/);

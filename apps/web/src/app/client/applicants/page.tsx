@@ -81,7 +81,7 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
             sender: reply.sender,
             failed: reply.failed,
             sent: reply.sent ? { when: ago(reply.sent.at, now), subject: reply.sent.subject, by: reply.sent.by } : null,
-            starters: replyStarters({ candidateName: open.name, jobTitle: open.jobTitle ?? "this", company: org.name, sender: user.name }),
+            starters: replyStarters({ candidateName: open.name, jobTitle: open.jobTitle, company: org.name, sender: user.name }),
             subjectMax: clientTools.EMAIL_SUBJECT_MAX,
             bodyMax: clientTools.EMAIL_BODY_MAX,
           }

@@ -118,14 +118,19 @@ export function ReplyBox({ reply }: { reply: Reply }) {
 
   const body = mine ?? bodies[kind];
   const canWrite = enabled && to !== null && !draft;
+  // Focus only follows a press: a ticket that opens on a failed send must leave J and K walking the list.
+  const pressed = useRef(false);
   const start = () => {
-    if (isShown(box.current)) setOpen(true);
+    if (!isShown(box.current)) return;
+    pressed.current = true;
+    setOpen(true);
   };
   useKeys({ r: start }, canWrite && !open);
   useKeyHelp("Applicant Tickets", canWrite ? [{ keys: "R", label: "Write a reply" }, { keys: "⌘↵", label: "Review the draft" }] : []);
 
   useEffect(() => {
-    if (open) area.current?.focus();
+    if (open && pressed.current) area.current?.focus();
+    pressed.current = false;
   }, [open, changing]);
 
   const sent = reply.sent ? (
@@ -154,6 +159,7 @@ export function ReplyBox({ reply }: { reply: Reply }) {
     const change = () => {
       setSubject(draft.subject);
       setMine(draft.body);
+      pressed.current = true;
       setChanging(true);
       setOpen(true);
     };
