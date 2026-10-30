@@ -52,6 +52,7 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
 type NavLink = { href: string; label: string; icon: IconName; activeUnder?: string[] };
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
+const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "team" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
@@ -253,6 +254,7 @@ export function ShellFrame({
 
   const commands: CommandItem[] = [
     { group: "Go to", label: HOME.label, href: HOME.href },
+    { group: "Go to", label: CRM.label, href: CRM.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
@@ -310,6 +312,7 @@ export function ShellFrame({
 
         <nav className="grid gap-0.5" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
+          <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </nav>
 
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")} rail={rail}>

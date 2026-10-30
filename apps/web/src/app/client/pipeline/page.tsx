@@ -10,7 +10,7 @@ import { PipelineView, type BoardCard, type BoardColumn } from "./view";
 // read with the signed-in member's own token (lib/client/pipeline.ts). This
 // page only arranges it: the member's job tab and name filter, each column's
 // order, and a dozen cards a column until "Show all". Read-only: a card opens
-// its job's board, where the edit controls are.
+// the candidate page; the edit controls are on each job's board.
 
 /** Cards a column shows before "Show all", as design/tats's board. */
 const COLUMN_PREVIEW = 12;
@@ -96,7 +96,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     const open = expanded === key;
     const cards: BoardCard[] = (open ? all : all.slice(0, COLUMN_PREVIEW)).map((e) => ({
       applicationId: e.applicationId,
-      href: `/client/jobs/${e.roleId}`,
+      href: `/client/candidates/${e.personId}`,
       name: e.personName,
       line: job ? (e.headline ?? e.roleTitle) : e.roleTitle,
       status: statusOf(e, nowMs),
