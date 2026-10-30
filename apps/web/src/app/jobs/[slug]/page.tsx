@@ -1,10 +1,11 @@
-import { cache } from "react";
+import { Fragment, cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
 import { guideSteps } from "@/lib/public/application";
 import { readJobPost } from "@/lib/public/jobs";
+import { parsePostText } from "@/lib/public/post-text";
 import { ApplicationForm, answerField } from "./application-form";
 import { ApplicationBar, ApplicationGuide } from "./guide";
 
@@ -112,9 +113,20 @@ export default async function JobPostPage({
                   <>
                     {read.description ? (
                       <div className="desc">
-                        {read.description.split(/\n{2,}/).map((p, i) => (
-                          <p key={i}>{p}</p>
-                        ))}
+                        {parsePostText(read.description).map((b, i) =>
+                          b.kind === "text" ? (
+                            <p key={i}>{b.text}</p>
+                          ) : (
+                            <Fragment key={i}>
+                              {b.heading ? <h3>{b.heading}</h3> : null}
+                              <ul>
+                                {b.lines.map((line, n) => (
+                                  <li key={n}>{line}</li>
+                                ))}
+                              </ul>
+                            </Fragment>
+                          ),
+                        )}
                       </div>
                     ) : null}
                     <Link className="btn dark wide" href={`/jobs/${slug}?tab=application`}>

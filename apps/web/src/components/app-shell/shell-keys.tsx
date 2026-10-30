@@ -17,8 +17,9 @@ const OPEN_EVENT = "tats:keys";
 function Keys({ keys }: { keys: string }) {
   return (
     <span className="flex flex-none items-center gap-1">
-      {keys.split(" ").map((k, i) =>
-        ["then", "/", "or"].includes(k) ? (
+      {keys.split(" ").map((k, i, all) =>
+        // Between two keys these are words; last, "/" is the key.
+        ["then", "/", "or"].includes(k) && i > 0 && i < all.length - 1 ? (
           <span key={i} className="text-[11.5px] text-faint">
             {k}
           </span>

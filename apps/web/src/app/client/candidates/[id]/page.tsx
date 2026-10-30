@@ -12,8 +12,9 @@ import { CandidateView } from "./view";
 // admin or the hiring team, an interviewer's own interviews and notes. Under
 // each job the member may edit (can_on_role 'can_edit_pipeline', asked by
 // lib/client/candidate-edits.ts's readEditing) come its controls; actions.ts
-// does the writes and answers with a code (messages.ts). Nobody by that id
-// they can see is a 404, the same as no such candidate.
+// does the writes and answers with a code (messages.ts). Anyone who can open
+// the page can leave a note (note-composer.tsx). Nobody by that id they can
+// see is a 404, the same as no such candidate.
 
 export default async function ClientCandidate({
   params,

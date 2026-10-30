@@ -1,4 +1,5 @@
 import { APPLICATION_STAGES, NEXT_ACTION_MAX, parseDueDate, type ApplicationStage } from "@tacit/core";
+import { clientTools } from "@tacit-ats/core";
 import { NOTE_MAX } from "./note-max";
 
 // The candidate page's edit rules, pure: which reason a close needs, where
@@ -7,10 +8,19 @@ import { NOTE_MAX } from "./note-max";
 
 export { NOTE_MAX };
 
+/** The longest note on a candidate: clientTools.addNote's own limit, not a touch's. */
+export const CANDIDATE_NOTE_MAX = clientTools.NOTE_MAX;
+
+/** Whether the page offers a note: not on someone erased, whom addNote refuses too. */
+export const noteable = (name: string | null): boolean => name !== clientTools.ANONYMIZED_NAME;
+
 /** The rejection_reasons kind a move to this stage needs, or null when it needs none. */
 export function closeReasonKind(stage: string): "rejected" | "withdrew" | null {
   return stage === "rejected" ? "rejected" : stage === "withdrawn" ? "withdrew" : null;
 }
+
+/** Every stage a plain move may go to: all but the two closes, which need a reason. */
+export const MOVABLE_STAGES: readonly ApplicationStage[] = APPLICATION_STAGES.filter((s) => closeReasonKind(s) === null);
 
 const LIVE: readonly ApplicationStage[] = ["sourced", "contacted", "screening", "interviewing", "offer", "hired"];
 
@@ -24,14 +34,14 @@ const isStage = (v: unknown): v is ApplicationStage => typeof v === "string" && 
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Fields = { get(key: string): unknown };
+export type Fields = { get(key: string): unknown };
 
-const idOf = (f: Fields, key: string): string | null => {
+export const idOf = (f: Fields, key: string): string | null => {
   const v = f.get(key);
   return typeof v === "string" && UUID.test(v) ? v : null;
 };
 
-const textOf = (f: Fields, key: string, max: number): string | null => {
+export const textOf = (f: Fields, key: string, max: number): string | null => {
   const v = f.get(key);
   return typeof v === "string" && v.trim() !== "" ? v.trim().slice(0, max) : null;
 };
@@ -93,6 +103,22 @@ export function parseOwner(f: Fields): { applicationId: string; ownerActorId: st
 export function parseTouch(f: Fields): { applicationId: string; note: string | null } | null {
   const applicationId = idOf(f, "applicationId");
   return applicationId ? { applicationId, note: textOf(f, "note", NOTE_MAX) } : null;
+}
+
+export type NoteParse = { ok: true; text: string } | { ok: false; error: "note_empty" | "note_long"; text: string };
+
+/**
+ * A note form. A browser posts a textarea's line ends as CRLF but counts them
+ * as one character for maxLength, so they are read back as LF first, and a
+ * full box is not refused. A NUL goes too: Postgres text cannot hold one, and
+ * nobody typed it. Too long is refused, never cut: these are someone's words,
+ * and the form puts them back.
+ */
+export function parseNote(f: Fields): NoteParse {
+  const raw = f.get("text");
+  const text = typeof raw === "string" ? raw.replaceAll("\0", "").replace(/\r\n?/g, "\n").trim() : "";
+  if (!text) return { ok: false, error: "note_empty", text };
+  return text.length > CANDIDATE_NOTE_MAX ? { ok: false, error: "note_long", text } : { ok: true, text };
 }
 
 /** The candidate a form came from, for the redirect back. */

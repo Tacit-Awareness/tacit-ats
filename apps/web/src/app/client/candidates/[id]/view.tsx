@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { Avatar, Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
+import { FEED_MAX } from "@/lib/client/candidate";
+import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
 import type { PastApplication } from "@/lib/client/past-applications";
@@ -9,6 +11,7 @@ import { cn, safeHttpUrl } from "@/lib/utils";
 import { ActivityStory } from "../activity-story";
 import { LocalDay } from "../local-day";
 import { JobControls } from "./controls";
+import { NoteComposer } from "./note-composer";
 
 // The candidate page's markup, props only (page.tsx does the reads), laid
 // out like design/tats's ticket page (#t~APP-x, `.detail`) where real data
@@ -18,8 +21,9 @@ import { JobControls } from "./controls";
 // under it where the member may edit (can_edit_pipeline, controls.tsx); the
 // applications they came back after, with "Applied before" among the chips,
 // as design/tats's past applications (lib/client/past-applications.ts); the
-// profile; the activity as a `.story`), beside the 280px `.props` rail
-// (contact, files). Everything about the candidate is untrusted text and is
+// profile; the activity as a `.story` under the `.composer` for a note, which
+// is above it because this feed runs newest first), beside the 280px `.props`
+// rail (contact, files). Everything about the candidate is untrusted text and is
 // rendered as text; a LinkedIn link is only a link when it is http(s). Times
 // are relative ("3d ago") or a day the browser words in its own zone
 // (LocalDay), so the server needs no time zone.
@@ -313,7 +317,11 @@ export function CandidateView({ candidate, activity, owners, past, editing, noti
 
           <section aria-label="Activity">
             <BlockHead count={activity.length}>Activity</BlockHead>
-            <ActivityStory entries={activity} now={now} />
+            <div className="grid gap-3">
+              {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
+              <ActivityStory entries={activity} now={now} />
+              {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
+            </div>
           </section>
         </div>
 

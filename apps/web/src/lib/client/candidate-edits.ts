@@ -10,8 +10,10 @@ import { closeReasonKind, type MoveInput, type NextActionInput } from "./candida
 // the page showed, so one someone else already made is reported, not
 // overwritten. A move and a next action are clientTools' audited writes, with
 // source `dashboard`, so the connector's read-only switch does not stop them
-// and the hourly limit does. The owner and a touch have no clientTools write,
-// so they stay core's pipeline functions, which are not audited.
+// and the hourly limit does. So is a note on the candidate, which is on the
+// person and not a job, so it has no pipeline gate: addNote asks whether the
+// member can see them. The owner and a touch have no clientTools write, so
+// they stay core's pipeline functions, which are not audited.
 
 export type CloseReason = { reasonId: string; name: string; kind: "rejected" | "withdrew" };
 export type OwnerChoice = { actorId: string; name: string };
@@ -25,22 +27,27 @@ export type EditingRead = {
 
 const NONE: EditingRead = { editable: new Map(), owners: [], reasons: [] };
 
+/** The jobs out of these whose pipeline the member may edit, by the same check a write makes. */
+export async function editableRoles(db: Db, roleIds: string[]): Promise<Set<string>> {
+  const roles = [...new Set(roleIds)];
+  const answers = await Promise.all(
+    roles.map(async (role) => {
+      const r = await db.rpc("can_on_role", { p_role: role, perm: "can_edit_pipeline" });
+      if (r.error) throw new Error(r.error.message);
+      return r.data === true;
+    }),
+  );
+  return new Set(roles.filter((_, i) => answers[i]));
+}
+
 /** What the edit controls need, for the applications the page shows. Empty when the member may edit none of them. */
 export async function readEditing(db: Db, applicationIds: string[]): Promise<EditingRead> {
   if (!applicationIds.length) return NONE;
   const { data: apps, error } = await db.from("applications").select("id, role_id, owner_actor_id").in("id", applicationIds);
   if (error) throw new Error(error.message);
-  const roles = [...new Set((apps ?? []).map((a) => a.role_id))];
-  const allowed = new Map<string, boolean>();
-  await Promise.all(
-    roles.map(async (role) => {
-      const r = await db.rpc("can_on_role", { p_role: role, perm: "can_edit_pipeline" });
-      if (r.error) throw new Error(r.error.message);
-      allowed.set(role, r.data === true);
-    }),
-  );
+  const allowed = await editableRoles(db, (apps ?? []).map((a) => a.role_id));
   const editable = new Map<string, { ownerActorId: string | null }>();
-  for (const a of apps ?? []) if (allowed.get(a.role_id)) editable.set(a.id, { ownerActorId: a.owner_actor_id });
+  for (const a of apps ?? []) if (allowed.has(a.role_id)) editable.set(a.id, { ownerActorId: a.owner_actor_id });
   if (!editable.size) return NONE;
 
   const [members, reasons] = await Promise.all([
@@ -100,11 +107,9 @@ export async function moveCandidate(db: Db, ctx: clientTools.ClientToolCtx, inpu
       reasonId: closing ? input.reasonId : null,
       note: closing ? input.note : null,
     });
-    // The stage matched a moment ago, so anything else means someone else just
-    // moved it. expectedStage is why a close that lost that race replaced nothing.
-    return moved.outcome === "moved" || moved.outcome === "reason_set"
-      ? { ok: true, changed: true, roleId: g.app.role_id }
-      : { ok: false, error: "changed" };
+    // The stage matched a moment ago, so anything but "moved" means someone
+    // else moved them just now, and what they wrote stands.
+    return moved.outcome === "moved" ? { ok: true, changed: true, roleId: g.app.role_id } : { ok: false, error: "changed" };
   } catch (err) {
     // The application was just read, so on a close these are about the reason.
     if (closing && err instanceof clientTools.ClientToolError && (err.code === "not_found" || err.code === "invalid")) {
@@ -141,6 +146,20 @@ export async function setCandidateNextAction(db: Db, ctx: clientTools.ClientTool
     return { ok: true, changed: r.outcome !== "unchanged", roleId: g.app.role_id };
   } catch (err) {
     return refused(err);
+  }
+}
+
+export type NoteOutcome = { ok: true } | { ok: false; error: "note_gone" | "rate_limited" };
+
+/** Adds a note the team can read. Its words never reach the audit row: clientTools.addNote keeps only its id. */
+export async function addCandidateNote(db: Db, ctx: clientTools.ClientToolCtx, input: { candidateId: string; text: string }): Promise<NoteOutcome> {
+  try {
+    await clientTools.addNote(db, ctx, input);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError && err.code === "not_found") return { ok: false, error: "note_gone" };
+    if (err instanceof clientTools.ClientToolError && err.code === "rate_limited") return { ok: false, error: "rate_limited" };
+    throw err;
   }
 }
 

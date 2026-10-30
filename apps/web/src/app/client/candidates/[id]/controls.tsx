@@ -1,9 +1,9 @@
-import { APPLICATION_STAGES, NEXT_ACTION_MAX } from "@tacit/core";
+import { NEXT_ACTION_MAX } from "@tacit/core";
 import { MiniTitle } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { Input, selectClass } from "@/components/ui/input";
 import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
-import { closeReasonKind, nextStage, NOTE_MAX } from "@/lib/client/candidate-edit-rules";
+import { closeReasonKind, MOVABLE_STAGES, nextStage, NOTE_MAX } from "@/lib/client/candidate-edit-rules";
 import { stageLabel } from "@/lib/client/crm-views";
 import { cn } from "@/lib/utils";
 import { logTouchAction, moveCandidateAction, setNextActionAction, setOwnerAction } from "./actions";
@@ -25,9 +25,6 @@ export type JobEditing = {
   owners: OwnerChoice[];
   reasons: CloseReason[];
 };
-
-// The general move offers every stage but the two closes, which need a reason.
-const MOVABLE = APPLICATION_STAGES.filter((s) => closeReasonKind(s) === null);
 
 function Hidden({ e, stage = true }: { e: JobEditing; stage?: boolean }) {
   return (
@@ -99,7 +96,7 @@ export function JobControls({ e }: { e: JobEditing }) {
                 Reopen at…
               </option>
             ) : null}
-            {MOVABLE.map((s) => (
+            {MOVABLE_STAGES.map((s) => (
               <option key={s} value={s}>
                 {stageLabel(s)}
               </option>

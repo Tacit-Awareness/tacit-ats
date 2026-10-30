@@ -17,6 +17,16 @@ export type ColumnKey = (typeof PIPELINE_COLUMNS)[number]["key"];
 
 export const isColumnKey = (v: unknown): v is ColumnKey => PIPELINE_COLUMNS.some((c) => c.key === v);
 
+/**
+ * Why a card cannot be dropped on a column that only its interviews fill: no
+ * stage puts it there. Every other column has a stage behind it.
+ */
+export const NO_DROP: Partial<Record<ColumnKey, string>> = {
+  scheduling: "Scheduling is for candidates with no interview booked or held.",
+  booked: "Candidates land here once an interview is booked.",
+  decide: "Candidates land here once an interview has been held.",
+};
+
 /** One of an application's interviews, as the board needs it. */
 export type InterviewTimes = { startsAt: string; endsAt: string; status: string };
 
