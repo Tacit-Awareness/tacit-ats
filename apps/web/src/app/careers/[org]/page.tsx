@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { CareersFrame } from "@/components/careers/frame";
 import { landingChannel, withVia } from "@/lib/public/channel";
-import { readJobBoard } from "@/lib/public/jobs";
+import { readJobBoard, readOrgBrand } from "@/lib/public/jobs";
 import { Roles } from "./roles";
 
 // A client's public careers page (design/careers's board): its live posts by
@@ -32,12 +32,12 @@ export default async function CareersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { org } = await params;
-  const read = await board(org);
+  const [read, brand] = await Promise.all([board(org), readOrgBrand(org)]);
   if (!read) notFound();
   const h = await headers();
   const channel = landingChannel(await searchParams, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   return (
-    <CareersFrame company={read.company} boardHref={withVia(`/careers/${org}`, channel)}>
+    <CareersFrame company={read.company} brand={brand} boardHref={withVia(`/careers/${org}`, channel)}>
       <div className="wrap">
         <section className="board">
           <h1 className="h1">Careers at {read.company}</h1>
