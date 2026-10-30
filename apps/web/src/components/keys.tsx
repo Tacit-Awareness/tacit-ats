@@ -109,6 +109,7 @@ export function KeyList({
   className,
   role,
   "aria-label": ariaLabel,
+  "data-tour": tour,
   children,
 }: {
   /** The `?` sheet's heading for these keys: the page's name. */
@@ -120,6 +121,8 @@ export function KeyList({
   className?: string;
   role?: string;
   "aria-label"?: string;
+  /** What the tutorial spotlights it as (lib/tour.ts). */
+  "data-tour"?: string;
   children: React.ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -144,6 +147,7 @@ export function KeyList({
       ref={box}
       role={role}
       aria-label={ariaLabel}
+      data-tour={tour}
       className={cn("[&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:-outline-offset-2 [&_:is(a,button):focus-visible]:outline-[color:var(--accent)]", mode === "focus" && "[&>a:focus-visible]:bg-[color:var(--sel)]", className)}
     >
       {children}

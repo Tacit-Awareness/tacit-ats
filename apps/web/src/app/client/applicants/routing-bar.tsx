@@ -43,6 +43,7 @@ export function RoutingBar({ routing }: { routing: Routing }) {
     <form
       ref={form}
       action={routeApplicantAction}
+      data-tour="route"
       className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-2 rounded-[12px] border border-[color:var(--line)] bg-card p-2.5 shadow-[var(--shadow)]"
     >
       <RoutingKeys press={press} decline={decline} />

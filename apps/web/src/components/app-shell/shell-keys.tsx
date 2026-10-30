@@ -54,6 +54,7 @@ export function KeysButton({ className }: { className?: string }) {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+      data-tour="keys"
       aria-label="Keyboard shortcuts (?)"
       title="Keyboard shortcuts (?)"
       className={className}

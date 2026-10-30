@@ -30,7 +30,7 @@ export type Ticket = {
 
 function TicketList({ total, groups }: { total: number; groups: TicketGroup[] }) {
   return (
-    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid gap-3">
+    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid gap-3" data-tour="tickets">
       <h1 className="m-0 flex items-center gap-2 px-2 pt-1.5 text-[15px] font-semibold">
         Applicant Tickets <Count>{total}</Count>
       </h1>

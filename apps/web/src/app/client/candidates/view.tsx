@@ -90,7 +90,7 @@ export function CrmView({
           <Input name="q" defaultValue={search.q} placeholder="Search by name, email or job" aria-label="Search candidates" />
         </form>
       </Toolbar>
-      <Section flush title={viewLabel} count={total.toLocaleString("en-US")}>
+      <Section data-tour="crm" flush title={viewLabel} count={total.toLocaleString("en-US")}>
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>
         ) : (
