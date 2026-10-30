@@ -16,6 +16,7 @@ describe("the client sign-in callback's error page", () => {
       const html = await res.text();
       expect(html).toContain("Your account is ready");
       expect(html).toContain('href="https://internal.tacitawareness.com/client"');
+      expect(res.headers.get("set-cookie"), code).toMatch(/^wos-session=; Path=\/; Max-Age=0/);
     }
   });
 
@@ -27,6 +28,7 @@ describe("the client sign-in callback's error page", () => {
       expect(html).toContain("Couldn't sign in");
       expect(html).not.toContain("secret details");
       expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("set-cookie")).toBeNull();
     }
   });
 });

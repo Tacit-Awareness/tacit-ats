@@ -21,6 +21,13 @@ function callbackCode(error: unknown): string {
   return "unknown";
 }
 
+/**
+ * Expires the session. The callback's refusal leaves the cookie as it was, so
+ * someone who signed in before accepting an invitation would come back from
+ * the link below on that older session, which has no company.
+ */
+const CLEAR_SESSION = "wos-session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax";
+
 export function callbackErrorResponse({ error, request }: { error?: unknown; request: Request }): Response {
   const code = callbackCode(error);
   const startedElsewhere = STARTED_ELSEWHERE.has(code);
@@ -43,6 +50,10 @@ a{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radiu
 </head><body><main><h1>${title}</h1><p>${body}</p><a href="${next}">${action}</a></main></body></html>`;
   return new Response(html, {
     status: startedElsewhere ? 200 : 400,
-    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store",
+      ...(startedElsewhere ? { "set-cookie": CLEAR_SESSION } : {}),
+    },
   });
 }
