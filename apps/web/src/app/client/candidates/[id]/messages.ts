@@ -22,6 +22,7 @@ export const CANDIDATE_ERRORS = {
   note_gone: "That candidate isn't one you can see any more. Nothing was saved.",
   rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   failed: "That didn't work. Nothing was changed.",
+  unsure: "That didn't finish, so they may or may not have moved. Check where they are before trying again.",
 } as const;
 
 export type CandidateNotice = keyof typeof CANDIDATE_NOTICES;

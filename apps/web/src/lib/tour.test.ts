@@ -11,6 +11,13 @@ describe("the tour's steps", () => {
       expect(s.targets.length).toBeGreaterThan(0);
     }
   });
+
+  it("the Pipeline step spotlights the board and names how a card moves", () => {
+    const step = TOUR.find((s) => s.href === "/client/pipeline")!;
+    expect(step.targets).toContain('[data-tour="board"]');
+    expect(step.body).toMatch(/drag/i);
+    expect(step.body).toContain("press S");
+  });
 });
 
 describe("placing the card", () => {
