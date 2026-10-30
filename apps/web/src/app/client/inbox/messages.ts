@@ -1,6 +1,9 @@
+import { ACTIVITY_ERRORS, ACTIVITY_NOTICES } from "../activity/messages";
+
 // What /client/inbox says after dealing with an issue. The action redirects
 // with a code and the page looks the sentence up here, so no name rides in a URL.
 export const INBOX_NOTICES = {
+  ...ACTIVITY_NOTICES,
   done: "Next action cleared.",
   touched: "Touch logged.",
   unchanged: "That had already been dealt with.",
@@ -16,6 +19,7 @@ export const INBOX_NOTICES = {
 } as const;
 
 export const INBOX_ERRORS = {
+  ...ACTIVITY_ERRORS,
   not_found: "That application isn't one you can see any more.",
   forbidden: "You can't change that job's pipeline.",
   not_approver: "That approval isn't waiting on you any more. Nothing was changed.",

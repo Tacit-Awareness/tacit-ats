@@ -17,6 +17,10 @@ import { InboxView } from "./view";
 
 function card(i: Issue, decidable: boolean): { title: string; detail: string } {
   switch (i.reason) {
+    case "bot_failed":
+      return { title: `${i.who} needs a hand`, detail: i.why };
+    case "bot_waiting":
+      return { title: `Waiting on ${i.who === "You" ? "you" : i.who}`, detail: i.why };
     case "feedback":
       return { title: "Waiting on feedback", detail: `${i.why}. Nothing here can remind them yet.` };
     case "overdue":
@@ -64,7 +68,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const now = new Date();
   const nowMs = now.getTime();
   const member = { actorId, orgId: org.id, accessLevel };
-  const { issues, truncated, draftsCapped } = await readInbox(db, member, now);
+  const { issues, truncated, draftsCapped, botsCapped } = await readInbox(db, member, now);
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
   const fix = open ? issueFix(open, detail?.canEdit ?? false) : null;
@@ -95,6 +99,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 fix,
                 decision,
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,
+                bot: open.bot ? { steps: open.bot.steps, note: open.bot.attention.queued ?? open.bot.attention.missed } : null,
                 next: nextIssue(issues, open.key)?.key ?? null,
                 secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
                 story: open.candidate ? (detail?.story ?? null) : null,
@@ -107,6 +112,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
         open={open !== null && open.key === one(sp.i)}
         truncated={truncated}
         draftsCapped={draftsCapped}
+        botsCapped={botsCapped}
       />
     </>
   );

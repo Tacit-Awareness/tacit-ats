@@ -20,8 +20,9 @@ import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail, ⌘K opens the
 // command menu. No counts: the sidebar is for getting around, not a report.
-// The one signal is design/tats's mark, a faint red tint on Inbox or Applicant
-// Tickets when something arrived since you last opened it (shell-memory.tsx).
+// The one signal is design/tats's mark, a faint red tint on Inbox, Applicant
+// Tickets or Grokbot Activity when something arrived since you last opened it
+// (shell-memory.tsx).
 // Saved views you pin sit under Pipeline.
 // Client only for what the server cannot know: which link is active, the
 // drawer on a phone, the menu, the width and the theme toggle.
@@ -45,6 +46,7 @@ const ICONS = {
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
   cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
   layers: "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3",
+  route: "M4 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM12 5.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM4 10.5V8a2 2 0 0 1 2-2h4a2 2 0 0 0 2-2",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -78,11 +80,12 @@ const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", i
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
+const ACTIVITY: NavLink = { href: "/client/activity", label: "Grokbot Activity", icon: "route" };
 const SETTINGS: NavLink[] = [
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
 ];
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
-// G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
+// G then a letter (shell-keys.tsx): design/tats's T, A, J and B, then H, C, I.
 const GO: GoKey[] = [
   { key: "h", label: HOME.label, href: HOME.href },
   { key: "c", label: CRM.label, href: CRM.href },
@@ -90,6 +93,7 @@ const GO: GoKey[] = [
   { key: "t", label: APPLICANTS.label, href: APPLICANTS.href },
   { key: "a", label: PIPELINE.label, href: PIPELINE.href },
   { key: "i", label: INTERVIEWS.label, href: INTERVIEWS.href },
+  { key: "b", label: ACTIVITY.label, href: ACTIVITY.href },
 ];
 
 export type ShellJob = { id: string; title: string };
@@ -251,7 +255,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
   const [sb, setSb] = useState(initial);
   const [shut, setShut] = useState<Set<string>>(() => new Set());
   const views = useViews();
-  const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : null);
+  const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : isActive(ACTIVITY) ? "activity" : null);
   // The drag's start and its live width: the release saves `now`, not the
   // width from the last render, which may not have caught up.
   const drag = useRef<{ x: number; w: number; now: number } | null>(null);
@@ -341,6 +345,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
     { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
     { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
+    { group: "Go to", label: ACTIVITY.label, href: ACTIVITY.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -418,6 +423,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
           <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
           <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
+          <NavItem link={ACTIVITY} active={isActive(ACTIVITY)} rail={rail} fresh={marks.activity ? "A Grokbot task got stuck or failed" : null} />
         </Section>
 
         <div className="mt-auto grid gap-2">

@@ -156,7 +156,7 @@ describe("readMarks", () => {
     expect(lead.tickets).toEqual([app(2)]);
   });
 
-  test("an interviewer has neither page", async () => {
-    expect(await readMarks(member("user_vw_sam", "org_itest_views_acme"), { actorId: SITTER, orgId: ACME, accessLevel: "limited" }, new Date())).toEqual({ inbox: [], tickets: [] });
+  test("an interviewer has neither page, and Activity shows them only their own", async () => {
+    expect(await readMarks(member("user_vw_sam", "org_itest_views_acme"), { actorId: SITTER, orgId: ACME, accessLevel: "limited" }, new Date())).toEqual({ inbox: [], tickets: [], activity: [] });
   });
 });

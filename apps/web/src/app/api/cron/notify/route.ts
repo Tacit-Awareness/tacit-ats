@@ -12,7 +12,11 @@
 //     starting in the next 15 minutes; the tick's own reminder is the backstop;
 //   - asks each interviewer how it went once an interview has ended (the
 //     check-in), and tells the bot when one it opened a thread about was cancelled;
-//   - delivers to the bot: signed JSON, the contract in core's notify/agent-webhook.ts.
+//   - delivers to the bot: signed JSON, the contract in core's notify/agent-webhook.ts;
+//   - delivers what members queued from Grokbot Activity and the Inbox (Retry,
+//     Nudge) as signed `bot_task.command` events, and flags a task that has not
+//     moved in a day needs_you. Neither has anything to do for a bot that has
+//     reported no tasks.
 //
 // One company's failure does not stop the others. CRON_SECRET authenticates
 // Vercel's cron. NOTIFY_REMINDER_TIMERS=off turns the timers off.
@@ -53,6 +57,7 @@ export async function GET(request: Request): Promise<Response> {
         interviewSource: { calendar },
         agentInterviewSource: { calendar },
         calendarSync: calendar ? { calendar } : null,
+        botTasks: {},
         reminderTimers: timersOn
           ? {
               start: async ({ interviewId, startsAt, wakeAt }) =>

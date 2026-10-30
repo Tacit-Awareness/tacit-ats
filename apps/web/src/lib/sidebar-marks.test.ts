@@ -29,8 +29,8 @@ describe("reading what storage or the route gave", () => {
   });
 
   test("each list stands alone, and only strings count", () => {
-    expect(parseMarks({ inbox: ["a", 1, null], tickets: "x" })).toEqual({ inbox: ["a"], tickets: null });
-    expect(parseMarks({ inbox: null, tickets: [] })).toEqual({ inbox: null, tickets: [] });
+    expect(parseMarks({ inbox: ["a", 1, null], tickets: "x" })).toEqual({ inbox: ["a"], tickets: null, activity: null });
+    expect(parseMarks({ inbox: null, tickets: [], activity: ["t"] })).toEqual({ inbox: null, tickets: [], activity: ["t"] });
   });
 });
 

@@ -7,13 +7,15 @@ import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { IssueFix } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
+import { BotCommandButton } from "../activity/command-button";
 import { fixIssueAction } from "./actions";
 
 // The reader's buttons (design/tats's `.kb-bar`, a label then its key): the
 // one thing that deals with this issue, on F (the same link or the same form
-// post), and the candidate's page. A decision has its own bar (decision-bar.tsx:
-// A, O, R, as design/tats, which has no F there). design/tats's E (Dismiss) is
-// left out: nothing stores one. Its "Ask Grokbot" needs the bot.
+// post, or on a Grokbot issue the confirmation before a command to it), and the
+// candidate's page. A decision has its own bar (decision-bar.tsx: A, O, R, as
+// design/tats, which has no F there). design/tats's E (Dismiss) is left out:
+// nothing stores one. Its "Ask Grokbot" needs the bot.
 
 export const button = "inline-flex h-7 items-center gap-2 rounded-2xl border px-3 text-[13px] font-medium whitespace-nowrap transition-colors";
 export const primary = "border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-106 disabled:opacity-60";
@@ -70,10 +72,10 @@ function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; ne
   );
 }
 
-export function FixBar({ fix, next, secondary }: { fix: Extract<IssueFix, { type: "link" | "write" }>; next: string | null; secondary: { label: string; href: string } | null }) {
+export function FixBar({ fix, next, secondary }: { fix: Extract<IssueFix, { type: "link" | "write" | "bot" }>; next: string | null; secondary: { label: string; href: string } | null }) {
   return (
     <div data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
-      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} next={next} />}
+      {fix.type === "link" ? <LinkFix fix={fix} /> : fix.type === "write" ? <WriteFix fix={fix} next={next} /> : <BotCommandButton key={fix.fix.taskId} fix={fix.fix} from="inbox" next={next} keyed />}
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}

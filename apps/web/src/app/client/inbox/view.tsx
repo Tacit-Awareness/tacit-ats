@@ -2,9 +2,11 @@ import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
 import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page";
+import type { StepLine } from "@/lib/client/bot-activity";
 import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import { ISSUE_KINDS, type IssueFix, type IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
+import { BotSteps } from "../activity/steps";
 import { ActivityStory } from "../candidates/activity-story";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
@@ -14,8 +16,8 @@ import { FixBar } from "./fix-bar";
 // a row each: an icon, what is wrong, who it waits on and why, its age. The
 // reader: the same heading, the one fix (fix-bar.tsx, key F) or the decision
 // (decision-bar.tsx, keys A, O, R), the card saying what is waiting, an offer's
-// terms for the approver reading it, then the candidate's story. Everything a
-// member or a candidate wrote renders as text.
+// terms for the approver reading it or a Grokbot's steps, then the candidate's
+// story. Everything a member, a candidate or a bot wrote renders as text.
 
 export type IssueRow = { key: string; kind: IssueKind; href: string; what: string; who: string | null; line: string; age: string; active: boolean };
 
@@ -31,6 +33,8 @@ export type IssueReaderProps = {
   decision: DecisionProps | null;
   /** An offer waiting on this member: its terms, as lines. Null for anything else. */
   terms: TermLine[] | null;
+  /** A Grokbot issue: its steps, and a line on a command already asked for or lost. Null for anything else. */
+  bot: { steps: StepLine[]; note: string | null } | null;
   next: string | null;
   secondary: { label: string; href: string } | null;
   /** Null for an issue with no candidate (a job's approval), or one the member can't read (an approver not on the job). */
@@ -39,12 +43,14 @@ export type IssueReaderProps = {
 };
 
 const ICON: Record<IssueKind, string> = {
+  bot: "M8 2.5 14 13H2ZM8 6.5v3M8 11.3h.01",
   draft: "M2.5 4h11v8.5h-11ZM2.5 4.5 8 8.8l5.5-4.3",
   late: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 4.8V8l2.2 1.3",
   decide: "M3.5 14V2.5M3.5 3h8.5l-2 3 2 3H3.5",
 };
 
 const TONE: Record<IssueKind, string> = {
+  bot: "bg-[color:var(--red-soft)] text-[color:var(--red)]",
   draft: "bg-[color:var(--sel)] text-[color:var(--accent)]",
   late: "bg-[color:var(--amber-soft)] text-[color:var(--amber)]",
   decide: "bg-[color:var(--soft)] text-muted-foreground",
@@ -84,7 +90,7 @@ function Row({ r }: { r: IssueRow }) {
   );
 }
 
-function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean }) {
+function IssueList({ rows, truncated, draftsCapped, botsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean; botsCapped: boolean }) {
   return (
     <KeyList title="Inbox" next="Next issue" mode="select" data-tour="inbox" className="grid content-start gap-0.5">
       {ISSUE_KINDS.map((k) => {
@@ -104,6 +110,7 @@ function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; trunca
       })}
       {truncated ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
       {draftsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
+      {botsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many Grokbot tasks to check them all, so older ones may not be listed.</p> : null}
     </KeyList>
   );
 }
@@ -127,7 +134,7 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
       <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">{issue.subject}</p>
       {issue.decision ? (
         <DecisionBar key={issue.decision.key} decision={issue.decision} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
-      ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
+      ) : issue.fix.type === "link" || issue.fix.type === "write" || issue.fix.type === "bot" ? (
         <FixBar fix={issue.fix} next={issue.next} secondary={issue.secondary} />
       ) : null}
       <section className="mt-5 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
@@ -142,6 +149,12 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
         {issue.terms ? (
           <div className="mt-3 border-t border-[color:var(--line)] pt-3">
             <OfferTerms lines={issue.terms} />
+          </div>
+        ) : null}
+        {issue.bot?.note ? <p className="m-0 mt-3 border-t border-[color:var(--line)] pt-3 text-[13px] text-muted-foreground">{issue.bot.note}</p> : null}
+        {issue.bot?.steps.length ? (
+          <div className="mt-3 border-t border-[color:var(--line)] pt-3">
+            <BotSteps steps={issue.bot.steps} />
           </div>
         ) : null}
       </section>
@@ -163,6 +176,7 @@ export function InboxView({
   open,
   truncated,
   draftsCapped,
+  botsCapped,
 }: {
   rows: IssueRow[];
   issue: IssueReaderProps | null;
@@ -171,6 +185,7 @@ export function InboxView({
   open: boolean;
   truncated: boolean;
   draftsCapped: boolean;
+  botsCapped: boolean;
 }) {
   const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
   if (!issue) {
@@ -185,7 +200,7 @@ export function InboxView({
             </svg>
           </span>
           <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
-          <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
+          <p className="m-0 text-[13px] text-muted-foreground">Grokbot failures, unsent drafts, overdue work and decisions show up here.</p>
           <Link href="/client/pipeline" className={cn(textLink, "mt-1")}>
             Open Pipeline
           </Link>
@@ -199,7 +214,7 @@ export function InboxView({
       readerLabel="Issue"
       open={open}
       bar={<PageBar title="Inbox" count={rows.length} />}
-      list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} />}
+      list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} botsCapped={botsCapped} />}
       reader={
         <div className="grid content-start gap-3 md:px-6 md:pt-3 md:pb-10">
           <Link href="/client/inbox" className={cn(textLink, "md:hidden")}>

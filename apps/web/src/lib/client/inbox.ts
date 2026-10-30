@@ -1,5 +1,6 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
+import { canCommandTask, readBotNeedsYou } from "./bot-tasks";
 import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
 import { DRAFT_LATE_MS, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
@@ -10,9 +11,10 @@ import { readPipeline } from "./pipeline";
 // Pipeline board's read (live applications on open jobs: overdue next
 // actions, core's stalled, the "Your call" column), core's interviewerActivity
 // (admins and whoever manages a job; refused for anyone else, who sees no
-// feedback issues), core's listMyApprovals, and their own candidate_emails
-// drafts (the policy shows a draft to its author alone). lib/client/
-// inbox-issues.ts turns these into the queue. Not for an interviewer
+// feedback issues), core's listMyApprovals, their own candidate_emails drafts
+// (the policy shows a draft to its author alone), and the Grokbot tasks that
+// need someone (lib/client/bot-tasks.ts). lib/client/inbox-issues.ts turns
+// these into the queue. Not for an interviewer
 // (`limited`), who is refused: the page points them home. The writes are
 // clientTools' audited ones with source `dashboard`: a decision on an approval,
 // and the stage move the candidate page makes.
@@ -36,6 +38,8 @@ export type InboxRead = {
   truncated: boolean;
   /** The drafts read reached DRAFTS_MAX, so older ones may not be listed. */
   draftsCapped: boolean;
+  /** The bot tasks read reached NEEDS_MAX, so older ones may not be listed. */
+  botsCapped: boolean;
 };
 
 type DraftRow = {
@@ -76,7 +80,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
   if (member.accessLevel === "limited") throw new clientTools.ClientToolError("forbidden", "An interviewer's work is on their home page.");
   // The reports never write an audit row, so the source is never read.
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [pipeline, activity, approvals, drafts] = await Promise.all([
+  const [pipeline, activity, approvals, drafts, bots] = await Promise.all([
     readPipeline(db, now),
     clientTools.interviewerActivity(db, ctx, { since: new Date(now.getTime() - FEEDBACK_WINDOW_DAYS * DAY).toISOString().slice(0, 10) }).catch((err: unknown) => {
       // Someone who manages no job: whether anyone filed is not theirs to see.
@@ -85,6 +89,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
     }),
     clientTools.listMyApprovals(db, ctx),
     readDrafts(db, member.actorId, now),
+    readBotNeedsYou(db, now),
   ]);
 
   const names = new Map((activity?.interviewers ?? []).map((i) => [i.userId, i.name]));
@@ -115,17 +120,21 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
           steps: a.steps,
         })),
         drafts,
+        bots: bots.tasks,
+        me: member.actorId,
       },
       now.getTime(),
     ),
     truncated: activity?.truncated ?? false,
     draftsCapped: drafts.length >= DRAFTS_MAX,
+    botsCapped: bots.capped,
   };
 }
 
 /**
  * What the reader adds for the issue open: the candidate's story, whether the
- * member may edit the job, the reasons a rejection can give, and an offer's
+ * member may edit the job (on a Grokbot issue, may command the bot, which is
+ * bot_task_command's own rule), the reasons a rejection can give, and an offer's
  * terms. The terms are read here, for the one open, and never reach the queue:
  * `my_approvals` shows them to whoever must approve, who can't decide without
  * them, and they go no further than this member's page. An approver may have no
@@ -145,12 +154,14 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
           },
         )
       : [],
-    issue.applicationId && issue.job.id
-      ? db.rpc("can_on_role", { p_role: issue.job.id, perm: "can_edit_pipeline" }).then((r) => {
-          if (r.error) throw new Error(r.error.message);
-          return r.data === true;
-        })
-      : false,
+    issue.bot
+      ? canCommandTask(db, issue.bot.application)
+      : issue.applicationId && issue.job.id
+        ? db.rpc("can_on_role", { p_role: issue.job.id, perm: "can_edit_pipeline" }).then((r) => {
+            if (r.error) throw new Error(r.error.message);
+            return r.data === true;
+          })
+        : false,
     offerRequest ? clientTools.listMyApprovals(db, ctx).then((all) => all.find((a) => a.requestId === offerRequest)?.terms ?? null) : null,
     issue.reason === "decide"
       ? clientTools.listRejectionReasons(db, ctx).then((all): CloseReason[] => all.filter((r) => r.kind === "rejected"))

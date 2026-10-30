@@ -20,6 +20,14 @@ describe("the tour's steps", () => {
   });
 });
 
+describe("the Grokbot Activity step", () => {
+  it("spotlights the page, and says a fix asks first", () => {
+    const step = TOUR.find((s) => s.href === "/client/activity")!;
+    expect(step.targets).toContain('[data-tour="activity"]');
+    expect(step.body).toContain("ask you first");
+  });
+});
+
 describe("placing the card", () => {
   it("puts the card right of the element, the spotlight around it", () => {
     const p = placeTour({ left: 20, top: 100, width: 200, height: 40 }, view, card);

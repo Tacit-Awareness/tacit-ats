@@ -22,6 +22,7 @@ export function IntegrationsView({
   bot,
   orgName,
   botCallbackUrl,
+  botTaskUrl,
   notice,
   error,
 }: {
@@ -32,6 +33,7 @@ export function IntegrationsView({
   bot: { set: CompanyBot | null } | null;
   orgName: string;
   botCallbackUrl: string | null;
+  botTaskUrl: string | null;
   notice?: string;
   error?: string;
 }) {
@@ -91,7 +93,7 @@ export function IntegrationsView({
           </div>
         </Rows>
       </Section>
-      {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} /> : null}
+      {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} taskUrl={botTaskUrl} /> : null}
     </Page>
   );
 }

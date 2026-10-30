@@ -11,9 +11,8 @@ export type TourStep = {
   body: string;
 };
 
-// design/tats's tour, for the pages that exist: its Grokbot Activity and Chat
-// steps are left out with nothing behind them, and its Inbox key bar step is
-// part of the Inbox's own.
+// design/tats's tour, for the pages that exist: its Chat step is left out with
+// nothing behind it, and its Inbox key bar step is part of the Inbox's own.
 export const TOUR: TourStep[] = [
   {
     href: "/client",
@@ -74,6 +73,12 @@ export const TOUR: TourStep[] = [
     targets: ['[data-tour="refer"]'],
     title: "Referrals",
     body: "Who referred whom and where they are now. Add one here.",
+  },
+  {
+    href: "/client/activity",
+    targets: ['[data-tour="activity"]'],
+    title: "Grokbot Activity",
+    body: "What the Grokbots did, and the few things they couldn't finish without you. Retry and Nudge ask you first.",
   },
   {
     href: null,

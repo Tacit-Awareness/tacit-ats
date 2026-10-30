@@ -17,7 +17,7 @@ export type CompanyBot = { url: string; enabled: boolean; verifiedAt: string | n
 // an admin's token can). Tacit sends it each interview's moments: a hello
 // five minutes before, a check-in after, and a note when one is cancelled.
 // The secret appears here once, right after it is made.
-export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | null; orgName: string; callbackUrl: string | null }) {
+export function BotSection({ bot, orgName, callbackUrl, taskUrl }: { bot: CompanyBot | null; orgName: string; callbackUrl: string | null; taskUrl: string | null }) {
   const [setState, set] = useActionState<SecretResult, FormData>(setBotAction, {});
   const [rotateState, rotate] = useActionState<SecretResult>(rotateBotSecretAction, {});
   const fresh = rotateState.secret ?? setState.secret;
@@ -103,6 +103,7 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
             <p className="m-0 text-xs text-faint">
               Saving again replaces the address and the key, and needs verifying again.
               {callbackUrl ? <> Your bot tells Tacit which Slack thread it opened at <code className="font-mono">{callbackUrl}</code>, or in its answer.</> : null}
+              {taskUrl ? <> It reports what it is doing at <code className="font-mono">{taskUrl}</code>, for Grokbot Activity and the Inbox.</> : null}
             </p>
           </form>
         </div>

@@ -1,4 +1,5 @@
 import type { StalledReason } from "@tacit/core";
+import { attentionOf, botName, firstName, stepLines, type BotAttention, type BotFix, type BotTask, type StepLine } from "./bot-activity";
 import { ago, lastInterviewAt, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
 
 // The Inbox's queue (design/tats's #inbox): what is stuck and waiting on
@@ -6,23 +7,25 @@ import { ago, lastInterviewAt, type ColumnKey, type InterviewTimes } from "./pip
 // one leaves the queue by being dealt with, never by being marked. An
 // application has at most one issue, the first that holds of: feedback
 // outstanding, the next action overdue, the team's call waiting, nobody
-// touching it. A pending approval takes the place of its application's issue.
+// touching it. A Grokbot that failed or is stuck comes before all of those, and
+// a pending approval takes the place of its application's issue.
 // Pure: lib/client/inbox.ts reads, this sorts and words. Next-action text,
 // names and a draft's subject are plain text, never markup.
 
 export const ISSUE_KINDS = [
+  { key: "bot", label: "Bot failures" },
   { key: "draft", label: "Unsent drafts" },
   { key: "late", label: "Overdue" },
   { key: "decide", label: "Decisions" },
 ] as const;
 
 export type IssueKind = (typeof ISSUE_KINDS)[number]["key"];
-export type IssueReason = "draft" | "feedback" | "overdue" | "quiet" | "decide" | "approval";
+export type IssueReason = "bot_failed" | "bot_waiting" | "draft" | "feedback" | "overdue" | "quiet" | "decide" | "approval";
 
 /** A draft older than this is forgotten, not being written (the prototype's two hours for an invite). */
 export const DRAFT_LATE_MS = 2 * 3_600_000;
 
-const KIND: Record<IssueReason, IssueKind> = { draft: "draft", feedback: "late", overdue: "late", quiet: "late", decide: "decide", approval: "decide" };
+const KIND: Record<IssueReason, IssueKind> = { bot_failed: "bot", bot_waiting: "late", draft: "draft", feedback: "late", overdue: "late", quiet: "late", decide: "decide", approval: "decide" };
 
 /** A live application on an open job, as the Pipeline board reads it. */
 export type InboxCard = {
@@ -71,6 +74,14 @@ export type InboxDraft = {
   updatedAt: string;
 };
 
+/** A Grokbot task that needs someone: the fix, what to show, and what bot_task_command will ask of the member. */
+export type InboxBot = {
+  taskId: string;
+  attention: BotAttention;
+  steps: StepLine[];
+  application: BotTask["application"];
+};
+
 export type Issue = {
   /** Stable while the issue stands: `?i=` in the URL, so ids only. */
   key: string;
@@ -93,9 +104,9 @@ export type Issue = {
   /** An approval: the request to decide. Its terms are never here: readIssue fetches them for the one open. */
   approval: { requestId: string; kind: InboxApproval["kind"] } | null;
   draft: InboxDraft | null;
+  /** A Grokbot issue. Its error and steps are the bot's own text, shown as text. */
+  bot: InboxBot | null;
 };
-
-const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 function feedbackIssue(missing: InboxOutstanding[], now: number): Partial<Issue> {
   const oldest = [...missing].sort((a, b) => Date.parse(a.endsAt) - Date.parse(b.endsAt))[0]!;
@@ -147,6 +158,7 @@ function applicationIssue(card: InboxCard, missing: InboxOutstanding[], now: num
     nextAction: found.nextAction ?? null,
     approval: null,
     draft: null,
+    bot: null,
   };
 }
 
@@ -166,6 +178,7 @@ function approvalIssue(a: InboxApproval): Issue {
     nextAction: null,
     approval: { requestId: a.requestId, kind: a.kind },
     draft: null,
+    bot: null,
   };
 }
 
@@ -185,21 +198,62 @@ function draftIssue(d: InboxDraft): Issue {
     nextAction: null,
     approval: null,
     draft: d,
+    bot: null,
   };
 }
 
-/** The whole queue: unsent drafts, then overdue, then decisions, newest first in each, as the prototype sorts. */
+/** One issue a task. The fix is the task's, and who may press it is checked when it is opened. */
+function botIssue(t: BotTask, me: string, now: number): Issue {
+  const attention = attentionOf(t, me, now);
+  const waiting = attention.tone === "waiting" ? (t.waitingOn?.id === me ? "You" : t.waitingOn?.name) : null;
+  return {
+    key: `bot-${t.id}`,
+    kind: attention.tone === "failed" ? "bot" : "late",
+    reason: attention.tone === "failed" ? "bot_failed" : "bot_waiting",
+    at: t.updatedAt,
+    what: attention.what,
+    why: attention.why,
+    who: waiting ?? botName(t, me),
+    candidate: t.candidate,
+    job: { id: t.application?.roleId ?? null, title: t.jobTitle },
+    applicationId: t.application?.id ?? null,
+    interviewId: null,
+    nextAction: null,
+    approval: null,
+    draft: null,
+    bot: { taskId: t.id, attention, steps: stepLines(t.steps, now), application: t.application },
+  };
+}
+
+/** An application shows one bot issue, as design/tats: a failure before a wait, then the newest. The rest stay on Grokbot Activity. */
+function oneEachApplication(tasks: BotTask[], me: string, now: number): BotTask[] {
+  const failed = (t: BotTask) => (attentionOf(t, me, now).tone === "failed" ? 1 : 0);
+  const seen = new Set<string>();
+  return [...tasks]
+    .sort((a, b) => failed(b) - failed(a) || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .filter((t) => {
+      if (!t.application) return true;
+      if (seen.has(t.application.id)) return false;
+      seen.add(t.application.id);
+      return true;
+    });
+}
+
+/** The whole queue: bot failures, unsent drafts, overdue, then decisions, newest first in each, as the prototype sorts. */
 export function inboxIssues(
-  input: { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[] },
+  input: { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[]; bots: BotTask[]; me: string },
   now: number,
 ): Issue[] {
   const missing = new Map<string, InboxOutstanding[]>();
   for (const o of input.outstanding) missing.set(o.applicationId, [...(missing.get(o.applicationId) ?? []), o]);
   const approving = new Set(input.approvals.map((a) => a.applicationId));
+  const bots = oneEachApplication(input.bots, input.me, now);
+  const withBot = new Set(bots.map((t) => t.application?.id));
 
   const issues = [
+    ...bots.map((t) => botIssue(t, input.me, now)),
     ...input.drafts.filter((d) => now - Date.parse(d.updatedAt) > DRAFT_LATE_MS).map(draftIssue),
-    ...input.cards.filter((c) => !approving.has(c.applicationId)).flatMap((c) => applicationIssue(c, missing.get(c.applicationId) ?? [], now) ?? []),
+    ...input.cards.filter((c) => !approving.has(c.applicationId) && !withBot.has(c.applicationId)).flatMap((c) => applicationIssue(c, missing.get(c.applicationId) ?? [], now) ?? []),
     ...input.approvals.map(approvalIssue),
   ];
   const rank = (i: Issue) => ISSUE_KINDS.findIndex((k) => k.key === i.kind);
@@ -224,18 +278,24 @@ export function nextIssue(issues: Issue[], key: string): Issue | null {
 
 /**
  * The one thing that deals with an issue: a write the member may make here,
- * the page that has it, or a decision (A / O / R, each confirmed first:
- * inbox/decision-bar.tsx).
+ * the page that has it, a decision (A / O / R, each confirmed first:
+ * inbox/decision-bar.tsx), or a command to the Grokbot (F, confirmed first:
+ * activity/command-button.tsx).
  */
 export type IssueFix =
   | { type: "write"; write: "done" | "touch"; label: string; applicationId: string; /** What "Mark it done" clears, so a changed one is left alone. */ nextAction: string | null }
   | { type: "link"; label: string; href: string }
+  | { type: "bot"; fix: BotFix }
   | { type: "approval"; requestId: string; kind: InboxApproval["kind"] }
   | { type: "decide"; applicationId: string; /** Where A goes: booking a round isn't in the web app, so it is their page. */ nextRoundHref: string };
 
 const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
 
 export function issueFix(i: Issue, canEdit: boolean): IssueFix {
+  if (i.bot) {
+    if (canEdit && !i.bot.attention.queued) return { type: "bot", fix: i.bot.attention.fix };
+    return i.candidate ? { type: "link", label: "Open candidate", href: candidateHref(i) } : { type: "link", label: "Open Grokbot Activity", href: "/client/activity" };
+  }
   if (i.reason === "overdue" && canEdit && i.applicationId) return { type: "write", write: "done", label: "Mark it done", applicationId: i.applicationId, nextAction: i.nextAction };
   if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId, nextAction: null };
   if (i.reason === "feedback" && i.interviewId) return { type: "link", label: "Open the interview", href: `/client/interviews?i=${i.interviewId}` };

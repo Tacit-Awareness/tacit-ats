@@ -1,24 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { ConfirmCopy, ConfirmMode, DecisionAction, DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { decideIssueAction } from "./actions";
+import { ConfirmDialog } from "./confirm-dialog";
 import { button, plain, primary } from "./fix-bar";
 
 // A decision in the reader, on design/tats's keys: on an approval A approves
 // and R rejects; on the team's call A is Next round (their page), O moves to
-// offer and R rejects. Nothing is written until the dialog is confirmed, by
-// its button or ⌘↵, and Esc backs out: a key only opens it. The dialog is a
-// native <dialog>, modal, so keys.ts's ignoreKey stops every page and shell key
-// behind it. It posts decideIssueAction and closes when the post settles, so
-// an error reads on the page and a second press finds no form.
+// offer and R rejects. Nothing is written until the dialog is confirmed
+// (confirm-dialog.tsx): a key only opens it. It posts decideIssueAction.
 
-const danger = "border-[color:var(--red)] bg-[color:var(--red)] text-white hover:brightness-106 disabled:opacity-60";
 const field =
   "w-full rounded-lg border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
 
@@ -34,33 +31,6 @@ export function OfferTerms({ lines }: { lines: TermLine[] }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-/** Inside the form, for its pending state: tells the dialog when the post has settled. */
-function Settled({ busy, done }: { busy: React.RefObject<boolean>; done: () => void }) {
-  const { pending } = useFormStatus();
-  useEffect(() => {
-    const settled = busy.current && !pending;
-    busy.current = pending;
-    if (settled) done();
-  }, [pending, busy, done]);
-  return null;
-}
-
-function Buttons({ copy, blocked, cancel, confirmRef }: { copy: ConfirmCopy; blocked: boolean; cancel: () => void; confirmRef: React.Ref<HTMLButtonElement> }) {
-  const { pending } = useFormStatus();
-  return (
-    <div className="mt-4 flex items-center justify-end gap-1.5">
-      <span className="mr-auto hidden text-[12px] text-faint sm:inline">⌘↵ to confirm</span>
-      <button type="button" onClick={cancel} disabled={pending} className={cn(button, plain)}>
-        Cancel
-        <Kbd decorative>esc</Kbd>
-      </button>
-      <button ref={confirmRef} type="submit" disabled={pending || blocked} className={cn(button, copy.danger ? danger : primary)}>
-        {copy.confirm}
-      </button>
-    </div>
   );
 }
 
@@ -103,7 +73,7 @@ function Fields({ mode, decision, firstField }: { mode: ConfirmMode; decision: D
   );
 }
 
-function ConfirmDialog({
+function DecisionDialog({
   mode,
   copy,
   decision,
@@ -118,64 +88,19 @@ function ConfirmDialog({
   next: string | null;
   close: () => void;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const form = useRef<HTMLFormElement>(null);
-  const confirm = useRef<HTMLButtonElement>(null);
   const first = useRef<HTMLSelectElement & HTMLTextAreaElement>(null);
-  const busy = useRef(false);
-  const blocked = mode === "close" && !decision.reasons.length;
-
-  useEffect(() => {
-    const d = dialog.current;
-    if (d && !d.open) d.showModal();
-    // Where the answer goes: the field a rejection needs, else the confirm button.
-    (first.current ?? (blocked ? null : confirm.current))?.focus();
-  }, [blocked]);
-
-  const dismiss = () => {
-    if (!busy.current) dialog.current?.close();
-  };
-
   return (
-    <dialog
-      ref={dialog}
-      aria-labelledby="decision-title"
-      onClose={close}
-      onCancel={(e) => {
-        // Esc mid-post would hide a write that is still happening.
-        if (busy.current) e.preventDefault();
-      }}
-      onMouseDown={(e) => {
-        // The form fills the dialog, so only the backdrop lands here.
-        if (e.target === e.currentTarget) dismiss();
-      }}
-      // On the dialog, not the form: a click on its text moves focus to the dialog itself.
-      onKeyDown={(e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !busy.current && !blocked) {
-          e.preventDefault();
-          form.current?.requestSubmit();
-        }
-      }}
-      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
-    >
-      <form ref={form} action={decideIssueAction} className="p-4">
-        <Settled busy={busy} done={close} />
-        <input type="hidden" name={decision.target.name} value={decision.target.value} />
-        <input type="hidden" name="decision" value={mode} />
-        {next ? <input type="hidden" name="next" value={next} /> : null}
-        <h2 id="decision-title" className="m-0 text-[15px] font-semibold break-words">
-          {copy.title}
-        </h2>
-        <p className="m-0 mt-1 text-[13px] break-words text-muted-foreground">{copy.body}</p>
-        {terms ? (
-          <div className="mt-3 rounded-lg bg-[color:var(--soft)] px-3 py-2">
-            <OfferTerms lines={terms} />
-          </div>
-        ) : null}
-        <Fields mode={mode} decision={decision} firstField={first} />
-        <Buttons copy={copy} blocked={blocked} cancel={dismiss} confirmRef={confirm} />
-      </form>
-    </dialog>
+    <ConfirmDialog action={decideIssueAction} copy={copy} blocked={mode === "close" && !decision.reasons.length} first={first} close={close}>
+      <input type="hidden" name={decision.target.name} value={decision.target.value} />
+      <input type="hidden" name="decision" value={mode} />
+      {next ? <input type="hidden" name="next" value={next} /> : null}
+      {terms ? (
+        <div className="mt-3 rounded-lg bg-[color:var(--soft)] px-3 py-2">
+          <OfferTerms lines={terms} />
+        </div>
+      ) : null}
+      <Fields mode={mode} decision={decision} firstField={first} />
+    </ConfirmDialog>
   );
 }
 
@@ -227,7 +152,7 @@ export function DecisionBar({
           {secondary.label}
         </Link>
       ) : null}
-      {open ? <ConfirmDialog mode={open.mode} copy={open.copy} decision={decision} terms={terms} next={next} close={() => setOpen(null)} /> : null}
+      {open ? <DecisionDialog mode={open.mode} copy={open.copy} decision={decision} terms={terms} next={next} close={() => setOpen(null)} /> : null}
     </div>
   );
 }

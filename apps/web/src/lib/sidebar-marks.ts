@@ -6,12 +6,12 @@
 // blocked that is every load until the page is opened, which is the most a
 // browser that keeps nothing can say.
 
-export const MARKS = ["inbox", "tickets"] as const;
+export const MARKS = ["inbox", "tickets", "activity"] as const;
 export type MarkKey = (typeof MARKS)[number];
 
 /** What is on each page now (`GET /client/marks`, or the page itself), or what it last showed. Null is not known. */
 export type MarkLists = Record<MarkKey, string[] | null>;
-export const NO_MARKS: MarkLists = { inbox: null, tickets: null };
+export const NO_MARKS: MarkLists = { inbox: null, tickets: null, activity: null };
 
 const ids = (v: unknown): string[] | null => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : null);
 
@@ -19,7 +19,7 @@ const ids = (v: unknown): string[] | null => (Array.isArray(v) ? v.filter((x): x
 export function parseMarks(raw: unknown): MarkLists {
   if (typeof raw !== "object" || raw === null) return NO_MARKS;
   const r = raw as Record<string, unknown>;
-  return { inbox: ids(r.inbox), tickets: ids(r.tickets) };
+  return { inbox: ids(r.inbox), tickets: ids(r.tickets), activity: ids(r.activity) };
 }
 
 /** True when something is there now that the page did not show last time. */

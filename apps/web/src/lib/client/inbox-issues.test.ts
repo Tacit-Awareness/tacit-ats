@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import type { BotTask } from "./bot-activity";
 import { DRAFT_LATE_MS, inboxIssues, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
@@ -57,7 +58,76 @@ const draft = (over: Partial<InboxDraft> = {}): InboxDraft => ({
   ...over,
 });
 
-const issues = (over: Partial<Parameters<typeof inboxIssues>[0]>) => inboxIssues({ cards: [], outstanding: [], approvals: [], drafts: [], ...over }, NOW);
+const bot = (id: string, over: Partial<BotTask> = {}): BotTask => ({
+  id,
+  kind: "schedule_interview",
+  status: "failed",
+  needsYou: false,
+  error: "No calendar",
+  steps: [],
+  createdAt: daysAgo(3),
+  updatedAt: daysAgo(1),
+  actor: null,
+  waitingOn: null,
+  channel: null,
+  application: { id: "a", roleId: "job", addedBy: null, merged: false },
+  candidate: { id: "p-a", name: "Candidate a" },
+  jobTitle: "Engineer",
+  commands: [],
+  ...over,
+});
+
+const issues = (over: Partial<Parameters<typeof inboxIssues>[0]>) => inboxIssues({ cards: [], outstanding: [], approvals: [], drafts: [], bots: [], me: "me", ...over }, NOW);
+
+describe("the bot's issues", () => {
+  const waiting = { status: "waiting", needsYou: true, error: null, waitingOn: { id: "a-dan", name: "Daniel Okafor", type: "member" as const } };
+
+  test("a failed task is a bot failure, ahead of everything else", () => {
+    const list = issues({ bots: [bot("t1", { application: { id: "b", roleId: "job", addedBy: null, merged: false } })], drafts: [draft({ updatedAt: daysAgo(1) })] });
+    expect(list.map((i) => i.kind)).toEqual(["bot", "draft"]);
+    expect(list[0]).toMatchObject({ key: "bot-t1", reason: "bot_failed", who: "The Grokbot", what: "Schedule the interview for Candidate a didn't go through", why: "No calendar" });
+  });
+
+  test("someone not answering goes under Overdue, with the person named", () => {
+    const [i] = issues({ bots: [bot("t1", waiting)] });
+    expect(i).toMatchObject({ kind: "late", reason: "bot_waiting", who: "Daniel Okafor", what: "Daniel hasn't replied about Candidate a" });
+  });
+
+  test("it takes the place of the application's other issue, not an approval's", () => {
+    const stalled = card("a", { stalled: ["no_touch"] });
+    expect(issues({ cards: [stalled], bots: [bot("t1")] }).map((i) => i.reason)).toEqual(["bot_failed"]);
+    expect(issues({ cards: [stalled], bots: [bot("t1")], approvals: [approval()] }).map((i) => i.reason)).toEqual(["bot_failed", "approval"]);
+  });
+
+  test("one bot issue an application: the failure before the wait, then the newest", () => {
+    const list = issues({ bots: [bot("wait", waiting), bot("old", { updatedAt: daysAgo(5) }), bot("new", { updatedAt: daysAgo(1) })] });
+    expect(list.map((i) => i.key)).toEqual(["bot-new"]);
+  });
+
+  test("tasks with no application each stand alone", () => {
+    const none = { application: null, candidate: null, jobTitle: null };
+    expect(issues({ bots: [bot("t1", none), bot("t2", none)] }).map((i) => i.key).sort()).toEqual(["bot-t1", "bot-t2"]);
+  });
+
+  test("the fix is the command, for whoever may press it, else their page", () => {
+    const [i] = issues({ bots: [bot("t1")] });
+    expect(issueFix(i!, true)).toMatchObject({ type: "bot", fix: { command: "retry", taskId: "t1" } });
+    expect(issueFix(i!, false)).toEqual({ type: "link", label: "Open candidate", href: "/client/candidates/p-a" });
+    const [own] = issues({ bots: [bot("t1", { application: null, candidate: null })] });
+    expect(issueFix(own!, false)).toEqual({ type: "link", label: "Open Grokbot Activity", href: "/client/activity" });
+  });
+
+  test("a command already queued leaves nothing to press", () => {
+    const commands = [{ command: "retry", status: "pending", error: null, createdAt: daysAgo(2) }];
+    const [i] = issues({ bots: [bot("t1", { updatedAt: daysAgo(3), commands })] });
+    expect(issueFix(i!, true).type).toBe("link");
+  });
+
+  test("the candidate's page is the second way out", () => {
+    const [i] = issues({ bots: [bot("t1")] });
+    expect(secondaryLink(i!, issueFix(i!, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
+  });
+});
 
 describe("inboxIssues", () => {
   test("a healthy application is no issue", () => {

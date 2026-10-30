@@ -40,6 +40,7 @@ export default async function ClientIntegrations({
       bot={admin ? { set: bot.data ? { url: bot.data.url, enabled: bot.data.enabled, verifiedAt: bot.data.verified_at } : null } : null}
       orgName={gate.ctx.org.name}
       botCallbackUrl={host ? `${proto}://${host}/api/agents/interview-thread` : null}
+      botTaskUrl={host ? `${proto}://${host}/api/agents/bot-task` : null}
       notice={notice}
       error={error}
     />

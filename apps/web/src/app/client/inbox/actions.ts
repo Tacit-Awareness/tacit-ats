@@ -16,7 +16,7 @@ import type { InboxError, InboxNotice } from "./messages";
 // reason, a note and an offer's terms never go in the URL or the log.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ISSUE_KEY = /^(app|appr|draft)-[0-9a-f-]{36}$/i;
+const ISSUE_KEY = /^(app|appr|draft|bot)-[0-9a-f-]{36}$/i;
 
 // Only codes and ids go in the URL, never a name or a message.
 const back = (params: { i?: string | null; notice?: InboxNotice; error?: InboxError }): never => {

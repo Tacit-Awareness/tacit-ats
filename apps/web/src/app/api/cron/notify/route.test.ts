@@ -43,6 +43,8 @@ describe("GET /api/cron/notify", () => {
     expect(core.runNotifications.mock.calls.map((c) => c[1].orgId)).toEqual([ACME, BETA]);
     const deps = core.runNotifications.mock.calls[0][1];
     expect(deps).toMatchObject({ testbenchSource: null, calendarSync: { calendar: { clientId: "cid" } } });
+    // Members' Retry and Nudge go out, and to that company's bot alone: no override of who receives them.
+    expect(deps.botTasks).toEqual({});
 
     // A timer is started for that company's interview.
     expect(await deps.reminderTimers.start({ interviewId: "iv", startsAt: "s", wakeAt: "w" })).toBe("wrun_1");

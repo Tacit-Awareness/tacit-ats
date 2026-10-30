@@ -58,7 +58,7 @@ export function ShellMemory({ actorId, children }: { actorId: string; children: 
       if (!res.ok) return;
       const next = parseMarks(await res.json());
       if (asked !== drawn.current) return;
-      setCurrent((c) => ({ inbox: next.inbox ?? c.inbox, tickets: next.tickets ?? c.tickets }));
+      setCurrent((c) => ({ inbox: next.inbox ?? c.inbox, tickets: next.tickets ?? c.tickets, activity: next.activity ?? c.activity }));
     } catch {
       // Offline or signed out: the links stay as they were, and the next read after the wait tries again.
     } finally {

@@ -31,6 +31,13 @@ export async function companiesWithBots(db: Db): Promise<AgentDestination[]> {
   return (await listAgentDestinations(db)).filter((d) => d.verifiedAt !== null);
 }
 
+/** The row a company's bot reports its tasks under: bot_tasks are keyed on it, and agentDestinationBySecret names only the company. */
+export async function companyBotId(db: Db, orgId: string, channel: AgentDestination["channel"]): Promise<string | null> {
+  const { data, error } = await db.from("agent_destinations").select("id").eq("org_id", orgId).eq("channel", channel).maybeSingle();
+  if (error) throw new Error(`agent_destinations: ${error.message}`);
+  return data?.id ?? null;
+}
+
 /**
  * A company's interviews are on its members' own calendars: each holder's
  * grant (calendar_connections) with tacit-ats's Google app. Null when the
