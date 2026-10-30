@@ -1,3 +1,4 @@
+import { ACTIVE_STAGES } from "@tacit/core";
 import { PIPELINE_COLUMNS, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
 
 // Home's arithmetic (design/tats's Recruiting Overview): the period and its
@@ -245,6 +246,29 @@ export function feedbackSummary(rows: FeedbackRow[]): FeedbackSummary {
     .filter((r) => r.feedbackFiled > 0 || r.notFiled > 0)
     .sort((a, b) => (b.medianHoursToFeedback ?? -1) - (a.medianHoursToFeedback ?? -1) || b.notFiled - a.notFiled);
   return { filed, onTime, onTimeShare: filed ? onTime / filed : null, outstanding: rows.reduce((n, r) => n + r.notFiled, 0), interviewers };
+}
+
+/** A stage's line in pipelineReport, as far as the average stay goes. */
+export type ReportStay = { stage: string; avgDaysInStage: number | null; stays: number };
+
+/**
+ * The average stay in each live stage over one or more pipelineReports (one
+ * per job of a department), weighted by how many stays each average is over.
+ * The reports round to a tenth of a day, so a merged average can be a
+ * twentieth of a day off the exact one. Hired and the exits have no stay.
+ */
+export function mergeStays(reports: { stages: ReportStay[] }[]): { stage: string; avgDays: number | null; stays: number }[] {
+  return ACTIVE_STAGES.map((stage) => {
+    let stays = 0;
+    let days = 0;
+    for (const r of reports) {
+      const row = r.stages.find((s) => s.stage === stage);
+      if (!row || row.avgDaysInStage === null || !row.stays) continue;
+      stays += row.stays;
+      days += row.avgDaysInStage * row.stays;
+    }
+    return { stage, avgDays: stays ? Math.round((days / stays) * 10) / 10 : null, stays };
+  });
 }
 
 // ---------------------------------------------------------------------------

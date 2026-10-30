@@ -144,22 +144,24 @@ export function sortRows(rows: CrmRow[], sort: CrmSort, dir: SortDir): CrmRow[] 
     .map(({ r }) => r);
 }
 
-export type CrmQuery = { view: CrmView; q: string; sort: CrmSort; dir: SortDir; page: number };
+/** `department` is the URL's raw `?department=`: the page checks it against the live departments (lib/client/department-tree.ts). */
+export type CrmQuery = { view: CrmView; q: string; sort: CrmSort; dir: SortDir; page: number; department: string | null };
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
-/** The URL's view, search, sort and page, anything unknown falling back to the default. */
+/** The URL's view, search, sort, page and department, anything unknown falling back to the default. */
 export function parseCrmQuery(sp: Record<string, string | string[] | undefined>): CrmQuery {
   const view = CRM_VIEWS.find((v) => v.key === one(sp.view))?.key ?? "all";
   const sort = (CRM_SORTS as readonly string[]).includes(one(sp.sort)) ? (one(sp.sort) as CrmSort) : "last";
   const dir = one(sp.dir) === "asc" || one(sp.dir) === "desc" ? (one(sp.dir) as SortDir) : DEFAULT_DIR[sort];
   const page = Math.max(1, Math.floor(Number(one(sp.page))) || 1);
-  return { view, q: one(sp.q).trim().slice(0, 100), sort, dir, page };
+  return { view, q: one(sp.q).trim().slice(0, 100), sort, dir, page, department: one(sp.department).trim() || null };
 }
 
 /** The URL for a query, leaving defaults out. */
 export function crmHref(q: CrmQuery): string {
   const params = new URLSearchParams();
+  if (q.department) params.set("department", q.department);
   if (q.view !== "all") params.set("view", q.view);
   if (q.q) params.set("q", q.q);
   if (q.sort !== "last") params.set("sort", q.sort);
@@ -167,6 +169,20 @@ export function crmHref(q: CrmQuery): string {
   if (q.page > 1) params.set("page", String(q.page));
   const qs = params.toString();
   return `/client/candidates${qs ? `?${qs}` : ""}`;
+}
+
+/**
+ * The candidates as a department sees them: each keeps only their
+ * applications to its jobs, and whoever has none there (prospects included)
+ * drops out, so the views, the stage and the owner are the department's.
+ */
+export function inJobs(candidates: CrmCandidate[], jobIds: ReadonlySet<string>): CrmCandidate[] {
+  const out: CrmCandidate[] = [];
+  for (const c of candidates) {
+    const applications = c.applications.filter((a) => jobIds.has(a.jobId));
+    if (applications.length) out.push({ ...c, applications });
+  }
+  return out;
 }
 
 export type CrmTable = {

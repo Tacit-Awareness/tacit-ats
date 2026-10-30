@@ -30,6 +30,8 @@ export type HomeViewProps = {
   subtitle: string;
   days: number;
   periods: { href: string; label: string; active: boolean }[];
+  /** Empty for an org with no departments: no filter at all. */
+  departments: Tab[];
   jobs: Tab[];
   pipelineHref: string;
   newApps: { value: number; change: number | null; bars: Bar[] };
@@ -43,7 +45,7 @@ export type HomeViewProps = {
     onTime: number;
     outstanding: number;
     onTimeHours: number;
-    /** A job is picked, but the report covers every job they manage. */
+    /** A job or a department is picked, but the report covers every job they manage. */
     allJobs: boolean;
     interviewers: { id: string; name: string; median: string | null; medianHours: number | null; out: number }[];
   } | null;
@@ -181,6 +183,7 @@ export function HomeView(p: HomeViewProps) {
   return (
     <Page>
       <PageHeader title={p.title} subtitle={p.subtitle} actions={<Segmented label="Period" items={p.periods} />} />
+      {p.departments.length ? <Tabs label="Departments" tabs={p.departments} /> : null}
       {p.jobs.length > 1 ? (
         <Toolbar>
           <Tabs label="Jobs" tabs={p.jobs} />
@@ -374,7 +377,7 @@ export function HomeView(p: HomeViewProps) {
 
       <div className={cn("grid items-start gap-4", p.feedback ? "md:grid-cols-2" : "")}>
         {p.feedback ? (
-          <Section title="Time to feedback, by interviewer">
+          <Section title="Time to feedback, by interviewer" aside={p.feedback.allJobs ? <span>every job you manage</span> : undefined}>
             {p.feedback.interviewers.length === 0 ? (
               <Empty>No interviews ended in this period.</Empty>
             ) : (

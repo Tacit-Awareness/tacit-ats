@@ -4,8 +4,9 @@ import { Avatar, Empty, Page, PageHeader, Pill, Section, Tabs, Toolbar, type Tab
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-// The CRM's markup, props only (page.tsx does the reads): view tabs and a
-// search above design/tats's table, one row per candidate, the column
+// The CRM's markup, props only (page.tsx does the reads): department tabs
+// (none for an org without departments), view tabs and a search above
+// design/tats's table, one row per candidate, the column
 // headers sorting by link (the URL is the state), 50 rows a page with the
 // range and arrows in the footer. A row opens the candidate page; J/K move
 // between rows and Enter opens one (components/keys.tsx).
@@ -46,6 +47,7 @@ function Arrow({ href, label, dir }: { href: string | null; label: string; dir: 
 }
 
 export function CrmView({
+  departments,
   views,
   viewLabel,
   columns,
@@ -58,6 +60,8 @@ export function CrmView({
   note,
   empty,
 }: {
+  /** Empty for an org with no departments: no filter at all. */
+  departments: Tab[];
   views: Tab[];
   viewLabel: string;
   columns: CrmColumn[];
@@ -75,6 +79,7 @@ export function CrmView({
   return (
     <Page>
       <PageHeader title="CRM" subtitle="Everyone you can see: in process, and everyone the funnel has closed, hired or not." />
+      {departments.length ? <Tabs label="Departments" tabs={departments} /> : null}
       <Toolbar>
         <Tabs label="Views" tabs={views} />
         {/* A plain GET form: the search is in the URL, like the tabs and the sort. */}
