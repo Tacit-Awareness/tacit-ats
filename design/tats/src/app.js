@@ -844,7 +844,7 @@ function metricCard(m) {
       <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
   </section>`;
 }
-function homePage() {
+function homeOverview() {
   const ms = homeMetrics(), act = everyone().filter((a) => isOpen(a) && homeScope(a));
   const wait = (a) => Date.now() - a.when;
   const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
@@ -885,7 +885,7 @@ function homePage() {
   return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
     ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
     <a class="btn sm ghost" href="#compare" title="The same layout in both styles, side by side">Compare styles</a></div>
-  <div class="hm-nav"><div class="pills"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div></div>
+  ${homeNav("overview")}
   <div class="scroll" id="scroller"><div class="hm">
     <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
     <h2 class="hm-sec">Where are candidates getting stuck?</h2>
@@ -910,6 +910,17 @@ function homePage() {
         ${outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${outFb.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
     </div>
   </div></div>`;
+}
+// Home's slider switches tabs inside Home: the slider stays put, so Overview is always one click back.
+const HOME_TABS = [["overview", "Overview"], ["tickets", "Applicant Tickets"], ["interviews", "Interviews"], ["referrals", "Referrals"]];
+const homeNav = (on) => `<div class="hm-nav"><div class="pills" role="tablist">${HOME_TABS.map(([k, n]) => `<a class="${on === k ? "on" : ""}" href="${k === "overview" ? "#home" : `#home~${k}`}" role="tab" aria-selected="${on === k}">${n}</a>`).join("")}</div></div>`;
+function homePage(tab, key) {
+  if (!HOME_TABS.some((t) => t[0] === tab) || tab === "overview") return homeOverview();
+  const inner = tab === "tickets" ? triagePage()
+    : tab === "interviews" ? interviewsPage(key).replace(/href="#interviews~/g, 'href="#home~interviews~').replace(/href="#interviews"/g, 'href="#home~interviews"')
+    : referralsPage();
+  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<a href="#home">Recruiting Overview</a></div><span class="spacer"></span></div>
+  ${homeNav(tab)}<div class="hm-sub hm-sub-${tab}">${inner}</div>`;
 }
 // Two treatments of the same layout, side by side, so the styling can be judged on its own.
 function comparePage() {
@@ -3495,7 +3506,11 @@ function botsPage(tab = "runs") {
 /* ---------------- routing, render ---------------- */
 function parseHash() {
   const [name, a] = decodeURIComponent(location.hash.slice(1) || "home").split("~");
-  if (name === "home") { if (a) setTimeout(() => $(`#hm-${a}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); return { name: "home" }; }
+  if (name === "home") {
+    if (HOME_TABS.some((t) => t[0] === a)) return { name: "home", id: a, key: decodeURIComponent(location.hash.slice(1)).split("~")[2] };
+    if (a) setTimeout(() => $(`#hm-${a}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    return { name: "home" };
+  }
   if (name === "t" && A[a]) return { name: "t", id: a };
   if (name === "inbox") { if (A[a]) state.ibSel = a; return { name }; }
   if (name === "team" && TEAMS[a]) { state.team = a; state.savedView = null; return { name: "all" }; }
@@ -3539,7 +3554,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420);
@@ -3815,7 +3830,7 @@ const ACT = {
   transcript: (el) => openTranscript(el.dataset.k),
   qaMore: (el) => { state.qaOpen = state.qaOpen === el.dataset.k ? null : el.dataset.k; render(); },
   ivReview: (el) => { const s2 = (state.ivReviewed ||= new Set()), k = el.dataset.k; s2.has(k) ? s2.delete(k) : s2.add(k); render(); },
-  openRec: (el) => go(`interviews~${el.dataset.k}`),
+  openRec: (el) => go(`${state.route.name === "home" ? "home~" : ""}interviews~${el.dataset.k}`),
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },

@@ -5022,3 +5022,14 @@ button.cp-msg:hover { box-shadow: var(--elev-hi); }
 .tev.fresh, .step.new, .inrow.live, .rundrawer, .gpop, .gpop.sheet, .af-new, .hcard { animation-duration: 0.2s !important; animation-timing-function: var(--spring) !important; }
 /* the post-interview chat used to replay over two seconds; now it lands together, quickly */
 .gc[data-play] > * { animation-duration: 0.2s !important; animation-delay: calc(var(--i, 0) * 30ms) !important; animation-timing-function: var(--spring) !important; }
+
+/* v72 Home subtabs: the slider stays; the tab's content fills the space under it */
+.hm-sub { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.hm-sub > .inbox2, .hm-sub > .ivw, .hm-sub > .ref-wrap { flex: 1; min-height: 0; height: auto; }
+/* the embedded page doesn't repeat its own title; its actions stay */
+.hm-sub > .cx-bar { display: none; }
+.hm-sub > .bar .crumbs { display: none; }
+.hm-sub > .bar { border-bottom: 0; background: transparent; min-height: 48px; }
+.hm-bar .crumbs a { color: var(--ink); font-weight: 600; }
+.ivr-check, .ib-check, .ck { border-radius: 999px !important; }
+.ck { border-radius: 4px !important; }
