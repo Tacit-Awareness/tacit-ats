@@ -43,7 +43,7 @@ async function clear() {
   const ids = [ACME, GLOBEX];
   // Merged applications point at their survivor: drop the pointer first.
   await db().from("applications").update({ merged_into_id: null }).in("org_id", ids);
-  for (const table of ["application_events", "interviews", "applications", "hiring_team", "people", "job_post_views", "job_posts", "roles", "departments", "companies"] as const) {
+  for (const table of ["application_events", "interviews", "applications", "job_access", "hiring_team", "people", "job_post_views", "job_posts", "roles", "departments", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("audit_log").delete().in("org_id", ids);
@@ -106,7 +106,7 @@ beforeEach(async () => {
     { id: GLOBEX_APP, org_id: GLOBEX, person_id: GLOBEX_PERSON, role_id: GLOBEX_ROLE, stage: "interviewing", source: "referral", created_at: at(-1) },
   ]));
   must(await db().from("applications").update({ merged_into_id: app(1) }).eq("id", app(6)));
-  // 2 and 4 came through the form: one from LinkedIn, one from before channels were recorded.
+  // 2 came through the form from LinkedIn; 4 is job_board with no channel: from before channels, or a member's add.
   must(await db().from("applications").update({ channel: "linkedin" }).eq("id", app(2)));
   must(await db().from("job_posts").insert([
     { id: ENGINEER_POST, org_id: ACME, role_id: ENGINEER, title: "Founding Engineer" },
@@ -149,7 +149,9 @@ describe("Analytics", () => {
     const { current, previous } = periodTotals(read, "month", NOW.getTime());
     expect(current.views).toBe(100);
     expect(previous.views).toBe(25);
-    expect(metricValue("rate", current)).toBe(2);
+    // One channel on a hundred views: the job_board application with none is not on top.
+    expect(current.viewed).toBe(1);
+    expect(metricValue("rate", current)).toBe(1);
     expect(read.views.every((v) => !("minute_views" in v))).toBe(true);
   });
 
@@ -183,6 +185,21 @@ describe("Analytics", () => {
     const explorer = await readExplorer(lee, { departmentId: null }, NOW);
     expect(explorer.apps.map((a) => a.applicationId).sort()).toEqual([app(1), app(2), app(3)].sort());
     expect(explorer.names.jobs.map((j) => j.id)).toEqual([ENGINEER]);
+  });
+
+  test("an external recruiter counts only who they added, and the page holds together on what their token reads", async () => {
+    const RECRUITER = "e6a00000-0000-4000-8000-0000000000f4";
+    must(await db().from("actors").insert({ id: RECRUITER, org_id: ACME, slug: "itest-an-rae", display_name: "Rae Recruiter", email: "rae@an.test", access_level: "elevated", auth_subject: "user_an_rae" }));
+    const { data: external } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+    must(await db().from("job_access").insert({ org_id: ACME, actor_id: RECRUITER, role_id: ENGINEER, access_role_id: external!.id }));
+    must(await db().from("applications").update({ added_by_actor_id: RECRUITER }).eq("id", app(1)));
+
+    const read = await readCareers(member("user_an_rae"), { range: "month", departmentId: null }, NOW);
+    expect(read.apps.map((a) => a.group)).toEqual(["referral"]);
+    expect(read.views.every((v) => v.roleId === ENGINEER)).toBe(true);
+    expect(read.views.map((v) => v.views)).not.toContain(60);
+    const { current } = periodTotals(read, "month", NOW.getTime());
+    expect(current.viewed).toBe(0);
   });
 
   test("an interviewer's token reads no applications", async () => {

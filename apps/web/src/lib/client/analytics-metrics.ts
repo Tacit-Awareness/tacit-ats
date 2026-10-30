@@ -115,7 +115,7 @@ export type Totals = {
   applications: number;
   warm: number;
   views: number;
-  /** Public form applications on the days views were being recorded, the rate's top half. */
+  /** Applications the public form recorded a channel on, on the days views were being recorded: the rate's top half. */
   viewed: number;
   /** Views began after this period did, so it is no fair comparison. */
   viewsPartial: boolean;
@@ -125,6 +125,9 @@ export type Totals = {
 };
 
 const utcDay = (ms: number) => Math.floor(ms / DAY);
+
+/** The first UTC day a view was recorded; with none yet, a day never reached. */
+const firstViewDay = (data: CareersData) => (data.viewsFrom ? utcDay(Date.parse(data.viewsFrom)) : Infinity);
 
 /** The first UTC day the read must reach: the start of the period before this one. */
 export function readFrom(range: RangeKey, now: number): string {
@@ -136,7 +139,7 @@ function totalsIn(data: CareersData, first: number, last: number): Totals {
   const bySource = Object.fromEntries(SOURCE_GROUPS.map((g) => [g.key, 0])) as Record<SourceGroup, number>;
   const byOrigin = Object.fromEntries(ORIGINS.map((o) => [o.key, 0])) as Record<Origin, number>;
   const byJob = new Map<string, number>();
-  const viewsFrom = data.viewsFrom ? utcDay(Date.parse(data.viewsFrom)) : Infinity;
+  const viewsFrom = firstViewDay(data);
   let applications = 0;
   let viewed = 0;
   for (const a of data.apps) {
@@ -146,7 +149,8 @@ function totalsIn(data: CareersData, first: number, last: number): Totals {
     bySource[a.group] += 1;
     byOrigin[originOf(a.group, a.channel)] += 1;
     byJob.set(a.roleId, (byJob.get(a.roleId) ?? 0) + 1);
-    if (a.group === "careers" && d >= viewsFrom) viewed += 1;
+    // Not the group alone: a member can add someone as job_board or applicant, and only the form writes a channel.
+    if (a.group === "careers" && a.channel && d >= viewsFrom) viewed += 1;
   }
   let views = 0;
   for (const v of data.views) {
@@ -179,10 +183,11 @@ export function parseMetric(raw: string | undefined): MetricKey {
 
 /**
  * A metric's value: a count, or for a share a percentage (null with nothing to
- * share). The rate counts only public form applications, since a referral or a
- * submission never opened the post, and only those on days views were being
- * recorded, so the months of applications before the first view cannot read as
- * 300%. Nothing caps it at 100: a browser with no scripts applies uncounted.
+ * share). The rate counts only public form applications, since a referral, a
+ * submission or someone a member added never opened the post, and only those on
+ * days views were being recorded, so the months of applications before the
+ * first view cannot read as 300%. Nothing caps it at 100: a browser with no
+ * scripts applies uncounted.
  */
 export function metricValue(metric: MetricKey, t: Totals): number | null {
   if (metric === "warm") return t.applications ? (t.warm / t.applications) * 100 : null;
@@ -211,33 +216,37 @@ const dayLabel = (day: number) => new Date(day * DAY).toLocaleDateString("en-US"
 /**
  * One point per UTC day, per week for a quarter (the last week cut short),
  * for this period and, at the same offset, the one before. A point is
- * labelled with its first day.
+ * labelled with its first day. Views on a point wholly before the first
+ * recorded view are null: nothing was counting then, which is not zero.
  */
 export function series(data: CareersData, metric: MetricKey, range: RangeKey, now: number): { step: number; points: SeriesPoint[] } {
   const n = RANGES[range].days;
   const step = range === "quarter" ? 7 : 1;
   const first = utcDay(now) - n + 1;
+  const viewsFrom = firstViewDay(data);
+  const value = (from: number, to: number) => (metric === "views" && to < viewsFrom ? null : metricValue(metric, totalsIn(data, from, to)));
   const points: SeriesPoint[] = [];
   for (let i = 0; i < n; i += step) {
     const from = first + i;
     const to = Math.min(first + n - 1, from + step - 1);
     points.push({
       label: dayLabel(from),
-      current: metricValue(metric, totalsIn(data, from, to)),
-      previous: metricValue(metric, totalsIn(data, from - n, to - n)),
+      current: value(from, to),
+      previous: value(from - n, to - n),
     });
   }
   return { step, points };
 }
 
-/** The export: one row per UTC day of this period, its views and applications by where they came from. */
+/** The export: one row per UTC day of this period, its views (empty before the first was recorded) and applications by where they came from. */
 export function dailyRows(data: CareersData, range: RangeKey, now: number): string[][] {
   const n = RANGES[range].days;
   const first = utcDay(now) - n + 1;
+  const viewsFrom = firstViewDay(data);
   const rows = [["Date (UTC)", "Page views", "Applications", ...ORIGINS.map((o) => o.label)]];
   for (let d = first; d < first + n; d++) {
     const t = totalsIn(data, d, d);
-    rows.push([new Date(d * DAY).toISOString().slice(0, 10), String(t.views), String(t.applications), ...ORIGINS.map((o) => String(t.byOrigin[o.key]))]);
+    rows.push([new Date(d * DAY).toISOString().slice(0, 10), d < viewsFrom ? "" : String(t.views), String(t.applications), ...ORIGINS.map((o) => String(t.byOrigin[o.key]))]);
   }
   return rows;
 }

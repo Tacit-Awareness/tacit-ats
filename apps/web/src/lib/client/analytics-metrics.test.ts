@@ -82,7 +82,7 @@ describe("page views", () => {
   const from = viewed(40, 0).day;
 
   test("are summed by UTC day, and the rate is public form applications per view", () => {
-    const data: CareersData = { apps: [app(-1), app(-2, "careers", "eng", "linkedin"), app(-3, "referral")], views: [viewed(0, 30), viewed(3, 70, "des"), viewed(9, 40)], viewsFrom: from };
+    const data: CareersData = { apps: [app(-1, "careers", "eng", "direct"), app(-2, "careers", "eng", "linkedin"), app(-3, "referral")], views: [viewed(0, 30), viewed(3, 70, "des"), viewed(9, 40)], viewsFrom: from };
     const { current, previous } = periodTotals(data, "week", NOW);
     expect(current.views).toBe(100);
     expect(metricValue("views", current)).toBe(100);
@@ -100,10 +100,19 @@ describe("page views", () => {
 
   test("applications before the first view are left out of the rate, not of Applications", () => {
     // Views began two days ago; the month's other applications could never have been counted against one.
-    const apps = [app(-1), ...Array.from({ length: 20 }, (_, i) => app(-24 * (5 + i)))];
+    const apps = [app(-1, "careers", "eng", "direct"), ...Array.from({ length: 20 }, (_, i) => app(-24 * (5 + i), "careers", "eng", "direct"))];
     const { current } = periodTotals({ apps, views: [viewed(1, 50)], viewsFrom: viewed(2, 0).day }, "month", NOW);
     expect(current.applications).toBe(21);
     expect(current.viewed).toBe(1);
+    expect(metricValue("rate", current)).toBe(2);
+  });
+
+  test("the rate counts what the form recorded: someone a member added as job_board or applicant never opened the post", () => {
+    const apps = [app(-1, "careers", "eng", "linkedin"), app(-2, "careers", "eng", "direct"), app(-3), app(-4)];
+    const { current } = periodTotals({ apps, views: [viewed(0, 100)], viewsFrom: from }, "week", NOW);
+    expect(current.applications).toBe(4);
+    expect(current.byOrigin.careers).toBe(2);
+    expect(current.viewed).toBe(2);
     expect(metricValue("rate", current)).toBe(2);
   });
 
@@ -129,13 +138,38 @@ describe("page views", () => {
   });
 
   test("chart by day, the rate null on a day with no views", () => {
-    const data: CareersData = { apps: [app(-1), app(-24 * 7 - 1)], views: [viewed(0, 4), viewed(7, 8)], viewsFrom: from };
+    const data: CareersData = { apps: [app(-1, "careers", "eng", "direct"), app(-24 * 7 - 1, "careers", "eng", "direct")], views: [viewed(0, 4), viewed(7, 8)], viewsFrom: from };
     const views = series(data, "views", "week", NOW).points;
     expect(views[6]).toEqual({ label: "Oct 30", current: 4, previous: 8 });
     expect(views[5].current).toBe(0);
     const rate = series(data, "rate", "week", NOW).points;
     expect(rate[6]).toEqual({ label: "Oct 30", current: 25, previous: 12.5 });
     expect(rate[5].current).toBeNull();
+  });
+
+  test("a day before the first recorded view is unknown, not zero views", () => {
+    const data: CareersData = { apps: [], views: [viewed(1, 5)], viewsFrom: viewed(2, 0).day };
+    const { points } = series(data, "views", "week", NOW);
+    expect(points.map((p) => p.current)).toEqual([null, null, null, null, 0, 5, 0]);
+    expect(points.every((p) => p.previous === null)).toBe(true);
+  });
+
+  test("a week that views began in is a number, and only a week wholly before is unknown", () => {
+    const data: CareersData = { apps: [], views: [viewed(2, 5)], viewsFrom: viewed(2, 0).day };
+    const { points } = series(data, "views", "quarter", NOW);
+    expect(points.at(-1)?.current).toBe(5);
+    expect(points[0].current).toBeNull();
+  });
+
+  test("with no view recorded at all, the chart has no views to draw, and the card still says 0", () => {
+    const data: CareersData = { apps: [], views: [], viewsFrom: null };
+    expect(series(data, "views", "week", NOW).points.every((p) => p.current === null)).toBe(true);
+    expect(metricValue("views", periodTotals(data, "week", NOW).current)).toBe(0);
+  });
+
+  test("the export leaves those days empty rather than writing 0", () => {
+    const rows = dailyRows({ apps: [], views: [viewed(1, 5)], viewsFrom: viewed(2, 0).day }, "week", NOW);
+    expect(rows.slice(1).map((r) => r[1])).toEqual(["", "", "", "", "0", "5", "0"]);
   });
 });
 

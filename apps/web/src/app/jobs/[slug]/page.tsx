@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
-import { guideSteps } from "@/lib/public/application";
+import { formNotice, guideSteps } from "@/lib/public/application";
 import { landingChannel, withVia } from "@/lib/public/channel";
 import { readJobPost } from "@/lib/public/jobs";
 import { parsePostText } from "@/lib/public/post-text";
@@ -35,14 +35,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { title: read ? `${read.title} at ${read.company}` : "Apply", robots: { index: false, follow: false } };
 }
 
-const NOTICES: Record<string, (label: string | null) => string> = {
-  required: (label) => (label ? `Please answer: ${label}` : "Please answer every required question."),
-  too_long: (label) => (label ? `That answer is too long: ${label}` : "One of your answers is too long."),
-  invalid: (label) => (label ? `Please check your answer to: ${label}` : "Please check your answers."),
-  busy: () => "Too many applications from here just now. Please try again in an hour.",
-  failed: () => "Something went wrong on our side. Please try again.",
-};
-
 export default async function JobPostPage({
   params,
   searchParams,
@@ -59,7 +51,7 @@ export default async function JobPostPage({
   const channel = landingChannel(query, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   const application = tab === "application" || Boolean(applied || error);
   const asked = q ? (read.questions.find((x) => x.id === q)?.label ?? null) : null;
-  const notice = error && NOTICES[error] ? NOTICES[error](asked) : null;
+  const notice = formNotice(error, asked);
   const boardHref = read.orgSlug ? withVia(`/careers/${read.orgSlug}`, channel) : null;
   const steps = guideSteps(read.questions, answerField);
   const facts = [
@@ -71,8 +63,8 @@ export default async function JobPostPage({
 
   return (
     <CareersFrame company={read.company} boardHref={boardHref} allRoles>
-      {/* The form's redirect back is the same visit, so it counts no view; the tabs keep this mounted. */}
-      {applied || error ? null : <CountView slug={slug} />}
+      {/* The form's redirect back is the same visit, so it counts no view. Always mounted, so the tabs count nothing, from there either. */}
+      <CountView slug={slug} returning={Boolean(applied || error)} />
       <div className={`wrap role${filling ? " has-mbar" : ""}`}>
         <div className="sheet">
           <h1 className="h1">{read.title}</h1>
