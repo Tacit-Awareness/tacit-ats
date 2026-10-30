@@ -1,6 +1,7 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
-import { type EditOutcome, logCandidateTouch, setCandidateNextAction } from "./candidate-edits";
+import type { MoveInput } from "./candidate-edit-rules";
+import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
 import { DRAFT_LATE_MS, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
 import { readPipeline } from "./pipeline";
 
@@ -12,7 +13,9 @@ import { readPipeline } from "./pipeline";
 // feedback issues), core's listMyApprovals, and their own candidate_emails
 // drafts (the policy shows a draft to its author alone). lib/client/
 // inbox-issues.ts turns these into the queue. Not for an interviewer
-// (`limited`), who is refused: the page points them home.
+// (`limited`), who is refused: the page points them home. The writes are
+// clientTools' audited ones with source `dashboard`: a decision on an approval,
+// and the stage move the candidate page makes.
 
 /** Drafts read, newest first; the list says when it stops here. */
 const DRAFTS_MAX = 100;
@@ -120,15 +123,24 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
   };
 }
 
-/** What the reader adds for the issue open: the candidate's story, and whether the member may edit the job. */
+/**
+ * What the reader adds for the issue open: the candidate's story, whether the
+ * member may edit the job, the reasons a rejection can give, and an offer's
+ * terms. The terms are read here, for the one open, and never reach the queue:
+ * `my_approvals` shows them to whoever must approve, who can't decide without
+ * them, and they go no further than this member's page. An approver may have no
+ * access to the job (finance, an exec): the story is null then, and `canOpen`
+ * false, so the reader doesn't link to a page that would 404.
+ */
 export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, issue: Issue) {
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [story, canEdit] = await Promise.all([
+  const offerRequest = issue.approval?.kind === "offer" ? issue.approval.requestId : null;
+  const [story, canEdit, terms, reasons, jobSeen] = await Promise.all([
     issue.candidate
       ? clientTools.getActivity(db, ctx, { candidateId: issue.candidate.id, limit: STORY_MAX }).then(
           (a) => a.entries,
           (err: unknown) => {
-            if (err instanceof clientTools.ClientToolError && err.code === "not_found") return [];
+            if (err instanceof clientTools.ClientToolError && err.code === "not_found") return null;
             throw err;
           },
         )
@@ -139,8 +151,18 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
           return r.data === true;
         })
       : false,
+    offerRequest ? clientTools.listMyApprovals(db, ctx).then((all) => all.find((a) => a.requestId === offerRequest)?.terms ?? null) : null,
+    issue.reason === "decide"
+      ? clientTools.listRejectionReasons(db, ctx).then((all): CloseReason[] => all.filter((r) => r.kind === "rejected"))
+      : ([] as CloseReason[]),
+    issue.approval && !issue.candidate && issue.job.id
+      ? db.from("roles").select("id").eq("id", issue.job.id).maybeSingle().then((r) => {
+          if (r.error) throw new Error(r.error.message);
+          return r.data !== null;
+        })
+      : true,
   ]);
-  return { story, canEdit };
+  return { story, canEdit, terms, reasons, canOpen: story !== null && jobSeen };
 }
 
 /** "Mark it done": clears the next action, only while it is still the overdue one the page showed. */
@@ -156,3 +178,31 @@ export async function clearOverdueAction(db: Db, ctx: clientTools.ClientToolCtx,
 
 /** "Log a touch": the candidate page's, with no note. */
 export const touchApplication = (db: Db, actorId: string, applicationId: string) => logCandidateTouch(db, actorId, { applicationId, note: null });
+
+export type ApprovalOutcome =
+  /** `reset`: nobody decided it. Its terms or approvers changed, or the offer was withdrawn. */
+  | { ok: true; outcome: clientTools.DecisionResult["outcome"] | "reset"; kind: clientTools.ApprovalKind }
+  | { ok: false; error: "not_found" | "not_approver" | "reason_required" | "rate_limited" };
+
+/** A or R on an approval: clientTools' decideApproval, the connector's approve and reject. A reason is the approver's own words, and core keeps it out of the audit row. */
+export async function decideInboxApproval(
+  db: Db,
+  ctx: clientTools.ClientToolCtx,
+  input: { requestId: string; decision: "approve" | "reject"; reason: string | null },
+): Promise<ApprovalOutcome> {
+  if (input.decision === "reject" && !input.reason?.trim()) return { ok: false, error: "reason_required" };
+  try {
+    const r = await clientTools.decideApproval(db, ctx, input);
+    const reset = r.outcome === "not_pending" && (r.status === "reset" || r.status === "cancelled");
+    return { ok: true, outcome: reset ? "reset" : r.outcome, kind: r.kind };
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError) {
+      if (err.code === "not_found" || err.code === "rate_limited") return { ok: false, error: err.code };
+      if (err.code === "forbidden") return { ok: false, error: "not_approver" };
+    }
+    throw err;
+  }
+}
+
+/** O or R on the team's call: the candidate page's move, from the stage the issue stands on. */
+export const decideInboxApplication = (db: Db, ctx: clientTools.ClientToolCtx, input: MoveInput) => moveCandidate(db, ctx, input);

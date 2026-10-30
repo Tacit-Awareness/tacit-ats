@@ -11,9 +11,9 @@ export type TourStep = {
   body: string;
 };
 
-// design/tats's tour, for the pages that exist: its Inbox, Grokbot Activity
-// and Chat steps are left out with nothing behind them, and its Inbox key
-// bar step is the `?` sheet's button.
+// design/tats's tour, for the pages that exist: its Grokbot Activity and Chat
+// steps are left out with nothing behind them, and its Inbox key bar step is
+// part of the Inbox's own.
 export const TOUR: TourStep[] = [
   {
     href: "/client",
@@ -34,10 +34,22 @@ export const TOUR: TourStep[] = [
     body: "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it.",
   },
   {
+    href: "/client/inbox",
+    targets: ['[data-tour="inbox-keys"]', '[data-tour="inbox"]'],
+    title: "Inbox",
+    body: "Only what's stuck or waiting on you. F runs the fix. On a decision, A, O and R move it on, and each asks you first.",
+  },
+  {
     href: "/client/candidates",
     targets: ['[data-tour="crm"]'],
     title: "CRM",
     body: "Everyone you can see, one table: in process, and everyone the funnel has closed, hired or not.",
+  },
+  {
+    href: "/client/jobs",
+    targets: ['[data-tour="add-role"]', 'aside a[href="/client/jobs"]'],
+    title: "Job Postings",
+    body: "Your careers page as applicants see it. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
   },
   {
     href: "/client/applicants",

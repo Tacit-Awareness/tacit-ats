@@ -22,7 +22,8 @@ import type { FileStore } from "./files.js";
 const SCAN_MAX = 5000;
 const PAGE = 1000;
 const GROUPS_MAX = 50;
-const ANONYMIZED_NAME = "Anonymized candidate";
+/** The name client_anonymize_candidate leaves on an erased candidate's row. */
+export const ANONYMIZED_NAME = "Anonymized candidate";
 
 const adminsOnly = (what: string) => new ClientToolError("forbidden", `Only an admin at your company can ${what}.`);
 const notFound = (which = "a candidate") =>

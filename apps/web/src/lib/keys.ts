@@ -18,13 +18,24 @@ export function isTyping(target: EventTarget | null): boolean {
   return !!el && (el.isContentEditable === true || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName ?? ""));
 }
 
+/** True while a modal <dialog> is open: the page behind it is inert, so its keys are too. */
+export const modalOpen = (): boolean => typeof document !== "undefined" && document.querySelector("dialog:modal") !== null;
+
+/**
+ * Whether an element is on screen. A reader on a phone's list is mounted but
+ * hidden: its keys must not act on an issue nobody can see, and a modal opened
+ * in there draws nothing and leaves the whole page inert.
+ */
+export const isShown = (el: { getClientRects(): { length: number } } | null): boolean => !!el && el.getClientRects().length > 0;
+
 /**
  * A page key never fires while typing, with ⌘, Ctrl or Alt held (those
- * belong to the browser and the OS, and ⌘K to the shell), or once something
- * else has handled the event. Shift is allowed: `?` needs it.
+ * belong to the browser and the OS, and ⌘K to the shell), once something
+ * else has handled the event, or behind a modal dialog. Shift is allowed: `?`
+ * needs it.
  */
-export function ignoreKey(e: KeyEventLike): boolean {
-  return e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
+export function ignoreKey(e: KeyEventLike, modal = modalOpen()): boolean {
+  return modal || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target);
 }
 
 /** The name a binding is registered under: letters lower-cased, so Shift+J is J; named keys as the browser gives them. */

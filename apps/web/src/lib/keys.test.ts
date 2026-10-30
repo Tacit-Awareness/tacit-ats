@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHORD_MS, chord, ignoreKey, isTyping, keyName, menuKey, stepIndex, type KeyEventLike } from "./keys";
+import { CHORD_MS, chord, ignoreKey, isShown, isTyping, keyName, menuKey, stepIndex, type KeyEventLike } from "./keys";
 
 const ev = (over: Partial<KeyEventLike> = {}): KeyEventLike => ({
   key: "j",
@@ -19,10 +19,26 @@ describe("the typing guard", () => {
     expect(ignoreKey(ev({ target: el("INPUT") }))).toBe(true);
   });
 
+  it("keeps every key from the page behind a modal dialog, wherever the focus is", () => {
+    expect(ignoreKey(ev(), true)).toBe(true);
+    expect(ignoreKey(ev({ target: el("BUTTON") }), true)).toBe(true);
+    expect(ignoreKey(ev(), false)).toBe(false);
+  });
+
   it("lets keys through on the page, a link or a button", () => {
     for (const t of ["BODY", "A", "BUTTON", "DIV"]) expect(isTyping(el(t))).toBe(false);
     expect(isTyping(null)).toBe(false);
     expect(ignoreKey(ev())).toBe(false);
+  });
+});
+
+describe("a hidden pane", () => {
+  const box = (rects: number) => ({ getClientRects: () => ({ length: rects }) });
+
+  it("keeps its keys: a phone's list hides the reader, whose buttons stay mounted", () => {
+    expect(isShown(box(1))).toBe(true);
+    expect(isShown(box(0))).toBe(false);
+    expect(isShown(null)).toBe(false);
   });
 });
 
