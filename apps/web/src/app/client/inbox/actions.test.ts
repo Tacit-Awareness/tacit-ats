@@ -6,10 +6,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const session = vi.hoisted(() => ({ requireClient: vi.fn() }));
 const inbox = vi.hoisted(() => ({ decideInboxApproval: vi.fn(), decideInboxApplication: vi.fn(), clearOverdueAction: vi.fn(), touchApplication: vi.fn() }));
+const email = vi.hoisted(() => ({ sendDraft: vi.fn() }));
+const mailer = vi.hoisted(() => ({ webMailer: vi.fn() }));
 const redirected = vi.hoisted(() => ({ to: [] as string[] }));
 
 vi.mock("@/lib/client/session", () => session);
 vi.mock("@/lib/client/inbox", () => inbox);
+vi.mock("@/lib/client/email", () => email);
+vi.mock("@/lib/client/mailer", () => mailer);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
@@ -18,7 +22,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { decideIssueAction } from "./actions";
+import { decideIssueAction, sendDraftAction } from "./actions";
 
 const REQUEST = "11111111-1111-4111-8111-111111111111";
 const APPLICATION = "22222222-2222-4222-8222-222222222222";
@@ -99,6 +103,55 @@ describe("decideIssueAction", () => {
     expect(url.searchParams.get("i")).toBe(`appr-${REQUEST}`);
     expect(url.search).not.toContain("Budget");
     expect(JSON.stringify(log.mock.calls)).not.toContain("Budget");
+    log.mockRestore();
+  });
+});
+
+describe("sendDraftAction", () => {
+  const DRAFT = "44444444-4444-4444-8444-444444444444";
+  const FAKE = { send: vi.fn(), fromAddress: "hiring@example.test" };
+  const send = async (fields: Record<string, string>) => {
+    await expect(sendDraftAction(form(fields))).rejects.toThrow("NEXT_REDIRECT");
+    return new URL(redirected.to.at(-1)!, "http://x");
+  };
+
+  beforeEach(() => {
+    mailer.webMailer.mockReturnValue(FAKE);
+    email.sendDraft.mockResolvedValue({ ok: true });
+  });
+
+  test("nothing happens without a session", async () => {
+    session.requireClient.mockRejectedValue(new Error("unauthenticated: signed_out"));
+    await expect(sendDraftAction(form({ draftId: DRAFT }))).rejects.toThrow("unauthenticated");
+    expect(email.sendDraft).not.toHaveBeenCalled();
+  });
+
+  test("sends that draft on the member's client as dashboard, then opens the next issue", async () => {
+    const url = await send({ draftId: DRAFT, next: NEXT, subject: SECRET, body: SECRET, to: "evil@example.test" });
+    expect(email.sendDraft).toHaveBeenCalledWith({}, { actorId: "a", orgId: "o", accessLevel: "admin", source: "dashboard" }, FAKE, DRAFT);
+    expect(url.searchParams.get("i")).toBe(NEXT);
+    expect(url.searchParams.get("notice")).toBe("sent");
+  });
+
+  test.each([
+    ["no draft", {}],
+    ["an id that isn't one", { draftId: "1 or 1=1" }],
+  ])("%s sends nothing", async (_, fields) => {
+    expect((await send(fields as Record<string, string>)).searchParams.get("error")).toBe("send_gone");
+    expect(email.sendDraft).not.toHaveBeenCalled();
+  });
+
+  test("a refusal stays on the draft, as a code", async () => {
+    email.sendDraft.mockResolvedValue({ ok: false, error: "send_address" });
+    const url = await send({ draftId: DRAFT, next: NEXT });
+    expect(url.searchParams.get("i")).toBe(`draft-${DRAFT}`);
+    expect(url.searchParams.get("error")).toBe("send_address");
+  });
+
+  test("a failure doesn't claim nothing went out", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    email.sendDraft.mockRejectedValue(new Error("connection reset"));
+    expect((await send({ draftId: DRAFT })).searchParams.get("error")).toBe("send_failed");
     log.mockRestore();
   });
 });

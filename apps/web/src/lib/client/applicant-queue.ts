@@ -7,6 +7,7 @@
 /** One applicant in the queue, as the list and reader need it. */
 export type QueueEntry = {
   applicationId: string;
+  candidateId: string;
   name: string | null;
   email: string | null;
   jobId: string;

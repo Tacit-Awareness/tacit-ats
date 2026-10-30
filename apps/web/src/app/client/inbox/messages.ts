@@ -1,3 +1,5 @@
+import { SEND_ERRORS } from "@/lib/client/email-messages";
+
 // What /client/inbox says after dealing with an issue. The action redirects
 // with a code and the page looks the sentence up here, so no name rides in a URL.
 export const INBOX_NOTICES = {
@@ -13,6 +15,7 @@ export const INBOX_NOTICES = {
   approval_reset: "That request was reset or withdrawn: the terms or the approvers changed. Your decision wasn't recorded.",
   moved_offer: "Moved to offer. No offer has been drafted or sent.",
   closed: "Rejected. No email went out.",
+  sent: "Sent.",
 } as const;
 
 export const INBOX_ERRORS = {
@@ -24,6 +27,7 @@ export const INBOX_ERRORS = {
   rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   // Not "nothing changed": a stage can move and its event then fail.
   failed: "That didn't work, and it may be only partly saved. Look at the candidate before trying again.",
+  ...SEND_ERRORS,
 } as const;
 
 export type InboxNotice = keyof typeof INBOX_NOTICES;

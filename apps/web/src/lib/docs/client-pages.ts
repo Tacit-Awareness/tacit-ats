@@ -307,6 +307,8 @@ Files cannot be replaced or deleted through Claude. To correct one, add the righ
 
 The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
 
+You can do the same in Tacit itself: **Reply** on an Applicant Ticket writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
+
 Drafting and sending need the right to change the candidate. Interviewers cannot email candidates.
 
 ## What never goes in an email
@@ -410,9 +412,9 @@ Filing again replaces your earlier feedback, ratings included.
 
 ## Your Granola notes
 
-If you take interview notes in Granola, click **Connect** next to Granola on the **Integrations** page and sign in to Granola. Then \`get_interview_notes\` brings back your own notes from an interview you were on: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
+If you take interview notes in Granola, click **Connect** next to Granola on the **Integrations** page and sign in to Granola. Then your own notes show on **Interviews** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
 
-The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Claude says which. When nothing matches, it lists the notes you took around then so you can pick one. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
+The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Tacit says which. When nothing matches, you get the notes you took around then to pick from. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
   },
   {
     slug: "offers",

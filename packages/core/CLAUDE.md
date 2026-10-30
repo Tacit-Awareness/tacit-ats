@@ -482,9 +482,18 @@ src/
                         getInterviewNotes, the caller's own Granola notes
                         from an interview they were an interviewer on.
                         ClientGranola {accessToken(orgId, actorId): the
-                        caller's token, read and refreshed by apps/mcp with
-                        the service role (null = not connected, reconnect =
-                        Granola dropped the grant), connectUrl, fetch?}.
+                        caller's token, read and refreshed with the service
+                        role (null = not connected, reconnect = Granola
+                        dropped the grant), connectUrl, fetch?}. Both apps
+                        implement it with granolaGrantAccess(serviceDb, orgId,
+                        actorId), which reads the grant, refreshes a minute
+                        before expiry, writes the rotated refresh token back
+                        conditional on the one read, and on a refusal looks
+                        for a token another call just refreshed, a few times
+                        over 700 ms since its write can land after the
+                        refusal, before saying reconnect. Its reads carry a
+                        signal: inside a server render Next answers identical
+                        GETs from the first, so a re-read would see nothing.
                         The interview is read on the member's token (RLS
                         first), then Granola's MCP server is asked
                         (granolaMcp: initialize, tools/call, JSON or event
