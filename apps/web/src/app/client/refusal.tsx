@@ -37,8 +37,8 @@ export function Refusal({ reason }: { reason: RefusalReason }) {
   const refusal = REFUSALS[reason];
   return (
     <main className="mx-auto mt-[12vh] grid w-full max-w-md gap-4">
-      <span className="grid size-9 place-items-center rounded-[9px] bg-black shadow-[inset_0_0_0_0.5px_rgba(74,222,128,0.4)]">
-        <span className="tacit-mark size-[18px] bg-[#4ade80]!" aria-hidden />
+      <span className="grid size-9 place-items-center rounded-[9px] bg-[color:var(--ink)]">
+        <span className="tacit-mark size-[18px] bg-[color:var(--paper)]!" aria-hidden />
       </span>
       <Section>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.02em]">{refusal.title}</h1>

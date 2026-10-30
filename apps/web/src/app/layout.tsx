@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import { THEME_COOKIE, parseTheme } from "@/lib/theme";
@@ -10,10 +10,11 @@ export const metadata: Metadata = {
   description: "Your company's hiring workspace in Tacit",
 };
 
-// tacit-internal's type: Geist for everything, Geist Mono for ids and
-// timestamps, Departure Mono (a pixel face, OFL -- fonts/DepartureMono-LICENSE.txt)
-// only for the big numbers. All self-hosted at build time: no runtime font request.
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+// design/tats's type: Inter for everything; Geist Mono (kept from
+// tacit-internal's) for ids and timestamps, Departure Mono (a pixel face, OFL --
+// fonts/DepartureMono-LICENSE.txt) only for the big numbers. All self-hosted at
+// build time: no runtime font request.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
 const departure = localFont({
   src: "./fonts/DepartureMono-Regular.woff2",
@@ -31,7 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html
       lang="en"
       data-theme={theme ?? undefined}
-      className={`h-full ${geist.variable} ${geistMono.variable} ${departure.variable}`}
+      className={`h-full ${inter.variable} ${geistMono.variable} ${departure.variable}`}
     >
       <body className="flex min-h-full flex-col bg-frame text-foreground">{children}</body>
     </html>

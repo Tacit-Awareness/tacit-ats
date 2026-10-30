@@ -102,14 +102,14 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
               ul: ({ children }) => <ul className="mt-3 mb-0 list-disc space-y-1 pl-5 marker:text-faint">{children}</ul>,
               ol: ({ children }) => <ol className="mt-3 mb-0 list-decimal space-y-1 pl-5 marker:text-faint">{children}</ol>,
               blockquote: ({ children }) => (
-                <blockquote className="mx-0 mt-3 mb-0 rounded-r-lg border-l-2 border-[color:var(--green)] bg-[color:var(--soft)] px-4 py-0.5 text-foreground [&>p]:my-2.5">
+                <blockquote className="mx-0 mt-3 mb-0 rounded-r-lg border-l-2 border-[color:var(--accent)] bg-[color:var(--soft)] px-4 py-0.5 text-foreground [&>p]:my-2.5">
                   {children}
                 </blockquote>
               ),
               a: ({ href, children }) => {
                 const to = href ? docHref(site, href) : "";
                 const external = to.startsWith("https://") || to.startsWith("http://");
-                const cls = "text-positive underline decoration-[color:var(--green)]/30 underline-offset-2 hover:decoration-[color:var(--green)]";
+                const cls = "text-[color:var(--accent)] underline decoration-[color:var(--accent)]/30 underline-offset-2 hover:decoration-[color:var(--accent)]";
                 return external ? (
                   <a href={to} target="_blank" rel="noopener noreferrer" className={cls}>
                     {children}
