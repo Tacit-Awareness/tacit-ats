@@ -10,8 +10,9 @@ import { CANDIDATE_ERRORS, type NoteState } from "./messages";
 // design/tats's `.composer`: a note for the team, in a box that stays on the
 // page. The box is uncontrolled, so it works with no script, and React resets
 // a form to its defaultValue once its action ends: empty after a save, the
-// words back after a refusal. ⌘↵ saves and C comes here, as in the prototype,
-// and the button does the same without them.
+// words back after a refusal. That reset would take anything typed while the
+// save runs, so the box is read-only until it ends. ⌘↵ saves and C comes here,
+// as in the prototype, and the button does the same without them.
 
 const FIRST: NoteState = { added: 0 };
 
@@ -42,6 +43,7 @@ export function NoteComposer({ candidateId, max }: { candidateId: string; max: n
           required
           maxLength={max}
           defaultValue={refused?.text ?? ""}
+          readOnly={pending}
           placeholder="Add a note…"
           onKeyDown={(e) => {
             if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey)) return;

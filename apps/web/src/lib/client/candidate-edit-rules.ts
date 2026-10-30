@@ -15,6 +15,9 @@ export const NOTE_MAX = 2000;
 /** The longest note on a candidate: clientTools.addNote's own limit, not a touch's. */
 export const CANDIDATE_NOTE_MAX = clientTools.NOTE_MAX;
 
+/** Whether the page offers a note: not on someone erased, whom addNote refuses too. */
+export const noteable = (name: string | null): boolean => name !== clientTools.ANONYMIZED_NAME;
+
 /** The rejection_reasons kind a move to this stage needs, or null when it needs none. */
 export function closeReasonKind(stage: string): "rejected" | "withdrew" | null {
   return stage === "rejected" ? "rejected" : stage === "withdrawn" ? "withdrew" : null;
@@ -108,12 +111,13 @@ export type NoteParse = { ok: true; text: string } | { ok: false; error: "note_e
 /**
  * A note form. A browser posts a textarea's line ends as CRLF but counts them
  * as one character for maxLength, so they are read back as LF first, and a
- * full box is not refused. Too long is refused, never cut: these are someone's
- * words, and the form puts them back.
+ * full box is not refused. A NUL goes too: Postgres text cannot hold one, and
+ * nobody typed it. Too long is refused, never cut: these are someone's words,
+ * and the form puts them back.
  */
 export function parseNote(f: Fields): NoteParse {
   const raw = f.get("text");
-  const text = typeof raw === "string" ? raw.replace(/\r\n?/g, "\n").trim() : "";
+  const text = typeof raw === "string" ? raw.replaceAll("\0", "").replace(/\r\n?/g, "\n").trim() : "";
   if (!text) return { ok: false, error: "note_empty", text };
   return text.length > CANDIDATE_NOTE_MAX ? { ok: false, error: "note_long", text } : { ok: true, text };
 }

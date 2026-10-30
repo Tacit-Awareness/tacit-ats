@@ -17,6 +17,9 @@ export type CandidateRead = {
   owners: Map<string, string | null>;
 };
 
+/** The most of the feed the page reads: the newest, across every kind of entry. */
+export const FEED_MAX = clientTools.LIST_MAX;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The tools' caller. Reads write no audit row, so `source` is never recorded. */
@@ -49,7 +52,7 @@ export async function readCandidate(db: Db, ctx: clientTools.ClientToolCtx, cand
   try {
     const candidate = await clientTools.getCandidate(db, ctx, candidateId);
     const [activity, owners] = await Promise.all([
-      clientTools.getActivity(db, ctx, { candidateId, limit: clientTools.LIST_MAX }),
+      clientTools.getActivity(db, ctx, { candidateId, limit: FEED_MAX }),
       ownersOf(db, candidate.applications.map((a) => a.applicationId)),
     ]);
     return { candidate, activity: activity.entries, owners };

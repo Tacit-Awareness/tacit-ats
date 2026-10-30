@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { Avatar, Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
-import { CANDIDATE_NOTE_MAX } from "@/lib/client/candidate-edit-rules";
+import { FEED_MAX } from "@/lib/client/candidate";
+import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
 import { ago, until } from "@/lib/client/pipeline-columns";
@@ -243,8 +244,9 @@ export function CandidateView({ candidate, activity, owners, editing, notice, er
           <section aria-label="Activity">
             <BlockHead count={activity.length}>Activity</BlockHead>
             <div className="grid gap-3">
-              <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} />
+              {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
               <ActivityStory entries={activity} now={now} />
+              {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
             </div>
           </section>
         </div>
