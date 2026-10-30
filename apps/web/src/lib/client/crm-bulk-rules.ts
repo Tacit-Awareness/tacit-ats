@@ -1,10 +1,11 @@
 import type { ApplicationStage } from "@tacit/core";
-import { NOTE_MAX } from "./candidate-edit-rules";
+import { NOTE_MAX } from "./note-max";
 
 // The CRM's bulk actions, the pure half: what a selection is, what a reject
 // would touch and leave alone, the posted input read back, and a run's rows
 // worded for the report. The writes are lib/client/crm-bulk.ts; the selection
-// lives in the browser (candidates/selection.ts).
+// lives in the browser (candidates/selection.ts), so this file imports nothing
+// that would take a server package with it.
 
 /** Rows a run writes at most: 100 selected is a third of the 300-an-hour limit the writes share. */
 export const BULK_MAX = 100;
@@ -25,10 +26,10 @@ export function togglePick(picked: Picked, item: BulkItem): Picked {
   return next.set(item.candidateId, item);
 }
 
-/** The header's box: unselects the page when all of it is selected, else selects the rest of it, up to BULK_MAX. */
+/** The header's box: selects the rest of the page, up to BULK_MAX; with nothing left to add, unselects the page. */
 export function togglePage(picked: Picked, items: readonly BulkItem[]): Picked {
   const next = new Map(picked);
-  if (items.length > 0 && items.every((i) => picked.has(i.candidateId))) {
+  if (items.every((i) => picked.has(i.candidateId)) || picked.size >= BULK_MAX) {
     for (const i of items) next.delete(i.candidateId);
     return next;
   }
@@ -36,6 +37,23 @@ export function togglePage(picked: Picked, items: readonly BulkItem[]): Picked {
     if (next.size >= BULK_MAX) break;
     if (!next.has(i.candidateId)) next.set(i.candidateId, i);
   }
+  return next;
+}
+
+/**
+ * Selected rows take what the page now shows, so a reject closes what the row
+ * says: a row picked in All and then narrowed to a department is about that
+ * department's job alone. Rows on no page in front of the member stay as
+ * picked. The same map comes back when nothing is different.
+ */
+export function syncPicked(picked: Picked, items: readonly BulkItem[]): Picked {
+  const stale = items.filter((i) => {
+    const had = picked.get(i.candidateId);
+    return had && JSON.stringify(had) !== JSON.stringify(i);
+  });
+  if (stale.length === 0) return picked;
+  const next = new Map(picked);
+  for (const i of stale) next.set(i.candidateId, i);
   return next;
 }
 
@@ -105,7 +123,7 @@ export function parseBulkName(raw: unknown): BulkNameInput | null {
 }
 
 /** One row of a run: done, nothing to do (`unchanged`), or why it did not go through. */
-export type BulkOutcome = "done" | "unchanged" | "not_found" | "forbidden" | "changed" | "rate_limited" | "not_tried" | "failed";
+export type BulkOutcome = "done" | "unchanged" | "not_found" | "forbidden" | "changed" | "at_offer" | "rate_limited" | "not_tried" | "failed";
 export type BulkRow = { id: string; outcome: BulkOutcome };
 
 /** A run that never started: nothing was written. */
@@ -133,6 +151,7 @@ const FORBIDDEN: Record<BulkAction, string> = {
 const SENTENCES: Record<Exclude<BulkOutcome, "done" | "unchanged" | "forbidden">, string> = {
   not_found: "Not someone you can see any more.",
   changed: "Someone already moved them, so nothing was changed.",
+  at_offer: "Has an offer open. Reject them from their own page.",
   rate_limited: "You've hit the limit of 300 changes an hour.",
   not_tried: "Not tried: the hourly limit stopped the run first.",
   failed: "That didn't work.",
@@ -149,6 +168,23 @@ export type BulkSummary = {
   /** Every row that did not go through, and every row left alone on purpose. */
   problems: { id: string; label: string; sentence: string }[];
 };
+
+/** What may go through on another try. Every other row is either done or needs a person to look. */
+const RETRIES: readonly BulkOutcome[] = ["rate_limited", "not_tried", "failed"];
+
+/**
+ * What stays selected after a run: the rows worth trying again, a reject's
+ * with only those applications, so a run the limit stopped halfway can be
+ * picked up by pressing the button again.
+ */
+export function retryPicked(action: BulkAction, items: readonly BulkItem[], rows: readonly BulkRow[]): BulkItem[] {
+  const again = new Set(rows.filter((r) => RETRIES.includes(r.outcome)).map((r) => r.id));
+  if (action !== "reject") return items.filter((i) => again.has(i.candidateId));
+  return items.flatMap((i) => {
+    const apps = i.apps.filter((a) => again.has(a.applicationId));
+    return apps.length ? [{ ...i, apps }] : [];
+  });
+}
 
 /** A run's rows for the report. `labels` names each row (the ids and codes are all the server sends back). */
 export function summarize(action: BulkAction, rows: readonly BulkRow[], labels: ReadonlyMap<string, string>, skipped: RejectPlan["skipped"] = []): BulkSummary {

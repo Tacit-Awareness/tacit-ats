@@ -118,7 +118,8 @@ const isClosing = (s: string): s is (typeof CLOSING)[number] => (CLOSING as read
  * Moves an application. Closing one (rejected, withdrawn) needs a reason from
  * list_rejection_reasons, of the matching kind, and takes an optional note;
  * the same call on an application already closed at that stage replaces its
- * reason. Leaving those stages clears the reason (the database does that).
+ * reason, unless `expectedStage` says the caller thought it was still open.
+ * Leaving those stages clears the reason (the database does that).
  */
 export async function updateStage(
   db: Db,
@@ -141,6 +142,8 @@ export async function updateStage(
   const app = await editableApplication(db, input.applicationId);
   const reason = isClosing(stage) ? await reasonForStage(db, input.reasonId!, stage) : null;
 
+  // Ahead of the same-stage case: a close that lost a race must not replace the winner's reason.
+  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
   if (app.stage === stage) {
     if (!reason) return { outcome: "unchanged", stage, reason: null };
     return withAudit(db, ctx, { action: "application.close_reason", entity: "application" }, async () => {
@@ -158,7 +161,6 @@ export async function updateStage(
       };
     });
   }
-  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
   const result = await withAudit<StageResult>(db, ctx, { action: "application.stage_change", entity: "application" }, async () => {
     const r = await moveStage(db, {
       applicationId: app.id, stage, actorId: ctx.actorId, expectedStage: app.stage,

@@ -60,11 +60,29 @@ function startRefused(err: unknown): BulkError {
   return "failed";
 }
 
+/** An offer draft, out or accepted. Declined and withdrawn ones are over. */
+const LIVE_OFFER = ["draft", "extended", "accepted"];
+
+/**
+ * Which of these applications have a live offer. Nothing moves an application
+ * to the offer stage when an offer is written, so the stage alone does not
+ * say. Status only, never the terms, and under the offers policy: whoever may
+ * edit a pipeline but not manage its job (an external recruiter) reads none,
+ * so for them this stays the stage check the page already made.
+ */
+async function withLiveOffer(db: Db, applicationIds: string[]): Promise<Set<string>> {
+  const { data, error } = await db.from("offers").select("application_id").in("application_id", applicationIds).in("status", LIVE_OFFER);
+  if (error) throw new Error(error.message);
+  return new Set((data ?? []).map((o) => o.application_id));
+}
+
 /**
  * Closes each application as rejected, with one reason and an optional note,
  * from the stage the page showed: one someone else moved since comes back
- * `changed`. The note stays on the application, out of the audit row. The
- * reason is checked first, so a bad one is one answer, not a hundred.
+ * `changed`, and one with a live offer `at_offer`, as anyone at the offer
+ * stage is left to their own page. The note stays on the application, out of
+ * the audit row. The reason and the offers are read first, so a bad reason is
+ * one answer, not a hundred, and no row closes on an offer check that failed.
  */
 export async function bulkReject(db: Db, ctx: clientTools.ClientToolCtx, input: BulkRejectInput): Promise<BulkAnswer> {
   const { data: reason, error } = await db
@@ -76,11 +94,13 @@ export async function bulkReject(db: Db, ctx: clientTools.ClientToolCtx, input: 
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!reason) return { ok: false, error: "bad_reason" };
+  const offers = await withLiveOffer(db, input.applications.map((a) => a.applicationId));
 
   const rows = await eachRow(
     input.applications,
     (a) => a.applicationId,
     async (a) => {
+      if (offers.has(a.applicationId.toLowerCase())) return "at_offer";
       const moved = await moveCandidate(db, ctx, {
         applicationId: a.applicationId,
         stage: "rejected",

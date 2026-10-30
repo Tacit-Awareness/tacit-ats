@@ -1,15 +1,11 @@
 import { APPLICATION_STAGES, NEXT_ACTION_MAX, parseDueDate, type ApplicationStage } from "@tacit/core";
+import { NOTE_MAX } from "./note-max";
 
 // The candidate page's edit rules, pure: which reason a close needs, where
 // "next stage" goes, and the posted fields read back into typed input. The
 // writes themselves are lib/client/candidate-edits.ts.
 
-/**
- * The longest touch or close note: core's pipeline NOTE_MAX, which @tacit/core
- * does not export yet. logTouch cuts a note to it anyway; moveStage stores a
- * close note as given, so it is cut here.
- */
-export const NOTE_MAX = 2000;
+export { NOTE_MAX };
 
 /** The rejection_reasons kind a move to this stage needs, or null when it needs none. */
 export function closeReasonKind(stage: string): "rejected" | "withdrew" | null {

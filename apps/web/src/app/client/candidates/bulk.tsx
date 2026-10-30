@@ -5,11 +5,12 @@ import { useKeyHelp, useKeys } from "@/components/keys";
 import { Notice } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
-import { NOTE_MAX } from "@/lib/client/candidate-edit-rules";
+import { NOTE_MAX } from "@/lib/client/note-max";
 import {
   BULK_ERRORS,
   BULK_MAX,
   rejectPlan,
+  retryPicked,
   summarize,
   type BulkAction,
   type BulkAnswer,
@@ -18,14 +19,15 @@ import {
 } from "@/lib/client/crm-bulk-rules";
 import { cn } from "@/lib/utils";
 import { bulkAddToPoolAction, bulkRejectAction, bulkTagAction } from "./actions";
-import { clearPicked, toggleItem, togglePageItems, usePicked } from "./selection";
+import { clearPicked, keepItems, syncItems, toggleItem, togglePageItems, usePicked } from "./selection";
 
 // The CRM's selection and bulk actions, as design/tats's `.ck` boxes and
 // `.bulk` bar: a box on every row, X on the focused row, Esc to clear, and a
 // bar with Reject, Tag and Add to pool once anything is selected. Each action
 // asks first in a dialog, then shows what happened to every row there:
 // the server answers with ids and codes, and the names are the ones already
-// on this page. Rows that change clear the selection; the table refreshes.
+// on this page. After a run only the rows worth trying again stay selected;
+// the table refreshes.
 
 export type BulkOptions = {
   reasons: { reasonId: string; name: string }[];
@@ -78,6 +80,7 @@ export function PageCheck({ items }: { items: BulkItem[] }) {
 /** X on the focused row (or the one under the mouse), Esc to clear. Only while there are rows to pick from. */
 export function BulkKeys({ items }: { items: BulkItem[] }) {
   const picked = usePicked();
+  useEffect(() => syncItems(items), [items]);
   useKeys({
     x: () => {
       const row = document.activeElement?.closest("[data-bulk-row]") ?? document.querySelector("[data-bulk-row]:hover");
@@ -160,7 +163,7 @@ function BulkDialog({ action, items, options, onClose }: { action: BulkAction; i
   const finish = (answer: BulkAnswer, labels: Map<string, string>) => {
     if (!answer.ok) return setError(BULK_ERRORS[answer.error]);
     setSummary(summarize(action, answer.rows, labels, action === "reject" ? plan.skipped : []));
-    clearPicked();
+    keepItems(retryPicked(action, items, answer.rows));
   };
 
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -206,6 +209,9 @@ function BulkDialog({ action, items, options, onClose }: { action: BulkAction; i
         e.preventDefault();
         close();
       }}
+      // The browser lets a cancel be refused only once: a second Esc closes the dialog anyway.
+      // Mid-run it comes straight back, or the report would land in a closed dialog; otherwise it is a close.
+      onClose={() => (pending ? dialog.current?.showModal() : onClose())}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}

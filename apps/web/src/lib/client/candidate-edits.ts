@@ -100,8 +100,8 @@ export async function moveCandidate(db: Db, ctx: clientTools.ClientToolCtx, inpu
       reasonId: closing ? input.reasonId : null,
       note: closing ? input.note : null,
     });
-    // The stage matched a moment ago, so "unchanged" means someone else just
-    // made this same move. "reason_set" is that too, and this reason replaced theirs.
+    // The stage matched a moment ago, so anything else means someone else just
+    // moved it. expectedStage is why a close that lost that race replaced nothing.
     return moved.outcome === "moved" || moved.outcome === "reason_set"
       ? { ok: true, changed: true, roleId: g.app.role_id }
       : { ok: false, error: "changed" };

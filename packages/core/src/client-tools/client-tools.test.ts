@@ -53,6 +53,16 @@ describe("updateStage", () => {
     expect([...rpcs(same), ...rpcs(since)]).not.toContain("client_claim_write");
   });
 
+  test("a close that lost the race replaces nothing: expectedStage holds on an application already closed there too", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...APP, stage: "rejected" } }, { data: true },
+      { data: { id: "reason-1", kind: "rejected", name: "Too junior", archived_at: null } },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected", expectedStage: "screening", reasonId: "reason-1" }))
+      .toEqual({ outcome: "changed_since", stage: "rejected", reason: null });
+    expect(rpcs(fake)).not.toContain("client_claim_write");
+  });
+
   test("the web app's writes are claimed with source dashboard", async () => {
     const fake = new FakeSupabase([
       { data: APP }, { data: true },

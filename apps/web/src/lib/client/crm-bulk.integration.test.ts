@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 
 import { readCandidate } from "./candidate";
 import { bulkAddToPool, bulkReject, bulkTag } from "./crm-bulk";
@@ -39,6 +39,8 @@ const POOL = "b7f10000-0000-4000-8000-0000000000e1";
 const OLD_POOL = "b7f10000-0000-4000-8000-0000000000e2";
 
 const ACME_WORKOS = "org_itest_cbulk_acme";
+const RECRUITER = "b7a00000-0000-4000-8000-0000000000e4";
+const COORDINATOR = "b7a00000-0000-4000-8000-0000000000e5";
 
 function must<T extends { error: { message: string } | null }>(result: T): T {
   if (result.error) throw new Error(`fixture: ${result.error.message}`);
@@ -304,5 +306,190 @@ describe("past applications", () => {
     const read = (await readCandidate(ada(), adaCtx, person(2)))!;
     expect(read.past).toMatchObject([{ applicationId: app(2), stage: "rejected", reached: "screening", rejectionReason: "Not enough experience" }]);
     expect(read.past[0]!.closedAt).not.toBeNull();
+  });
+});
+
+describe("the roles the page does not stop", () => {
+  const rex = () => member("user_cbulk_rex");
+  const rexCtx = ctx(RECRUITER, "elevated");
+  const cora = () => member("user_cbulk_cora");
+  const coraCtx = ctx(COORDINATOR, "elevated");
+
+  beforeEach(async () => {
+    must(await db().from("actors").insert([
+      { id: RECRUITER, org_id: ACME, slug: "itest-cbulk-rex", display_name: "Rex Recruiter", email: "rex@cbulk.test", access_level: "limited", auth_subject: "user_cbulk_rex" },
+      { id: COORDINATOR, org_id: ACME, slug: "itest-cbulk-cora", display_name: "Cora Coordinator", email: "cora@cbulk.test", access_level: "limited", auth_subject: "user_cbulk_cora" },
+    ]));
+    const { data: external } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+    must(await db().from("job_access").insert({ org_id: ACME, role_id: ENGINEER, actor_id: RECRUITER, access_role_id: external!.id }));
+    must(await db().from("hiring_team").insert({ org_id: ACME, role_id: ENGINEER, actor_id: COORDINATOR, team_role: "coordinator" }));
+    // Rex added Linus, and only Linus.
+    must(await db().from("people").update({ added_by_actor_id: RECRUITER }).eq("id", person(3)));
+    must(await db().from("applications").update({ added_by_actor_id: RECRUITER }).eq("id", app(3)));
+  });
+
+  test("an external recruiter's page loads, and they act on their own add alone", async () => {
+    expect((await readCandidates(rex())).candidates.map((c) => c.candidateId)).toEqual([person(3)]);
+    expect(await clientTools.listRejectionReasons(rex(), rexCtx)).not.toEqual([]);
+    expect(await clientTools.listPools(rex(), rexCtx)).toEqual([]);
+    expect(await bulkTag(rex(), rexCtx, { candidateIds: [person(1), person(3)], name: "Silver" })).toEqual({
+      ok: true,
+      rows: [{ id: person(1), outcome: "not_found" }, { id: person(3), outcome: "done" }],
+    });
+    expect(await bulkReject(rex(), rexCtx, { applications: [row(app(1)), row(app(3), "interviewing")], reasonId: REASON, note: null })).toEqual({
+      ok: true,
+      rows: [{ id: app(1), outcome: "not_found" }, { id: app(3), outcome: "done" }],
+    });
+    expect((await stageOf(app(1))).stage).toBe("screening");
+  });
+
+  test("an external recruiter makes no tag and no pool, and gets no pool they cannot read", async () => {
+    expect(await bulkTag(rex(), rexCtx, { candidateIds: [person(3)], name: "Rex's own" })).toEqual({ ok: false, error: "cannot_create" });
+    expect(await bulkAddToPool(rex(), rexCtx, { candidateIds: [person(3)], name: "Future" })).toEqual({ ok: false, error: "cannot_create" });
+    expect(must(await db().from("tags").select("id").eq("org_id", ACME).eq("name", "Rex's own")).data).toEqual([]);
+    expect(await poolsOf(person(3))).toEqual([]);
+  });
+
+  test("a hiring team member who reads but may not edit gets forbidden on every row, and makes nothing", async () => {
+    expect(await bulkReject(cora(), coraCtx, { applications: [row(app(1))], reasonId: REASON, note: null })).toEqual({ ok: true, rows: [{ id: app(1), outcome: "forbidden" }] });
+    expect(await bulkTag(cora(), coraCtx, { candidateIds: [person(1)], name: "Silver" })).toEqual({ ok: true, rows: [{ id: person(1), outcome: "forbidden" }] });
+    expect(await bulkAddToPool(cora(), coraCtx, { candidateIds: [person(1)], name: "Future" })).toEqual({ ok: true, rows: [{ id: person(1), outcome: "forbidden" }] });
+    expect(await bulkTag(cora(), coraCtx, { candidateIds: [person(1)], name: "Cora's own" })).toEqual({ ok: false, error: "cannot_create" });
+    expect((await stageOf(app(1))).stage).toBe("screening");
+    expect(await tagsOn(person(1))).toEqual([]);
+  });
+});
+
+describe("an offer on an application that never moved to the offer stage", () => {
+  // Nothing moves the stage when an offer is drafted (core's offers.ts), so the stage alone does not say who has one.
+  const offer = async (id: string, ...steps: string[]) => {
+    must(await db().from("applications").update({ stage: "interviewing" }).eq("id", id));
+    must(await db().from("offers").insert({ org_id: ACME, application_id: id, salary: 123456, created_by_actor_id: ADMIN }));
+    for (const status of steps) must(await db().from("offers").update({ status }).eq("application_id", id));
+  };
+
+  test("an offer in play is left alone and reported, and the rest of the run goes through", async () => {
+    await offer(app(1), "extended");
+    await offer(app(2));
+    const answer = await bulkReject(ada(), adaCtx, { applications: [row(app(1), "interviewing"), row(app(2), "interviewing"), row(app(3), "interviewing")], reasonId: REASON, note: null });
+    expect(answer).toEqual({
+      ok: true,
+      rows: [{ id: app(1), outcome: "at_offer" }, { id: app(2), outcome: "at_offer" }, { id: app(3), outcome: "done" }],
+    });
+    expect((await stageOf(app(1))).stage).toBe("interviewing");
+    expect((await stageOf(app(2))).stage).toBe("interviewing");
+  });
+
+  test("an accepted one counts, and an id posted in capitals does not get past the check", async () => {
+    await offer(app(1), "extended", "accepted");
+    const answer = await bulkReject(ada(), adaCtx, { applications: [row(app(1).toUpperCase(), "interviewing")], reasonId: REASON, note: null });
+    expect(answer).toEqual({ ok: true, rows: [{ id: app(1).toUpperCase(), outcome: "at_offer" }] });
+    expect((await stageOf(app(1))).stage).toBe("interviewing");
+  });
+
+  test("a declined or withdrawn offer no longer stands in the way", async () => {
+    await offer(app(1), "extended", "declined");
+    await offer(app(2), "withdrawn");
+    const answer = await bulkReject(ada(), adaCtx, { applications: [row(app(1), "interviewing"), row(app(2), "interviewing")], reasonId: REASON, note: null });
+    expect(answer).toEqual({ ok: true, rows: [{ id: app(1), outcome: "done" }, { id: app(2), outcome: "done" }] });
+  });
+
+  test("nothing about an offer reaches the audit log", async () => {
+    await offer(app(1), "extended");
+    await bulkReject(ada(), adaCtx, { applications: [row(app(1), "interviewing"), row(app(3), "interviewing")], reasonId: REASON, note: null });
+    const audits = must(await db().from("audit_log").select("action, after").eq("org_id", ACME)).data!;
+    expect(JSON.stringify(audits)).not.toContain("123456");
+  });
+});
+
+describe("two people at once", () => {
+  const SECOND = "b7e00000-0000-4000-8000-0000000000e9";
+  beforeEach(async () => {
+    must(await db().from("rejection_reasons").insert({ id: SECOND, org_id: ACME, kind: "rejected", name: "Second" }));
+  });
+
+  test("a late reject does not replace the reason and note of the one that beat it", async () => {
+    await bulkReject(ada(), adaCtx, { applications: [row(app(1))], reasonId: REASON, note: "First" });
+    const late = await clientTools.updateStage(ada(), adaCtx, { applicationId: app(1), stage: "rejected", expectedStage: "screening", reasonId: SECOND, note: "Second" });
+    expect(late.outcome).toBe("changed_since");
+    expect(await stageOf(app(1))).toEqual({ stage: "rejected", rejection_reason_id: REASON, rejection_note: "First" });
+  });
+
+  test("the same call without a stage to hold to still replaces the reason, as the connector's tool says", async () => {
+    await bulkReject(ada(), adaCtx, { applications: [row(app(1))], reasonId: REASON, note: "First" });
+    expect((await clientTools.updateStage(ada(), adaCtx, { applicationId: app(1), stage: "rejected", reasonId: SECOND })).outcome).toBe("reason_set");
+    expect((await clientTools.updateStage(ada(), adaCtx, { applicationId: app(1), stage: "rejected", expectedStage: "rejected", reasonId: REASON })).outcome).toBe("reason_set");
+  });
+
+  test("the same row rejected by two runs at once closes once: one done, one changed, the winner's reason kept", async () => {
+    for (let i = 0; i < 5; i++) {
+      must(await db().from("applications").update({ stage: "screening", rejection_reason_id: null, rejection_note: null }).eq("id", app(1)));
+      must(await db().from("application_events").delete().eq("application_id", app(1)));
+      const [a, b] = await Promise.all([
+        bulkReject(ada(), adaCtx, { applications: [row(app(1))], reasonId: REASON, note: "A" }),
+        bulkReject(lee(), leeCtx, { applications: [row(app(1))], reasonId: SECOND, note: "B" }),
+      ]);
+      const outcomes = [a, b].map((x) => (x.ok ? x.rows[0]!.outcome : x.error));
+      expect(outcomes.slice().sort()).toEqual(["changed", "done"]);
+      const final = await stageOf(app(1));
+      expect(final.rejection_reason_id).toBe(outcomes[0] === "done" ? REASON : SECOND);
+      expect(must(await db().from("application_events").select("id").eq("application_id", app(1)).eq("kind", "stage_changed")).data).toHaveLength(1);
+    }
+  });
+
+  test("the same new tag made by two runs at once is one tag, on everyone", async () => {
+    const [a, b] = await Promise.all([
+      bulkTag(ada(), adaCtx, { candidateIds: [person(1)], name: "Raced" }),
+      bulkTag(ada(), adaCtx, { candidateIds: [person(2)], name: "raced" }),
+    ]);
+    expect([a, b]).toMatchObject([{ ok: true, rows: [{ outcome: "done" }] }, { ok: true, rows: [{ outcome: "done" }] }]);
+    expect(must(await db().from("tags").select("id").eq("org_id", ACME).ilike("name", "raced")).data).toHaveLength(1);
+  });
+});
+
+describe("what a run is handed", () => {
+  test("already closed and unknown ids answer row by row", async () => {
+    must(await db().from("applications").update({ stage: "hired" }).eq("id", app(2)));
+    const unknown = "b7d00000-0000-4000-8000-0000000000fe";
+    expect(await bulkReject(ada(), adaCtx, { applications: [row(app(1)), row(app(2)), row(unknown)], reasonId: REASON, note: null })).toEqual({
+      ok: true,
+      rows: [{ id: app(1), outcome: "done" }, { id: app(2), outcome: "changed" }, { id: unknown, outcome: "not_found" }],
+    });
+    expect((await stageOf(app(2))).stage).toBe("hired");
+  });
+
+  test("markup and unicode are stored as typed", async () => {
+    for (const name of ["<script>alert(1)</script>", "日本語 タグ", "🦄", "'; drop table tags; --", "%_%"]) {
+      expect(await bulkTag(ada(), adaCtx, { candidateIds: [person(1)], name })).toMatchObject({ ok: true, rows: [{ outcome: "done" }] });
+    }
+    expect(must(await db().from("tags").select("name").eq("org_id", ACME).eq("name", "<script>alert(1)</script>")).data).toHaveLength(1);
+    expect(await tagsOn(person(1))).toHaveLength(5);
+  });
+
+  test("text the database refuses fails its row and moves nothing", async () => {
+    expect(await bulkReject(ada(), adaCtx, { applications: [row(app(1))], reasonId: REASON, note: "a\u0000b" })).toEqual({ ok: true, rows: [{ id: app(1), outcome: "failed" }] });
+    expect((await stageOf(app(1))).stage).toBe("screening");
+    await expect(bulkTag(ada(), adaCtx, { candidateIds: [person(1)], name: "a\u0000b" })).rejects.toThrow();
+    expect(await tagsOn(person(1))).toEqual([]);
+  });
+
+  test("at the limit a new tag is one refusal, and an existing one is refused row by row", async () => {
+    must(await db().from("audit_log").insert(
+      Array.from({ length: 300 }, () => ({ org_id: ACME, actor_id: ADMIN, source: "dashboard", action: "note.add", entity: "person", created_at: new Date().toISOString() })),
+    ));
+    expect(await bulkTag(ada(), adaCtx, { candidateIds: [person(1), person(2)], name: "Over" })).toEqual({ ok: false, error: "rate_limited" });
+    expect(must(await db().from("tags").select("id").eq("org_id", ACME).eq("name", "Over")).data).toEqual([]);
+    const answer = await bulkTag(ada(), adaCtx, { candidateIds: [person(1), person(2)], name: "Silver" });
+    expect(answer.ok && answer.rows.map((r) => r.outcome)).toEqual(["rate_limited", "rate_limited"]);
+    expect(await tagsOn(person(1))).toEqual([]);
+  });
+
+  test("a hiring manager on both jobs reads the past application and its events", async () => {
+    must(await db().from("hiring_team").insert({ org_id: ACME, role_id: DESIGNER, actor_id: LEAD, team_role: "hiring_manager" }));
+    must(await db().from("applications").update({ created_at: at(-1) }).eq("id", app(1)));
+    must(await db().from("applications").insert({ id: app(9), org_id: ACME, person_id: person(1), role_id: DESIGNER, stage: "rejected", created_at: at(-60), last_touch_at: at(-30) }));
+    must(await db().from("application_events").insert({ org_id: ACME, application_id: app(9), kind: "stage_changed", from_stage: "screening", to_stage: "rejected", created_at: at(-30) }));
+    const read = (await readCandidate(lee(), leeCtx, person(1)))!;
+    expect(read.past).toMatchObject([{ applicationId: app(9), reached: "screening" }]);
   });
 });
