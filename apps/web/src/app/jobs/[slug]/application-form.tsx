@@ -1,5 +1,6 @@
 import { Ico, ICON } from "@/components/careers/frame";
 import { formSections } from "@/lib/public/application";
+import { VIA, type Channel } from "@/lib/public/channel";
 import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, type PublicQuestion } from "@/lib/public/jobs";
 import { APPLY_FORM } from "./guide";
 
@@ -74,10 +75,10 @@ function Question({ q }: { q: PublicQuestion }) {
   );
 }
 
-export function ApplicationForm({ slug, company, questions, notice }: { slug: string; company: string; questions: PublicQuestion[]; notice: string | null }) {
+export function ApplicationForm({ slug, company, questions, notice, channel }: { slug: string; company: string; questions: PublicQuestion[]; notice: string | null; channel: Channel }) {
   const { resume, about, custom } = formSections(questions);
   return (
-    <form id={APPLY_FORM} className="form" method="post" action={`/api/jobs/${slug}/apply`}>
+    <form id={APPLY_FORM} className="form" method="post" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
       {notice ? (
         <p className="notice" role="alert">
           {notice}

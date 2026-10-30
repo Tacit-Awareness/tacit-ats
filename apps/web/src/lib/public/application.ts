@@ -15,6 +15,19 @@ export function formSections(questions: PublicQuestion[]): { resume: PublicQuest
   };
 }
 
+const NOTICES: Record<string, (label: string | null) => string> = {
+  required: (label) => (label ? `Please answer: ${label}` : "Please answer every required question."),
+  too_long: (label) => (label ? `That answer is too long: ${label}` : "One of your answers is too long."),
+  invalid: (label) => (label ? `Please check your answer to: ${label}` : "Please check your answers."),
+  busy: () => "Too many applications from here just now. Please try again in an hour.",
+  failed: () => "Something went wrong on our side. Please try again.",
+};
+
+/** The route's `?error=` code as words. The code is in the URL, so own keys only: `constructor` is on every object. */
+export function formNotice(code: string | undefined, label: string | null): string | null {
+  return code && Object.hasOwn(NOTICES, code) ? NOTICES[code](label) : null;
+}
+
 export type GuideItem = { field: string; label: string };
 export type GuideStep = { key: string; title: string; items: GuideItem[] };
 

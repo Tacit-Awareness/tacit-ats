@@ -417,6 +417,8 @@ export type OutstandingFeedback = { interviewId: string; applicationId: string; 
 export type InterviewerActivity = ReportScope & {
   onTimeHours: number;
   interviewers: InterviewerRow[];
+  /** Median hours from an interview's end to feedback, over every filing counted above; null with none. */
+  medianHoursToFeedback: number | null;
   /** Every not-filed pair counted in `notFiled`, oldest interview first. */
   outstanding: OutstandingFeedback[];
 };
@@ -533,8 +535,12 @@ export async function interviewerActivity(
   const interviewers = [...per.values()]
     .map(({ hours, ...r }) => ({ ...r, medianHoursToFeedback: hours.length ? dayStats(hours).medianDays : null }))
     .sort((a, b) => b.interviews - a.interviews || (a.name ?? "").localeCompare(b.name ?? ""));
+  const allHours = [...per.values()].flatMap((r) => r.hours);
   // The scan is ordered by ends_at, so the list already runs oldest first.
-  return { jobId: null, since, truncated: interviews.truncated, onTimeHours: FEEDBACK_ON_TIME_HOURS, interviewers, outstanding };
+  return {
+    jobId: null, since, truncated: interviews.truncated, onTimeHours: FEEDBACK_ON_TIME_HOURS, interviewers,
+    medianHoursToFeedback: dayStats(allHours).medianDays, outstanding,
+  };
 }
 
 // ---------------------------------------------------------------------------
