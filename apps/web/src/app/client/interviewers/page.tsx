@@ -12,8 +12,8 @@ import { InterviewersView, type InterviewerViewGroup } from "./view";
 // signed-in member's own token (lib/client/interviewers.ts): one row per
 // member on a hiring team as an interviewer or with interviews, grouped by
 // department when their jobs have one. Read-only, and counts only. Under them
-// the whole team (team.tsx); an admin also invites, re-sends and withdraws.
-// Whether someone is an admin is the database's answer (current_access_level).
+// the whole team (team.tsx); an admin also changes access, invites, re-sends
+// and withdraws. Whether someone is an admin is the database's answer (current_access_level).
 
 export default async function ClientInterviewers({
   searchParams,
@@ -23,10 +23,19 @@ export default async function ClientInterviewers({
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
   const { db, actorId, accessLevel, org } = gate.ctx;
+  const { notice, error } = await searchParams;
+  const notices = (
+    <>
+      {isTeamNotice(notice) ? <Notice>{TEAM_NOTICES[notice]}</Notice> : null}
+      {isTeamError(error) ? <Notice tone="error">{TEAM_ERRORS[error]}</Notice> : null}
+    </>
+  );
 
+  // An admin who just stepped down to interviewer lands here, so the notice shows too.
   if (accessLevel === "limited") {
     return (
       <Page bar={<PageBar title="Interviewers" />}>
+        {notices}
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -40,7 +49,6 @@ export default async function ClientInterviewers({
     );
   }
 
-  const { notice, error } = await searchParams;
   const isAdmin = accessLevel === "admin";
   const [{ groups, feedback, truncated }, team, pending] = await Promise.all([
     readInterviewers(db, { actorId, orgId: org.id, accessLevel }, new Date()),
@@ -69,14 +77,9 @@ export default async function ClientInterviewers({
       feedback={feedback}
       note={truncated ? "Counted from the first 5,000 interviews; there are more." : null}
       empty={view.length === 0 ? "Nobody interviews yet. Add interviewers to a job's hiring team, or schedule an interview." : null}
-      notices={
-        <>
-          {isTeamNotice(notice) ? <Notice>{TEAM_NOTICES[notice]}</Notice> : null}
-          {isTeamError(error) ? <Notice tone="error">{TEAM_ERRORS[error]}</Notice> : null}
-        </>
-      }
+      notices={notices}
     >
-      <TeamSections members={members} pending={pending} actorId={actorId} isAdmin={isAdmin} />
+      <TeamSections members={members} pending={pending} actorId={actorId} isAdmin={isAdmin} rendered={Date.now()} />
     </InterviewersView>
   );
 }
