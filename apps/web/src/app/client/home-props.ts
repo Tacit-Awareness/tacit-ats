@@ -1,11 +1,9 @@
 import { clientTools } from "@tacit-ats/core";
-import type { HomeRead } from "@/lib/client/home";
+import { OUTSTANDING_PREVIEW, type HomeRead } from "@/lib/client/home";
 import { departmentTabs } from "@/lib/client/department-tree";
-import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, workload, HOME_PERIODS, type Bottleneck } from "@/lib/client/home-metrics";
-import { LEVELS } from "@/lib/client/levels";
+import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
 import { PIPELINE_COLUMNS } from "@/lib/client/pipeline-columns";
-import type { AccessLevel } from "@/lib/client/session";
-import type { Bar, HomeViewProps, WaitCard } from "./home-view";
+import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 
 // Home's read (lib/client/home.ts) shaped for home-view.tsx: the period,
 // department and job links, each card's words and bars, the bottlenecks' sentences. No reads.
@@ -16,6 +14,15 @@ const SHORT: Record<string, string> = { new: "New", screening: "Screen", schedul
 const STAGE_NAMES: Record<string, string> = { sourced: "Sourced", contacted: "Contacted", screening: "Screening", interviewing: "Interviewing", offer: "Offer" };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Each bottleneck's tile and the page that clears it (design/tats's "Decide in Inbox", here the Pipeline's own columns). */
+const BOTTLENECK_GO: Record<BottleneckKey, { icon: BottleneckIcon; label: string }> = {
+  review: { icon: "ticket", label: "Screen in Pipeline" },
+  schedule: { icon: "cal", label: "Schedule in Pipeline" },
+  decide: { icon: "flag", label: "Decide in Pipeline" },
+  feedback: { icon: "quote", label: "Open Interviews" },
+  stalled: { icon: "clock", label: "Open Pipeline" },
+};
 
 function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what: string; why: string } {
   const oldest = b.oldestHours === null ? "" : fmtHours(b.oldestHours);
@@ -33,7 +40,7 @@ function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what:
   }
 }
 
-export function overviewProps(read: HomeRead, ctx: { org: { name: string }; accessLevel: AccessLevel }, days: number, now: number): HomeViewProps {
+export function overviewProps(read: HomeRead, days: number, now: number): HomeViewProps {
   const job = read.jobId;
   const department = read.departmentId;
   // interviewerActivity has no job filter: with a job or a department picked, its numbers still cover every job they manage.
@@ -82,16 +89,30 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
     title: b.toDaysAgo === 0 ? `${b.n} in the last ${weekly ? "week" : "day"}` : `${b.n} from ${b.fromDaysAgo} to ${b.toDaysAgo} days ago`,
   }));
 
+  const menu = (label: string, options: { href: string; label: string; active: boolean }[]) => {
+    const picked = options.find((o) => o.active) ?? options[0];
+    return { label, value: picked.label, on: picked !== options[0], options };
+  };
+  const departments = departmentTabs({ options: read.departments, departmentId: department, jobIds: null }, (d) => href({ department: d, job: null }));
+  // The prototype's period, team and role chips; an org with no departments gets no department chip, one with no open job no job chip.
+  const filters = [
+    {
+      ...menu(
+        "Period",
+        HOME_PERIODS.map((d) => ({ href: href({ days: d }), label: `Last ${d} days`, active: d === days })),
+      ),
+      on: days !== HOME_PERIODS[0],
+    },
+    ...(departments.length ? [menu("Department", departments)] : []),
+    ...(read.jobs.length
+      ? [menu("Job", [{ href: href({ job: null }), label: "All jobs", active: !job }, ...read.jobs.map((j) => ({ href: href({ job: j.id }), label: j.title, active: job === j.id }))])]
+      : []),
+  ];
+
   return {
     title: "Recruiting Overview",
-    subtitle: `${ctx.org.name} · ${LEVELS[ctx.accessLevel]}`,
     days,
-    periods: HOME_PERIODS.map((d) => ({ href: href({ days: d }), label: `${d} days`, active: d === days })),
-    departments: departmentTabs({ options: read.departments, departmentId: department, jobIds: null }, (d) => href({ department: d, job: null })),
-    jobs: [
-      { href: href({ job: null }), label: "All jobs", active: !job },
-      ...read.jobs.map((j) => ({ href: href({ job: j.id }), label: j.title, active: job === j.id })),
-    ],
+    filters,
     pipelineHref: pipeline(),
     newApps: { value: read.applications.current, change: read.applications.change, bars },
     inProcess: {
@@ -130,8 +151,20 @@ export function overviewProps(read: HomeRead, ctx: { org: { name: string }; acce
     bottlenecks: bottlenecks(read.waiting, fb ? fb.outstanding : null, now).map((b) => ({
       key: b.key,
       ...bottleneckWords(b, days, allJobs),
-      href: b.key === "feedback" ? null : pipeline(b.key === "review" ? "new" : b.key === "schedule" ? "scheduling" : b.key === "decide" ? "decide" : undefined),
+      ...BOTTLENECK_GO[b.key],
+      href: b.key === "feedback" ? "/client/interviews" : pipeline(b.key === "review" ? "new" : b.key === "schedule" ? "scheduling" : b.key === "decide" ? "decide" : undefined),
     })),
+    outstanding: fb && {
+      total: fb.outstanding,
+      rows: read.outstanding.map((o) => ({
+        id: `${o.interviewId}:${o.interviewerId}`,
+        interviewer: o.interviewerName ?? "Unknown",
+        line: [o.candidateName ?? "A candidate", o.jobTitle].filter(Boolean).join(" · "),
+        wait: fmtHours(Math.max(0, now - Date.parse(o.endsAt)) / 3_600_000),
+        href: `/client/interviews?i=${o.interviewId}`,
+      })),
+      more: fb.outstanding > OUTSTANDING_PREVIEW ? { href: "/client/interviews", label: `All ${fb.outstanding} in Interviews` } : null,
+    },
     stages: rows.map((r) => ({
       key: r.key,
       label: PIPELINE_COLUMNS.find((c) => c.key === r.key)!.label,

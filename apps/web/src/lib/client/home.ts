@@ -39,6 +39,8 @@ const PAGE = 1000;
 /** Rows a table read stops at, like the reports' REPORT_SCAN_MAX; the page says so. */
 const SCAN_MAX = 5000;
 const DAY = 86_400_000;
+/** Outstanding feedback the card lists, oldest first, before "All in Interviews". */
+export const OUTSTANDING_PREVIEW = 5;
 
 export type HomeRead = {
   /** The live departments to filter by; empty for an org with none, which shows no filter. */
@@ -58,9 +60,44 @@ export type HomeRead = {
   names: Record<string, string>;
   /** interviewerActivity, or null for someone who manages no job. It has no job filter: every job they manage. */
   feedback: FeedbackRow[] | null;
+  /** The oldest feedback not filed (interviewerActivity's, so every job they manage), at most OUTSTANDING_PREVIEW. */
+  outstanding: OutstandingRow[];
   /** A read stopped at its cap, so a number is a floor. */
   truncated: boolean;
 };
+
+export type OutstandingRow = {
+  interviewId: string;
+  interviewerId: string;
+  interviewerName: string | null;
+  candidateName: string | null;
+  jobTitle: string;
+  endsAt: string;
+};
+
+/** Who and for which job, for the few outstanding pieces the card lists. */
+async function outstandingRows(db: Db, activity: clientTools.InterviewerActivity): Promise<OutstandingRow[]> {
+  const shown = activity.outstanding.slice(0, OUTSTANDING_PREVIEW);
+  if (!shown.length) return [];
+  const { data, error } = await db
+    .from("applications")
+    .select("id, people(display_name), roles(title)")
+    .in("id", [...new Set(shown.map((o) => o.applicationId))]);
+  if (error) throw new Error(error.message);
+  const apps = new Map((data ?? []).map((a) => [a.id, a]));
+  const names = new Map(activity.interviewers.map((i) => [i.userId, i.name]));
+  return shown.map((o) => {
+    const app = apps.get(o.applicationId);
+    return {
+      interviewId: o.interviewId,
+      interviewerId: o.interviewerId,
+      interviewerName: names.get(o.interviewerId) ?? null,
+      candidateName: app?.people?.display_name ?? null,
+      jobTitle: app?.roles?.title ?? "",
+      endsAt: o.endsAt,
+    };
+  });
+}
 
 async function scanRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
   const rows: T[] = [];
@@ -176,6 +213,7 @@ export async function readHome(
     for (const m of data ?? []) if (m.id && m.display_name) names[m.id] = m.display_name;
   }
 
+  const outstanding = activity ? await outstandingRows(db, activity) : [];
   const createdAts = appRows.map((a) => a.created_at);
   return {
     departments: scope.options,
@@ -188,6 +226,7 @@ export async function readHome(
     interviews,
     names,
     feedback: activity ? activity.interviewers : null,
+    outstanding,
     truncated: apps.truncated || ivs.truncated || reports.some((r) => r.truncated) || (activity?.truncated ?? false),
   };
 }
