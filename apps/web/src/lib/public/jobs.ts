@@ -7,7 +7,7 @@ import type { BoardRole } from "./board";
  * with the link. No session of any kind, and only the publishable key with no
  * token, so every call goes out as `anon`, which may run exactly three
  * functions here (packages/db, 20261016150000_client_job_posts and
- * 20261030120000_job_board_public): job_board_public, an org's live posts,
+ * 20261030130000_job_board_public): job_board_public, an org's live posts,
  * job_post_public, one post's public fields, and submit_job_application, the
  * one way in. None returns anything about who is on file.
  * src/client-area.test.ts fails if anything reachable from the public pages
