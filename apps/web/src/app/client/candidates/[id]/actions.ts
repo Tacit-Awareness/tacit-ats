@@ -2,17 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { candidateOf, parseMove, parseNextAction, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
+import { candidateOf, parseMove, parseNextAction, parseNote, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
 import {
+  addCandidateNote,
   logCandidateTouch,
   moveCandidate,
   setCandidateNextAction,
   setCandidateOwner,
   type EditOutcome,
+  type NoteOutcome,
 } from "@/lib/client/candidate-edits";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
-import type { CandidateError, CandidateNotice } from "./messages";
+import type { CandidateError, CandidateNotice, NoteState } from "./messages";
 
 // The candidate page's writes, one form each per job: move the stage, change
 // the owner, set or clear the next action, log a touch. lib/client/
@@ -20,6 +22,8 @@ import type { CandidateError, CandidateNotice } from "./messages";
 // and the next action through the audited clientTools, so the policies decide
 // whether each lands (can_edit_pipeline on the job). Posted fields are request
 // data, so every id and choice is re-checked (lib/client/candidate-edit-rules.ts).
+// A note is one form for the candidate, not per job, and it answers in place
+// rather than by redirect (NoteState), so a refusal keeps what was typed.
 
 // Only codes and ids go in the URL, never a name or a message.
 const back = (candidateId: string | null, params: { notice?: CandidateNotice; error?: CandidateError }): never => {
@@ -79,4 +83,24 @@ export async function logTouchAction(form: FormData): Promise<void> {
   const input = parseTouch(form);
   if (!input) return back(candidateId, { error: "not_found" });
   return run(candidateId, "touched", () => logCandidateTouch(db, actorId, input));
+}
+
+export async function addNoteAction(prev: NoteState, form: FormData): Promise<NoteState> {
+  const member = await requireClient();
+  const candidateId = candidateOf(form);
+  if (!candidateId) return back(null, {});
+  const parsed = parseNote(form);
+  const refuse = (error: CandidateError): NoteState => ({ added: prev.added, error, text: parsed.text });
+  if (!parsed.ok) return refuse(parsed.error);
+
+  let outcome: NoteOutcome;
+  try {
+    outcome = await addCandidateNote(member.db, toolCtx(member), { candidateId, text: parsed.text });
+  } catch (err) {
+    console.error("[client-candidate] note failed:", err instanceof Error ? err.message : err);
+    return refuse("failed");
+  }
+  if (!outcome.ok) return refuse(outcome.error);
+  revalidatePath(`/client/candidates/${candidateId}`);
+  return { added: prev.added + 1 };
 }

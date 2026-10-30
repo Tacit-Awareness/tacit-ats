@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRAFT_LATE_MS, inboxIssues, issueFix, issueLine, nextIssue, secondaryHref, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
+import { DRAFT_LATE_MS, inboxIssues, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const DAY = 86_400_000;
@@ -146,6 +146,37 @@ describe("selecting", () => {
   });
 });
 
+describe("a decision's fix", () => {
+  const offer = issues({ approvals: [approval()] })[0]!;
+  const job = issues({ approvals: [approval({ kind: "job_open", applicationId: null, candidateId: null, candidateName: null })] })[0]!;
+  const decide = issues({ cards: [card("a", { column: "decide", interviews: [{ startsAt: daysAgo(2), endsAt: daysAgo(2), status: "scheduled" }] })] })[0]!;
+
+  test("an approval is decided here, whether or not they may edit the pipeline", () => {
+    for (const canEdit of [true, false]) {
+      expect(issueFix(offer, canEdit)).toEqual({ type: "approval", requestId: "r1", kind: "offer" });
+      expect(issueFix(job, canEdit)).toEqual({ type: "approval", requestId: "r1", kind: "job_open" });
+    }
+  });
+
+  test("the team's call is decided here only by someone who may edit the pipeline", () => {
+    expect(decide.reason).toBe("decide");
+    expect(issueFix(decide, true)).toEqual({ type: "decide", applicationId: "a", nextRoundHref: "/client/candidates/p-a" });
+    expect(issueFix(decide, false).type).toBe("link");
+  });
+
+  test("the second way out is the candidate, or for a job's approval the job", () => {
+    expect(secondaryLink(offer, issueFix(offer, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
+    expect(secondaryLink(job, issueFix(job, true))).toEqual({ label: "Open the job", href: "/client/jobs/job" });
+    // Next round is already their page.
+    expect(secondaryLink(decide, issueFix(decide, true))).toBeNull();
+  });
+
+  test("an approver who can't open the page behind it gets no link to a 404", () => {
+    expect(secondaryLink(offer, issueFix(offer, true), false)).toBeNull();
+    expect(secondaryLink(job, issueFix(job, true), false)).toBeNull();
+  });
+});
+
 describe("issueFix", () => {
   const overdue = issues({ cards: [card("a", { stalled: ["overdue"], nextActionDue: "2026-10-27" })] })[0]!;
   const quiet = issues({ cards: [card("a", { stalled: ["no_touch"] })] })[0]!;
@@ -161,16 +192,12 @@ describe("issueFix", () => {
     const feedback = issues({ cards: [card("a")], outstanding: [missing("a")] })[0]!;
     expect(issueFix(feedback, true)).toEqual({ type: "link", label: "Open the interview", href: "/client/interviews?i=iv-a" });
     const decide = issues({ cards: [card("a", { column: "decide" })] })[0]!;
-    expect(issueFix(decide, true)).toEqual({ type: "link", label: "Decide", href: "/client/candidates/p-a" });
-    const job = issues({ approvals: [approval({ kind: "job_open", applicationId: null, candidateId: null, candidateName: null })] })[0]!;
-    expect(issueFix(job, true)).toEqual({ type: "link", label: "Open the job", href: "/client/jobs/job" });
+    expect(issueFix(decide, false)).toEqual({ type: "link", label: "Decide", href: "/client/candidates/p-a" });
   });
 
   test("the candidate's page is offered unless the fix already is it", () => {
-    expect(secondaryHref(overdue, issueFix(overdue, true))).toBe("/client/candidates/p-a");
-    expect(secondaryHref(overdue, issueFix(overdue, false))).toBeNull();
-    const job = issues({ approvals: [approval({ kind: "job_open", applicationId: null, candidateId: null, candidateName: null })] })[0]!;
-    expect(secondaryHref(job, issueFix(job, true))).toBeNull();
+    expect(secondaryLink(overdue, issueFix(overdue, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
+    expect(secondaryLink(overdue, issueFix(overdue, false))).toBeNull();
   });
 });
 

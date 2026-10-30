@@ -21,9 +21,17 @@ export function Page({
   narrow = false,
   bleed = false,
   bar,
+  stickyBar = false,
   className,
   ...props
-}: React.ComponentProps<"div"> & { narrow?: boolean; bar?: React.ReactNode; /** Fill the panel under the bar, no column (design/tats's `.calpage.fit`). */ bleed?: boolean }) {
+}: React.ComponentProps<"div"> & {
+  narrow?: boolean;
+  bar?: React.ReactNode;
+  /** Fill the panel under the bar, no column (design/tats's `.calpage.fit`). */
+  bleed?: boolean;
+  /** Keep the bar on screen, from a tablet up (it wraps to several rows on a phone): for a long page whose actions are in it (the posting editor). */
+  stickyBar?: boolean;
+}) {
   const column = (
     <div
       className={cn(
@@ -37,7 +45,7 @@ export function Page({
   if (!bar) return column;
   return (
     <>
-      <div className="page-top">{bar}</div>
+      <div className={cn("page-top", stickyBar && "md:sticky md:top-0 md:z-20 md:bg-background")}>{bar}</div>
       {column}
     </>
   );

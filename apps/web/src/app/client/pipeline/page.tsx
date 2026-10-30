@@ -1,25 +1,30 @@
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
+import { stageLabel } from "@/lib/client/crm-views";
 import { departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
+import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, ago, isColumnKey, lastInterviewAt, nextInterviewAt, until, type ColumnKey } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { readPersonTags } from "@/lib/client/views";
 import { describeFilters, hasFilters, parseViewFilters, parseViewId, rowSource, viewKeeps } from "@/lib/saved-views";
 import { Refusal } from "../refusal";
-import { PipelineView, type BoardCard, type BoardColumn } from "./view";
+import type { BoardCard, BoardColumn } from "./board-state";
+import { PipelineView } from "./view";
 
 // Every open job's live applications on one board (design/tats's Pipeline),
 // read with the signed-in member's own token (lib/client/pipeline.ts). This
 // page only arranges it: the member's department tabs, job chip and name
 // filter (a department narrows the job chip to its jobs and those of the
 // departments inside it, lib/client/department-tree.ts), each column's
-// order, and a dozen cards a column until "Show all". Read-only: a card opens
-// the candidate page; the edit controls are on each job's board. A saved view
-// (lib/saved-views.ts) is the same page with `?stage=&source=&tag=&view=` in
-// the URL: the filters come from there, never from the browser's copy, and
-// picking a department leaves the view, as the prototype.
+// order, and a dozen cards a column until "Show all". A card opens the
+// candidate page; on a job the member may edit it also carries its real stage
+// moves (lib/client/pipeline-moves.ts), which board.tsx offers by drag and keys.
+// A saved view (lib/saved-views.ts) is the same page with
+// `?stage=&source=&tag=&view=` in the URL: the filters come from there, never
+// from the browser's copy, and picking a department leaves the view, as the
+// prototype.
 
 /** Cards a column shows before "Show all", as design/tats's board. */
 const COLUMN_PREVIEW = 12;
@@ -123,12 +128,16 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     const open = expanded === key;
     const cards: BoardCard[] = (open ? all : all.slice(0, COLUMN_PREVIEW)).map((e) => ({
       applicationId: e.applicationId,
+      personId: e.personId,
       href: `/client/candidates/${e.personId}`,
       name: e.personName,
       line: job ? (e.headline ?? e.roleTitle) : e.roleTitle,
       status: statusOf(e, nowMs),
       ownerName: e.ownerName,
       stalled: e.stalled.length > 0,
+      stage: e.stage,
+      stageLabel: stageLabel(e.stage),
+      moves: e.editable ? movesFor(e.stage, e.interviews, nowMs) : null,
     }));
     return {
       key,

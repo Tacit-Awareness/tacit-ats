@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { closeReasonKind, nextStage, parseMove, parseNextAction, parseOwner, parseTouch } from "./candidate-edit-rules";
+import { CANDIDATE_NOTE_MAX, closeReasonKind, nextStage, noteable, parseMove, parseNextAction, parseNote, parseOwner, parseTouch } from "./candidate-edit-rules";
 
 const APP = "c5d00000-0000-4000-8000-0000000000b1";
 const REASON = "c5e00000-0000-4000-8000-0000000000b1";
@@ -96,5 +96,45 @@ describe("parseOwner and parseTouch", () => {
     expect(parseTouch(form({ applicationId: APP, note: " Called " }))).toEqual({ applicationId: APP, note: "Called" });
     expect(parseTouch(form({ applicationId: APP }))).toEqual({ applicationId: APP, note: null });
     expect(parseTouch(form({ applicationId: "x" }))).toBeNull();
+  });
+});
+
+describe("noteable", () => {
+  test("anyone but someone erased", () => {
+    expect(noteable("Grace Hopper")).toBe(true);
+    expect(noteable(null)).toBe(true);
+    expect(noteable("Anonymized candidate")).toBe(false);
+  });
+});
+
+describe("parseNote", () => {
+  test("a note is trimmed and keeps its own line breaks", () => {
+    expect(parseNote(form({ text: "  Strong on systems.\n\nAsk about relocation.  " }))).toEqual({ ok: true, text: "Strong on systems.\n\nAsk about relocation." });
+  });
+
+  test("the CRLF a browser posts comes back as LF, so a box filled to its limit is not refused", () => {
+    expect(parseNote(form({ text: "one\r\ntwo\rthree" }))).toEqual({ ok: true, text: "one\ntwo\nthree" });
+    const full = `${"x".repeat(CANDIDATE_NOTE_MAX - 2)}\r\nx`;
+    expect(full.length).toBeGreaterThan(CANDIDATE_NOTE_MAX);
+    expect(parseNote(form({ text: full }))).toMatchObject({ ok: true });
+  });
+
+  test("nothing to say is refused, whatever was posted", () => {
+    expect(parseNote(form({ text: " \r\n\t " }))).toEqual({ ok: false, error: "note_empty", text: "" });
+    expect(parseNote(form({ text: "\u0000 \u0000" }))).toEqual({ ok: false, error: "note_empty", text: "" });
+    expect(parseNote(form({}))).toEqual({ ok: false, error: "note_empty", text: "" });
+    const file = new FormData();
+    file.set("text", new File(["x"], "x.txt"));
+    expect(parseNote(file)).toEqual({ ok: false, error: "note_empty", text: "" });
+  });
+
+  test("a NUL is dropped, since Postgres cannot hold one", () => {
+    expect(parseNote(form({ text: "a\u0000b" }))).toEqual({ ok: true, text: "ab" });
+  });
+
+  test("too long is refused with the words intact, never cut", () => {
+    const text = "x".repeat(CANDIDATE_NOTE_MAX + 1);
+    expect(parseNote(form({ text }))).toEqual({ ok: false, error: "note_long", text });
+    expect(parseNote(form({ text: text.slice(1) }))).toEqual({ ok: true, text: text.slice(1) });
   });
 });

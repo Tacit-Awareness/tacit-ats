@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ClientInviteError, inviteClientMember, withdrawClientInvite } from "@tacit-ats/core";
+import { changeMemberAccess, type ChangeAccessOutcome } from "@/lib/client/member-access";
 import { requireClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import { clientInvitations } from "@/lib/client/workos";
 import type { TeamError, TeamNotice } from "./messages";
 
-// The invitations' writes. Both run on the signed-in member's own database
+// The team's writes. All of them run on the signed-in member's own database
 // client: the definer functions behind them decide whether the caller is an
 // admin and keep every write inside the org on their token, which is also the
 // only org an invitation can be sent into. Nothing from the form names an org.
@@ -62,4 +64,23 @@ export async function withdrawAction(form: FormData): Promise<void> {
   }
   revalidatePath("/client/interviewers");
   return back(withdrawn ? { notice: "withdrawn" } : { error: "not_found" });
+}
+
+// The audited clientTools.setMemberAccess (lib/client/member-access.ts), on the
+// member's own client: set_org_member_access checks the caller is an admin,
+// keeps the change inside their org and refuses to leave it without an admin.
+// The layout too: the sidebar names the level of whoever changed their own.
+export async function setAccessAction(form: FormData): Promise<void> {
+  const member = await requireClient();
+  const actorId = str(form, "actorId");
+  if (!UUID.test(actorId)) return back({ error: "member_gone" });
+  let outcome: ChangeAccessOutcome;
+  try {
+    outcome = await changeMemberAccess(member.db, toolCtx(member), { actorId, level: form.get("accessLevel") });
+  } catch (err) {
+    return back({ error: codeFor(err, "changing someone's access") });
+  }
+  if (!outcome.ok) return back({ error: outcome.error });
+  revalidatePath("/client", "layout");
+  return back({ notice: outcome.changed ? "access_changed" : "access_unchanged" });
 }

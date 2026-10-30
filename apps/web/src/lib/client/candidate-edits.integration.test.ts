@@ -1,8 +1,8 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 
-import { logCandidateTouch, moveCandidate, readEditing, setCandidateNextAction, setCandidateOwner } from "./candidate-edits";
+import { addCandidateNote, logCandidateTouch, moveCandidate, readEditing, setCandidateNextAction, setCandidateOwner } from "./candidate-edits";
 
 /**
  * The candidate page's writes against the local stack, on members' own
@@ -40,7 +40,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  for (const table of ["application_events", "interviews", "applications", "rejection_reasons", "hiring_team", "people", "roles", "companies"] as const) {
+  for (const table of ["person_notes", "application_events", "interviews", "applications", "rejection_reasons", "hiring_team", "people", "roles", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("audit_log").delete().in("actor_id", [ADMIN, LEAD, INTERVIEWER]);
@@ -62,6 +62,9 @@ const audits = async (id: string) =>
   must(await db().from("audit_log").select("source, action, entity, before, after").eq("entity_id", id).order("created_at")).data!;
 const events = async (id: string) =>
   must(await db().from("application_events").select("kind, from_stage, to_stage, detail, actor_id").eq("application_id", id).order("created_at")).data!;
+
+const notes = async (personId: string) =>
+  must(await db().from("person_notes").select("org_id, actor_id, text").eq("person_id", personId).order("created_at")).data!;
 
 const OLD = new Date(Date.now() - 72 * 3_600_000).toISOString();
 
@@ -93,6 +96,7 @@ beforeEach(async () => {
 
   must(await db().from("people").insert([
     { id: person(1), org_id: ACME, display_name: "Grace Hopper", email: "grace@cedit.test" },
+    { id: person(2), org_id: ACME, display_name: "Alan Turing", email: "alan@cedit.test" },
     { id: GLOBEX_PERSON, org_id: GLOBEX, display_name: "Globex Candidate", email: "g@cedit.test" },
   ]));
   must(await db().from("applications").insert([
@@ -255,5 +259,67 @@ describe("the candidate page's writes", () => {
     expect(await logCandidateTouch(ada, ADMIN, { applicationId: GLOBEX_APP, note: null })).toEqual({ ok: false, error: "not_found" });
     expect((await application(GLOBEX_APP)).stage).toBe("screening");
     expect(await events(GLOBEX_APP)).toEqual([]);
+  });
+});
+
+describe("a note on the candidate", () => {
+  const TEXT = "Strong on systems. Salary ask is high.";
+
+  test("lands as the member's, audited as the web app's, with its words kept out of the audit", async () => {
+    expect(await addCandidateNote(member("user_cedit_ada"), ctx(ADMIN, "admin"), { candidateId: person(1), text: TEXT })).toEqual({ ok: true });
+    expect(await notes(person(1))).toEqual([{ org_id: ACME, actor_id: ADMIN, text: TEXT }]);
+    const rows = await audits(person(1));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ source: "dashboard", action: "note.add", entity: "person", before: null });
+    expect(Object.keys(rows[0]!.after as object)).toEqual(["note_id"]);
+    expect(JSON.stringify(rows)).not.toContain("Salary");
+  });
+
+  test("touches no application: it is a word to the team, not contact with the candidate", async () => {
+    await addCandidateNote(member("user_cedit_ada"), ctx(ADMIN, "admin"), { candidateId: person(1), text: TEXT });
+    expect(Date.parse((await application(app(1))).last_touch_at)).toBe(Date.parse(OLD));
+    expect(await events(app(1))).toEqual([]);
+  });
+
+  test("a hiring manager notes someone in their job", async () => {
+    expect(await addCandidateNote(member("user_cedit_lee"), ctx(LEAD, "elevated"), { candidateId: person(1), text: TEXT })).toEqual({ ok: true });
+    expect((await notes(person(1))).map((n) => n.actor_id)).toEqual([LEAD]);
+  });
+
+  test("an interviewer notes someone they interview, and nobody else", async () => {
+    const ivy = member("user_cedit_ivy");
+    expect(await addCandidateNote(ivy, ctx(INTERVIEWER, "limited"), { candidateId: person(1), text: TEXT })).toEqual({ ok: true });
+    expect((await notes(person(1))).map((n) => n.actor_id)).toEqual([INTERVIEWER]);
+    expect(await addCandidateNote(ivy, ctx(INTERVIEWER, "limited"), { candidateId: person(2), text: TEXT })).toEqual({ ok: false, error: "note_gone" });
+    expect(await notes(person(2))).toEqual([]);
+  });
+
+  test("another company's candidate is nobody's to note, and no id in the request changes that", async () => {
+    const ada = member("user_cedit_ada");
+    expect(await addCandidateNote(ada, ctx(ADMIN, "admin"), { candidateId: GLOBEX_PERSON, text: TEXT })).toEqual({ ok: false, error: "note_gone" });
+    expect(await addCandidateNote(ada, ctx(ADMIN, "admin"), { candidateId: person(99), text: TEXT })).toEqual({ ok: false, error: "note_gone" });
+    expect(await notes(GLOBEX_PERSON)).toEqual([]);
+    expect(await audits(GLOBEX_PERSON)).toEqual([]);
+  });
+
+  test("a read-only connector does not stop the page", async () => {
+    must(await db().from("orgs").update({ connector_access: "read_only" }).eq("id", ACME));
+    expect(await addCandidateNote(member("user_cedit_ada"), ctx(ADMIN, "admin"), { candidateId: person(1), text: TEXT })).toEqual({ ok: true });
+    expect(await notes(person(1))).toHaveLength(1);
+  });
+
+  test("the hourly limit does, and writes nothing", async () => {
+    must(await db().from("audit_log").insert(
+      Array.from({ length: 300 }, () => ({ actor_id: ADMIN, source: "dashboard", action: "note.add", entity: "person" })),
+    ));
+    expect(await addCandidateNote(member("user_cedit_ada"), ctx(ADMIN, "admin"), { candidateId: person(1), text: TEXT })).toEqual({ ok: false, error: "rate_limited" });
+    expect(await notes(person(1))).toEqual([]);
+  });
+
+  test("a note shows up in the candidate's feed for its author", async () => {
+    // readCandidate's activity is core's getActivity: an interviewer reads their own note back.
+    await addCandidateNote(member("user_cedit_ivy"), ctx(INTERVIEWER, "limited"), { candidateId: person(1), text: "Asked good questions" });
+    const feed = await clientTools.getActivity(member("user_cedit_ivy"), ctx(INTERVIEWER, "limited"), { candidateId: person(1), limit: 50 });
+    expect(feed.entries.filter((e) => e.kind === "note").map((e) => e.text)).toEqual(["Asked good questions"]);
   });
 });

@@ -53,6 +53,16 @@ describe("updateStage", () => {
     expect([...rpcs(same), ...rpcs(since)]).not.toContain("client_claim_write");
   });
 
+  test("a close that lost the race replaces nothing: expectedStage holds on an application already closed there too", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...APP, stage: "rejected" } }, { data: true },
+      { data: { id: "reason-1", kind: "rejected", name: "Too junior", archived_at: null } },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected", expectedStage: "screening", reasonId: "reason-1" }))
+      .toEqual({ outcome: "changed_since", stage: "rejected", reason: null });
+    expect(rpcs(fake)).not.toContain("client_claim_write");
+  });
+
   test("the web app's writes are claimed with source dashboard", async () => {
     const fake = new FakeSupabase([
       { data: APP }, { data: true },
@@ -136,6 +146,16 @@ describe("updateStage", () => {
     expect(fake.calls.find((c) => c.op === "update")?.args).toMatchObject({ rejection_reason_id: "r-2", rejection_note: null });
   });
 
+  test("someone else's rejection isn't overwritten by a stale page rejecting them too", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...APP, stage: "rejected" } }, { data: true }, { data: { id: "r-2", kind: "rejected", name: "Timing", archived_at: null } },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected", expectedStage: "interviewing", reasonId: "r-2", note: "mine" }))
+      .toEqual({ outcome: "changed_since", stage: "rejected", reason: null });
+    expect(fake.calls.find((c) => c.op === "update")).toBeUndefined();
+    expect(rpcs(fake)).not.toContain("client_claim_write");
+  });
+
   test("an unknown stage is refused before any read", async () => {
     const fake = new FakeSupabase();
     expect((await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "maybe" }))).code).toBe("invalid");
@@ -206,7 +226,23 @@ describe("addNote", () => {
     const fake = new FakeSupabase([{ data: { id: "p-1" } }, { data: "audit-1" }, { data: { id: "note-1" } }, { data: null }]);
     expect(await addNote(fake.asDb(), ctx(), { candidateId: "p-1", text: "  Strong systems depth  " })).toEqual({ noteId: "note-1" });
     const insert = fake.calls.find((c) => c.op === "insert");
-    expect(insert).toMatchObject({ table: "person_notes", args: { person_id: "p-1", actor_id: "actor-1", text: "Strong systems depth" } });
+    expect(insert).toMatchObject({ table: "person_notes", args: { person_id: "p-1", actor_id: "actor-1", text: "Strong systems depth", source: ctx().source } });
+  });
+
+  test("an erased candidate takes no note, from anyone, and no claim is made", async () => {
+    const admin = new FakeSupabase([{ data: { id: "p-1", anonymized_at: "2026-10-01T00:00:00Z" } }]);
+    expect((await refusal(addNote(admin.asDb(), ctx(), { candidateId: "p-1", text: "Lives at 12 Elm St" }))).code).toBe("not_found");
+    expect(rpcs(admin)).toEqual([]);
+    const interviewer = new FakeSupabase([{ data: [{ person_id: "p-1", display_name: "Anonymized candidate" }] }]);
+    expect((await refusal(addNote(interviewer.asDb(), ctx("limited"), { candidateId: "p-1", text: "Lives at 12 Elm St" }))).code).toBe("not_found");
+    expect(rpcs(interviewer)).toEqual(["my_interview_candidates"]);
+  });
+
+  test("a NUL, which Postgres cannot hold, is dropped before the claim", async () => {
+    const fake = new FakeSupabase([{ data: { id: "p-1" } }, { data: "audit-1" }, { data: { id: "note-1" } }, { data: null }]);
+    await addNote(fake.asDb(), ctx(), { candidateId: "p-1", text: "a\u0000b" });
+    expect(fake.calls.find((c) => c.op === "insert")).toMatchObject({ args: { text: "ab" } });
+    expect((await refusal(addNote(new FakeSupabase().asDb(), ctx(), { candidateId: "p-1", text: "\u0000 \u0000" }))).code).toBe("invalid");
   });
 
   test("an empty or oversized note is refused without a read", async () => {

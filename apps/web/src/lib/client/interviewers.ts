@@ -35,7 +35,7 @@ export type InterviewersRead = {
   truncated: boolean;
 };
 
-async function scanRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
+export async function scanRows<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
   const rows: T[] = [];
   for (let from = 0; from < SCAN_MAX; from += PAGE) {
     const { data, error } = await page(from, from + PAGE - 1);

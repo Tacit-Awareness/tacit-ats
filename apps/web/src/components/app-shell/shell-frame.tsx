@@ -8,6 +8,7 @@ import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { Avatar, initialsOf } from "@/components/page";
+import { modalOpen } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
 import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
@@ -270,7 +271,7 @@ function Frame({ org, user, jobs, sidebar: initial, children }: Omit<ShellProps,
   toggleRef.current = toggle;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented) return;
+      if (e.defaultPrevented || modalOpen()) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setMenu((m) => !m);

@@ -65,7 +65,7 @@ src/
                         (a job, its company) get their id in code and are
                         never read back: the roles read policy's helpers
                         cannot see a row inserted by the same statement
-                        interviews.ts: listMyInterviews (my_interviews()),
+                        interviews.ts: listMyInterviews (my_interviews(), paged),
                         scheduleInterview / updateInterview (times need an
                         offset; with a ClientCalendar, booked on the member's
                         Google Calendar: see calendar.ts),

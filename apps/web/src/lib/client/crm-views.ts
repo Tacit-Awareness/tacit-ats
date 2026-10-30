@@ -72,6 +72,8 @@ export type CrmRow = {
   linkedinUrl: string | null;
   /** The jobs this row is about, the lead one first. */
   jobs: { jobId: string; title: string }[];
+  /** The open applications among them: what a bulk reject on this row would close. */
+  openApps: { applicationId: string; jobTitle: string; stage: string }[];
   /** The lead application's stage; null for a prospect, in no job the member can see. */
   stage: string | null;
   ownerName: string | null;
@@ -105,6 +107,7 @@ export function rowFor(c: CrmCandidate, view: CrmView): CrmRow | null {
     headline: c.headline,
     linkedinUrl: c.linkedinUrl ?? null,
     jobs,
+    openApps: shown.filter((a) => LIVE.has(a.stage)).map((a) => ({ applicationId: a.applicationId, jobTitle: a.jobTitle ?? "Untitled job", stage: a.stage })),
     stage: lead?.stage ?? null,
     ownerName: lead?.ownerName ?? null,
     lastTouchAt: touches.length ? new Date(Math.max(...touches)).toISOString() : c.addedAt,
