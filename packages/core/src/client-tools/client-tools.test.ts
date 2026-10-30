@@ -136,6 +136,16 @@ describe("updateStage", () => {
     expect(fake.calls.find((c) => c.op === "update")?.args).toMatchObject({ rejection_reason_id: "r-2", rejection_note: null });
   });
 
+  test("someone else's rejection isn't overwritten by a stale page rejecting them too", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...APP, stage: "rejected" } }, { data: true }, { data: { id: "r-2", kind: "rejected", name: "Timing", archived_at: null } },
+    ]);
+    expect(await updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "rejected", expectedStage: "interviewing", reasonId: "r-2", note: "mine" }))
+      .toEqual({ outcome: "changed_since", stage: "rejected", reason: null });
+    expect(fake.calls.find((c) => c.op === "update")).toBeUndefined();
+    expect(rpcs(fake)).not.toContain("client_claim_write");
+  });
+
   test("an unknown stage is refused before any read", async () => {
     const fake = new FakeSupabase();
     expect((await refusal(updateStage(fake.asDb(), ctx(), { applicationId: "app-1", stage: "maybe" }))).code).toBe("invalid");

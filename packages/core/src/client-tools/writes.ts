@@ -142,6 +142,9 @@ export async function updateStage(
   const app = await editableApplication(db, input.applicationId);
   const reason = isClosing(stage) ? await reasonForStage(db, input.reasonId!, stage) : null;
 
+  // First, or someone else's rejection would have its reason and note replaced
+  // by a page that still showed them interviewing.
+  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
   if (app.stage === stage) {
     if (!reason) return { outcome: "unchanged", stage, reason: null };
     return withAudit(db, ctx, { action: "application.close_reason", entity: "application" }, async () => {
@@ -159,7 +162,6 @@ export async function updateStage(
       };
     });
   }
-  if (input.expectedStage && app.stage !== input.expectedStage) return { outcome: "changed_since", stage: app.stage, reason: null };
   const result = await withAudit<StageResult>(db, ctx, { action: "application.stage_change", entity: "application" }, async () => {
     const r = await moveStage(db, {
       applicationId: app.id, stage, actorId: ctx.actorId, expectedStage: app.stage,

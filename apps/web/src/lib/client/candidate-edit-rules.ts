@@ -35,14 +35,14 @@ const isStage = (v: unknown): v is ApplicationStage => typeof v === "string" && 
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type Fields = { get(key: string): unknown };
+export type Fields = { get(key: string): unknown };
 
-const idOf = (f: Fields, key: string): string | null => {
+export const idOf = (f: Fields, key: string): string | null => {
   const v = f.get(key);
   return typeof v === "string" && UUID.test(v) ? v : null;
 };
 
-const textOf = (f: Fields, key: string, max: number): string | null => {
+export const textOf = (f: Fields, key: string, max: number): string | null => {
   const v = f.get(key);
   return typeof v === "string" && v.trim() !== "" ? v.trim().slice(0, max) : null;
 };

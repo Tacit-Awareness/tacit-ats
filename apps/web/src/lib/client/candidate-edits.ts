@@ -102,11 +102,9 @@ export async function moveCandidate(db: Db, ctx: clientTools.ClientToolCtx, inpu
       reasonId: closing ? input.reasonId : null,
       note: closing ? input.note : null,
     });
-    // The stage matched a moment ago, so "unchanged" means someone else just
-    // made this same move. "reason_set" is that too, and this reason replaced theirs.
-    return moved.outcome === "moved" || moved.outcome === "reason_set"
-      ? { ok: true, changed: true, roleId: g.app.role_id }
-      : { ok: false, error: "changed" };
+    // The stage matched a moment ago, so anything but "moved" means someone
+    // else moved them just now, and what they wrote stands.
+    return moved.outcome === "moved" ? { ok: true, changed: true, roleId: g.app.role_id } : { ok: false, error: "changed" };
   } catch (err) {
     // The application was just read, so on a close these are about the reason.
     if (closing && err instanceof clientTools.ClientToolError && (err.code === "not_found" || err.code === "invalid")) {
