@@ -57,6 +57,7 @@ const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brie
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "menu" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
+const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [
   { href: "/client/team", label: "Team", icon: "team" },
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
@@ -260,6 +261,7 @@ export function ShellFrame({
     { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
+    { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -343,6 +345,7 @@ export function ShellFrame({
         <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
           <NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />
           <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
+          <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
         </Section>
 
         <div className="mt-auto grid gap-2">
