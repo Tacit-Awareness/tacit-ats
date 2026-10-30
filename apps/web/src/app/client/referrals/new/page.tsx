@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { readAddForm } from "@/lib/client/referrals";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
@@ -19,8 +19,7 @@ export default async function ClientAddReferral({ searchParams }: { searchParams
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Add referral" />
+      <Page bar={<PageBar crumbs={[{ href: "/client/referrals", label: "Referrals" }]} title="Add referral" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}

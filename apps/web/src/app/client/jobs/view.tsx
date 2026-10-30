@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
-import { Empty, Page, PageHeader, Pill, Section, textLink } from "@/components/page";
+import { Empty, Page, PageBar, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
 
 // Job Postings' markup, props only (page.tsx does the reads): design/tats's
 // #jobs, the careers page as applicants see it. One list, a folding band per
 // department (a <details>, so no script), and a row per job: its title over
-// its location, how many applied and are in its pipeline, its post's state,
-// and the public link while the post takes applications. The row opens the
+// its location, how many are in its pipeline, its post's state when it is
+// not live, and (on hover) the public link while the post takes applications. The row opens the
 // posting; "Board" opens the job's pipeline.
 
 export type PostingRowProps = {
@@ -29,32 +29,31 @@ export type PostingGroupProps = { key: string; name: string | null; rows: Postin
 
 const icon = "size-3.5 flex-none fill-none stroke-current [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]";
 
+/** design/tats's `.jp-row`: 48px, ruled underneath, the actions only on hover. */
 function Row({ row }: { row: PostingRowProps }) {
-  const counts = [
-    row.applied !== null ? `${row.applied} applied` : null,
-    row.inPipeline !== null && row.inPipeline > 0 ? `${row.inPipeline} in pipeline` : null,
-  ].filter(Boolean);
+  // Live and taking applications says nothing; anything else says so, muted, as the prototype's "Paused".
+  const live = row.post.tone === "green" && !row.jobStatus;
+  const state = row.jobStatus ? `Job ${row.jobStatus.replace(/_/g, " ")}` : row.post.label;
+  const counted = row.applied !== null ? `${row.applied} applied through the post` : undefined;
   return (
-    <li className="relative grid grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3 border-t border-[color:var(--line)] py-2.5 pr-3 pl-4 transition-colors hover:bg-accent sm:grid-cols-[16px_minmax(0,1fr)_auto_auto_auto] sm:pl-9">
+    <li className="group/row relative grid h-12 grid-cols-[16px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--line)] pr-2.5 pl-[26px] transition-colors hover:bg-[color:var(--hover)] sm:grid-cols-[16px_minmax(0,1fr)_auto_auto_auto] sm:pl-[34px]">
       <svg viewBox="0 0 16 16" className={cn(icon, "text-faint")} aria-hidden>
         <path d="M4 1.75h5.5L12.5 4.75v9.5h-8.5z M9.25 1.75v3.25h3.25" />
       </svg>
-      <Link
-        href={`/client/jobs/${row.jobId}/post`}
-        className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-[13.5px] after:absolute after:inset-0"
-      >
-        <b className={cn("truncate font-medium", row.jobStatus && "text-muted-foreground")}>{row.title}</b>
-        <span className="truncate text-faint">{row.location ?? "No location"}</span>
-        {row.morePosts > 0 ? <span className="text-xs text-faint">+{row.morePosts} more {row.morePosts === 1 ? "post" : "posts"}</span> : null}
+      <Link href={`/client/jobs/${row.jobId}/post`} className="flex min-w-0 items-baseline gap-2 text-[13.5px] after:absolute after:inset-0">
+        <b className={cn("truncate font-medium", !live && "text-muted-foreground")}>{row.title}</b>
+        {!live ? (
+          <span className="whitespace-nowrap text-faint" title={row.post.title}>
+            {state}
+          </span>
+        ) : null}
+        {row.morePosts > 0 ? <span className="text-xs whitespace-nowrap text-faint">+{row.morePosts} more {row.morePosts === 1 ? "post" : "posts"}</span> : null}
       </Link>
-      <span className="hidden font-mono text-[12px] text-faint tabular-nums sm:block">{counts.join(" · ")}</span>
-      <span className="flex items-center gap-1.5">
-        {row.jobStatus ? <Pill title="The job itself, apart from its post">Job {row.jobStatus.replace(/_/g, " ")}</Pill> : null}
-        <Pill tone={row.post.tone} title={row.post.title}>
-          {row.post.label}
-        </Pill>
+      <span className="hidden text-[12.5px] text-faint tabular-nums sm:block" title={counted}>
+        {row.inPipeline ? `${row.inPipeline} in pipeline` : ""}
       </span>
-      <span className="relative z-10 hidden items-center gap-1 sm:flex">
+      <span className="truncate text-[13px] text-muted-foreground">{row.location ?? ""}</span>
+      <span className="relative z-10 hidden items-center gap-1 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 sm:flex">
         {row.link ? (
           <>
             <a href={row.link.path} target="_blank" rel="noreferrer" className={textLink} title="Open the public page">
@@ -66,7 +65,7 @@ function Row({ row }: { row: PostingRowProps }) {
             <CopyButton value={row.link.url} label="Copy the public link" />
           </>
         ) : null}
-        <Link href={`/client/jobs/${row.jobId}`} className={cn(textLink, "ml-2")}>
+        <Link href={`/client/jobs/${row.jobId}`} className={cn(textLink, "ml-2 font-medium")}>
           Board
         </Link>
       </span>
@@ -91,23 +90,25 @@ export function JobPostingsView({
   connectorNote: boolean;
 }) {
   return (
-    <Page narrow>
-      <PageHeader title="Job Postings" subtitle={`${live} taking applications. Each job's post as applicants see it, by department.`} />
-      <h2 className="m-0 py-4 text-center text-[32px] leading-tight font-medium tracking-[-0.025em] sm:text-[40px]">Careers at {orgName}</h2>
-      <Section title={`${total} ${total === 1 ? "job" : "jobs"}`} flush>
+    <Page narrow bar={<PageBar title="Job Postings" count={`${live} live`} />} className="gap-0 px-4 pt-8 pb-16 sm:px-6 sm:pt-14 sm:pb-20 md:px-6">
+      <h2 className="m-0 mb-7 text-center text-[30px] leading-[1.1] font-medium tracking-[-0.025em] sm:mb-11 sm:text-[40px]">Careers at {orgName}</h2>
+      <div>
+        <div className="flex h-11 items-center gap-2 border-b border-[color:var(--line)] px-2.5 text-[13px] text-faint">
+          {total} {total === 1 ? "role" : "roles"}
+        </div>
         {groups.length === 0 ? (
-          <Empty className="px-4 py-3">{empty}</Empty>
+          <Empty className="px-2.5 py-3">{empty}</Empty>
         ) : (
           groups.map((g) =>
             g.name === null ? (
-              <ul key={g.key} className="m-0 list-none p-0 [&>li:first-child]:border-t-0">
+              <ul key={g.key} className="m-0 list-none p-0">
                 {g.rows.map((r) => (
                   <Row key={r.jobId} row={r} />
                 ))}
               </ul>
             ) : (
-              <details key={g.key} open className="group border-t border-[color:var(--line)] first:border-t-0">
-                <summary className="flex h-11 cursor-pointer list-none items-center gap-2 px-4 text-[13.5px] select-none hover:bg-accent [&::-webkit-details-marker]:hidden">
+              <details key={g.key} open className="group">
+                <summary className="flex h-11 cursor-pointer list-none items-center gap-2 border-b border-[color:var(--line)] px-2.5 text-[13.5px] select-none hover:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden">
                   <svg viewBox="0 0 16 16" className={cn(icon, "size-[11px] -rotate-90 text-faint transition-transform group-open:rotate-0")} aria-hidden>
                     <path d="M4 6l4 4 4-4" />
                   </svg>
@@ -126,11 +127,10 @@ export function JobPostingsView({
             ),
           )
         )}
-      </Section>
+      </div>
       {connectorNote ? (
-        <p className="m-0 text-center text-xs text-faint">
-        Posts are written and published from your Claude connector for now (<code className="font-mono">create_job_post</code>,{" "}
-        <code className="font-mono">update_job_post</code>, <code className="font-mono">set_job_post_status</code>).
+        <p className="m-0 mt-6 text-center text-xs text-faint">
+          Posts are written and published from your Claude connector for now (create_job_post, update_job_post, set_job_post_status).
         </p>
       ) : null}
     </Page>

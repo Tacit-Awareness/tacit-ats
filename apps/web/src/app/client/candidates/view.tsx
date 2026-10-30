@@ -1,31 +1,39 @@
 import Link from "next/link";
 import { KeyList } from "@/components/keys";
-import { Avatar, Empty, Page, PageHeader, Pill, Section, Tabs, Toolbar, type Tab } from "@/components/page";
-import { Input } from "@/components/ui/input";
+import { Avatar, Empty, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
 import { cn } from "@/lib/utils";
+import { Icon, type IconName } from "./icons";
+import { LocalDay } from "./local-day";
 
-// The CRM's markup, props only (page.tsx does the reads): department tabs
-// (none for an org without departments), view tabs and a search above
-// design/tats's table, one row per candidate, the column
-// headers sorting by link (the URL is the state), 50 rows a page with the
-// range and arrows in the footer. A row opens the candidate page; J/K move
-// between rows and Enter opens one (components/keys.tsx).
+// The CRM's markup, props only (page.tsx does the reads), as design/tats's
+// CRM: the bar (database icon, "CRM", the count faint), department tabs under
+// it when the org has departments, then the views as strip tabs with the
+// search on the right, then the table (`.crm-*`): every cell ruled from the
+// next, a sticky header with an icon per column, the column headers sorting
+// by link (the URL is the state), 50 rows a page with the range and arrows in
+// the footer. A row opens the candidate page; J/K move between rows and Enter
+// opens one (components/keys.tsx).
 
 export type CrmViewRow = {
   href: string;
   name: string;
-  headline: string | null;
   jobs: string[];
+  /** "in/handle" from their LinkedIn URL, or the URL as typed; text, never a link (the row is the link). */
+  profile: string | null;
   stage: string;
   stageTone: "green" | "grey";
   ownerName: string | null;
+  lastTouchAt: string;
+  /** Shown until the browser knows its time zone: "3d ago". */
   lastTouch: string;
-  lastTouchTitle: string;
 };
 
-export type CrmColumn = { key: string; label: string; href: string; sorted: "asc" | "desc" | null };
+export type CrmColumn = { key: string; label: string; icon: IconName; href: string | null; sorted: "asc" | "desc" | null };
 
-const GRID = "grid grid-cols-[minmax(220px,1.6fr)_minmax(170px,1.3fr)_120px_minmax(130px,1fr)_110px] items-center";
+// design/tats's `.crm-r` columns, less its checkbox and Testbench ones.
+const GRID = "grid grid-cols-[minmax(190px,1.5fr)_minmax(150px,1.2fr)_minmax(120px,1fr)_128px_minmax(150px,1fr)_124px]";
+// `.crm-r > *`: 14px in, a hairline to the left of every cell but the first.
+const CELL = "flex h-full min-w-0 items-center overflow-hidden border-l border-[color:var(--line)] px-3.5 whitespace-nowrap first:border-l-0";
 
 function Arrow({ href, label, dir }: { href: string | null; label: string; dir: "prev" | "next" }) {
   const d = dir === "prev" ? "M10 3.5 5.5 8l4.5 4.5" : "M6 3.5 10.5 8 6 12.5";
@@ -42,6 +50,27 @@ function Arrow({ href, label, dir }: { href: string | null; label: string; dir: 
   ) : (
     <span aria-hidden className={cn(cls, "text-faint opacity-40")}>
       {icon}
+    </span>
+  );
+}
+
+function HeadCell({ c }: { c: CrmColumn }) {
+  const body = (
+    <>
+      <Icon name={c.icon} className="size-3.5 text-faint" />
+      {c.label}
+      {c.sorted ? <span aria-hidden>{c.sorted === "asc" ? "↑" : "↓"}</span> : null}
+    </>
+  );
+  return (
+    <span role="columnheader" aria-sort={c.sorted === "asc" ? "ascending" : c.sorted === "desc" ? "descending" : "none"} className={CELL}>
+      {c.href ? (
+        <Link href={c.href} className={cn("inline-flex min-w-0 items-center gap-2 transition-colors hover:text-foreground", c.sorted && "text-foreground")}>
+          {body}
+        </Link>
+      ) : (
+        <span className="inline-flex min-w-0 items-center gap-2">{body}</span>
+      )}
     </span>
   );
 }
@@ -77,33 +106,38 @@ export function CrmView({
   empty: string | null;
 }) {
   return (
-    <Page>
-      <PageHeader title="CRM" subtitle="Everyone you can see: in process, and everyone the funnel has closed, hired or not." />
-      {departments.length ? <Tabs label="Departments" tabs={departments} /> : null}
-      <Toolbar>
-        <Tabs label="Views" tabs={views} />
-        {/* A plain GET form: the search is in the URL, like the tabs and the sort. */}
-        <form action="/client/candidates" method="get" role="search" className="w-full sm:w-64">
-          {Object.entries(search.hidden).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          <Input name="q" defaultValue={search.q} placeholder="Search by name, email or job" aria-label="Search candidates" />
-        </form>
-      </Toolbar>
-      <Section data-tour="crm" flush title={viewLabel} count={total.toLocaleString("en-US")}>
+    <Page
+      bar={
+        <>
+          <PageBar title="CRM" icon={<Icon name="db" />} count={total.toLocaleString("en-US")} />
+          {departments.length ? (
+            <SubBar>
+              <Tabs label="Departments" tabs={departments} />
+            </SubBar>
+          ) : null}
+          <SubBar>
+            <Tabs strip label="Views" tabs={views} />
+            <SearchBox action="/client/candidates" defaultValue={search.q} placeholder="Search by name" label="Search candidates" keep={search.hidden} />
+          </SubBar>
+        </>
+      }
+    >
+      <section aria-label={viewLabel} className="min-w-0 rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>
         ) : (
-          <div className="overflow-x-auto">
-            <div role="table" aria-label={viewLabel} className="grid min-w-[760px]">
-              <div role="row" className={cn(GRID, "h-10 border-b border-[color:var(--line)] text-[12.5px] text-muted-foreground")}>
+          // Wide enough panels show the whole table, so its header can stick to the page as it scrolls.
+          <div data-tour="crm" className="overflow-x-auto min-[1180px]:overflow-x-visible">
+            <div role="table" aria-label={viewLabel} className="grid min-w-[900px]">
+              <div
+                role="row"
+                className={cn(
+                  GRID,
+                  "sticky top-0 z-[1] min-h-[46px] items-stretch rounded-t-[12px] border-b border-[color:var(--line)] bg-[color:var(--paper)] text-[13.5px] text-muted-foreground",
+                )}
+              >
                 {columns.map((c) => (
-                  <span role="columnheader" key={c.key} aria-sort={c.sorted === "asc" ? "ascending" : c.sorted === "desc" ? "descending" : "none"} className="min-w-0 px-4">
-                    <Link href={c.href} className={cn("inline-flex items-center gap-1 transition-colors hover:text-foreground", c.sorted && "font-medium text-foreground")}>
-                      {c.label}
-                      {c.sorted ? <span aria-hidden>{c.sorted === "asc" ? "↑" : "↓"}</span> : null}
-                    </Link>
-                  </span>
+                  <HeadCell key={c.key} c={c} />
                 ))}
               </div>
               <KeyList title="CRM" next="Next candidate" mode="focus" items=":scope > a" role="rowgroup">
@@ -112,19 +146,16 @@ export function CrmView({
                     role="row"
                     key={r.href}
                     href={r.href}
-                    className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[13.5px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
+                    className={cn(GRID, "min-h-[50px] items-stretch border-b border-[color:var(--line)] text-[14px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
                   >
-                    <span role="cell" className="flex min-w-0 items-center gap-2.5 px-4 py-2">
-                      <Avatar name={r.name} />
-                      <span className="grid min-w-0">
-                        <b className="truncate font-medium">{r.name}</b>
-                        {r.headline ? <span className="truncate text-xs text-muted-foreground">{r.headline}</span> : null}
-                      </span>
+                    <span role="cell" className={cn(CELL, "gap-2.5")}>
+                      <Avatar name={r.name} size="lg" candidate />
+                      <b className="truncate font-medium">{r.name}</b>
                     </span>
-                    <span role="cell" className="flex min-w-0 items-center gap-1.5 px-4">
+                    <span role="cell" className={cn(CELL, "gap-1.5")}>
                       {r.jobs.length ? (
                         <>
-                          <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-2 text-[12.5px]">{r.jobs[0]}</span>
+                          <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-[9px] text-[12.5px]">{r.jobs[0]}</span>
                           {r.jobs.length > 1 ? (
                             <span className="text-xs text-faint" title={r.jobs.slice(1).join(", ")}>
                               +{r.jobs.length - 1}
@@ -135,10 +166,17 @@ export function CrmView({
                         <span className="text-faint">None</span>
                       )}
                     </span>
-                    <span role="cell" className="px-4">
+                    <span role="cell" className={CELL}>
+                      {r.profile ? (
+                        <span className="truncate underline decoration-[color:var(--line-strong)] underline-offset-[3px]">{r.profile}</span>
+                      ) : (
+                        <span className="text-faint">None</span>
+                      )}
+                    </span>
+                    <span role="cell" className={CELL}>
                       <Pill tone={r.stageTone}>{r.stage}</Pill>
                     </span>
-                    <span role="cell" className="flex min-w-0 items-center gap-2 px-4">
+                    <span role="cell" className={cn(CELL, "gap-2")}>
                       {r.ownerName ? (
                         <>
                           <Avatar name={r.ownerName} />
@@ -148,8 +186,8 @@ export function CrmView({
                         <span className="text-faint">Nobody</span>
                       )}
                     </span>
-                    <span role="cell" className="px-4 text-muted-foreground tabular-nums" title={r.lastTouchTitle}>
-                      {r.lastTouch}
+                    <span role="cell" className={cn(CELL, "tabular-nums")} title={r.lastTouchAt.slice(0, 10)}>
+                      <LocalDay iso={r.lastTouchAt} fallback={r.lastTouch} />
                     </span>
                   </Link>
                 ))}
@@ -157,14 +195,14 @@ export function CrmView({
             </div>
           </div>
         )}
-        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line)] px-4 text-[13px] text-muted-foreground tabular-nums">
+        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line)] pr-3 pl-5 text-[13px] text-muted-foreground tabular-nums">
           {note ? <span className="text-faint">{note}</span> : null}
           <span className="flex-1" />
           <span className="mr-2">{range}</span>
           <Arrow href={prev} label="Previous page" dir="prev" />
           <Arrow href={next} label="Next page" dir="next" />
         </div>
-      </Section>
+      </section>
     </Page>
   );
 }

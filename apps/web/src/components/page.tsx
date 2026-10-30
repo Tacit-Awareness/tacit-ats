@@ -10,9 +10,124 @@ import { cn } from "@/lib/utils";
 // something (green ok/done, red broken or overdue, indigo for the action). Server components, no state: every page composes these instead
 // of restating the classes, so the pages cannot drift apart.
 
-/** The page column: the mockup's 1180px measure, 16px between blocks. */
-export function Page({ narrow = false, className, ...props }: React.ComponentProps<"div"> & { narrow?: boolean }) {
-  return <div className={cn("mx-auto grid w-full content-start gap-4", narrow ? "max-w-[760px]" : "max-w-[1180px]", className)} {...props} />;
+/**
+ * The page column: the mockup's 1180px measure, 16px between blocks. With a
+ * `bar` (a `PageBar`, and a `SubBar` under it), the bar runs edge to edge
+ * across the panel and the column sits under it (the shell drops its own
+ * padding around it, `.shell-page:has(> .page-top)` in globals.css), as
+ * design/tats's `.bar` over its `.page`.
+ */
+export function Page({
+  narrow = false,
+  bleed = false,
+  bar,
+  className,
+  ...props
+}: React.ComponentProps<"div"> & { narrow?: boolean; bar?: React.ReactNode; /** Fill the panel under the bar, no column (design/tats's `.calpage.fit`). */ bleed?: boolean }) {
+  const column = (
+    <div
+      className={cn(
+        "mx-auto grid w-full content-start",
+        bleed ? "gap-0" : cn("gap-4", narrow ? "max-w-[760px]" : "max-w-[1180px]", bar ? "px-4 pt-6 pb-10 md:px-8" : ""),
+        className,
+      )}
+      {...props}
+    />
+  );
+  if (!bar) return column;
+  return (
+    <>
+      <div className="page-top">{bar}</div>
+      {column}
+    </>
+  );
+}
+
+/**
+ * design/tats's page bar: a 48px ruled strip with the title (and its count,
+ * faint) on the left and the page's filters or actions on the right. With an
+ * `icon` it is the prototype's crumbs bar (Home, CRM, Pipeline, Referrals:
+ * 13.5px beside the icon); without, its plain title bar (15px). `crumbs` lead
+ * the title with links back.
+ */
+export function PageBar({
+  title,
+  icon,
+  count,
+  crumbs,
+  children,
+}: {
+  title: React.ReactNode;
+  icon?: React.ReactNode;
+  count?: React.ReactNode;
+  crumbs?: Crumb[];
+  children?: React.ReactNode;
+}) {
+  return (
+    <header className="flex min-h-14 flex-wrap items-center gap-x-2 gap-y-2 border-b border-[color:var(--line)] py-2 pr-4 pl-4 md:pl-6">
+      <h1 className={cn("m-0 flex min-w-0 items-center gap-2 font-medium", icon || crumbs?.length ? "text-[14px]" : "text-[15px] tracking-[-0.008em]")}>
+        {icon ? <span className="text-muted-foreground [&>svg]:size-[15px]">{icon}</span> : null}
+        {crumbs?.map((c) => (
+          <React.Fragment key={c.href}>
+            <Link href={c.href} className="truncate text-foreground transition-colors hover:text-muted-foreground">
+              {c.label}
+            </Link>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-3 shrink-0 text-faint" aria-hidden>
+              <path d="M6 4l4 4-4 4" />
+            </svg>
+          </React.Fragment>
+        ))}
+        <span className="truncate">{title}</span>
+        {count !== undefined && count !== null ? <span className="font-normal text-faint tabular-nums">{count}</span> : null}
+      </h1>
+      <span className="flex-1" />
+      {children ? <div className="flex flex-wrap items-center gap-1.5">{children}</div> : null}
+    </header>
+  );
+}
+
+/** The strip under a `PageBar`: view tabs on the left, a search or switches on the right, ruled underneath. */
+export function SubBar({ className, ...props }: React.ComponentProps<"div">) {
+  return <div className={cn("flex min-h-[50px] flex-wrap items-center justify-between gap-2 border-b border-[color:var(--line)] px-4 py-2 md:px-6", className)} {...props} />;
+}
+
+/**
+ * design/tats's small search box (`.searchbox.sm`): a GET form, 28px high,
+ * a magnifier, the query as `name`. `keep` rides along as hidden fields so
+ * the other filters stay put.
+ */
+export function SearchBox({
+  action,
+  name = "q",
+  defaultValue,
+  placeholder,
+  label,
+  keep,
+}: {
+  action: string;
+  name?: string;
+  defaultValue?: string;
+  placeholder: string;
+  label: string;
+  keep?: Record<string, string | null | undefined>;
+}) {
+  return (
+    <form action={action} method="get" role="search" className="w-full sm:w-[220px]">
+      {Object.entries(keep ?? {}).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
+      <label className="flex h-7 items-center gap-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] pr-1.5 pl-2.5 text-faint focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" className="size-[13px] shrink-0" aria-hidden>
+          <path d="M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3" />
+        </svg>
+        <input
+          name={name}
+          defaultValue={defaultValue}
+          placeholder={placeholder}
+          aria-label={label}
+          className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint"
+        />
+      </label>
+    </form>
+  );
 }
 
 export type Crumb = { href: string; label: string };
@@ -103,9 +218,9 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
   );
 }
 
-/** A mono count beside a heading. */
+/** A faint count beside a heading. */
 export function Count({ children }: { children: React.ReactNode }) {
-  return <span className="font-mono text-xs font-normal text-faint">{children}</span>;
+  return <span className="text-[13px] font-normal text-faint tabular-nums">{children}</span>;
 }
 
 /** The heading row of a card: 13.5px title (+ count), anything on the right. */
@@ -203,21 +318,43 @@ export function ListReader({
   open,
   listLabel,
   readerLabel,
+  bar,
+  narrowList = false,
+  flushReader = false,
 }: {
   list: React.ReactNode;
   reader: React.ReactNode;
   open: boolean;
   listLabel: string;
   readerLabel: string;
+  /** A `PageBar` across both panes. */
+  bar?: React.ReactNode;
+  /** design/tats's fixed 340px list (Applicant Tickets) instead of 42%. */
+  narrowList?: boolean;
+  /** The reader with no padding of its own, for a reader that draws its own surface edge to edge. */
+  flushReader?: boolean;
 }) {
-  return (
-    <div className="list-reader grid min-h-0 flex-1 md:grid-cols-[minmax(320px,42%)_minmax(0,1fr)]">
-      <section aria-label={listLabel} className={cn("min-h-0 overflow-y-auto px-2 pt-2 pb-6 md:border-r md:border-[color:var(--line)]", open && "max-md:hidden")}>
+  const panes = (
+    <div className={cn("grid min-h-0 flex-1", narrowList ? "md:grid-cols-[340px_minmax(0,1fr)]" : "md:grid-cols-[minmax(320px,42%)_minmax(0,1fr)]")}>
+      <section
+        aria-label={listLabel}
+        className={cn(
+          "min-h-0 overflow-y-auto px-2 pt-2 pb-6 md:border-r",
+          narrowList ? "bg-[color:var(--paper)] md:border-[color:var(--line-strong)]" : "md:border-[color:var(--line)]",
+          open && "max-md:hidden",
+        )}
+      >
         {list}
       </section>
-      <section aria-label={readerLabel} className={cn("min-h-0 overflow-y-auto bg-[color:var(--pane)] p-4", !open && "max-md:hidden")}>
+      <section aria-label={readerLabel} className={cn("min-h-0 overflow-y-auto bg-[color:var(--pane)]", !flushReader && "p-4", !open && "max-md:hidden")}>
         {reader}
       </section>
+    </div>
+  );
+  return (
+    <div className="list-reader flex min-h-0 flex-1 flex-col">
+      {bar}
+      {panes}
     </div>
   );
 }
@@ -277,17 +414,17 @@ export function Row({
 }
 
 const PILL_TONES = {
-  green: "border-[color:var(--green)] text-positive bg-[linear-gradient(var(--paper),var(--green-soft))]",
-  red: "border-[color:var(--red)] text-negative bg-[linear-gradient(var(--paper),var(--red-soft))]",
-  grey: "border-[color:var(--line-strong)] text-muted-foreground bg-[linear-gradient(var(--paper),var(--soft))]",
+  green: "text-positive bg-[color:var(--green-soft)]",
+  red: "text-negative bg-[color:var(--red-soft)]",
+  grey: "text-muted-foreground bg-[color:var(--soft)]",
 } as const;
 
-/** A status pill (Overseer's): mono, half-pixel border, colour only for meaning. */
+/** A status pill (design/tats's `.h-out`): 12px sans on a flat soft fill, colour only for meaning. */
 export function Pill({ tone = "grey", className, ...props }: React.ComponentProps<"span"> & { tone?: keyof typeof PILL_TONES }) {
   return (
     <span
       className={cn(
-        "inline-grid h-[21px] place-items-center rounded-full border-[0.5px] px-[11px] pt-px font-mono text-[11px] tracking-[-0.02em] whitespace-nowrap",
+        "inline-grid h-[22px] place-items-center rounded-full px-2 text-[12px] whitespace-nowrap",
         PILL_TONES[tone],
         className,
       )}
@@ -352,14 +489,33 @@ export function avatarColor(name: string | null | undefined): string {
 }
 
 /** The round initials avatar: a solid person colour, white initials. */
-export function Avatar({ name, size = "sm" }: { name: string | null | undefined; size?: "sm" | "md" | "xl" }) {
+/**
+ * Initials on a solid colour per name. `candidate` is design/tats's `.av.cand`:
+ * applicants are one plain grey, so colour stays for the team. `xs` is 20px
+ * (card owners, activity), `lg` 24px (table rows), `md` 28px, `row` 32px
+ * (list rows), `ticket` 36px, `xl` 44px.
+ */
+export function Avatar({ name, size = "sm", candidate = false }: { name: string | null | undefined; size?: "xs" | "sm" | "lg" | "md" | "row" | "ticket" | "xl"; candidate?: boolean }) {
   return (
     <span
       aria-hidden
-      style={{ background: avatarColor(name) }}
+      style={candidate ? undefined : { background: avatarColor(name) }}
       className={cn(
-        "grid flex-none place-items-center rounded-full font-semibold text-white",
-        size === "xl" ? "size-11 text-[15px]" : size === "md" ? "size-7 text-[10.5px]" : "size-[22px] text-[9.5px]",
+        "grid flex-none place-items-center rounded-full font-semibold",
+        candidate ? "bg-[color:var(--soft-strong)] text-muted-foreground" : "text-white",
+        size === "xl"
+          ? "size-11 text-[15px]"
+          : size === "ticket"
+            ? "size-9 text-[12.5px]"
+            : size === "row"
+              ? "size-8 text-[12px]"
+              : size === "xs"
+                ? "size-5 text-[8.5px]"
+            : size === "md"
+              ? "size-7 text-[10.5px]"
+              : size === "lg"
+                ? "size-6 text-[9.5px]"
+                : "size-[22px] text-[9.5px]",
       )}
     >
       {initialsOf(name)}
@@ -397,9 +553,9 @@ export function KeyValues({ items, className }: { items: [React.ReactNode, React
   );
 }
 
-/** The small uppercase sub-heading inside a card. */
+/** The small sub-heading inside a card: a plain 500-weight label, as design/tats's form labels. */
 export function MiniTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("mt-1 font-mono text-[11px] tracking-[-0.02em] text-muted-foreground uppercase", className)} {...props} />;
+  return <div className={cn("mt-1 text-[12.5px] font-medium text-muted-foreground", className)} {...props} />;
 }
 
 /** The quiet line a card shows when it has nothing. */
@@ -436,8 +592,9 @@ export function AppTile({ children, className }: { children: React.ReactNode; cl
 
 export type Tab = { href: string; label: React.ReactNode; count?: React.ReactNode; active: boolean };
 
-/** Filter tabs: pill links, the active one on the soft band, counts in mono. */
-export function Tabs({ tabs, label, className }: { tabs: Tab[]; label: string; className?: string }) {
+/** Filter tabs (design/tats's `.tab`): pill links, the active one on the soft band, counts faint. */
+export function Tabs({ tabs, label, className, strip = false }: { tabs: Tab[]; label: string; className?: string; strip?: boolean }) {
+  if (strip) return <StripTabs tabs={tabs} label={label} className={className} />;
   return (
     <nav aria-label={label} className={cn("flex min-w-0 flex-wrap gap-1.5", className)}>
       {tabs.map((t) => (
@@ -449,11 +606,33 @@ export function Tabs({ tabs, label, className }: { tabs: Tab[]; label: string; c
             "inline-flex h-[30px] items-center gap-2 rounded-full border px-3 text-[13px] whitespace-nowrap transition-colors",
             t.active
               ? "border-transparent bg-[color:var(--soft-strong)] font-medium text-foreground"
-              : "border-[color:var(--line)] text-muted-foreground hover:bg-accent hover:text-foreground",
+              : "border-[color:var(--line)] font-[450] text-foreground hover:bg-[color:var(--hover)]",
           )}
         >
           {t.label}
-          {t.count !== undefined && <span className="font-mono text-[11.5px] font-normal text-faint">{t.count}</span>}
+          {t.count !== undefined && <span className="text-[12px] font-normal text-faint tabular-nums">{t.count}</span>}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** design/tats's view tabs (`.crm-tabs`, `.hm-nav`): 32px, no border, muted, the active one on the selection tint. For a `SubBar`. */
+function StripTabs({ tabs, label, className }: { tabs: Tab[]; label: string; className?: string }) {
+  return (
+    <nav aria-label={label} className={cn("flex min-w-0 flex-wrap gap-0.5", className)}>
+      {tabs.map((t) => (
+        <Link
+          key={t.href}
+          href={t.href}
+          aria-current={t.active ? "page" : undefined}
+          className={cn(
+            "inline-flex h-8 items-center gap-2 rounded-lg px-3 text-[13.5px] whitespace-nowrap transition-colors",
+            t.active ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
+          )}
+        >
+          {t.label}
+          {t.count !== undefined && <span className="text-[12.5px] font-normal text-faint tabular-nums">{t.count}</span>}
         </Link>
       ))}
     </nav>

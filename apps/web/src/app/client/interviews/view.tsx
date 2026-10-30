@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { KeyList } from "@/components/keys";
-import { Avatar, Empty, ListReader, MiniTitle, PageHeader, Section } from "@/components/page";
+import type * as React from "react";
+import { Avatar, Empty, ListReader, PageBar } from "@/components/page";
 import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
 import type { LoopPerson, LoopRound as Round } from "@/lib/client/interview-loop";
 import { cn } from "@/lib/utils";
 
 // The Interviews page's markup, props only (page.tsx does the reads):
-// design/tats's Interviews as a list and a reader. The list is a bar of how
-// past interviews went, then Upcoming and the verdict groups, a row each. The
-// reader is the candidate's loop as a tree (each round, who ran it and whether
+// design/tats's Interviews as a list and a reader under one bar. The list is a
+// bar of how past interviews went, then Upcoming and the verdict groups, a row
+// each. The reader is one card: its head, the candidate's loop as a tree (each round, who ran it and whether
 // they filed; this round highlighted, later ones faded), then this
 // interview's feedback as far as the member may read it. Notes are the
 // interviewer's own words: plain text, never markup.
@@ -64,16 +65,16 @@ const DOT: Record<GroupKey, string> = {
   pending: "bg-[color:var(--line-strong)]",
 };
 
-const PILL: Record<Verdict, string> = {
-  pass: "bg-[color:var(--green-soft)] text-[color:var(--green)]",
-  mixed: "bg-[color:var(--amber-soft)] text-[color:var(--amber)]",
-  fail: "bg-[color:var(--red-soft)] text-[color:var(--red)]",
-  pending: "bg-[color:var(--soft)] text-muted-foreground",
-};
-
+/** design/tats's `.vpill` as its v50 calm pass left it: a neutral soft pill, ink text, a 7px dot carrying the colour. */
 export function VerdictPill({ verdict, label, small = false }: { verdict: Verdict; label?: string; small?: boolean }) {
   return (
-    <span className={cn("inline-flex flex-none items-center rounded-full font-medium whitespace-nowrap", small ? "h-5 px-2 text-[11.5px]" : "h-6 px-2.5 text-[12.5px]", PILL[verdict])}>
+    <span
+      className={cn(
+        "inline-flex flex-none items-center gap-1.5 rounded-full bg-[color:var(--soft)] font-medium whitespace-nowrap text-foreground",
+        small ? "h-5 px-2 text-[11.5px]" : "h-6 px-2.5 text-[12.5px]",
+      )}
+    >
+      <i className={cn("size-[7px] rounded-full", verdict === "pending" ? "bg-[color:var(--faint)]" : DOT[verdict])} />
       {label ?? VERDICT_NAME[verdict]}
     </span>
   );
@@ -84,7 +85,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
   const shown = counts.filter((c) => c.n > 0);
   if (!shown.length) return null;
   return (
-    <div role="img" aria-label={shown.map((c) => `${c.n} ${VERDICT_NAME[c.verdict]}`).join(", ")} className="grid gap-2.5 border-b border-[color:var(--line)] px-2 pt-2 pb-3">
+    <div role="img" aria-label={shown.map((c) => `${c.n} ${VERDICT_NAME[c.verdict]}`).join(", ")} className="grid gap-2.5 border-b border-[color:var(--line)] px-[18px] pt-3 pb-3.5">
       <div className="flex h-2 gap-0.5">
         {shown.map((c) => (
           <i key={c.verdict} className={cn("min-w-2 rounded", DOT[c.verdict])} style={{ flex: c.n }} />
@@ -103,20 +104,17 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
   );
 }
 
-function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[]; toReview: number }) {
+function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[] }) {
   return (
-    <KeyList title="Interviews" next="Next interview" mode="select" className="grid content-start gap-1" data-tour="interviews">
-      <div className="px-2 pt-2 pb-1">
-        <PageHeader title="Interviews" badge={<span className="text-base font-normal text-muted-foreground">{toReview ? `${toReview} read pending` : ""}</span>} />
-      </div>
+    <KeyList title="Interviews" next="Next interview" mode="select" className="-mx-2 -mt-2 grid content-start" data-tour="interviews">
       <SentimentBar counts={counts} />
-      {groups.length === 0 ? <Empty className="px-2">No interviews yet.</Empty> : null}
+      {groups.length === 0 ? <Empty className="px-[18px] pt-3">No interviews yet.</Empty> : null}
       {groups.map((g) => (
         <section key={g.key} aria-label={g.label} className="grid">
-          <h2 className="m-0 flex items-center gap-2 px-2 pt-3.5 pb-1 text-[13px] font-medium">
+          <h2 className="m-0 flex items-center gap-2 px-[18px] pt-5 pb-1.5 text-[13px] font-medium">
             <i className={cn("size-2 rounded-full", DOT[g.key])} />
             {g.label}
-            <span className="font-normal text-faint">{g.rows.length}</span>
+            <span className="font-normal text-faint tabular-nums">{g.rows.length}</span>
           </h2>
           {g.rows.map((r) => (
             <Link
@@ -125,18 +123,15 @@ function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; coun
               data-key-item
               aria-current={r.selected ? "page" : undefined}
               className={cn(
-                "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-lg px-2 py-2.5 transition-colors",
+                "grid grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-[3px] px-[18px] py-3 transition-colors",
                 r.selected ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]",
               )}
             >
               <span className="row-span-2">
-                <Avatar name={r.candidate} size="md" />
+                <Avatar name={r.candidate} size="row" candidate />
               </span>
               <b className="truncate text-[13.5px] font-medium">{r.candidate}</b>
-              <span className="justify-self-end">
-                {r.verdict ? <VerdictPill verdict={r.verdict} small /> : <span className="text-xs text-muted-foreground" title={r.whenTitle}>{r.when}</span>}
-              </span>
-              <span className="col-span-2 truncate text-[12.5px] text-muted-foreground" title={r.whenTitle}>
+              <span className="truncate text-[12.5px] text-faint" title={r.whenTitle}>
                 {r.line}
               </span>
             </Link>
@@ -147,131 +142,158 @@ function InterviewList({ groups, counts, toReview }: { groups: ListGroup[]; coun
   );
 }
 
-const PERSON_TONE: Record<LoopPerson["tone"], string> = {
-  done: "text-[color:var(--green)]",
-  waiting: "text-[color:var(--amber)]",
-  hidden: "text-muted-foreground",
-  none: "text-faint",
+const PERSON_DOT: Record<LoopPerson["tone"], string> = {
+  done: "bg-[color:var(--green)]",
+  waiting: "bg-[color:var(--amber)]",
+  hidden: "bg-[color:var(--faint)]",
+  none: "bg-[color:var(--faint)]",
 };
 
-/** The candidate's loop: a card for them, then each round down a rail, and who ran it. */
+const line = "absolute bg-[color:var(--line-strong)]";
+
+/**
+ * The candidate's loop as design/tats's tree (`.pt`): the candidate on the
+ * left, each round in the middle, who ran it on the right, joined by elbow
+ * lines drawn in CSS (a spine down the second column, one segment a round, so
+ * a round with several interviewers can grow). Below the container's 2xl it
+ * stacks, without the lines.
+ */
 function Loop({ reader }: { reader: Reader }) {
+  const n = reader.rounds.length;
   return (
-    <Section>
-      <div className="flex flex-wrap items-center gap-3">
-        <Avatar name={reader.candidate} size="xl" />
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <b className="truncate text-[14px] font-medium">{reader.candidate}</b>
-          <span className="text-[12.5px] text-muted-foreground">{reader.loopLine}</span>
+    <section
+      aria-label="Interview loop"
+      style={{ "--rows": Math.max(n, 1) } as React.CSSProperties}
+      className="grid gap-2.5 border-b border-[color:var(--line)] px-4 pt-5 pb-6 @2xl:grid-cols-[minmax(190px,260px)_40px_minmax(130px,180px)_28px_minmax(170px,1fr)] @2xl:gap-x-0 @2xl:px-6 @2xl:pt-[22px]"
+    >
+      <div className="relative z-[1] grid content-center justify-items-start gap-2 @2xl:col-start-1 @2xl:[grid-row:1/span_var(--rows)]">
+        <span className="inline-flex h-6 items-center rounded-md bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium text-muted-foreground">{reader.tag}</span>
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3.5">
+          <Avatar name={reader.candidate} size="lg" candidate />
+          <div className="grid min-w-0">
+            <b className="truncate text-[14.5px] font-medium">{reader.candidate}</b>
+            <span className="text-[12.5px] text-muted-foreground">{reader.loopLine}</span>
+          </div>
         </div>
-        <span className="rounded-full bg-[color:var(--soft)] px-2.5 py-0.5 text-xs text-muted-foreground">{reader.tag}</span>
       </div>
-      <ol className="m-0 mt-2 grid list-none gap-1.5 border-l border-[color:var(--line-strong)] pl-0 ml-[21px]">
-        {reader.rounds.map((r) => {
-          const body = (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <b className="text-[13px] font-medium">{r.name}</b>
-                {r.place === "current" ? <em className="rounded-full bg-[color:var(--accent-soft)] px-2 text-[11.5px] font-medium text-[color:var(--accent)] not-italic">Now</em> : null}
-                <span className="text-xs text-faint">{r.status}</span>
-                {r.when ? <span className="ml-auto text-xs text-faint">{r.when}</span> : null}
-              </div>
-              {r.people.length ? (
-                <ul className="m-0 grid list-none gap-1 p-0">
-                  {r.people.map((p, i) => (
-                    <li key={i} className="flex min-w-0 items-center gap-2 text-[12.5px]">
-                      <Avatar name={p.name} />
-                      <span className="truncate">{p.name}</span>
-                      <span className={cn("ml-auto flex-none", PERSON_TONE[p.tone])}>{p.state}</span>
-                    </li>
-                  ))}
-                </ul>
+      {n > 0 ? (
+        <span aria-hidden className="relative hidden @2xl:col-start-2 @2xl:block @2xl:[grid-row:1/span_var(--rows)]">
+          <i className={cn(line, "top-1/2 left-0 h-px w-1/2")} />
+        </span>
+      ) : null}
+      {reader.rounds.map((r, i) => {
+        const cur = r.place === "current";
+        const hot = cur ? "bg-[color:var(--accent)]" : undefined;
+        const fade = r.place === "later" && "opacity-45";
+        const round = (
+          <>
+            <span className="grid size-5 flex-none place-items-center rounded-[5px] bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
+            <b className="truncate font-medium">{r.name}</b>
+            {cur ? (
+              <em className="ml-auto text-[12.5px] text-[color:var(--accent)] not-italic">Now</em>
+            ) : (
+              <em className="ml-auto text-[12px] whitespace-nowrap text-faint not-italic">{r.status}</em>
+            )}
+          </>
+        );
+        const node = cn(
+          "relative z-[1] flex min-h-11 min-w-0 items-center gap-[9px] rounded-[10px] border bg-[color:var(--paper)] px-3 text-[13.5px]",
+          cur ? "border-[color:color-mix(in_srgb,var(--accent)_50%,var(--line))] shadow-[0_6px_18px_color-mix(in_srgb,var(--accent)_14%,transparent)]" : "border-[color:var(--line)]",
+          fade,
+        );
+        return (
+          <div key={r.key} style={{ "--r": i + 1 } as React.CSSProperties} className="grid gap-1.5 @2xl:contents">
+            <span aria-hidden className={cn("relative hidden @2xl:col-start-2 @2xl:block @2xl:[grid-row:var(--r)]", fade)}>
+              {n > 1 ? (
+                <i className={cn(line, "left-1/2 w-px", i === 0 ? "top-1/2" : "-top-[5px]", i === n - 1 ? "bottom-1/2" : "-bottom-[5px]")} />
               ) : null}
-            </>
-          );
-          const cls = cn(
-            "ml-5 grid gap-1.5 rounded-lg border px-3 py-2.5",
-            r.place === "current" ? "border-[color:var(--accent)] bg-[color:var(--sel)]" : "border-[color:var(--line)] bg-card",
-            r.href && "transition-colors hover:border-[color:var(--line-strong)]",
-          );
-          return (
-            <li key={r.key} className={cn("relative", r.place === "later" && "opacity-50")}>
-              <span
-                aria-hidden
-                className={cn(
-                  "absolute top-2.5 -left-[11px] z-10 grid size-[21px] place-items-center rounded-full text-[11px] font-semibold",
-                  r.place === "current" ? "bg-[color:var(--accent)] text-[color:var(--accent-ink)]" : "bg-[color:var(--raised)] text-muted-foreground shadow-[inset_0_0_0_1px_var(--line-strong)]",
-                )}
-              >
-                {r.n}
-              </span>
-              {r.href ? (
-                <Link href={r.href} className={cls}>
-                  {body}
-                </Link>
-              ) : (
-                <div className={cls}>{body}</div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
-      {reader.partial ? <p className="m-0 mt-1 text-xs text-faint">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p> : null}
-    </Section>
+              <i className={cn(line, "top-1/2 right-0 left-1/2 h-px", hot)} />
+            </span>
+            {r.href ? (
+              <Link href={r.href} className={cn(node, "transition-colors hover:border-[color:var(--line-strong)] @2xl:col-start-3 @2xl:[grid-row:var(--r)]")}>
+                {round}
+              </Link>
+            ) : (
+              <div className={cn(node, "@2xl:col-start-3 @2xl:[grid-row:var(--r)]")}>{round}</div>
+            )}
+            <span aria-hidden className={cn("relative hidden @2xl:col-start-4 @2xl:block @2xl:[grid-row:var(--r)]", fade)}>
+              <i className={cn(line, "top-1/2 right-0 left-0 h-px", hot)} />
+            </span>
+            <div className={cn(node, "grid gap-1.5 py-2 @2xl:col-start-5 @2xl:[grid-row:var(--r)]")}>
+              {r.people.length === 0 ? <span className="text-[12px] text-muted-foreground">{r.status || "Not booked"}</span> : null}
+              {r.people.map((p, j) => (
+                <div key={j} className="flex min-w-0 items-center gap-[9px]">
+                  <Avatar name={p.name} size="lg" />
+                  <span className="grid min-w-0 leading-tight">
+                    <b className="truncate text-[13px] font-medium">{p.name}</b>
+                    <span className="inline-flex items-center gap-[5px] text-[12px] text-muted-foreground">
+                      <i className={cn("size-1.5 rounded-full", PERSON_DOT[p.tone])} />
+                      {p.state}
+                    </span>
+                  </span>
+                  {j === 0 && r.when ? <span className="ml-auto text-[12px] whitespace-nowrap text-faint">{r.when}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {reader.partial ? (
+        <p className="m-0 text-xs text-faint @2xl:col-span-5">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p>
+      ) : null}
+    </section>
   );
 }
 
 function Feedback({ reader }: { reader: Reader }) {
   return (
-    <Section title="Feedback" count={reader.feedback.length || undefined}>
-      {reader.feedback.length === 0 ? <Empty>{reader.feedbackNote ?? "No feedback filed yet."}</Empty> : null}
-      <div className="grid gap-3">
-        {reader.feedback.map((f) => (
-          <article key={f.feedbackId} className="grid gap-2 rounded-lg border border-[color:var(--line)] bg-card p-3">
-            <header className="flex flex-wrap items-center gap-2">
-              <Avatar name={f.interviewer} />
-              <b className="text-[13px] font-medium">{f.interviewer}</b>
-              <VerdictPill verdict={f.verdict} label={f.recommendation} small />
-              {f.rating !== null ? <span className="text-xs text-muted-foreground tabular-nums">{f.rating} / 4</span> : null}
-              <span className="ml-auto text-xs text-faint">{f.submitted}</span>
-            </header>
-            {f.ratings.length ? (
-              <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[12.5px]">
-                {f.ratings.map((r, i) => (
-                  <div key={i} className="contents">
-                    <dt className="truncate text-muted-foreground">
-                      {r.attribute}
-                      {r.note ? <span className="block whitespace-pre-wrap text-faint">{r.note}</span> : null}
-                    </dt>
-                    <dd className="m-0 text-right tabular-nums">{r.rating} / 4</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-            {f.notes ? (
-              <>
-                <MiniTitle>Notes</MiniTitle>
-                <p className="m-0 text-[13px] leading-5 break-words whitespace-pre-wrap text-foreground/85">{f.notes}</p>
-              </>
-            ) : null}
-          </article>
-        ))}
+    <section aria-label="Feedback" className="grid gap-3.5 px-4 pt-5 pb-[22px] @2xl:px-[26px]">
+      <div className="flex items-baseline justify-between gap-3 text-[14.5px]">
+        <b className="font-medium">Feedback</b>
+        {reader.feedback.length ? <span className="text-[13px] text-faint tabular-nums">{reader.feedback.length}</span> : null}
       </div>
-      {reader.feedback.length > 0 && reader.feedbackNote ? <p className="m-0 mt-2 text-xs text-faint">{reader.feedbackNote}</p> : null}
-    </Section>
+      {reader.feedback.length === 0 ? <Empty className="my-0">{reader.feedbackNote ?? "No feedback filed yet."}</Empty> : null}
+      {reader.feedback.map((f) => (
+        <article key={f.feedbackId} className="grid gap-2.5 border-t border-[color:var(--line)] pt-3.5 first-of-type:border-t-0 first-of-type:pt-0">
+          <header className="flex flex-wrap items-center gap-2">
+            <Avatar name={f.interviewer} size="lg" />
+            <b className="text-[13.5px] font-medium">{f.interviewer}</b>
+            <VerdictPill verdict={f.verdict} label={f.recommendation} small />
+            {f.rating !== null ? <span className="text-xs text-muted-foreground tabular-nums">{f.rating} / 4</span> : null}
+            <span className="ml-auto text-xs text-faint">{f.submitted}</span>
+          </header>
+          {f.ratings.length ? (
+            <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[13px]">
+              {f.ratings.map((r, i) => (
+                <div key={i} className="contents">
+                  <dt className="text-muted-foreground">
+                    {r.attribute}
+                    {r.note ? <span className="block whitespace-pre-wrap text-faint">{r.note}</span> : null}
+                  </dt>
+                  <dd className="m-0 text-right tabular-nums">{r.rating} / 4</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {f.notes ? <p className="m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 text-[14px] leading-normal break-words whitespace-pre-wrap">{f.notes}</p> : null}
+        </article>
+      ))}
+      {reader.feedback.length > 0 && reader.feedbackNote ? <p className="m-0 text-xs text-faint">{reader.feedbackNote}</p> : null}
+    </section>
   );
 }
 
+/** One `.rc` card: the head, the loop, the feedback. */
 function InterviewReader({ reader }: { reader: Reader }) {
   return (
-    <article className="mx-auto grid max-w-[760px] gap-4">
-      <header className="flex flex-wrap items-center gap-3">
+    <article className="@container mx-auto max-w-[860px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
         <Link href="/client/interviews" className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
           ← Interviews
         </Link>
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <h1 className="m-0 truncate text-[18px] font-semibold tracking-[-0.02em]">{reader.title}</h1>
-          <p className="m-0 truncate text-[12.5px] text-muted-foreground">{reader.sub}</p>
+        <div className="grid min-w-0 flex-1">
+          <h1 className="m-0 truncate text-[19px] font-medium tracking-[-0.01em]">{reader.title}</h1>
+          <p className="m-0 mt-1 truncate text-[13.5px] text-muted-foreground">{reader.sub}</p>
         </div>
         {reader.verdict ? <VerdictPill verdict={reader.verdict} /> : null}
       </header>
@@ -302,7 +324,8 @@ export function InterviewsView({
       listLabel="Interviews"
       readerLabel="Interview"
       open={open}
-      list={<InterviewList groups={groups} counts={counts} toReview={toReview} />}
+      bar={<PageBar title="Interviews" count={toReview ? `${toReview} read pending` : "All read"} />}
+      list={<InterviewList groups={groups} counts={counts} />}
       reader={
         reader ? (
           <InterviewReader reader={reader} />

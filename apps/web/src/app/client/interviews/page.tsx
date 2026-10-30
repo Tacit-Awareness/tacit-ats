@@ -17,6 +17,7 @@ import { InterviewsView, type ListGroup, type Reader } from "./view";
 const href = (id: string) => `/client/interviews?i=${encodeURIComponent(id)}`;
 const utc = (iso: string) => `${iso.slice(0, 16).replace("T", " ")} UTC`;
 const isPast = (i: InterviewListItem, now: number) => i.status !== "scheduled" || Date.parse(i.endsAt) < now;
+const whoRan = (names: string[]) => (names.length > 1 ? `${names[0]} +${names.length - 1}` : (names[0] ?? null));
 const when = (i: InterviewListItem, now: number) => (isPast(i, now) ? ago(i.startsAt, now) : until(i.startsAt, now));
 
 function buildReader(item: InterviewListItem, detail: InterviewDetail, listed: ReadonlySet<string>, member: Member, now: number): Reader {
@@ -92,7 +93,8 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
       interviewId: i.interviewId,
       href: href(i.interviewId),
       candidate: i.candidateName ?? "Candidate",
-      line: [i.step ?? "Interview", i.jobTitle, when(i, nowMs)].filter(Boolean).join(" · "),
+      // design/tats's "Round · interviewer · date"; the date stays relative (no time zone on the server).
+      line: [i.step ?? "Interview", whoRan(i.interviewers), when(i, nowMs)].filter(Boolean).join(" · "),
       when: when(i, nowMs),
       whenTitle: utc(i.startsAt),
       verdict: g.key === "upcoming" ? null : (g.key as Verdict),

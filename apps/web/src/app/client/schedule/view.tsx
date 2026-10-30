@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Empty, Notice, Page, PageHeader, Segmented, Toolbar } from "@/components/page";
-import { buttonVariants } from "@/components/ui/button";
+import { FilterMenu } from "@/components/filter-menu";
+import { Avatar, Empty, Notice, Page, PageBar } from "@/components/page";
 import {
   daysOf,
-  groupByDay,
   hourSpan,
   placeDay,
   stepAnchor,
@@ -21,12 +20,14 @@ import {
 } from "@/lib/client/schedule-layout";
 import { cn } from "@/lib/utils";
 
-// The Calendar's markup, props only (page.tsx does the read): a day or week
-// grid like design/tats's, or the month as a list. A client component because
+// The Calendar's markup, props only (page.tsx does the read): design/tats's
+// calendar page, edge to edge under its bar with no card: the controls row
+// (Today and the joined arrows, the dates, the department menu, the view
+// pills), then a day or week grid, or the month as its interviews table. A client component because
 // it lays the interviews out in the browser's own time zone, which the server
 // does not know; until it has the zone (the server render, and the first
 // paint) it draws the frame with no times in it, never UTC by mistake.
-// Navigation is in the URL (`?view=`, `?date=`), with D / W / L, ← / → and
+// Navigation is in the URL (`?view=`, `?date=`, `?dept=`), with D / W / L, ← / → and
 // `.` for today. Each event opens the interview on the Interviews page.
 
 export type CalendarEvent = {
@@ -74,7 +75,17 @@ const VIEWS: { key: View; label: string }[] = [
 ];
 const VIEW_KEYS: Record<string, View> = { d: "day", w: "week", l: "list" };
 
-const hrefFor = (view: View, date: Ymd | null) => `/client/schedule?view=${view}${date ? `&date=${date}` : ""}`;
+const hrefFor = (view: View, date: Ymd | null, dept: string | null) =>
+  `/client/schedule?view=${view}${date ? `&date=${date}` : ""}${dept ? `&dept=${encodeURIComponent(dept)}` : ""}`;
+
+/** design/tats's `.cx-btn`: 32px, radius 8, the strong hairline. */
+const cxBtn =
+  "inline-flex h-8 items-center justify-center gap-2 border border-[color:var(--line-strong)] bg-[color:var(--paper)] text-[13.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)]";
+const arrow = (d: string) => (
+  <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <path d={d} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 // The browser's zone. The server snapshot is null: the server must not guess one.
 const noSubscribe = () => () => {};
@@ -95,7 +106,8 @@ function titleOf(view: View, days: Ymd[]): string {
 }
 
 function useClock(timeZone: string) {
-  const time = React.useMemo(() => new Intl.DateTimeFormat(undefined, { timeZone, hour: "numeric", minute: "2-digit" }), [timeZone]);
+  // design/tats's 24-hour clock, "09:30".
+  const time = React.useMemo(() => new Intl.DateTimeFormat(undefined, { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }), [timeZone]);
   return (iso: string) => time.format(new Date(iso));
 }
 
@@ -139,16 +151,15 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
   const { first, last } = hourSpan(columns.flatMap((c) => c.placed));
   const hours = Array.from({ length: last - first }, (_, i) => first + i);
   const nowAt = zoned(now, timeZone);
-  const hourLabel = new Intl.DateTimeFormat(undefined, { hour: "numeric", timeZone: "UTC" });
-  const cols = { gridTemplateColumns: `56px repeat(${days.length}, minmax(0, 1fr))` };
+  const cols = { gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` };
 
   return (
-    <div className="overflow-x-auto rounded-[12px] border border-[color:var(--line)] bg-card">
+    <div className="overflow-x-auto">
       <div className={cn(days.length > 1 && "min-w-[720px]")}>
         <div className="grid border-b border-[color:var(--line)]" style={cols}>
           <span />
           {days.map((d) => (
-            <div key={d} className="flex h-12 items-center gap-2 border-l border-[color:var(--line)] px-3">
+            <div key={d} className="flex h-[52px] items-center gap-2 border-l border-[color:var(--line)] px-3.5">
               <span className={cn("text-xs tracking-[0.04em] uppercase", d === today ? "text-[color:var(--accent)]" : "text-faint")}>
                 {dayWords(d, { weekday: "short" })}
               </span>
@@ -171,7 +182,7 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
                 className={cn("absolute right-2.5 text-xs text-faint tabular-nums", i > 0 && "-translate-y-1/2")}
                 style={{ top: i === 0 ? 4 : i * HOUR_PX }}
               >
-                {hourLabel.format(Date.UTC(2000, 0, 1, h))}
+                {`${String(h).padStart(2, "0")}:00`}
               </span>
             ))}
           </div>
@@ -202,55 +213,109 @@ function TimeGrid({ days, events, timeZone, today, now }: { days: Ymd[]; events:
   );
 }
 
-function ListOf({ days, events, timeZone, today }: { days: Ymd[]; events: CalendarEvent[]; timeZone: string; today: Ymd }) {
-  const clock = useClock(timeZone);
-  const groups = groupByDay(events, days, timeZone);
-  if (!groups.length) return <Empty>No interviews this month.</Empty>;
+/** design/tats's `.cx-pill`: booked green with a tick, past grey with a clock. */
+function StatusPill({ past }: { past: boolean }) {
   return (
-    <div className="grid gap-4">
-      {groups.map((g) => (
-        <section key={g.day} aria-label={dayWords(g.day, { weekday: "long", month: "long", day: "numeric" })} className="rounded-[12px] border border-[color:var(--line)] bg-card">
-          <h2 className="m-0 flex items-center gap-2 border-b border-[color:var(--line)] px-4 py-2.5 text-[13.5px] font-semibold">
-            {dayWords(g.day, { weekday: "short", month: "short", day: "numeric" })}
-            {g.day === today ? <span className="text-xs font-normal text-[color:var(--accent)]">Today</span> : null}
-          </h2>
-          <ul className="m-0 list-none p-0">
-            {g.events.map((e) => (
-              <li key={e.id} className="flex min-w-0 items-center gap-3 border-t border-[color:var(--line)] px-2 first:border-t-0 max-md:flex-wrap">
-                <Link
-                  href={e.href}
-                  className="grid min-w-0 flex-1 items-center gap-x-3 gap-y-0.5 rounded-lg px-2 py-2 transition-colors hover:bg-accent md:grid-cols-[164px_minmax(0,1.2fr)_minmax(0,1fr)]"
-                >
-                  <span className="flex items-center gap-2 text-[13px] whitespace-nowrap text-foreground/80 tabular-nums">
+    <span
+      className={cn(
+        "inline-flex h-[26px] items-center gap-1.5 rounded-[7px] border pr-[9px] pl-1 text-[13px] font-medium whitespace-nowrap",
+        past
+          ? "border-[color:var(--line)] bg-[color:var(--soft)] text-muted-foreground"
+          : "border-[color:color-mix(in_srgb,var(--green)_25%,transparent)] bg-[color:var(--green-soft)] text-positive",
+      )}
+    >
+      <i aria-hidden className={cn("grid size-4 place-items-center rounded-full text-white", past ? "bg-[color:var(--faint)]" : "bg-[color:var(--green)]")}>
+        <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+          <path d={past ? "M8 4.5V8l2.5 1.5" : "m3.5 8.5 3 3 6-7"} />
+        </svg>
+      </i>
+      {past ? "Past" : "Booked"}
+    </span>
+  );
+}
+
+const CT_GRID = "grid grid-cols-[110px_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_120px_110px_minmax(160px,1.2fr)] items-center gap-3.5 px-5";
+
+/** design/tats's interviews table (`.ct-row`): the month's interviews in order, each row opening the interview. */
+function ListOf({ events, timeZone, now }: { events: CalendarEvent[]; timeZone: string; now: number }) {
+  const clock = useClock(timeZone);
+  const rows = [...events].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
+  return (
+    <section aria-label="Interviews" className="pb-10">
+      <h2 className="m-0 flex items-center gap-2.5 px-5 py-3.5 text-[15px] font-semibold">
+        Interviews <span className="font-normal text-faint tabular-nums">{rows.length}</span>
+      </h2>
+      {rows.length === 0 ? (
+        <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews this month.</Empty>
+      ) : (
+        <div className="overflow-x-auto">
+          <div role="table" aria-label="Interviews" className="grid min-w-[980px]">
+            <div role="row" className={cn(CT_GRID, "min-h-[38px] border-t border-[color:var(--line)] bg-[color:var(--soft)] text-[12.5px] text-muted-foreground")}>
+              {["Status", "Applicant", "Round", "Interviewer", "Date", "Time", "Where"].map((h) => (
+                <span key={h} role="columnheader">
+                  {h}
+                </span>
+              ))}
+            </div>
+            {rows.map((e) => {
+              const day = dayWords(zoned(e.startsAt, timeZone).day, { month: "short", day: "numeric", year: "numeric" });
+              const time = `${clock(e.startsAt)} – ${clock(e.endsAt)}`;
+              const [lead, ...more] = e.interviewers;
+              return (
+                <div role="row" key={e.id} className={cn(CT_GRID, "relative min-h-[52px] border-t border-[color:var(--line)] text-[13px] transition-colors hover:bg-[color:var(--hover)]")}>
+                  {/* The whole row opens the interview; the location link sits above it. */}
+                  <Link href={e.href} aria-label={`${e.candidate}, ${e.step}, ${day} ${time}`} className="absolute inset-0" />
+                  <span role="cell">
+                    <StatusPill past={Date.parse(e.endsAt) <= now} />
+                  </span>
+                  <span role="cell" className="flex min-w-0 items-center gap-2">
+                    <Avatar name={e.candidate} size="lg" candidate />
+                    <span className="truncate">{e.candidate}</span>
+                  </span>
+                  <span role="cell" className="flex min-w-0 items-center gap-2" title={[e.step, e.job, e.department].filter(Boolean).join(" · ")}>
                     <i aria-hidden className={cn("size-2 flex-none rounded-full", DOT[e.tone])} />
-                    {clock(e.startsAt)} – {clock(e.endsAt)}
+                    <span className="truncate">
+                      {e.step}
+                      <span className="text-muted-foreground"> · {e.job}</span>
+                    </span>
                   </span>
-                  <span className="grid min-w-0">
-                    <b className="truncate text-[13px] font-medium">{e.candidate}</b>
-                    <span className="truncate text-xs text-muted-foreground">{[e.step, e.job].filter(Boolean).join(" · ")}</span>
+                  <span role="cell" className="flex min-w-0 items-center gap-2" title={e.interviewers.join(", ") || undefined}>
+                    {lead ? (
+                      <>
+                        <Avatar name={lead} size="lg" />
+                        <span className="truncate">{lead}</span>
+                        {more.length ? <span className="flex-none text-xs text-faint">+{more.length}</span> : null}
+                      </>
+                    ) : (
+                      <span className="text-faint">No interviewer listed</span>
+                    )}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">{e.interviewers.join(", ") || "No interviewer listed"}</span>
-                </Link>
-                {e.location ? (
-                  e.locationHref ? (
-                    <a
-                      href={e.locationHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="max-w-[220px] truncate px-2 pb-2 text-xs text-foreground/75 hover:text-[color:var(--accent)] md:pb-0"
-                    >
-                      {e.location}
-                    </a>
-                  ) : (
-                    <span className="max-w-[220px] truncate px-2 pb-2 text-xs text-muted-foreground md:pb-0">{e.location}</span>
-                  )
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
+                  <span role="cell" className="whitespace-nowrap tabular-nums">
+                    {day}
+                  </span>
+                  <span role="cell" className="whitespace-nowrap tabular-nums">
+                    {time}
+                  </span>
+                  <span role="cell" className="min-w-0 truncate">
+                    {e.location ? (
+                      e.locationHref ? (
+                        <a href={e.locationHref} target="_blank" rel="noopener noreferrer" className="relative z-[1] text-foreground/75 hover:text-[color:var(--accent)]">
+                          {e.location}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">{e.location}</span>
+                      )
+                    ) : (
+                      <span className="text-faint">Not set</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -258,6 +323,8 @@ export function ScheduleView({
   view,
   anchor,
   events,
+  departments,
+  dept,
   truncated,
 }: {
   view: View;
@@ -265,6 +332,10 @@ export function ScheduleView({
   anchor: Ymd | null;
   /** A window wider than the view, so it holds the view's days in any zone. */
   events: CalendarEvent[];
+  /** The department menu's choices; empty hides it (an interviewer reads no department names). */
+  departments: string[];
+  /** The `?dept=`, one of `departments`; null is everyone's. */
+  dept: string | null;
   truncated: boolean;
 }) {
   const router = useRouter();
@@ -286,72 +357,106 @@ export function ScheduleView({
       if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
       const to = VIEW_KEYS[e.key.toLowerCase()];
       let href: string | null = null;
-      if (to) href = hrefFor(to, anchor);
-      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") href = hrefFor(view, stepAnchor(view, shown, e.key === "ArrowLeft" ? -1 : 1));
-      else if (e.key === ".") href = hrefFor(view, null);
+      if (to) href = hrefFor(to, anchor, dept);
+      else if (e.key === "ArrowLeft" || e.key === "ArrowRight") href = hrefFor(view, stepAnchor(view, shown, e.key === "ArrowLeft" ? -1 : 1), dept);
+      else if (e.key === ".") href = hrefFor(view, null, dept);
       if (!href) return;
       e.preventDefault();
       router.push(href);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [router, view, anchor, shown]);
+  }, [router, view, anchor, shown, dept]);
 
   const days = shown ? daysOf(view, shown) : [];
-  const visible = timeZone && days.length ? events.filter((e) => zoned(e.startsAt, timeZone).day <= days.at(-1)! && zoned(e.endsAt, timeZone).day >= days[0]!) : [];
+  const visible =
+    timeZone && days.length
+      ? events.filter((e) => (!dept || e.department === dept) && zoned(e.startsAt, timeZone).day <= days.at(-1)! && zoned(e.endsAt, timeZone).day >= days[0]!)
+      : [];
   // The key: the departments of the interviews in view, for whoever may read their names.
   const legend = new Map<string, EventTone>();
   for (const e of visible) if (e.department) legend.set(e.department, e.tone);
   if (legend.size && visible.some((e) => !e.department)) legend.set("No department", "gray");
-  const navBtn = buttonVariants({ variant: "outline", className: "h-[30px] px-2.5 font-normal" });
 
   return (
-    <Page className="max-w-[1400px]">
-      <PageHeader
-        title="Calendar"
-        subtitle={timeZone ? `Interviews you can see, in your time zone (${timeZone.replace(/_/g, " ")}).` : "Interviews you can see."}
-        actions={<Segmented label="View" items={VIEWS.map((v) => ({ href: hrefFor(v.key, anchor), label: v.label, active: v.key === view }))} />}
-      />
-      <Toolbar>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={hrefFor(view, null)} className={navBtn} title="Today (.)">
-            Today
+    <Page bar={<PageBar title="Calendar" />} bleed>
+      <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:flex-nowrap md:px-5 md:py-3">
+        <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Today (.)">
+          Today
+        </Link>
+        <span className="inline-flex">
+          <Link
+            href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"}
+            aria-label="Previous"
+            title="Previous (←)"
+            className={cn(cxBtn, "rounded-l-lg px-[11px]")}
+          >
+            {arrow("M10 3.5 5.5 8l4.5 4.5")}
           </Link>
-          <span className="flex gap-1">
-            <Link href={shown ? hrefFor(view, stepAnchor(view, shown, -1)) : "#"} aria-label="Previous" title="Previous (←)" className={navBtn}>
-              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
-                <path d="M10 3.5 5.5 8l4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-            <Link href={shown ? hrefFor(view, stepAnchor(view, shown, 1)) : "#"} aria-label="Next" title="Next (→)" className={navBtn}>
-              <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
-                <path d="M6 3.5 10.5 8 6 12.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-          </span>
-          <h2 className="m-0 text-[17px] font-semibold tracking-[-0.01em]">{days.length ? titleOf(view, days) : " "}</h2>
-        </div>
-        {legend.size ? (
-          <ul aria-label="Departments" className="m-0 flex list-none flex-wrap items-center gap-x-3 gap-y-1 p-0 text-xs text-muted-foreground">
-              {[...legend].map(([name, tone]) => (
-              <li key={name} className="flex items-center gap-1.5">
-                <i aria-hidden className={cn("size-2 rounded-full", DOT[tone])} />
-                {name}
-              </li>
-            ))}
-          </ul>
+          <Link
+            href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"}
+            aria-label="Next"
+            title="Next (→)"
+            className={cn(cxBtn, "-ml-px rounded-r-lg px-[11px]")}
+          >
+            {arrow("M6 3.5 10.5 8 6 12.5")}
+          </Link>
+        </span>
+        <h2 className="m-0 mr-1 ml-2 text-[17px] font-medium tracking-[-0.014em] whitespace-nowrap md:text-[19px]">{days.length ? titleOf(view, days) : " "}</h2>
+        {timeZone ? <span className="hidden min-w-0 truncate text-[13px] text-muted-foreground min-[1100px]:inline">{timeZone.replace(/_/g, " ")}</span> : null}
+        <span className="min-w-2 flex-1" />
+        {departments.length ? (
+          <FilterMenu
+            label="Department"
+            value={dept ?? "Everyone"}
+            on={dept !== null}
+            options={[
+              { href: hrefFor(view, anchor, null), label: "Everyone", active: dept === null },
+              ...departments.map((d) => ({ href: hrefFor(view, anchor, d), label: d, active: dept === d })),
+            ]}
+          />
         ) : null}
-      </Toolbar>
-      {truncated ? <Notice>Too many interviews to show at once here; some later ones are left off. Try the day or week view.</Notice> : null}
+        <nav aria-label="View" className="flex gap-1.5 max-md:order-last max-md:w-full">
+          {VIEWS.map((v) => (
+            <Link
+              key={v.key}
+              href={hrefFor(v.key, anchor, dept)}
+              aria-current={v.key === view ? "page" : undefined}
+              title={`${v.label} (${v.key[0]!.toUpperCase()})`}
+              className={cn(
+                "inline-flex h-8 items-center rounded-2xl border px-3.5 text-[14px] whitespace-nowrap transition-colors",
+                v.key === view
+                  ? "border-transparent bg-[color:var(--soft-strong)] font-medium text-foreground"
+                  : "border-[color:var(--line-strong)] font-[450] text-foreground hover:bg-[color:var(--hover)]",
+              )}
+            >
+              {v.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+      {truncated ? (
+        <Notice className="mx-5 mt-3">Too many interviews to show at once here; some later ones are left off. Try the day or week view.</Notice>
+      ) : null}
       {!timeZone || !today ? (
-        <div aria-busy className="h-[616px] rounded-[12px] border border-[color:var(--line)] bg-card" />
+        <div aria-busy className="h-[668px]" />
       ) : view === "list" ? (
-        <ListOf days={days} events={visible} timeZone={timeZone} today={today} />
+        <ListOf events={visible} timeZone={timeZone} now={now} />
       ) : (
-        <>
+        <div className="pb-10">
           <TimeGrid days={days} events={visible} timeZone={timeZone} today={today} now={now} />
-          {visible.length ? null : <Empty>No interviews {view === "day" ? "this day" : "this week"}.</Empty>}
-        </>
+          {visible.length ? null : <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews {view === "day" ? "this day" : "this week"}.</Empty>}
+          {legend.size ? (
+            <ul aria-label="Departments" className="m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--line)] py-2.5 pr-5 pl-16 text-xs text-faint">
+              {[...legend].map(([name, tone]) => (
+                <li key={name} className="flex items-center gap-1.5">
+                  <i aria-hidden className={cn("size-2.5 rounded-[3px]", DOT[tone])} />
+                  {name}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       )}
     </Page>
   );
