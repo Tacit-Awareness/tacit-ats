@@ -2,7 +2,7 @@ import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
 import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
-import { DRAFT_LATE_MS, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
+import { currentDrafts, inboxIssues, type InboxDraft, type InboxOutstanding, type Issue, type LaterEmail } from "./inbox-issues";
 import { readPipeline } from "./pipeline";
 
 // The Inbox's reads and writes, on the member's OWN client (never a
@@ -12,7 +12,8 @@ import { readPipeline } from "./pipeline";
 // (admins and whoever manages a job; refused for anyone else, who sees no
 // feedback issues), core's listMyApprovals, and their own candidate_emails
 // drafts (the policy shows a draft to its author alone). lib/client/
-// inbox-issues.ts turns these into the queue. Not for an interviewer
+// inbox-issues.ts turns these into the queue, keeping only drafts that have sat
+// for DRAFT_LATE_MS and that no newer email on the application has replaced. Not for an interviewer
 // (`limited`), who is refused: the page points them home. The writes are
 // clientTools' audited ones with source `dashboard`: a decision on an approval,
 // and the stage move the candidate page makes.
@@ -41,42 +42,58 @@ export type InboxRead = {
 type DraftRow = {
   id: string;
   person_id: string;
+  application_id: string | null;
   to_email: string;
   subject: string;
   body: string;
+  created_at: string;
   updated_at: string;
   people: { display_name: string | null } | null;
   applications: { roles: { title: string } | null } | null;
 };
 
-async function readDrafts(db: Db, actorId: string, now: Date): Promise<InboxDraft[]> {
+async function readDrafts(db: Db, actorId: string): Promise<{ drafts: InboxDraft[]; capped: boolean }> {
   const { data, error } = await db
     .from("candidate_emails")
-    .select("id, person_id, to_email, subject, body, updated_at, people(display_name), applications(roles(title))")
+    .select("id, person_id, application_id, to_email, subject, body, created_at, updated_at, people(display_name), applications(roles(title))")
     .eq("status", "draft")
     .eq("author_actor_id", actorId)
-    .lt("updated_at", new Date(now.getTime() - DRAFT_LATE_MS).toISOString())
     .order("updated_at", { ascending: false })
     .limit(DRAFTS_MAX)
     .overrideTypes<DraftRow[], { merge: false }>();
   if (error) throw new Error(error.message);
-  return (data ?? []).map((d) => ({
+  const rows = (data ?? []).map((d) => ({
     draftId: d.id,
     personId: d.person_id,
     personName: d.people?.display_name ?? d.to_email,
     jobTitle: d.applications?.roles?.title ?? null,
+    applicationId: d.application_id,
     toEmail: d.to_email,
     subject: d.subject,
     body: d.body,
+    createdAt: d.created_at,
     updatedAt: d.updated_at,
   }));
+  const capped = rows.length >= DRAFTS_MAX;
+
+  const applications = [...new Set(rows.flatMap((d) => d.applicationId ?? []))];
+  if (!applications.length) return { drafts: rows, capped };
+  const { data: others, error: othersError } = await db
+    .from("candidate_emails")
+    .select("application_id, created_at")
+    .eq("author_actor_id", actorId)
+    .neq("status", "draft")
+    .in("application_id", applications);
+  if (othersError) throw new Error(othersError.message);
+  const later: LaterEmail[] = (others ?? []).flatMap((o) => (o.application_id ? [{ applicationId: o.application_id, createdAt: o.created_at }] : []));
+  return { drafts: currentDrafts(rows, later), capped };
 }
 
 export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, now: Date): Promise<InboxRead> {
   if (member.accessLevel === "limited") throw new clientTools.ClientToolError("forbidden", "An interviewer's work is on their home page.");
   // The reports never write an audit row, so the source is never read.
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [pipeline, activity, approvals, drafts] = await Promise.all([
+  const [pipeline, activity, approvals, { drafts, capped }] = await Promise.all([
     readPipeline(db, now),
     clientTools.interviewerActivity(db, ctx, { since: new Date(now.getTime() - FEEDBACK_WINDOW_DAYS * DAY).toISOString().slice(0, 10) }).catch((err: unknown) => {
       // Someone who manages no job: whether anyone filed is not theirs to see.
@@ -84,7 +101,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
       throw err;
     }),
     clientTools.listMyApprovals(db, ctx),
-    readDrafts(db, member.actorId, now),
+    readDrafts(db, member.actorId),
   ]);
 
   const names = new Map((activity?.interviewers ?? []).map((i) => [i.userId, i.name]));
@@ -119,7 +136,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
       now.getTime(),
     ),
     truncated: activity?.truncated ?? false,
-    draftsCapped: drafts.length >= DRAFTS_MAX,
+    draftsCapped: capped,
   };
 }
 

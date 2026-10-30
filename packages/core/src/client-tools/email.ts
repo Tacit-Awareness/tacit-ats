@@ -232,8 +232,8 @@ async function addressesOnFile(db: Db, personId: string, primary: string | null)
   return [...new Set(all.filter((e): e is string => connector.isPlainEmail(e)))];
 }
 
-/** Who the email is from: the member's name at the company, and their own address for replies. */
-async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
+/** Who the email is from: the member's name at the company, and their own address for replies. Exported so apps/web can show it on a draft before Send. */
+export async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
   const [me, org] = await Promise.all([
     db.from("org_members").select("display_name, email").eq("id", ctx.actorId).maybeSingle(),
     db.from("orgs").select("name").eq("id", ctx.orgId).maybeSingle(),

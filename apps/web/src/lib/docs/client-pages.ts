@@ -307,6 +307,8 @@ Files cannot be replaced or deleted through Claude. To correct one, add the righ
 
 The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
 
+You can do the same in Tacit itself: **Reply** on an Applicant Ticket writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
+
 Drafting and sending need the right to change the candidate. Interviewers cannot email candidates.
 
 ## What never goes in an email

@@ -153,8 +153,11 @@ token cannot read applications.
   the second does not move it twice.
 - [ ] Hiring team: only their job's applicants, and the routing bar only
   where they can edit that job's pipeline. Interviewer: pointed home.
-- Left out: the reply email (the web app has no mailer; email the candidate
-  from Claude's connector).
+- [ ] Reply (R): needs `RESEND_API_KEY` and `CLIENT_EMAIL_FROM` on the web
+  project; without them the box says email isn't set up and Reply is off.
+  Write to yourself: Review draft sends nothing and shows the stored draft;
+  Send delivers it once, the ticket stays open and says who emailed. Change it
+  writes a new draft, and only the newest reaches the Inbox.
 
 ### Pipeline (`/client/pipeline`)
 
