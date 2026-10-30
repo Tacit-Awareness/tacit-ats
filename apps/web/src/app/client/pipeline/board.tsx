@@ -6,7 +6,7 @@ import { KeyList, useKeyHelp, useKeys } from "@/components/keys";
 import { Avatar } from "@/components/page";
 import { NO_DROP, type ColumnKey } from "@/lib/client/pipeline-columns";
 import type { StageMove } from "@/lib/client/pipeline-moves";
-import { keyName } from "@/lib/keys";
+import { isTyping, menuKey } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { CANDIDATE_ERRORS, CANDIDATE_NOTICES } from "../candidates/[id]/messages";
 import { moveCardAction, type BoardMoveResult } from "./actions";
@@ -192,6 +192,7 @@ const MENU_ITEM =
 function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMove) => void; onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const moves = at.card.moves?.stages ?? [];
+  const count = moves.length;
 
   useLayoutEffect(() => {
     const el = box.current;
@@ -210,37 +211,34 @@ function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMov
       if (!box.current?.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = keyName(e.key);
-      if (k === "Escape") {
+      // Its keys are for it alone: the ? sheet takes focus while the key that opened it is still on its way here.
+      if (!box.current?.contains(document.activeElement)) return onClose();
+      const command = menuKey(e, count);
+      if (!command) return;
+      if (command.kind === "close") {
+        if (!command.refocus) return onClose();
         e.preventDefault();
         linkOf(at.card.applicationId)?.focus();
-        onClose();
-      } else if (k === "Tab") {
-        onClose();
-      } else if (k === "j" || k === "k" || k === "ArrowDown" || k === "ArrowUp") {
-        e.preventDefault();
-        const all = items();
-        const d = k === "j" || k === "ArrowDown" ? 1 : -1;
-        const cur = all.indexOf(document.activeElement as HTMLElement);
-        all[(cur + d + all.length) % all.length]?.focus();
-      } else if (/^[1-9]$/.test(k)) {
-        const item = items()[Number(k) - 1];
-        if (item) {
-          e.preventDefault();
-          item.click();
-        }
+        return onClose();
       }
+      e.preventDefault();
+      const all = items();
+      if (command.kind === "pick") return all[command.index]?.click();
+      const cur = all.indexOf(document.activeElement as HTMLElement);
+      all[(cur + command.d + all.length) % all.length]?.focus();
     };
+    // focusin too: F, / and ⌘K take focus to a field, and the menu's keys stop there.
     document.addEventListener("pointerdown", outside);
+    document.addEventListener("focusin", outside);
     document.addEventListener("scroll", outside, true);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("focusin", outside);
       document.removeEventListener("scroll", outside, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [at, onClose]);
+  }, [at, count, onClose]);
 
   return (
     <div
@@ -302,7 +300,8 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
   useEffect(() => {
     const r = refocus.current;
     if (!r) return;
-    (linkOf(r.id) ?? (r.fallback ? linkOf(r.fallback) : null))?.focus();
+    // Someone typing in the filter keeps their field: the rest of the word would land on the card as keys.
+    if (!isTyping(document.activeElement)) (linkOf(r.id) ?? (r.fallback ? linkOf(r.fallback) : null))?.focus();
     if (!pending) refocus.current = null;
   }, [shown, pending]);
 
@@ -323,7 +322,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     form.set("expectedStage", card.stage);
     start(async () => {
       shift({ applicationId: card.applicationId, stage: to.stage, stageLabel: to.label, column: to.column });
-      const result: BoardMoveResult = await moveCardAction(form).catch(() => ({ ok: false, error: "failed" }) as const);
+      const result: BoardMoveResult = await moveCardAction(form).catch(() => ({ ok: false, error: "unsure" }) as const);
       if (!result.ok) setNotice({ text: CANDIDATE_ERRORS[result.error], error: true });
       else setNotice({ text: result.changed ? `Moved ${card.name} to ${to.label}.` : CANDIDATE_NOTICES.unchanged, error: false });
     });

@@ -30,6 +30,23 @@ export function ignoreKey(e: KeyEventLike): boolean {
 /** The name a binding is registered under: letters lower-cased, so Shift+J is J; named keys as the browser gives them. */
 export const keyName = (key: string): string => (key.length === 1 ? key.toLowerCase() : key);
 
+export type MenuCommand = { kind: "step"; d: 1 | -1 } | { kind: "pick"; index: number } | { kind: "close"; refocus: boolean };
+
+/**
+ * One key into an open menu of `count` numbered lines: J/K or the arrows, a
+ * digit, Esc, Tab. A menu's keys are page keys, so ignoreKey holds: focus can
+ * reach a field with a menu still up, and a digit typed there is not a pick.
+ */
+export function menuKey(e: KeyEventLike, count: number): MenuCommand | null {
+  if (ignoreKey(e)) return null;
+  const k = keyName(e.key);
+  if (k === "Escape") return { kind: "close", refocus: true };
+  if (k === "Tab") return { kind: "close", refocus: false };
+  if (k === "j" || k === "ArrowDown") return { kind: "step", d: 1 };
+  if (k === "k" || k === "ArrowUp") return { kind: "step", d: -1 };
+  return /^[1-9]$/.test(k) && Number(k) <= count ? { kind: "pick", index: Number(k) - 1 } : null;
+}
+
 /** How long G waits for its letter, as design/tats. */
 export const CHORD_MS = 900;
 

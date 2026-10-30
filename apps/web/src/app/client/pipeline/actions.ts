@@ -25,12 +25,16 @@ export async function moveCardAction(form: FormData): Promise<BoardMoveResult> {
   try {
     outcome = await moveCandidate(member.db, toolCtx(member), input);
   } catch (err) {
+    // core's moveStage writes the stage, then its event, so this can come after
+    // the stage changed: the board reads again, and says only that it can't tell.
     console.error("[client-pipeline] move failed:", err instanceof Error ? err.message : err);
-    return { ok: false, error: "failed" };
+    revalidatePath("/client/pipeline");
+    return { ok: false, error: "unsure" };
   }
   if (!outcome.ok) {
-    // Someone else's move: show where they are now.
-    if (outcome.error === "changed") revalidatePath("/client/pipeline");
+    // The board is out of date (someone else's move, a card that's gone, access
+    // that's gone): show what's true now.
+    revalidatePath("/client/pipeline");
     return { ok: false, error: outcome.error };
   }
   if (outcome.changed) {

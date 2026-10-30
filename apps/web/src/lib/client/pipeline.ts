@@ -24,12 +24,18 @@ export type PipelineRead = { jobs: { id: string; title: string }[]; entries: Pip
 
 async function interviewsFor(db: Db, applicationIds: string[]) {
   const byApp = new Map<string, InterviewTimes[]>();
-  for (let i = 0; i < applicationIds.length; i += IDS_PER_READ) {
-    const { data, error } = await db
-      .from("interviews")
-      .select("application_id, starts_at, ends_at, status")
-      .in("application_id", applicationIds.slice(i, i + IDS_PER_READ))
-      .neq("status", "cancelled");
+  const starts = Array.from({ length: Math.ceil(applicationIds.length / IDS_PER_READ) }, (_, n) => n * IDS_PER_READ);
+  // At once: this is every live card now, on Home, Inbox and Analytics as well as the board.
+  const reads = await Promise.all(
+    starts.map((i) =>
+      db
+        .from("interviews")
+        .select("application_id, starts_at, ends_at, status")
+        .in("application_id", applicationIds.slice(i, i + IDS_PER_READ))
+        .neq("status", "cancelled"),
+    ),
+  );
+  for (const { data, error } of reads) {
     if (error) throw new Error(error.message);
     for (const row of data ?? []) {
       if (!row.application_id) continue;
