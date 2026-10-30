@@ -49,7 +49,7 @@ export const TOUR: TourStep[] = [
     href: "/client/pipeline",
     targets: ['[data-tour="board"]'],
     title: "Pipeline",
-    body: "Every open candidate, by stage.",
+    body: "Every open candidate, by stage. Drag a card to another column to move them, or press S on it.",
   },
   {
     href: "/client/interviews",

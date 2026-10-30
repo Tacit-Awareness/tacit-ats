@@ -16,6 +16,9 @@ export function closeReasonKind(stage: string): "rejected" | "withdrew" | null {
   return stage === "rejected" ? "rejected" : stage === "withdrawn" ? "withdrew" : null;
 }
 
+/** Every stage a plain move may go to: all but the two closes, which need a reason. */
+export const MOVABLE_STAGES: readonly ApplicationStage[] = APPLICATION_STAGES.filter((s) => closeReasonKind(s) === null);
+
 const LIVE: readonly ApplicationStage[] = ["sourced", "contacted", "screening", "interviewing", "offer", "hired"];
 
 /** The stage after this one on the way to hired; null at hired and for a closed application. */

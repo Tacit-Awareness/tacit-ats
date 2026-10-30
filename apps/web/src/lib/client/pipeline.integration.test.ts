@@ -1,7 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
+import type { clientTools } from "@tacit-ats/core";
+import { moveCandidate } from "./candidate-edits";
 import { readPipeline } from "./pipeline";
+import { movesFor } from "./pipeline-moves";
 
 /**
  * The Pipeline board's read against the local stack, on members' own tokens:
@@ -35,6 +38,7 @@ async function clear() {
   for (const table of ["application_events", "interviews", "applications", "hiring_team", "people", "roles", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
+  await db().from("audit_log").delete().in("actor_id", [ADMIN, LEAD]);
   await db().from("actors").delete().in("org_id", ids);
   await db().from("orgs").delete().in("id", ids);
 }
@@ -120,5 +124,83 @@ describe("the Pipeline board's read", () => {
     expect(jobs.map((j) => j.id)).toEqual([ENGINEER]);
     expect(entries.map((e) => e.applicationId).sort()).toEqual([app(1), app(2), app(3), app(4)].sort());
     expect(entries.find((e) => e.applicationId === app(2))!.column).toBe("booked");
+  });
+});
+
+describe("moving a card on the board", () => {
+  const ada = () => member("user_pl_ada", "org_itest_pipeline_acme");
+  const lee = () => member("user_pl_lee", "org_itest_pipeline_acme");
+  const ctx = (actorId: string, accessLevel: clientTools.ClientToolCtx["accessLevel"]): clientTools.ClientToolCtx => ({ actorId, orgId: ACME, accessLevel, source: "dashboard" });
+  const adaCtx = ctx(ADMIN, "admin");
+  const leeCtx = ctx(LEAD, "elevated");
+  const when = new Date(NOW);
+
+  const entry = async (client: ReturnType<typeof member>, n: number) => (await readPipeline(client, when)).entries.find((e) => e.applicationId === app(n));
+  const stageOf = async (n: number) => must(await db().from("applications").select("stage").eq("id", app(n)).single()).data!.stage;
+
+  test("every card says whether the member may edit its job", async () => {
+    const all = await readPipeline(ada(), when);
+    expect(all.entries.every((e) => e.editable)).toBe(true);
+    const own = await readPipeline(lee(), when);
+    expect(own.entries.length).toBeGreaterThan(0);
+    expect(own.entries.every((e) => e.editable)).toBe(true);
+  });
+
+  test("a drop is a real stage change, and the card lands in the column it was dropped on", async () => {
+    const card = (await entry(ada(), 1))!;
+    expect(card.column).toBe("new");
+    const stage = movesFor(card.stage, card.interviews, NOW).drops.scheduling!;
+    expect(stage).toBe("interviewing");
+
+    const outcome = await moveCandidate(ada(), adaCtx, { applicationId: app(1), stage, expectedStage: "sourced", reasonId: null, note: null });
+    expect(outcome).toEqual({ ok: true, changed: true, roleId: ENGINEER });
+    expect((await entry(ada(), 1))!.column).toBe("scheduling");
+  });
+
+  test("a card outside interviewing brings its interviews, so a move back lands in the right column", async () => {
+    must(await db().from("interviews").insert({ org_id: ACME, application_id: app(5), starts_at: at(-26), ends_at: at(-25), status: "done", step: "Onsite" }));
+    const card = (await entry(ada(), 5))!;
+    expect(card.column).toBe("offer");
+    const { drops } = movesFor(card.stage, card.interviews, NOW);
+    expect(drops.decide).toBe("interviewing");
+    expect(drops.scheduling).toBeUndefined();
+    expect(drops.booked).toBeUndefined();
+
+    await moveCandidate(ada(), adaCtx, { applicationId: app(5), stage: "interviewing", expectedStage: "offer", reasonId: null, note: null });
+    expect((await entry(ada(), 5))!.column).toBe("decide");
+  });
+
+  test("moving to hired takes the card off the board", async () => {
+    const outcome = await moveCandidate(ada(), adaCtx, { applicationId: app(5), stage: "hired", expectedStage: "offer", reasonId: null, note: null });
+    expect(outcome).toMatchObject({ ok: true, changed: true });
+    expect(await entry(ada(), 5)).toBeUndefined();
+  });
+
+  test("a board that was out of date moves nothing", async () => {
+    must(await db().from("applications").update({ stage: "screening" }).eq("id", app(1)));
+    const outcome = await moveCandidate(ada(), adaCtx, { applicationId: app(1), stage: "interviewing", expectedStage: "sourced", reasonId: null, note: null });
+    expect(outcome).toEqual({ ok: false, error: "changed" });
+    expect(await stageOf(1)).toBe("screening");
+  });
+
+  test("a hiring manager moves their own job's card, and not another job's", async () => {
+    expect(await moveCandidate(lee(), leeCtx, { applicationId: app(1), stage: "contacted", expectedStage: "sourced", reasonId: null, note: null })).toMatchObject({ ok: true, changed: true });
+    expect(await stageOf(1)).toBe("contacted");
+
+    const outcome = await moveCandidate(lee(), leeCtx, { applicationId: app(5), stage: "interviewing", expectedStage: "offer", reasonId: null, note: null });
+    expect(outcome.ok).toBe(false);
+    expect(await stageOf(5)).toBe("offer");
+  });
+
+  test("another company's application is nobody's", async () => {
+    const outcome = await moveCandidate(ada(), adaCtx, { applicationId: GLOBEX_APP, stage: "offer", expectedStage: "interviewing", reasonId: null, note: null });
+    expect(outcome).toEqual({ ok: false, error: "not_found" });
+    expect(must(await db().from("applications").select("stage").eq("id", GLOBEX_APP).single()).data!.stage).toBe("interviewing");
+  });
+
+  test("a move is audited from the dashboard with its stages and nothing else", async () => {
+    await moveCandidate(ada(), adaCtx, { applicationId: app(1), stage: "contacted", expectedStage: "sourced", reasonId: null, note: null });
+    const rows = must(await db().from("audit_log").select("source, action, before, after").eq("entity_id", app(1))).data!;
+    expect(rows).toEqual([{ source: "dashboard", action: "application.stage_change", before: { stage: "sourced" }, after: { stage: "contacted" } }]);
   });
 });

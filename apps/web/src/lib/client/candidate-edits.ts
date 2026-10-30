@@ -25,22 +25,27 @@ export type EditingRead = {
 
 const NONE: EditingRead = { editable: new Map(), owners: [], reasons: [] };
 
+/** The jobs out of these whose pipeline the member may edit, by the same check a write makes. */
+export async function editableRoles(db: Db, roleIds: string[]): Promise<Set<string>> {
+  const roles = [...new Set(roleIds)];
+  const answers = await Promise.all(
+    roles.map(async (role) => {
+      const r = await db.rpc("can_on_role", { p_role: role, perm: "can_edit_pipeline" });
+      if (r.error) throw new Error(r.error.message);
+      return r.data === true;
+    }),
+  );
+  return new Set(roles.filter((_, i) => answers[i]));
+}
+
 /** What the edit controls need, for the applications the page shows. Empty when the member may edit none of them. */
 export async function readEditing(db: Db, applicationIds: string[]): Promise<EditingRead> {
   if (!applicationIds.length) return NONE;
   const { data: apps, error } = await db.from("applications").select("id, role_id, owner_actor_id").in("id", applicationIds);
   if (error) throw new Error(error.message);
-  const roles = [...new Set((apps ?? []).map((a) => a.role_id))];
-  const allowed = new Map<string, boolean>();
-  await Promise.all(
-    roles.map(async (role) => {
-      const r = await db.rpc("can_on_role", { p_role: role, perm: "can_edit_pipeline" });
-      if (r.error) throw new Error(r.error.message);
-      allowed.set(role, r.data === true);
-    }),
-  );
+  const allowed = await editableRoles(db, (apps ?? []).map((a) => a.role_id));
   const editable = new Map<string, { ownerActorId: string | null }>();
-  for (const a of apps ?? []) if (allowed.get(a.role_id)) editable.set(a.id, { ownerActorId: a.owner_actor_id });
+  for (const a of apps ?? []) if (allowed.has(a.role_id)) editable.set(a.id, { ownerActorId: a.owner_actor_id });
   if (!editable.size) return NONE;
 
   const [members, reasons] = await Promise.all([
