@@ -14,8 +14,16 @@ import { readPipeline } from "./pipeline";
 // inbox-issues.ts turns these into the queue. Not for an interviewer
 // (`limited`), who is refused: the page points them home.
 
-/** Drafts read, newest first. */
+/** Drafts read, newest first; the list says when it stops here. */
 const DRAFTS_MAX = 100;
+/**
+ * How far back missing feedback counts. interviewerActivity scans oldest
+ * first up to its caps (5,000 interviews, 200 can_see_feedback checks for a
+ * non-admin, the second with no flag), so with no window the newest missing
+ * feedback, the part still worth chasing, is what falls off.
+ */
+const FEEDBACK_WINDOW_DAYS = 90;
+const DAY = 86_400_000;
 /** Entries in the reader's activity story. */
 const STORY_MAX = 12;
 
@@ -23,6 +31,8 @@ export type InboxRead = {
   issues: Issue[];
   /** interviewerActivity stopped at its cap, so some feedback may be missing. */
   truncated: boolean;
+  /** The drafts read reached DRAFTS_MAX, so older ones may not be listed. */
+  draftsCapped: boolean;
 };
 
 type DraftRow = {
@@ -65,7 +75,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
   const [pipeline, activity, approvals, drafts] = await Promise.all([
     readPipeline(db, now),
-    clientTools.interviewerActivity(db, ctx).catch((err: unknown) => {
+    clientTools.interviewerActivity(db, ctx, { since: new Date(now.getTime() - FEEDBACK_WINDOW_DAYS * DAY).toISOString().slice(0, 10) }).catch((err: unknown) => {
       // Someone who manages no job: whether anyone filed is not theirs to see.
       if (err instanceof clientTools.ClientToolError && err.code === "forbidden") return null;
       throw err;
@@ -106,6 +116,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
       now.getTime(),
     ),
     truncated: activity?.truncated ?? false,
+    draftsCapped: drafts.length >= DRAFTS_MAX,
   };
 }
 
@@ -133,11 +144,13 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
 }
 
 /** "Mark it done": clears the next action, only while it is still the overdue one the page showed. */
-export async function clearOverdueAction(db: Db, actorId: string, applicationId: string, now: Date): Promise<EditOutcome> {
-  const { data, error } = await db.from("applications").select("role_id, next_action_due").eq("id", applicationId).maybeSingle();
+export async function clearOverdueAction(db: Db, actorId: string, input: { applicationId: string; nextAction: string | null }, now: Date): Promise<EditOutcome> {
+  const { applicationId } = input;
+  const { data, error } = await db.from("applications").select("role_id, next_action, next_action_due").eq("id", applicationId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { ok: false, error: "not_found" };
-  if (!data.next_action_due || data.next_action_due >= now.toISOString().slice(0, 10)) return { ok: true, changed: false, roleId: data.role_id };
+  const overdue = data.next_action_due !== null && data.next_action_due < now.toISOString().slice(0, 10);
+  if (!overdue || data.next_action !== input.nextAction) return { ok: true, changed: false, roleId: data.role_id };
   return setCandidateNextAction(db, actorId, { applicationId, nextAction: null, due: null });
 }
 

@@ -13,7 +13,7 @@ import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking), with the team's pages, the member and the footer at the bottom.
+// sections (Top of Funnel, Routing & Tracking), with Integrations, the member and the footer at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail, ⌘K opens the
 // command menu. No counts: the sidebar is for getting around, not a report.
@@ -72,7 +72,6 @@ const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [
-  { href: "/client/team", label: "Team", icon: "team" },
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
 ];
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
@@ -90,7 +89,7 @@ export type ShellJob = { id: string; title: string };
 
 function useIsActive() {
   const pathname = usePathname();
-  // Segment-aware prefix match: /client/team must not light Home up.
+  // Segment-aware prefix match: /client/jobs must not light Home up.
   const under = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
   return (link: NavLink) => (link.href === "/client" ? pathname === "/client" : under(link.href)) || (link.activeUnder ?? []).some(under);
 }

@@ -30,10 +30,11 @@ export async function fixIssueAction(form: FormData): Promise<void> {
   if (typeof applicationId !== "string" || !UUID.test(applicationId) || (write !== "done" && write !== "touch")) return back({ error: "not_found" });
   const next = form.get("next");
   const i = typeof next === "string" && ISSUE_KEY.test(next) ? next : null;
+  const expected = form.get("expected");
 
   let outcome: Awaited<ReturnType<typeof touchApplication>>;
   try {
-    outcome = write === "done" ? await clearOverdueAction(db, actorId, applicationId, new Date()) : await touchApplication(db, actorId, applicationId);
+    outcome = write === "done" ? await clearOverdueAction(db, actorId, { applicationId, nextAction: typeof expected === "string" ? expected : null }, new Date()) : await touchApplication(db, actorId, applicationId);
   } catch (err) {
     console.error("[client-inbox] fix failed:", err instanceof Error ? err.message : err);
     return back({ i: `app-${applicationId}`, error: "failed" });

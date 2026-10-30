@@ -77,7 +77,7 @@ function Row({ r }: { r: IssueRow }) {
   );
 }
 
-function IssueList({ rows, truncated }: { rows: IssueRow[]; truncated: boolean }) {
+function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean }) {
   return (
     <KeyList title="Inbox" next="Next issue" mode="select" className="grid content-start gap-0.5">
       {ISSUE_KINDS.map((k) => {
@@ -96,6 +96,7 @@ function IssueList({ rows, truncated }: { rows: IssueRow[]; truncated: boolean }
         );
       })}
       {truncated ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
+      {draftsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
     </KeyList>
   );
 }
@@ -145,6 +146,7 @@ export function InboxView({
   error,
   open,
   truncated,
+  draftsCapped,
 }: {
   rows: IssueRow[];
   issue: IssueReaderProps | null;
@@ -152,6 +154,7 @@ export function InboxView({
   error: string | null;
   open: boolean;
   truncated: boolean;
+  draftsCapped: boolean;
 }) {
   const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
   if (!issue) {
@@ -180,7 +183,7 @@ export function InboxView({
       readerLabel="Issue"
       open={open}
       bar={<PageBar title="Inbox" count={rows.length} />}
-      list={<IssueList rows={rows} truncated={truncated} />}
+      list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} />}
       reader={
         <div className="grid content-start gap-3 md:px-6 md:pt-3 md:pb-10">
           <Link href="/client/inbox" className={cn(textLink, "md:hidden")}>

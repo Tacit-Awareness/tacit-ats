@@ -151,8 +151,8 @@ describe("issueFix", () => {
   const quiet = issues({ cards: [card("a", { stalled: ["no_touch"] })] })[0]!;
 
   test("a write only for someone who may edit the job, else the candidate's page", () => {
-    expect(issueFix(overdue, true)).toEqual({ type: "write", write: "done", label: "Mark it done", applicationId: "a" });
-    expect(issueFix(quiet, true)).toEqual({ type: "write", write: "touch", label: "Log a touch", applicationId: "a" });
+    expect(issueFix(overdue, true)).toEqual({ type: "write", write: "done", label: "Mark it done", applicationId: "a", nextAction: overdue.nextAction });
+    expect(issueFix(quiet, true)).toEqual({ type: "write", write: "touch", label: "Log a touch", applicationId: "a", nextAction: null });
     expect(issueFix(overdue, false)).toEqual({ type: "link", label: "Open candidate", href: "/client/candidates/p-a" });
     expect(issueFix(quiet, false)).toEqual({ type: "link", label: "Open candidate", href: "/client/candidates/p-a" });
   });

@@ -183,7 +183,7 @@ function draftIssue(d: InboxDraft): Issue {
   };
 }
 
-/** The whole queue: unsent drafts, then overdue, then decisions, newest first in each. */
+/** The whole queue: unsent drafts, then overdue, then decisions, newest first in each, as the prototype sorts. */
 export function inboxIssues(
   input: { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[] },
   now: number,
@@ -218,13 +218,13 @@ export function nextIssue(issues: Issue[], key: string): Issue | null {
 }
 
 /** The one thing that deals with an issue: a write the member may make here, or the page that has it. */
-export type IssueFix = { type: "write"; write: "done" | "touch"; label: string; applicationId: string } | { type: "link"; label: string; href: string };
+export type IssueFix = { type: "write"; write: "done" | "touch"; label: string; applicationId: string; /** What "Mark it done" clears, so a changed one is left alone. */ nextAction: string | null } | { type: "link"; label: string; href: string };
 
 const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
 
 export function issueFix(i: Issue, canEdit: boolean): IssueFix {
-  if (i.reason === "overdue" && canEdit && i.applicationId) return { type: "write", write: "done", label: "Mark it done", applicationId: i.applicationId };
-  if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId };
+  if (i.reason === "overdue" && canEdit && i.applicationId) return { type: "write", write: "done", label: "Mark it done", applicationId: i.applicationId, nextAction: i.nextAction };
+  if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId, nextAction: null };
   if (i.reason === "feedback" && i.interviewId) return { type: "link", label: "Open the interview", href: `/client/interviews?i=${i.interviewId}` };
   if (i.reason === "decide") return { type: "link", label: "Decide", href: candidateHref(i) };
   if (i.reason === "approval" && !i.candidate) return { type: "link", label: "Open the job", href: candidateHref(i) };

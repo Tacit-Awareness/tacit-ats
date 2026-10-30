@@ -57,7 +57,7 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
   const stats: Stat[] = [
     { label: "Open jobs", value: open.length, href: "/client/jobs" },
     { label: "Interviewing", value: candidates.data.length },
-    { label: "Team", value: team.data.length, href: "/client/team" },
+    { label: "Team", value: team.data.length },
   ];
 
   return (
@@ -126,11 +126,6 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
           <Section
             title="Team"
             count={team.data.length}
-            aside={
-              <Link href="/client/team" className={textLink}>
-                View →
-              </Link>
-            }
           >
             <Rows tight>
               {team.data.map((member) => (

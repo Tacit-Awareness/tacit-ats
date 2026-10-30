@@ -61,6 +61,7 @@ function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; ne
       <FixKey press={() => submit.current && form.current?.requestSubmit(submit.current)} label={fix.label} />
       <input type="hidden" name="applicationId" value={fix.applicationId} />
       <input type="hidden" name="write" value={fix.write} />
+      {fix.nextAction !== null ? <input type="hidden" name="expected" value={fix.nextAction} /> : null}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <Submit label={fix.label} refFn={(b) => void (submit.current = b)} />
     </form>

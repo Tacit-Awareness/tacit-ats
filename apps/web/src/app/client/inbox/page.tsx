@@ -59,7 +59,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const now = new Date();
   const nowMs = now.getTime();
   const member = { actorId, orgId: org.id, accessLevel };
-  const { issues, truncated } = await readInbox(db, member, now);
+  const { issues, truncated, draftsCapped } = await readInbox(db, member, now);
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
   const fix = open ? issueFix(open, detail?.canEdit ?? false) : null;
@@ -96,6 +96,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
       error={isInboxError(error) ? INBOX_ERRORS[error] : null}
       open={open !== null && open.key === one(sp.i)}
       truncated={truncated}
+      draftsCapped={draftsCapped}
     />
   );
 }

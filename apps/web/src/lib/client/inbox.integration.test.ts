@@ -188,18 +188,31 @@ describe("the Inbox", () => {
 
   test("Mark it done clears an overdue next action and the issue leaves; a second try changes nothing", async () => {
     const client = token("user_ib_ada");
-    expect(await clearOverdueAction(client, ADMIN, app(3), NOW)).toMatchObject({ ok: true, changed: true });
+    expect(await clearOverdueAction(client, ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: true });
     const { data } = must(await db().from("applications").select("next_action, next_action_due").eq("id", app(3)).single());
     expect(data).toEqual({ next_action: null, next_action_due: null });
     expect((await readInbox(client, ada, NOW)).issues.some((i) => i.key === `app-${app(3)}`)).toBe(false);
-    expect(await clearOverdueAction(client, ADMIN, app(3), NOW)).toMatchObject({ ok: true, changed: false });
+    expect(await clearOverdueAction(client, ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
   });
 
   test("a next action moved to a later date is left alone", async () => {
     must(await db().from("applications").update({ next_action_due: at(72).slice(0, 10) }).eq("id", app(3)));
-    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, app(3), NOW)).toMatchObject({ ok: true, changed: false });
+    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
     const { data } = must(await db().from("applications").select("next_action").eq("id", app(3)).single());
     expect(data?.next_action).toBe("Send the brief");
+  });
+
+  test("a next action someone replaced is left alone, even overdue", async () => {
+    must(await db().from("applications").update({ next_action: "Call the reference" }).eq("id", app(3)));
+    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
+    const { data } = must(await db().from("applications").select("next_action").eq("id", app(3)).single());
+    expect(data?.next_action).toBe("Call the reference");
+  });
+
+  test("feedback missing for more than 90 days is not listed", async () => {
+    must(await db().from("interviews").update({ starts_at: at(-92 * 24), ends_at: at(-91 * 24) }).eq("id", iv(1)));
+    const issues = (await readInbox(token("user_ib_ada"), ada, NOW)).issues;
+    expect(issues.some((i) => i.reason === "feedback")).toBe(false);
   });
 
   test("Log a touch clears a quiet candidate", async () => {
@@ -209,8 +222,8 @@ describe("the Inbox", () => {
   });
 
   test("a hiring manager can't reach another job, and another company's application is nobody's", async () => {
-    expect(await clearOverdueAction(token("user_ib_lee"), LEAD, app(3), NOW)).toEqual({ ok: false, error: "not_found" });
+    expect(await clearOverdueAction(token("user_ib_lee"), LEAD, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toEqual({ ok: false, error: "not_found" });
     expect(await touchApplication(token("user_ib_lee"), LEAD, app(3))).toEqual({ ok: false, error: "not_found" });
-    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, GLOBEX_APP, NOW)).toEqual({ ok: false, error: "not_found" });
+    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: GLOBEX_APP, nextAction: "Globex's" }, NOW)).toEqual({ ok: false, error: "not_found" });
   });
 });

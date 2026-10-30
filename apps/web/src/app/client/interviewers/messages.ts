@@ -1,4 +1,4 @@
-// What /client/team says after an action. The actions redirect with a code
+// What /client/interviewers says after an action. The actions redirect with a code
 // and the page looks the sentence up here, so no name or address rides in a URL.
 export const TEAM_NOTICES = {
   invited: "Invitation sent.",
