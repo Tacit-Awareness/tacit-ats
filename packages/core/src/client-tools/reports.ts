@@ -411,10 +411,19 @@ export type InterviewerRow = {
   medianHoursToFeedback: number | null;
 };
 
-export type InterviewerActivity = ReportScope & { onTimeHours: number; interviewers: InterviewerRow[] };
+/** One interviewer's feedback not filed on one interview, as far as the caller can tell (never a hidden one). */
+export type OutstandingFeedback = { interviewId: string; applicationId: string; interviewerId: string; endsAt: string };
+
+export type InterviewerActivity = ReportScope & {
+  onTimeHours: number;
+  interviewers: InterviewerRow[];
+  /** Every not-filed pair counted in `notFiled`, oldest interview first. */
+  outstanding: OutstandingFeedback[];
+};
 
 type InterviewRow = {
   id: string;
+  application_id: string;
   ends_at: string;
   interviewer_actor_ids: string[];
   applications: { role_id: string };
@@ -458,7 +467,7 @@ export async function interviewerActivity(
   const interviews = await scan<InterviewRow>((from, to) => {
     let q = db
       .from("interviews")
-      .select("id, ends_at, interviewer_actor_ids, applications!inner(role_id, merged_into_id)")
+      .select("id, application_id, ends_at, interviewer_actor_ids, applications!inner(role_id, merged_into_id)")
       .neq("status", "cancelled")
       .is("applications.merged_into_id", null)
       .lte("ends_at", nowIso);
@@ -477,6 +486,9 @@ export async function interviewerActivity(
   }
 
   const per = new Map<string, InterviewerRow & { hours: number[] }>();
+  const outstanding: OutstandingFeedback[] = [];
+  const missing = (interview: InterviewRow, userId: string) =>
+    outstanding.push({ interviewId: interview.id, applicationId: interview.application_id, interviewerId: userId, endsAt: interview.ends_at });
   let checks = 0;
   for (const interview of rows) {
     for (const userId of interview.interviewer_actor_ids ?? []) {
@@ -494,13 +506,16 @@ export async function interviewerActivity(
         else row.late += 1;
       } else if (admin) {
         row.notFiled += 1;
+        missing(interview, userId);
       } else if (checks < HELPER_CHECKS_MAX) {
         checks += 1;
         // Absent or hidden: the same helper the feedback policy uses tells them apart.
         const { data: sees, error } = await db.rpc("can_see_feedback", { p_interview: interview.id, p_interviewer: userId });
         if (error) throw new Error(error.message);
-        if (sees === true) row.notFiled += 1;
-        else row.notVisible += 1;
+        if (sees === true) {
+          row.notFiled += 1;
+          missing(interview, userId);
+        } else row.notVisible += 1;
       } else {
         row.notVisible += 1;
       }
@@ -518,7 +533,8 @@ export async function interviewerActivity(
   const interviewers = [...per.values()]
     .map(({ hours, ...r }) => ({ ...r, medianHoursToFeedback: hours.length ? dayStats(hours).medianDays : null }))
     .sort((a, b) => b.interviews - a.interviews || (a.name ?? "").localeCompare(b.name ?? ""));
-  return { jobId: null, since, truncated: interviews.truncated, onTimeHours: FEEDBACK_ON_TIME_HOURS, interviewers };
+  // The scan is ordered by ends_at, so the list already runs oldest first.
+  return { jobId: null, since, truncated: interviews.truncated, onTimeHours: FEEDBACK_ON_TIME_HOURS, interviewers, outstanding };
 }
 
 // ---------------------------------------------------------------------------

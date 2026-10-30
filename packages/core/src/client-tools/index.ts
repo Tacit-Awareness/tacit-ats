@@ -103,7 +103,7 @@ export {
   interviewerActivity, offerReport, pipelineReport, rejectionReport, sourceReport, timeToHire,
 } from "./reports.js";
 export type {
-  DayStats, InterviewerActivity, InterviewerRow, JobFirstHire, OfferReport, PipelineReport, RejectionReport, RejectionRow,
+  DayStats, InterviewerActivity, InterviewerRow, JobFirstHire, OfferReport, OutstandingFeedback, PipelineReport, RejectionReport, RejectionRow,
   SourceReport, SourceRow, StageRow, TimeToHire,
 } from "./reports.js";
 export {

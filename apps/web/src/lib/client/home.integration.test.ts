@@ -133,6 +133,8 @@ describe("Home's read", () => {
     expect(read.names[IV]).toBe("Ivy Interviewer");
 
     expect(read.feedback).toEqual([expect.objectContaining({ userId: IV, interviews: 1, feedbackFiled: 0, notFiled: 1 })]);
+    // The one not filed, with who and for which job.
+    expect(read.outstanding).toEqual([expect.objectContaining({ interviewerId: IV, interviewerName: "Ivy Interviewer", candidateName: "Candidate 3", endsAt: expect.any(String) })]);
     expect(bottlenecks(read.waiting, 1, NOW).map((b) => b.key)).toEqual(["schedule", "review", "decide", "feedback"]);
     expect(read.truncated).toBe(false);
   });
