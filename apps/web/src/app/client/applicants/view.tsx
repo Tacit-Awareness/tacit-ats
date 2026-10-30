@@ -3,12 +3,13 @@ import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
 import { cn } from "@/lib/utils";
+import { ReplyBox, type Reply } from "./reply-box";
 import { RoutingBar, type Routing } from "./routing-bar";
 
 // Applicant Tickets' markup, props only (page.tsx does the reads): the queue
 // grouped by job on the left (a fixed 340px list), the open application as
-// one white page on the right, and design/tats's composer under it as the routing bar
-// (routing-bar.tsx). J/K walk the tickets (components/keys.tsx). Everything
+// one white page on the right, and design/tats's composer under it as the reply
+// box (reply-box.tsx) over the routing bar (routing-bar.tsx). J/K walk the tickets (components/keys.tsx). Everything
 // an applicant typed is rendered as text; React escapes it, and only an
 // http(s) URL becomes a link (applicant-queue.ts's safeHref).
 
@@ -26,6 +27,8 @@ export type Ticket = {
   answers: ReaderAnswer[];
   /** Null when the member may not move people in this job. */
   routing: Routing | null;
+  /** Null when the member may not email this candidate. */
+  reply: Reply | null;
 };
 
 function TicketList({ groups }: { groups: TicketGroup[] }) {
@@ -152,7 +155,13 @@ export function ApplicantsView({
               {flash ? <div className="mx-auto w-[640px] max-w-full">{flash}</div> : null}
               <Paper ticket={ticket} />
             </div>
-            {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
+            {ticket.reply || ticket.routing ? (
+              <div className="sticky bottom-0 z-10">
+                {/* A new draft is a new box, so a change or a refusal never outlives it. */}
+                {ticket.reply ? <ReplyBox key={`${ticket.reply.applicationId}:${ticket.reply.draft?.draftId ?? ""}`} reply={ticket.reply} /> : null}
+                {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="mx-auto grid max-w-[760px] content-start gap-4">

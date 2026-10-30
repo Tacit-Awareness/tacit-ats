@@ -3,6 +3,7 @@ import { groupByJob, inOrder, neighbour, readerAnswers, safeHref, selected, type
 
 const entry = (id: string, jobId: string, appliedAt: string, over: Partial<QueueEntry> = {}): QueueEntry => ({
   applicationId: id,
+  candidateId: `p-${id}`,
   name: `Applicant ${id}`,
   email: `${id}@x.test`,
   jobId,
