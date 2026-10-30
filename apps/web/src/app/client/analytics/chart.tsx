@@ -32,6 +32,21 @@ function smoothPath(pts: [number, number][]): string {
   return d;
 }
 
+/**
+ * Each unbroken stretch of a series, as the indices of its points. Null is a day
+ * nothing was counted or there was nothing to take a share of, which is not
+ * zero, so the line stops there rather than diving to the axis.
+ */
+export function chartRuns(values: (number | null)[]): number[][] {
+  const runs: number[][] = [];
+  values.forEach((v, i) => {
+    if (v === null) return;
+    if (i > 0 && values[i - 1] !== null) runs.at(-1)!.push(i);
+    else runs.push([i]);
+  });
+  return runs;
+}
+
 export function CareersChart({ points, top, share, compare, bars, step }: {
   points: ChartPoint[];
   /** The axis' top, rounded by the page. */
@@ -46,7 +61,13 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
   const n = points.length;
   const xAt = (i: number) => (bars ? ((i + 0.5) / n) * 1000 : n === 1 ? 500 : (i / (n - 1)) * 1000);
   const yAt = (v: number | null) => 300 - ((v ?? 0) / top) * 300;
-  const line = (key: "current" | "previous") => smoothPath(points.map((p, i) => [xAt(i), yAt(p[key])]));
+  const lines = (key: "current" | "previous") => chartRuns(points.map((p) => p[key])).map((run) => run.map((i): [number, number] => [xAt(i), yAt(points[i][key])]));
+  const line = (key: "current" | "previous") => lines(key).map(smoothPath).join("");
+  // A point alone has no line, and its dot below shows it. Each stretch closes down to the axis, so a gap stays empty.
+  const area = lines("current")
+    .filter((run) => run.length > 1)
+    .map((run) => `${smoothPath(run)}L${run.at(-1)![0]},300L${run[0][0]},300Z`)
+    .join("");
   const every = Math.ceil(n / 7);
   const id = React.useId().replace(/:/g, "");
 
@@ -93,25 +114,27 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
                   <stop offset="1" stopColor="var(--accent)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <path d={`${line("current")}L1000,300L0,300Z`} fill={`url(#${id})`} />
+              <path d={area} fill={`url(#${id})`} />
               {compare ? <path d={line("previous")} fill="none" stroke="var(--faint)" strokeWidth={1.5} opacity={0.7} vectorEffect="non-scaling-stroke" /> : null}
               <path d={line("current")} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
             </svg>
             {n <= 31
-              ? points.map((x, i) => (
-                  <i
-                    key={i}
-                    className="pointer-events-none absolute -mt-1 -ml-1 size-2 rounded-full bg-[color:var(--paper)] shadow-[0_0_0_1.5px_var(--accent)]"
-                    style={{ left: `${xAt(i) / 10}%`, top: `${yAt(x.current) / 3}%` }}
-                  />
-                ))
+              ? points.map((x, i) =>
+                  x.current === null ? null : (
+                    <i
+                      key={i}
+                      className="pointer-events-none absolute -mt-1 -ml-1 size-2 rounded-full bg-[color:var(--paper)] shadow-[0_0_0_1.5px_var(--accent)]"
+                      style={{ left: `${xAt(i) / 10}%`, top: `${yAt(x.current) / 3}%` }}
+                    />
+                  ),
+                )
               : null}
           </>
         )}
         {p ? (
           <>
             <i className="pointer-events-none absolute inset-y-0 w-px bg-[color:var(--line-strong)]" style={{ left: `${hx}%` }} />
-            {bars ? null : (
+            {bars || p.current === null ? null : (
               <i
                 className="pointer-events-none absolute z-[2] -mt-[5px] -ml-[5px] size-2.5 rounded-full bg-[color:var(--accent)] shadow-[0_0_0_2px_var(--paper)]"
                 style={{ left: `${hx}%`, top: `${yAt(p.current) / 3}%` }}

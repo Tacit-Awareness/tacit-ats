@@ -26,6 +26,7 @@ vi.mock("@tacit-ats/core", async (original) => {
 
 import { clientTools } from "@tacit-ats/core";
 import { saveProfileAction, setAccessAction } from "./actions";
+import { PROFILE_ERRORS } from "./messages";
 
 const MEMBER = { db: { fake: true }, actorId: "a1", accessLevel: "admin", org: { id: "o1" } };
 const TARGET = "e6a00000-0000-4000-8000-0000000000a2";
@@ -196,6 +197,9 @@ describe("saveProfileAction", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     setInterviewerProfile.mockRejectedValue(new Error("connection lost at lee@acme.test"));
     expect(await saveProfileAction(form(SAVE))).toEqual({ ok: false, error: "failed" });
+    // A write can fail after it landed, so the sentence cannot promise it did not.
+    expect(PROFILE_ERRORS.failed).toMatch(/may not have gone through/);
+    expect(PROFILE_ERRORS.failed).not.toMatch(/nothing was/i);
     expect(log).toHaveBeenCalled();
     log.mockRestore();
   });

@@ -6,7 +6,7 @@ import { Input, selectClass } from "@/components/ui/input";
 import type { TargetKind, TargetMetric, TargetUnit } from "@/lib/client/home-target-rules";
 import { cn } from "@/lib/utils";
 import { saveTargetAction } from "./actions";
-import { TARGET_ERRORS, type TargetState } from "./target-messages";
+import { TARGET_ERRORS, answering, type TargetState } from "./target-messages";
 
 // A card's target (design/tats's `.hm-t` and its setThr form): for an admin a
 // chip that opens the dialog, "Set a target" or what is set, and for the hiring
@@ -49,10 +49,11 @@ function Words({ label, shown, off, offNote }: Pick<TargetChipProps, "label" | "
 }
 
 const IDLE: TargetState = { status: "idle" };
+const save = answering(saveTargetAction);
 
 export function TargetDialog({ metric, card, label, sub, kind, field, shown, close }: TargetChipProps & { close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [state, action, pending] = useActionState(saveTargetAction, IDLE);
+  const [state, action, pending] = useActionState(save, IDLE);
   const [value, setValue] = useState(field.value);
   const [unit, setUnit] = useState(field.unit);
   const [clear, setClear] = useState(false);
@@ -69,7 +70,9 @@ export function TargetDialog({ metric, card, label, sub, kind, field, shown, clo
     <dialog
       ref={dialog}
       aria-labelledby={titleId}
-      onClose={close}
+      // The browser lets a cancel be refused only once: a second Esc closes it anyway.
+      // Mid-save it comes straight back, or a refusal would land in a closed dialog.
+      onClose={() => (pending ? dialog.current?.showModal() : close())}
       onCancel={(e) => {
         if (pending) e.preventDefault();
       }}

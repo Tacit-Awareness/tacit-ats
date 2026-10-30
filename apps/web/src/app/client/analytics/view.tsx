@@ -39,7 +39,7 @@ export type ExplorerProps = {
   /** The axis' top. */
   top: number;
   segments: { label: string; color: string }[];
-  rows: { label: string; by: number[]; total: number }[];
+  rows: { key: string; label: string; by: number[]; total: number }[];
   slice: string;
   measure: string;
   note: string | null;
@@ -96,7 +96,7 @@ function Segmented({ items, label }: { items: Link_[]; label: string }) {
 }
 
 /** A ranked list: a soft bar behind each row, its share of the largest. */
-function Ranked({ title, col, rows }: { title: string; col: string; rows: { label: string; n: number; href?: string }[] }) {
+export function Ranked({ title, col, rows }: { title: string; col: string; rows: { label: string; n: number; href?: string }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.n));
   return (
     <section className="grid content-start gap-1 px-4 pt-3.5 pb-4">
@@ -117,7 +117,7 @@ function Ranked({ title, col, rows }: { title: string; col: string; rows: { labe
           );
           const cls = "relative flex h-9 items-center justify-between gap-3 rounded-lg px-2.5 text-[13.5px]";
           return r.href ? (
-            <Link key={r.label} href={r.href} className={cn(cls, "hover:bg-[color:var(--hover)]")} title={`${r.n} applications`}>
+            <Link key={r.href} href={r.href} className={cn(cls, "hover:bg-[color:var(--hover)]")} title={`${r.n} applications`}>
               {inner}
             </Link>
           ) : (
@@ -254,7 +254,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
                   <i key={f} className="absolute inset-x-0 h-px bg-[color:var(--line)]" style={{ bottom: `${f * 100}%` }} />
                 ))}
                 {p.rows.map((r) => (
-                  <div key={r.label} className="relative flex items-end justify-center" title={`${r.label} · ${r.total} ${p.unit}`}>
+                  <div key={r.key} className="relative flex items-end justify-center" title={`${r.label} · ${r.total} ${p.unit}`}>
                     <div className="flex w-[18px] flex-col-reverse gap-0.5" style={{ height: `${(r.total / p.top) * 100}%` }}>
                       {r.by.map((v, j) =>
                         v ? <i key={j} className="block min-h-[3px] last:rounded-t-[4px] hover:opacity-80" style={{ flex: v, ...fill(j) }} title={`${p.segments[j].label}: ${v}`} /> : null,
@@ -274,7 +274,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
               {p.rows.length <= LABELLED ? (
                 <div className="grid pt-2" style={{ gridTemplateColumns: `repeat(${p.rows.length}, minmax(0, 1fr))` }}>
                   {p.rows.map((r) => (
-                    <span key={r.label} className="truncate px-1 text-center text-[11.5px] text-faint" title={r.label}>
+                    <span key={r.key} className="truncate px-1 text-center text-[11.5px] text-faint" title={r.label}>
                       {r.label}
                     </span>
                   ))}
@@ -298,7 +298,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
                 </thead>
                 <tbody>
                   {p.rows.map((r) => (
-                    <tr key={r.label} className="h-[46px] border-b border-[color:var(--line)]">
+                    <tr key={r.key} className="h-[46px] border-b border-[color:var(--line)]">
                       <td className="max-w-[260px] truncate pl-4 min-[768px]:pl-6">{r.label}</td>
                       <td className="px-2 text-right tabular-nums">{r.total}</td>
                       {r.by.map((v, j) => (
