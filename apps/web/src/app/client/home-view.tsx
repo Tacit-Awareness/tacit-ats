@@ -1,13 +1,16 @@
 import Link from "next/link";
-import { Avatar, Empty, Page, PageHeader, Section, Segmented, Tabs, Toolbar, textLink, type Tab } from "@/components/page";
+import { Avatar, Empty, Page, Section, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
+import { FilterMenu, type FilterOption } from "./filter-menu";
 
 // Home's markup (design/tats's Recruiting Overview), props only: page.tsx
-// does the reads and the counting. Six cards in pixel numbers, then "Where
-// are candidates getting stuck?": the bottlenecks beside time in stage, then
-// feedback by interviewer and the average stay per stage. Bars are plain
-// CSS, no chart library. Colour only for meaning: red for a falling count
-// and the longest waits.
+// does the reads and the counting. The prototype's bar (the crumb, then the
+// period, department and job chips) and its Overview / Applicant Tickets /
+// Interviews / Referrals tabs; six cards, then "Where are candidates getting
+// stuck?": the bottlenecks beside time in stage, then feedback by
+// interviewer, the average stay per stage and the feedback outstanding. Bars
+// are plain CSS, no chart library. Colour only for meaning: red for a
+// falling count and the longest waits.
 
 export type Bar = { n: number; label: string; title: string };
 
@@ -25,14 +28,13 @@ export type StageLine = {
   more: { href: string; label: string } | null;
 };
 
+export type BottleneckIcon = keyof typeof ICONS;
+
 export type HomeViewProps = {
   title: string;
-  subtitle: string;
   days: number;
-  periods: { href: string; label: string; active: boolean }[];
-  /** Empty for an org with no departments: no filter at all. */
-  departments: Tab[];
-  jobs: Tab[];
+  /** The chips: the period always, the department and the job when there is one to pick. */
+  filters: { label: string; value: string; on: boolean; options: FilterOption[] }[];
   pipelineHref: string;
   newApps: { value: number; change: number | null; bars: Bar[] };
   inProcess: { value: number; bars: Bar[] };
@@ -50,12 +52,41 @@ export type HomeViewProps = {
     interviewers: { id: string; name: string; median: string | null; medianHours: number | null; out: number }[];
   } | null;
   workload: { hours: string; interviews: number; held: number; booked: number; people: { id: string; name: string; hours: number; label: string }[] };
-  bottlenecks: { key: string; what: string; why: string; href: string | null }[];
+  bottlenecks: { key: string; what: string; why: string; icon: BottleneckIcon; label: string; href: string }[];
+  /** Null alongside `feedback`: not theirs. */
+  outstanding: { total: number; rows: { id: string; interviewer: string; line: string; wait: string; href: string }[]; more: { href: string; label: string } | null } | null;
   stages: StageLine[];
   active: number;
   stays: { label: string; avgDays: number | null; stays: number }[];
   truncated: boolean;
 };
+
+// design/tats's own icons (its app.js `P`), 16px, stroked.
+const ICONS = {
+  home: "M2.5 7.2 8 2.8l5.5 4.4V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5Z",
+  ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
+  cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
+  quote: "M3.5 8.5h3v4h-3ZM3.5 8.5c0-2.5 1-4 3-4.5M9.5 8.5h3v4h-3ZM9.5 8.5c0-2.5 1-4 3-4.5",
+  flag: "M3.5 14V2.8M3.5 3h8l-1.6 3 1.6 3h-8",
+  clock: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 5v3.2l2 1.3",
+  chevR: "M6 4l4 4-4 4",
+} as const;
+
+function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className={cn("size-[15px] shrink-0", className)} aria-hidden>
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
+/** The tabs under the bar: Home's own and the pages its numbers lead to. */
+const NAV = [
+  { href: "/client", label: "Overview" },
+  { href: "/client/applicants", label: "Applicant Tickets" },
+  { href: "/client/interviews", label: "Interviews" },
+  { href: "/client/referrals", label: "Referrals" },
+];
 
 const SEGMENT_KEYS = ["Under a day", "1 to 3 days", "Over 3 days"];
 const SEGMENT_FILL = ["bg-[color:var(--soft-strong)]", "bg-[color-mix(in_srgb,var(--ink)_45%,var(--paper))]", "bg-[color:var(--ink)]"];
@@ -99,7 +130,7 @@ function Card({ label, def, value, unit, ctx, foot, children }: {
         {label}
       </span>
       <div className="flex items-baseline gap-2">
-        <b className="font-pixel text-[28px] leading-none font-normal tracking-[-0.06em] text-foreground">{value}</b>
+        <b className="text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-foreground tabular-nums">{value}</b>
         {unit ? <span className="text-[12.5px] text-muted-foreground">{unit}</span> : null}
       </div>
       <div className="flex min-h-[18px] flex-wrap items-baseline gap-2 text-[12.5px] text-muted-foreground">{ctx}</div>
@@ -182,15 +213,37 @@ export function HomeView(p: HomeViewProps) {
 
   return (
     <Page>
-      <PageHeader title={p.title} subtitle={p.subtitle} actions={<Segmented label="Period" items={p.periods} />} />
-      {p.departments.length ? <Tabs label="Departments" tabs={p.departments} /> : null}
-      {p.jobs.length > 1 ? (
-        <Toolbar>
-          <Tabs label="Jobs" tabs={p.jobs} />
-        </Toolbar>
-      ) : null}
+      <header className="grid">
+        <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-[color:var(--line)] pb-2">
+          <h1 className="m-0 flex min-w-0 items-center gap-2 text-[13.5px] font-medium">
+            <Icon name="home" className="text-muted-foreground" />
+            {p.title}
+          </h1>
+          <span className="flex-1" />
+          <div className="flex flex-wrap items-center gap-1">
+            {p.filters.map((f) => (
+              <FilterMenu key={f.label} {...f} />
+            ))}
+          </div>
+        </div>
+        <nav aria-label="Overview pages" className="flex flex-wrap gap-1 border-b border-[color:var(--line)] py-3">
+          {NAV.map((n, i) => (
+            <Link
+              key={n.href}
+              href={n.href}
+              aria-current={i === 0 ? "page" : undefined}
+              className={cn(
+                "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] transition-colors",
+                i === 0 ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
+              )}
+            >
+              {n.label}
+            </Link>
+          ))}
+        </nav>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-2 min-[1100px]:grid-cols-3">
+      <div className="grid gap-4 min-[768px]:grid-cols-2 min-[1100px]:grid-cols-3">
         <Card
           label="New applications"
           def="Applications added in the period, applied or sourced"
@@ -285,28 +338,19 @@ export function HomeView(p: HomeViewProps) {
           {p.bottlenecks.length === 0 ? (
             <Empty>Nothing is waiting.</Empty>
           ) : (
-            <div className="-mx-2 grid">
-              {p.bottlenecks.map((b) => {
-                const body = (
-                  <>
-                    <span className="grid min-w-0 gap-0.5">
-                      <b className="text-[14px] font-medium">{b.what}</b>
-                      <span className="text-[13px] text-muted-foreground">{b.why}</span>
-                    </span>
-                    {b.href ? <span className="text-[13px] font-medium whitespace-nowrap text-[color:var(--accent)]">Open Pipeline →</span> : null}
-                  </>
-                );
-                const cls = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] px-2 py-2.5";
-                return b.href ? (
-                  <Link key={b.key} href={b.href} className={cn(cls, "hover:bg-[color:var(--hover)]")}>
-                    {body}
-                  </Link>
-                ) : (
-                  <div key={b.key} className={cls}>
-                    {body}
-                  </div>
-                );
-              })}
+            <div className="-mx-3 grid">
+              {p.bottlenecks.map((b) => (
+                <Link key={b.key} href={b.href} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] p-3 hover:bg-[color:var(--hover)]">
+                  <span className="grid size-8 place-items-center rounded-lg bg-[color:var(--soft)] text-muted-foreground">
+                    <Icon name={b.icon} />
+                  </span>
+                  <span className="grid min-w-0 gap-0.5">
+                    <b className="text-[14px] font-medium">{b.what}</b>
+                    <span className="text-[13px] text-muted-foreground">{b.why}</span>
+                  </span>
+                  <span className="text-[13px] font-medium whitespace-nowrap text-[color:var(--accent)]">{b.label} →</span>
+                </Link>
+              ))}
             </div>
           )}
         </Section>
@@ -330,7 +374,10 @@ export function HomeView(p: HomeViewProps) {
             {p.stages.map((s) => {
               const row = (
                 <>
-                  <span className="truncate">{s.label}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <Icon name="chevR" className="size-[13px] text-faint transition-transform group-open:rotate-90" />
+                    <span className="truncate">{s.label}</span>
+                  </span>
                   <b className="font-medium tabular-nums">{s.n}</b>
                   <span className="flex min-w-0 items-center gap-2">
                     {s.n ? (
@@ -375,7 +422,7 @@ export function HomeView(p: HomeViewProps) {
         </Section>
       </div>
 
-      <div className={cn("grid items-start gap-4", p.feedback ? "md:grid-cols-2" : "")}>
+      <div className={cn("grid items-start gap-4", p.feedback ? "min-[768px]:grid-cols-2 min-[1100px]:grid-cols-3" : "")}>
         {p.feedback ? (
           <Section title="Time to feedback, by interviewer" aside={p.feedback.allJobs ? <span>every job you manage</span> : undefined}>
             {p.feedback.interviewers.length === 0 ? (
@@ -414,6 +461,32 @@ export function HomeView(p: HomeViewProps) {
             </div>
           )}
         </Section>
+
+        {p.outstanding ? (
+          <Section title="Outstanding feedback" count={p.outstanding.total} aside={p.feedback?.allJobs ? <span>every job you manage</span> : undefined}>
+            {p.outstanding.rows.length === 0 ? (
+              <Empty>All feedback is in.</Empty>
+            ) : (
+              <div className="-mx-2 grid">
+                {p.outstanding.rows.map((o) => (
+                  <Link key={o.id} href={o.href} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-[13.5px] hover:bg-[color:var(--hover)]">
+                    <Avatar name={o.interviewer} size="md" />
+                    <span className="grid min-w-0">
+                      <b className="truncate font-medium">{o.interviewer}</b>
+                      <span className="truncate text-[12.5px] text-muted-foreground">{o.line}</span>
+                    </span>
+                    <em className="whitespace-nowrap text-muted-foreground tabular-nums not-italic">{o.wait}</em>
+                  </Link>
+                ))}
+                {p.outstanding.more ? (
+                  <Link href={p.outstanding.more.href} className={cn(textLink, "px-2 py-1.5")}>
+                    {p.outstanding.more.label} →
+                  </Link>
+                ) : null}
+              </div>
+            )}
+          </Section>
+        ) : null}
       </div>
 
       {p.truncated ? <p className="m-0 text-[12.5px] text-faint">Some reads stopped at their limit, so these numbers are a floor.</p> : null}

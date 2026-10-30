@@ -178,7 +178,7 @@ describe("rejectionReport", () => {
 });
 
 describe("interviewerActivity", () => {
-  const interview = (id: string, ends: string, who: string[]) => ({ id, ends_at: ends, interviewer_actor_ids: who, applications: { role_id: "job-1" } });
+  const interview = (id: string, ends: string, who: string[]) => ({ id, application_id: `app-${id}`, ends_at: ends, interviewer_actor_ids: who, applications: { role_id: "job-1" } });
 
   test("an admin: filed on time, late, or not filed, per interviewer", async () => {
     const fake = new FakeSupabase([
@@ -195,6 +195,7 @@ describe("interviewerActivity", () => {
       { userId: "u2", name: "Una", interviews: 1, feedbackFiled: 0, onTime: 0, late: 0, notFiled: 1, notVisible: 0, medianHoursToFeedback: null },
     ]);
     expect(fake.calls.filter((c) => c.op === "rpc")).toEqual([]);
+    expect(r.outstanding).toEqual([{ interviewId: "i1", applicationId: "app-i1", interviewerId: "u2", endsAt: t(1, 10) }]);
   });
 
   test("a hiring manager: only the jobs they manage, and a filing they may not see is not visible, not missing", async () => {
@@ -210,6 +211,8 @@ describe("interviewerActivity", () => {
     ]);
     const r = await interviewerActivity(fake.asDb(), ctx("elevated"));
     expect(r.interviewers.map((i) => [i.name, i.notFiled, i.notVisible])).toEqual([["Hana", 1, 0], ["Una", 0, 1]]);
+    // The hidden one is never listed as outstanding.
+    expect(r.outstanding.map((o) => o.interviewerId)).toEqual(["me"]);
     expect(fake.calls.filter((c) => c.op === "rpc").map((c) => c.table)).toEqual([
       "can_on_role", "can_on_role", "can_see_feedback", "can_see_feedback",
     ]);

@@ -36,7 +36,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
     { days, jobId: one(sp.job) || null, departmentId: one(sp.department) || null },
     now,
   );
-  return <HomeView {...overviewProps(read, ctx, days, now.getTime())} />;
+  return <HomeView {...overviewProps(read, days, now.getTime())} />;
 }
 
 /** An interviewer's home: the people they interview, the jobs they can see, the team. */
