@@ -114,7 +114,9 @@ export async function dismissIssueAction(form: FormData): Promise<void> {
   if (!outcome.ok) return back({ i: instance.key, error: "dismiss_refused" });
 
   revalidatePath("/client/inbox");
-  return outcome.changed ? back({ i: nextKey(form), notice: "dismissed", undo: outcome.id }) : back({ i: nextKey(form), notice: "unchanged" });
+  // With nothing below it, what takes its place on this application: a phone shows the Undo in the reader.
+  const i = nextKey(form) ?? instance.key;
+  return outcome.changed ? back({ i, notice: "dismissed", undo: outcome.id }) : back({ i, notice: "unchanged" });
 }
 
 /** Undo, and Move back to Inbox. By the row's id: the policy finds only the member's own, so anyone else's is simply not there. */

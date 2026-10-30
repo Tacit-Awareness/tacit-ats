@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import { Notice } from "@/components/page";
 import type { IssueInstance } from "@/lib/client/inbox-issues";
-import { isShown } from "@/lib/keys";
+import { isShown, onePress } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { dismissIssueAction, restoreIssueAction } from "./actions";
 import { button, plain } from "./fix-bar";
@@ -14,11 +14,11 @@ import { button, plain } from "./fix-bar";
 // isn't confirmed, as the prototype: it changes only this member's queue, and
 // Undo (or Z, or Move back to Inbox on Done) brings it straight back. A key
 // checks isShown first: on a phone's list the reader is mounted but hidden, and
-// an unseen issue is never written.
+// an unseen issue is never written. Holding E sets aside one, not the queue.
 
 function EKey({ press }: { press: () => void }) {
   const { pending } = useFormStatus();
-  useKeys({ e: press }, !pending);
+  useKeys({ e: onePress(press) }, !pending);
   return null;
 }
 
@@ -51,7 +51,7 @@ export function DismissButton({ instance, next }: { instance: IssueInstance; nex
 
 function ZKey({ press }: { press: () => void }) {
   const { pending } = useFormStatus();
-  useKeys({ z: press }, !pending);
+  useKeys({ z: onePress(press) }, !pending);
   useKeyHelp("Inbox", [{ keys: "Z", label: "Undo the dismiss" }]);
   return null;
 }

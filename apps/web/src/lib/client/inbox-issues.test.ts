@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRAFT_LATE_MS, inboxIssues, instanceId, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, standingIssues, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
+import { DRAFT_LATE_MS, inboxIssues, instanceId, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, standingIssues, waitingSince, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const DAY = 86_400_000;
@@ -77,7 +77,7 @@ describe("inboxIssues", () => {
     const one = issues({ cards: [card("a")], outstanding: [missing("a")] })[0]!;
     expect(one).toMatchObject({ what: "Ivan hasn't sent feedback", why: "Interview ended 2d ago", who: "Ivan Petrov", interviewId: "iv-a", kind: "late" });
     const twice = issues({ cards: [card("a")], outstanding: [missing("a", { interviewId: "new", endsAt: daysAgo(1) }), missing("a", { interviewId: "old", endsAt: daysAgo(5) })] })[0]!;
-    expect(twice).toMatchObject({ what: "Ivan hasn't sent feedback", interviewId: "old", at: daysAgo(5) });
+    expect(twice).toMatchObject({ what: "Ivan hasn't sent feedback", interviewId: "old", since: daysAgo(5) });
     const two = issues({ cards: [card("a")], outstanding: [missing("a"), missing("a", { interviewerName: "Bo Lin" })] })[0]!;
     expect(two).toMatchObject({ what: "2 interviewers haven't sent feedback", who: null });
     const unnamed = issues({ cards: [card("a")], outstanding: [missing("a", { interviewerName: null })] })[0]!;
@@ -239,6 +239,31 @@ describe("a dismissal", () => {
     const shown = inboxIssues(withApproval, NOW);
     expect(shown.map((i) => i.reason)).toEqual(["approval"]);
     expect(inboxIssues(withApproval, NOW, offOf(shown[0]!)).map((i) => i.reason)).toEqual(["quiet"]);
+  });
+
+  test("a later round's missing feedback isn't hidden by a dismissal of an earlier round's", () => {
+    const first = { cards: [card("a")], outstanding: [missing("a", { interviewId: "iv-1", endsAt: daysAgo(9) })], approvals: [], drafts: [] };
+    const off = offOf(inboxIssues(first, NOW)[0]!);
+    const later = { ...first, outstanding: [...first.outstanding, missing("a", { interviewId: "iv-2", interviewerName: "Kim Roe", endsAt: daysAgo(1) })] };
+    expect(inboxIssues(first, NOW, off)).toEqual([]);
+    expect(inboxIssues(later, NOW, off)).toMatchObject([{ reason: "feedback", what: "2 interviewers haven't sent feedback" }]);
+  });
+
+  test("with feedback missing from two rounds, the row still reads and sorts from the oldest", () => {
+    const two = [missing("a", { interviewId: "iv-1", endsAt: daysAgo(9) }), missing("a", { interviewId: "iv-2", endsAt: daysAgo(1) })];
+    const other = missing("b", { endsAt: daysAgo(4) });
+    const shown = issues({ cards: [card("b"), card("a")], outstanding: [other, ...two] });
+    expect(shown.map((i) => i.key)).toEqual(["app-b", "app-a"]);
+    expect(shown[1]).toMatchObject({ interviewId: "iv-1", why: "Interview ended 9d ago" });
+    expect(waitingSince(shown[1]!)).toBe(daysAgo(9));
+  });
+
+  test("an approval dismissed at one step comes back when it reaches this approver at a later one", () => {
+    const at = (waitingStep: number) => ({ cards: [], outstanding: [], drafts: [], approvals: [approval({ applicationId: null, waitingStep, steps: 2 })] });
+    const off = offOf(inboxIssues(at(1), NOW)[0]!);
+    expect(inboxIssues(at(1), NOW, off)).toEqual([]);
+    expect(inboxIssues(at(2), NOW, off)).toMatchObject([{ reason: "approval", why: "Your approval, step 2 of 2" }]);
+    expect(waitingSince(inboxIssues(at(2), NOW)[0]!)).toBe(daysAgo(1));
   });
 
   test("standingIssues lists what holds, dismissed or not, behind a more pressing one too", () => {

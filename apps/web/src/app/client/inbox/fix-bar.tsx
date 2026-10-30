@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { IssueFix, IssueInstance } from "@/lib/client/inbox-issues";
-import { isShown } from "@/lib/keys";
+import { isShown, onePress } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { fixIssueAction } from "./actions";
 import { DismissButton } from "./set-aside";
@@ -29,7 +29,7 @@ const Key = () => (
 /** Inside the form, so the key does nothing while the write is in flight. */
 function FixKey({ press, label }: { press: () => void; label: string }) {
   const { pending } = useFormStatus();
-  useKeys({ f: press }, !pending);
+  useKeys({ f: onePress(press) }, !pending);
   useKeyHelp("Inbox", [{ keys: "F", label }]);
   return null;
 }

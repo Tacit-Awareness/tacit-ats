@@ -200,6 +200,11 @@ describe("dismissIssueAction", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({ i: OTHER, notice: "dismissed", undo: ROW });
   });
 
+  test("with nothing below it, the reader stays on this application, so a phone still shows the Undo", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
+    expect(Object.fromEntries((await dismiss(FIELDS)).searchParams)).toEqual({ i: NEXT, notice: "dismissed", undo: ROW });
+  });
+
   test("a second press moves on with no Undo", async () => {
     inbox.dismissIssue.mockResolvedValue({ ok: true, changed: false });
     expect(Object.fromEntries((await dismiss({ ...FIELDS, next: OTHER })).searchParams)).toEqual({ i: OTHER, notice: "unchanged" });

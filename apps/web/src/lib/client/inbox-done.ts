@@ -94,5 +94,8 @@ export function doneItems(rows: Dismissal[], standing: Issue[], subjects: Map<st
   });
 }
 
+/** Their page, for someone who can read them: an approver not on the job has the name, no story, and would get a 404. */
+export const doneCandidateHref = (x: DoneItem, story: unknown[] | null) => (x.candidate && story ? `/client/candidates/${x.candidate.id}` : null);
+
 /** `?i=` on Done: the row asked for, else the newest. */
 export const selectedDone = (items: DoneItem[], id: string | null | undefined): DoneItem | null => items.find((x) => x.id === id) ?? items[0] ?? null;

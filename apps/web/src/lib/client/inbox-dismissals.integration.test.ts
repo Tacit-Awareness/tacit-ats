@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 import { dismissIssue, noteResolved, readDone, readInbox, restoreIssue } from "./inbox";
+import { parseInstance } from "./inbox-done";
 import { instanceId, type Issue, type IssueInstance } from "./inbox-issues";
 
 /**
@@ -206,6 +207,17 @@ describe("Dismiss", () => {
   });
 });
 
+describe("A step later", () => {
+  test("an approval dismissed at step 1 is back when it reaches the same approver at step 2", async () => {
+    must(await db().from("approval_flow_approvers").insert({ org_id: ACME, flow_id: (must(await db().from("approval_flows").select("id").eq("role_id", DESIGNER).single())).data!.id, step: 2, actor_id: FINANCE }));
+    const finDb = token("user_dm_fin");
+    await dismissIssue(finDb, instance(await issueOn(finDb, fin, `appr-${REQUEST}`)));
+    expect(await queue(finDb, fin)).toEqual([]);
+    must(await db().from("approval_requests").update({ current_step: 2 }).eq("id", REQUEST));
+    expect(await queue(finDb, fin)).toMatchObject([{ key: `appr-${REQUEST}`, why: "Your approval, step 2 of 2" }]);
+  });
+});
+
 describe("Move back and Undo", () => {
   test("the issue comes straight back", async () => {
     const quiet = await issueOn(adaDb(), ada, `app-${app(2)}`);
@@ -268,6 +280,19 @@ describe("Done", () => {
     const items = await done(adaDb(), ada, later);
     expect(items).toMatchObject([{ what: "Draft to Candidate 1", stands: false }]);
     expect(JSON.stringify(items)).not.toContain("Private subject");
+  });
+
+  test("every kind of issue's date survives the form the page posts", async () => {
+    const later = new Date(NOW.getTime() + 3 * 3_600_000);
+    const all = [...(await readInbox(adaDb(), ada, later)).standing, ...(await readInbox(token("user_dm_fin"), fin, later)).standing];
+    expect(new Set(all.map((i) => i.reason))).toEqual(new Set(["feedback", "overdue", "quiet", "draft", "approval"]));
+    for (const i of all) {
+      const form = new FormData();
+      form.set("issueKey", i.key);
+      form.set("issueReason", i.reason);
+      form.set("issueAt", i.at);
+      expect(parseInstance(form)).toEqual(instance(i));
+    }
   });
 
   test("the same instant sent in another format still matches", async () => {

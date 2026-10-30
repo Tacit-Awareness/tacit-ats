@@ -3,8 +3,8 @@ import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readDone, readDoneStory, readInbox, readIssue } from "@/lib/client/inbox";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
-import { selectedDone, type DoneItem } from "@/lib/client/inbox-done";
-import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type Issue } from "@/lib/client/inbox-issues";
+import { doneCandidateHref, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
+import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue } from "@/lib/client/inbox-issues";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -90,6 +90,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   if (one(sp.tab) === "done") {
     const { items, capped } = await readDone(db, actorId, standing);
     const pick = selectedDone(items, one(sp.i));
+    const story = pick?.candidate ? await readDoneStory(db, member, pick.candidate.id) : null;
     const how = (x: DoneItem) => `${x.how === "resolved" ? "Resolved" : "Dismissed"} ${ago(x.dismissedAt, nowMs)}`;
     return (
       <DoneView
@@ -112,8 +113,8 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 how: how(pick),
                 since: doneNote(pick),
                 canMoveBack: pick.canMoveBack,
-                candidateHref: pick.candidate ? `/client/candidates/${pick.candidate.id}` : null,
-                story: pick.candidate ? await readDoneStory(db, member, pick.candidate.id) : null,
+                candidateHref: doneCandidateHref(pick, story),
+                story,
                 now: nowMs,
               }
             : null
@@ -142,7 +143,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
           what: i.what,
           who: i.who,
           line: issueLine(i),
-          age: ago(i.at, nowMs),
+          age: ago(waitingSince(i), nowMs),
           active: i.key === open?.key,
         }))}
         issue={

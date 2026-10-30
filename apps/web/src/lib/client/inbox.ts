@@ -91,8 +91,7 @@ async function readDrafts(db: Db, actorId: string, now: Date): Promise<InboxDraf
  * Which of what stands the member has set aside. Asked by key, so the read is
  * as long as the queue and not every dismissal they ever made. Only `dismissed`
  * hides: `resolved` is a record for Done, and an issue that comes back after its
- * fix (the same approval at a later step, the same due date set again) is
- * waiting again.
+ * fix (the same due date set again) is waiting again.
  */
 async function readDismissed(db: Db, standing: Issue[]): Promise<Set<string>> {
   const dismissed = new Set<string>();

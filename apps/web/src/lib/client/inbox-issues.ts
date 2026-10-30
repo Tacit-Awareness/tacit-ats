@@ -91,8 +91,10 @@ export type Issue = {
   key: string;
   kind: IssueKind;
   reason: IssueReason;
-  /** When it started waiting, for the order and the row's age. */
+  /** Which instance this is, what a dismissal names: a new wait gets a new one. */
   at: string;
+  /** When it started waiting, where that isn't `at`. Read it with waitingSince. */
+  since?: string;
   /** The row's and the reader's heading. */
   what: string;
   why: string;
@@ -110,15 +112,24 @@ export type Issue = {
   draft: InboxDraft | null;
 };
 
+/** For the order and the row's age. */
+export const waitingSince = (i: Pick<Issue, "at" | "since">) => i.since ?? i.at;
+
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
+/**
+ * Worded from the oldest missing, the most overdue, but `at` is the newest: a
+ * dismissal of the first round's must not hide the next round's, by someone else.
+ */
 function feedbackIssue(missing: InboxOutstanding[], now: number): Partial<Issue> {
-  const oldest = [...missing].sort((a, b) => Date.parse(a.endsAt) - Date.parse(b.endsAt))[0]!;
+  const ended = [...missing].sort((a, b) => Date.parse(a.endsAt) - Date.parse(b.endsAt));
+  const oldest = ended[0]!;
   const people = [...new Set(missing.map((m) => m.interviewerName ?? "An interviewer"))];
   const one = people.length === 1 ? people[0]! : null;
   return {
     reason: "feedback",
-    at: oldest.endsAt,
+    at: ended.at(-1)!.endsAt,
+    since: oldest.endsAt,
     what: one ? `${one === "An interviewer" ? one : firstName(one)} hasn't sent feedback` : `${people.length} interviewers haven't sent feedback`,
     why: `Interview ended ${ago(oldest.endsAt, now)}`,
     who: one === "An interviewer" ? null : one,
@@ -153,6 +164,7 @@ function applicationIssues(card: InboxCard, missing: InboxOutstanding[], now: nu
     kind: KIND[f.reason!],
     reason: f.reason!,
     at: f.at!,
+    since: f.since,
     what: f.what!,
     why: f.why!,
     who: f.who ?? null,
@@ -166,12 +178,20 @@ function applicationIssues(card: InboxCard, missing: InboxOutstanding[], now: nu
   }));
 }
 
+/**
+ * The request keeps one date through its steps, so this moves it on a
+ * millisecond a step: reaching this approver again at a later step is a new
+ * wait, and a dismissal at the earlier one must not hide it.
+ */
+const approvalAt = (a: InboxApproval) => (a.waitingStep > 1 ? new Date(Date.parse(a.requestedAt) + a.waitingStep - 1).toISOString() : a.requestedAt);
+
 function approvalIssue(a: InboxApproval): Issue {
   return {
     key: `appr-${a.requestId}`,
     kind: "decide",
     reason: "approval",
-    at: a.requestedAt,
+    at: approvalAt(a),
+    since: a.requestedAt,
     what: a.kind === "offer" ? `Approve the offer for ${a.candidateName ?? "this candidate"}` : `Approve opening ${a.jobTitle}`,
     why: a.steps > 1 ? `Your approval, step ${a.waitingStep} of ${a.steps}` : "Your approval",
     who: a.requestedBy,
@@ -246,7 +266,7 @@ export function inboxIssues(input: InboxInput, now: number, dismissed: ReadonlyS
     ...approvals,
   ];
   const rank = (i: Issue) => ISSUE_KINDS.findIndex((k) => k.key === i.kind);
-  return issues.sort((a, b) => rank(a) - rank(b) || Date.parse(b.at) - Date.parse(a.at));
+  return issues.sort((a, b) => rank(a) - rank(b) || Date.parse(waitingSince(b)) - Date.parse(waitingSince(a)));
 }
 
 /** The row's second line: who it waits on, the candidate unless the heading names them, and why. */

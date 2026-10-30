@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { doneItems, isIssueKey, parseInstance, selectedDone, type Dismissal, type DoneSubject } from "./inbox-done";
+import { doneCandidateHref, doneItems, isIssueKey, parseInstance, selectedDone, type Dismissal, type DoneSubject } from "./inbox-done";
 import { inboxIssues, instanceId, standingIssues, type InboxInput, type Issue } from "./inbox-issues";
 
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -119,6 +119,22 @@ describe("doneItems", () => {
     expect(selectedDone(two, "a")?.id).toBe("a");
     expect(selectedDone(two, "gone")?.id).toBe("b");
     expect(selectedDone([], "a")).toBeNull();
+  });
+});
+
+describe("doneCandidateHref", () => {
+  const item = doneItems([row({ at: "2026-10-19T10:00:00Z" })], [], new Map([[KEY, subject()]]))[0]!;
+
+  test("links to the candidate someone can read", () => {
+    expect(doneCandidateHref(item, [])).toBe("/client/candidates/p");
+  });
+
+  test("an approver not on the job has their name and no story: no link to a 404", () => {
+    expect(doneCandidateHref(item, null)).toBeNull();
+  });
+
+  test("nobody to link to", () => {
+    expect(doneCandidateHref({ ...item, candidate: null }, [])).toBeNull();
   });
 });
 
