@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { KeyList } from "@/components/keys";
 import { Avatar, Empty, Page, PageHeader, Pill, Section, Tabs, Toolbar, type Tab } from "@/components/page";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -6,7 +7,8 @@ import { cn } from "@/lib/utils";
 // The CRM's markup, props only (page.tsx does the reads): view tabs and a
 // search above design/tats's table, one row per candidate, the column
 // headers sorting by link (the URL is the state), 50 rows a page with the
-// range and arrows in the footer. A row opens the candidate page.
+// range and arrows in the footer. A row opens the candidate page; J/K move
+// between rows and Enter opens one (components/keys.tsx).
 
 export type CrmViewRow = {
   href: string;
@@ -99,52 +101,54 @@ export function CrmView({
                   </span>
                 ))}
               </div>
-              {rows.map((r) => (
-                <Link
-                  role="row"
-                  key={r.href}
-                  href={r.href}
-                  className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[13.5px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
-                >
-                  <span role="cell" className="flex min-w-0 items-center gap-2.5 px-4 py-2">
-                    <Avatar name={r.name} />
-                    <span className="grid min-w-0">
-                      <b className="truncate font-medium">{r.name}</b>
-                      {r.headline ? <span className="truncate text-xs text-muted-foreground">{r.headline}</span> : null}
+              <KeyList title="CRM" next="Next candidate" mode="focus" items=":scope > a" role="rowgroup">
+                {rows.map((r) => (
+                  <Link
+                    role="row"
+                    key={r.href}
+                    href={r.href}
+                    className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[13.5px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
+                  >
+                    <span role="cell" className="flex min-w-0 items-center gap-2.5 px-4 py-2">
+                      <Avatar name={r.name} />
+                      <span className="grid min-w-0">
+                        <b className="truncate font-medium">{r.name}</b>
+                        {r.headline ? <span className="truncate text-xs text-muted-foreground">{r.headline}</span> : null}
+                      </span>
                     </span>
-                  </span>
-                  <span role="cell" className="flex min-w-0 items-center gap-1.5 px-4">
-                    {r.jobs.length ? (
-                      <>
-                        <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-2 text-[12.5px]">{r.jobs[0]}</span>
-                        {r.jobs.length > 1 ? (
-                          <span className="text-xs text-faint" title={r.jobs.slice(1).join(", ")}>
-                            +{r.jobs.length - 1}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-faint">None</span>
-                    )}
-                  </span>
-                  <span role="cell" className="px-4">
-                    <Pill tone={r.stageTone}>{r.stage}</Pill>
-                  </span>
-                  <span role="cell" className="flex min-w-0 items-center gap-2 px-4">
-                    {r.ownerName ? (
-                      <>
-                        <Avatar name={r.ownerName} />
-                        <span className="truncate">{r.ownerName}</span>
-                      </>
-                    ) : (
-                      <span className="text-faint">Nobody</span>
-                    )}
-                  </span>
-                  <span role="cell" className="px-4 text-muted-foreground tabular-nums" title={r.lastTouchTitle}>
-                    {r.lastTouch}
-                  </span>
-                </Link>
-              ))}
+                    <span role="cell" className="flex min-w-0 items-center gap-1.5 px-4">
+                      {r.jobs.length ? (
+                        <>
+                          <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-2 text-[12.5px]">{r.jobs[0]}</span>
+                          {r.jobs.length > 1 ? (
+                            <span className="text-xs text-faint" title={r.jobs.slice(1).join(", ")}>
+                              +{r.jobs.length - 1}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="text-faint">None</span>
+                      )}
+                    </span>
+                    <span role="cell" className="px-4">
+                      <Pill tone={r.stageTone}>{r.stage}</Pill>
+                    </span>
+                    <span role="cell" className="flex min-w-0 items-center gap-2 px-4">
+                      {r.ownerName ? (
+                        <>
+                          <Avatar name={r.ownerName} />
+                          <span className="truncate">{r.ownerName}</span>
+                        </>
+                      ) : (
+                        <span className="text-faint">Nobody</span>
+                      )}
+                    </span>
+                    <span role="cell" className="px-4 text-muted-foreground tabular-nums" title={r.lastTouchTitle}>
+                      {r.lastTouch}
+                    </span>
+                  </Link>
+                ))}
+              </KeyList>
             </div>
           </div>
         )}

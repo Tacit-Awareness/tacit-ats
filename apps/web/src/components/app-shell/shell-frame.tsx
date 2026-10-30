@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
+import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { Avatar, initialsOf } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
@@ -63,6 +64,15 @@ const SETTINGS: NavLink[] = [
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
 ];
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
+// G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
+const GO: GoKey[] = [
+  { key: "h", label: HOME.label, href: HOME.href },
+  { key: "c", label: CRM.label, href: CRM.href },
+  { key: "j", label: JOBS.label, href: JOBS.href },
+  { key: "t", label: APPLICANTS.label, href: APPLICANTS.href },
+  { key: "a", label: PIPELINE.label, href: PIPELINE.href },
+  { key: "i", label: INTERVIEWS.label, href: INTERVIEWS.href },
+];
 
 export type ShellJob = { id: string; title: string };
 
@@ -378,6 +388,7 @@ export function ShellFrame({
               <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
             </Link>
             <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
+              <KeysButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
               <ThemeToggle />
               {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
               <form action="/client/signout" method="post">
@@ -423,6 +434,7 @@ export function ShellFrame({
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />
+      <ShellKeys go={GO} />
     </div>
   );
 }

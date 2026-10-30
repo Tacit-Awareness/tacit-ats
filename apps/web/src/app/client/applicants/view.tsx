@@ -1,15 +1,14 @@
 import Link from "next/link";
 import { Avatar, Count, KeyValues, ListReader, MiniTitle, Notice, textLink } from "@/components/page";
-import { Button } from "@/components/ui/button";
-import { selectClass } from "@/components/ui/input";
+import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
-import type { RejectReason } from "@/lib/client/applicants";
 import { cn } from "@/lib/utils";
-import { routeApplicantAction } from "./actions";
+import { RoutingBar, type Routing } from "./routing-bar";
 
 // Applicant Tickets' markup, props only (page.tsx does the reads): the queue
 // grouped by job on the left, the open application as one document on the
-// right, and design/tats's composer under it as the routing bar. Everything
+// right, and design/tats's composer under it as the routing bar
+// (routing-bar.tsx). J/K walk the tickets (components/keys.tsx). Everything
 // an applicant typed is rendered as text; React escapes it, and only an
 // http(s) URL becomes a link (applicant-queue.ts's safeHref).
 
@@ -26,12 +25,12 @@ export type Ticket = {
   post: string | null;
   answers: ReaderAnswer[];
   /** Null when the member may not move people in this job. */
-  routing: { applicationId: string; next: string | null; reasons: RejectReason[] } | null;
+  routing: Routing | null;
 };
 
 function TicketList({ total, groups }: { total: number; groups: TicketGroup[] }) {
   return (
-    <div className="grid gap-3">
+    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid gap-3">
       <h1 className="m-0 flex items-center gap-2 px-2 pt-1.5 text-[15px] font-semibold">
         Applicant Tickets <Count>{total}</Count>
       </h1>
@@ -46,6 +45,7 @@ function TicketList({ total, groups }: { total: number; groups: TicketGroup[] })
             <Link
               key={r.applicationId}
               href={r.href}
+              data-key-item
               aria-current={r.active ? "true" : undefined}
               className={cn(
                 "flex min-w-0 items-center gap-2.5 rounded-lg px-2 py-2 transition-colors",
@@ -62,41 +62,7 @@ function TicketList({ total, groups }: { total: number; groups: TicketGroup[] })
           ))}
         </section>
       ))}
-    </div>
-  );
-}
-
-function RoutingBar({ routing }: { routing: NonNullable<Ticket["routing"]> }) {
-  return (
-    <form
-      action={routeApplicantAction}
-      className="sticky bottom-0 mt-6 flex flex-wrap items-center gap-2 rounded-[12px] border border-[color:var(--line)] bg-card p-2.5 shadow-[var(--shadow)]"
-    >
-      <input type="hidden" name="applicationId" value={routing.applicationId} />
-      {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
-      <Button type="submit" name="route" value="interview">
-        Interview
-      </Button>
-      <Button type="submit" name="route" value="screening" variant="outline">
-        Move to screening
-      </Button>
-      <span className="ml-auto flex min-w-0 items-center gap-2">
-        <label htmlFor="reasonId" className="sr-only">
-          Rejection reason
-        </label>
-        <select id="reasonId" name="reasonId" defaultValue="" className={cn(selectClass, "w-[200px]")}>
-          <option value="">Rejection reason…</option>
-          {routing.reasons.map((r) => (
-            <option key={r.reasonId} value={r.reasonId}>
-              {r.name}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" name="route" value="decline" variant="outline">
-          Decline
-        </Button>
-      </span>
-    </form>
+    </KeyList>
   );
 }
 
@@ -147,7 +113,7 @@ function Reader({ ticket }: { ticket: Ticket }) {
         ))}
       </section>
 
-      {ticket.routing ? <RoutingBar routing={ticket.routing} /> : null}
+      {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
     </article>
   );
 }
