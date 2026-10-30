@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { CopyButton } from "@/components/copy-button";
-import { Empty, Page, PageHeader, Pill, Tabs, textLink, type Tab } from "@/components/page";
+import { Empty, Page, PageBar, Tabs, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 
@@ -17,19 +17,16 @@ export type PostingViewPost = Pick<
   "postId" | "title" | "location" | "description" | "status" | "accepting" | "questions" | "applications" | "publishedAt" | "closedAt"
 >;
 
-const TYPE_LABEL: Record<clientTools.QuestionType, string> = {
-  name: "Name",
-  email: "Email",
-  phone: "Phone",
-  linkedin: "LinkedIn",
-  resume: "Resume link",
-  short_text: "Short answer",
-  long_text: "Long answer",
-  yes_no: "Yes / No",
-  select: "Choice",
-};
-
 const box = "block h-9 rounded-lg border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[13px] leading-[34px] text-faint";
+
+/** The red asterisk design/tats puts after a required field. */
+function Req({ on }: { on: boolean }) {
+  return on ? (
+    <i className="text-[color:var(--red)] not-italic" title="Required">
+      *
+    </i>
+  ) : null;
+}
 
 function Answer({ q }: { q: clientTools.Question }) {
   if (q.type === "yes_no") {
@@ -55,6 +52,84 @@ function Answer({ q }: { q: clientTools.Question }) {
     );
   }
   return <span className={cn(box, q.type === "long_text" && "h-24")} />;
+}
+
+const ABOUT_YOU = new Set<clientTools.QuestionType>(["name", "email", "phone", "linkedin"]);
+
+/** design/tats's application tab: the resume as a drop box, About you as a two-column grid, then the post's other questions. */
+function Application({ questions }: { questions: clientTools.Question[] }) {
+  const resume = questions.filter((q) => q.type === "resume");
+  const about = questions.filter((q) => ABOUT_YOU.has(q.type));
+  const rest = questions.filter((q) => q.type !== "resume" && !ABOUT_YOU.has(q.type));
+  const h3 = "m-0 mt-7 mb-2.5 flex gap-0.5 text-[14.5px] font-medium first:mt-0";
+  return (
+    <div className="text-[14px] leading-[1.55]">
+      {resume.map((q) => (
+        <div key={q.questionId}>
+          <h3 className={h3}>
+            {q.label}
+            <Req on={q.required} />
+          </h3>
+          <div className="flex flex-col items-center gap-1 rounded-[10px] border-[1.5px] border-dashed border-[color:var(--line-strong)] p-6 text-[13.5px] text-muted-foreground">
+            <svg viewBox="0 0 16 16" className="mb-1 size-[18px] fill-none stroke-current text-faint [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
+              <path d="M4 1.75h5.5L12.5 4.75v9.5h-8.5z M9.25 1.75v3.25h3.25" />
+            </svg>
+            <b className="font-medium">Paste a link to your resume</b>
+            <small className="text-xs text-faint">A link for now: no upload yet</small>
+          </div>
+        </div>
+      ))}
+      {about.length ? (
+        <>
+          <h3 className={h3}>About you</h3>
+          <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            {about.map((q) => (
+              <div key={q.questionId} className="flex flex-col gap-1.5 text-[13px]">
+                <span>
+                  {q.label}
+                  <Req on={q.required} />
+                </span>
+                <span className={box} />
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+      {rest.length ? (
+        <>
+          <h3 className={h3}>Questions</h3>
+          {rest.map((q) => (
+            <div key={q.questionId} className="border-b border-[color:var(--line)] py-3.5">
+              <div className="mb-2.5 flex items-start gap-0.5 font-medium">
+                {q.label}
+                <Req on={q.required} />
+              </div>
+              <Answer q={q} />
+            </div>
+          ))}
+        </>
+      ) : null}
+      <p className="mt-6 mb-0 text-[13.5px] text-muted-foreground">
+        Voluntary self-identification <span className="ml-1.5 text-faint">Optional, never shown to your team</span>
+      </p>
+      <span className="mt-5 inline-grid h-10 place-items-center rounded-[10px] bg-foreground px-[18px] text-[14px] font-medium text-background opacity-85">
+        Submit application
+      </span>
+    </div>
+  );
+}
+
+/** design/tats's status chip: an 8px dot and the post's state. */
+function StatusChip({ accepting, label }: { accepting: boolean; label: string }) {
+  return (
+    <span
+      className="inline-flex h-7 items-center gap-[7px] rounded-lg border border-[color:var(--line)] px-2.5 text-[13px] whitespace-nowrap"
+      title={accepting ? "Shown on the careers page" : "Not on the careers page"}
+    >
+      <i className={cn("inline-block size-2 flex-none rounded-full", accepting ? "bg-[color:var(--green)]" : "bg-[color:var(--faint)]")} />
+      {label}
+    </span>
+  );
 }
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -97,14 +172,20 @@ export function PostingView({
   );
   if (!post) {
     return (
-      <Page narrow>
-        <PageHeader crumbs={crumbs} title={job.title} actions={board} />
+      <Page
+        narrow
+        bar={
+          <PageBar crumbs={crumbs} title={job.title}>
+            {board}
+          </PageBar>
+        }
+      >
         <Empty>
           No post for this job yet: nothing about it is on the careers page.
           {connectorNote ? (
             <>
               {" "}
-              Write one with your Claude connector&apos;s <code className="font-mono">create_job_post</code>.
+              Write one with your Claude connector&apos;s create_job_post.
             </>
           ) : null}
         </Empty>
@@ -114,29 +195,23 @@ export function PostingView({
 
   const state = post.status === "live" ? (post.accepting ? "Live" : "Live, not taking applications") : post.status === "draft" ? "Draft" : "Closed";
   return (
-    <Page className="max-w-[1000px]">
-      <PageHeader
-        crumbs={crumbs}
-        title={job.title}
-        badge={
-          <Pill tone={post.accepting ? "green" : "grey"} title={post.accepting ? "Shown on the careers page" : "Not on the careers page"}>
-            {state}
-          </Pill>
-        }
-        actions={
-          <>
-            {link ? (
-              <span className="flex items-center gap-1">
-                <a href={link.path} target="_blank" rel="noreferrer" className={textLink}>
-                  Public page
-                </a>
-                <CopyButton value={link.url} label="Copy the public link" />
-              </span>
-            ) : null}
-            {board}
-          </>
-        }
-      />
+    <Page
+      className="max-w-[1000px]"
+      bar={
+        <PageBar crumbs={crumbs} title={job.title}>
+          {link ? (
+            <span className="flex items-center gap-1">
+              <a href={link.path} target="_blank" rel="noreferrer" className={textLink}>
+                Public page
+              </a>
+              <CopyButton value={link.url} label="Copy the public link" />
+            </span>
+          ) : null}
+          <span className="mx-1">{board}</span>
+          <StatusChip accepting={post.accepting} label={state} />
+        </PageBar>
+      }
+    >
       {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
       <article className="rounded-2xl border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
@@ -175,38 +250,15 @@ export function PostingView({
                 <Empty>No description: applicants see the title, the location and the form.</Empty>
               )
             ) : (
-              <div className="text-[14px]">
-                <h3 className="m-0 mb-1 text-[14.5px] font-medium">Questions</h3>
-                {post.questions.map((q) => (
-                  <div key={q.questionId} className="border-b border-[color:var(--line)] py-3.5">
-                    <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 font-medium">
-                      <span>
-                        {q.label}
-                        {q.required ? <i className="text-negative not-italic"> *</i> : null}
-                      </span>
-                      <span className="text-xs font-normal text-faint">
-                        {TYPE_LABEL[q.type]}
-                        {q.required ? ", required" : ", optional"}
-                      </span>
-                    </div>
-                    <Answer q={q} />
-                  </div>
-                ))}
-                <p className="mt-6 mb-0 text-[13.5px] text-muted-foreground">
-                  Voluntary self-identification <span className="ml-1.5 text-faint">Optional, never shown to your team</span>
-                </p>
-                <span className="mt-5 inline-grid h-10 place-items-center rounded-[10px] bg-foreground px-[18px] text-[14px] font-medium text-background opacity-85">
-                  Submit application
-                </span>
-              </div>
+              <Application questions={post.questions} />
             )}
           </div>
         </div>
       </article>
       {connectorNote ? (
         <p className="m-0 text-xs text-faint">
-        Read-only here. Change the text, the questions or whether it is live with your Claude connector (
-        <code className="font-mono">update_job_post</code>, <code className="font-mono">set_job_post_status</code>).
+          Read-only here. Change the text, the questions or whether it is live with your Claude connector (update_job_post,
+          set_job_post_status).
         </p>
       ) : null}
     </Page>

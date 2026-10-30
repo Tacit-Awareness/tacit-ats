@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { groupByJob, inOrder, neighbour, readerAnswers, selected } from "@/lib/client/applicant-queue";
 import { readApplicantQueue, readRouting } from "@/lib/client/applicants";
 import { ago } from "@/lib/client/pipeline-columns";
@@ -21,8 +21,7 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Applicant Tickets" />
+      <Page bar={<PageBar title="Applicant Tickets" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
@@ -10,8 +10,8 @@ import { PipelineView, type BoardCard, type BoardColumn } from "./view";
 
 // Every open job's live applications on one board (design/tats's Pipeline),
 // read with the signed-in member's own token (lib/client/pipeline.ts). This
-// page only arranges it: the member's department and job tabs and name
-// filter (a department narrows the job tabs to its jobs and those of the
+// page only arranges it: the member's department tabs, job chip and name
+// filter (a department narrows the job chip to its jobs and those of the
 // departments inside it, lib/client/department-tree.ts), each column's
 // order, and a dozen cards a column until "Show all". Read-only: a card opens
 // the candidate page; the edit controls are on each job's board.
@@ -57,8 +57,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Pipeline" />
+      <Page bar={<PageBar title="Pipeline" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -127,15 +126,22 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
       total={shown.length}
       columns={columns}
       departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null }))}
-      jobs={[
-        { href: href({ job: null, all: null }), label: "All jobs", count: entries.length, active: !job },
-        ...jobs.map((j) => ({
-          href: href({ job: j.id, all: null }),
-          label: j.title,
-          count: entries.filter((e) => e.roleId === j.id).length,
-          active: job === j.id,
-        })),
-      ]}
+      job={
+        jobs.length
+          ? {
+              value: job ? (jobs.find((j) => j.id === job)?.title ?? "All jobs") : "All jobs",
+              on: !!job,
+              options: [
+                { href: href({ job: null, all: null }), label: `All jobs (${entries.length})`, active: !job },
+                ...jobs.map((j) => ({
+                  href: href({ job: j.id, all: null }),
+                  label: `${j.title} (${entries.filter((e) => e.roleId === j.id).length})`,
+                  active: job === j.id,
+                })),
+              ],
+            }
+          : null
+      }
       search={{ q, job, department }}
       empty={
         entries.length === 0

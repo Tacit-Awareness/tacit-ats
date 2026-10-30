@@ -23,6 +23,7 @@ type PersonRow = {
   current_title: string | null;
   current_company: string | null;
   email: string | null;
+  linkedin_url: string | null;
   created_at: string;
   applications: Array<{ id: string; role_id: string; stage: string; owner_actor_id: string | null; last_touch_at: string; roles: { title: string } | null }>;
 };
@@ -34,7 +35,7 @@ export async function readCandidates(db: Db): Promise<CrmRead> {
   for (let from = 0; from < CRM_SCAN_MAX; from += PAGE) {
     const { data, error } = await db
       .from("people")
-      .select("id, display_name, current_title, current_company, email, created_at, applications(id, role_id, stage, owner_actor_id, last_touch_at, roles(title))")
+      .select("id, display_name, current_title, current_company, email, linkedin_url, created_at, applications(id, role_id, stage, owner_actor_id, last_touch_at, roles(title))")
       .order("id")
       .range(from, from + PAGE - 1)
       .overrideTypes<PersonRow[], { merge: false }>();
@@ -59,6 +60,7 @@ export async function readCandidates(db: Db): Promise<CrmRead> {
       name: p.display_name,
       headline: [p.current_title, p.current_company].filter(Boolean).join(" at ") || null,
       email: p.email,
+      linkedinUrl: p.linkedin_url,
       addedAt: p.created_at,
       applications: (p.applications ?? []).map((a) => ({
         applicationId: a.id,

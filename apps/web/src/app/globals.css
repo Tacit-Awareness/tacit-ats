@@ -78,6 +78,13 @@
   --ev-lav-ink: #5638b8;
   --ev-gray: #eeeef0;
   --ev-gray-ink: #55555c;
+  /* chart series, in a segment's order (Analytics); the prototype's c1-c3 first */
+  --series-1: #1baf7a;
+  --series-2: #2a78d6;
+  --series-3: #eb6834;
+  --series-4: #8b5cf6;
+  --series-5: #d9a51a;
+  --series-6: #d6457a;
   /* the spacing scale; 24px is the page gutter */
   --space-1: 4px;
   --space-2: 8px;
@@ -157,6 +164,12 @@
     --ev-lav-ink: #c6b6fa;
     --ev-gray: rgba(255, 255, 255, 0.07);
     --ev-gray-ink: #a6a6ad;
+    --series-1: #3cc792;
+    --series-2: #4f93e8;
+    --series-3: #f0804f;
+    --series-4: #a07cf8;
+    --series-5: #e6b83a;
+    --series-6: #e46a96;
     color-scheme: dark;
   }
 }
@@ -219,6 +232,12 @@
   --ev-lav-ink: #c6b6fa;
   --ev-gray: rgba(255, 255, 255, 0.07);
   --ev-gray-ink: #a6a6ad;
+  --series-1: #3cc792;
+  --series-2: #4f93e8;
+  --series-3: #f0804f;
+  --series-4: #a07cf8;
+  --series-5: #e6b83a;
+  --series-6: #e46a96;
   color-scheme: dark;
 }
 
@@ -312,6 +331,13 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  max-width: none;
+  padding: 0;
+}
+
+/* a page with a bar (page.tsx Page's `bar`): the bar runs edge to edge across
+   the panel, as design/tats's .bar, and the page's column brings its own padding */
+.shell-page:has(> .page-top) {
   max-width: none;
   padding: 0;
 }

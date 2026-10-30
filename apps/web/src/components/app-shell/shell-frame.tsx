@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { Avatar, initialsOf } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
@@ -30,7 +31,12 @@ const ICONS = {
   search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
   menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
+  chart: "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5",
+  tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
+  ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
+  mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
+  cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -56,10 +62,11 @@ type NavLink = { href: string; label: string; icon: IconName; activeUnder?: stri
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
-const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "menu" };
+const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
+const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
-const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
-const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "menu" };
+const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };
+const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 const SETTINGS: NavLink[] = [
@@ -272,6 +279,7 @@ export function ShellFrame({
     { group: "Go to", label: CRM.label, href: CRM.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
     { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
+    { group: "Go to", label: ANALYTICS.label, href: ANALYTICS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
@@ -337,6 +345,7 @@ export function ShellFrame({
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")} rail={rail}>
           <NavItem link={JOBS} active={isActive(JOBS)} rail={rail} />
           <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} />
+          <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
         </Section>
 
         <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
@@ -377,6 +386,9 @@ export function ShellFrame({
               <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
             </Link>
             <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
+              <TourButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
+                <Icon name="tour" />
+              </TourButton>
               <KeysButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
               <ThemeToggle />
               {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
@@ -423,6 +435,8 @@ export function ShellFrame({
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />
+      {/* Before ShellKeys: the tour's capture listener is added first, so it takes its keys before G and `?`. */}
+      <ShellTour />
       <ShellKeys go={GO} />
     </div>
   );

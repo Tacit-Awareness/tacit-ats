@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ACTIVE_STAGES, APPLICATION_STAGES, getRolePipeline } from "@tacit/core";
 import { PipelineBoard } from "@/components/pipeline-board";
-import { Empty, Page, PageHeader, Pill, Section, textLink } from "@/components/page";
+import { Empty, Page, PageBar, Pill, Section, textLink } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
@@ -44,19 +44,17 @@ export default async function ClientJob({
   const details = [role.data?.seniority, role.data?.location].filter(Boolean).join(" · ");
 
   return (
-    <Page>
-      <PageHeader
-        crumbs={[{ href: "/client/jobs", label: "Job Postings" }]}
-        title={pipeline.roleTitle}
-        badge={<StatusBadge status={pipeline.roleStatus} />}
-        subtitle={details || undefined}
-        actions={
-          <Link href={`/client/jobs/${pipeline.roleId}/post`} className={textLink}>
+    <Page
+      bar={
+        <PageBar crumbs={[{ href: "/client/jobs", label: "Job Postings" }]} title={pipeline.roleTitle}>
+          {details ? <span className="mr-2 text-[13px] text-muted-foreground">{details}</span> : null}
+          <StatusBadge status={pipeline.roleStatus} />
+          <Link href={`/client/jobs/${pipeline.roleId}/post`} className={`${textLink} ml-2`}>
             Job post
           </Link>
-        }
-      />
-
+        </PageBar>
+      }
+    >
       {accessLevel === "limited" ? (
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">

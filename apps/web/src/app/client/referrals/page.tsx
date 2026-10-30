@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { ago } from "@/lib/client/pipeline-columns";
-import { REFERRAL_PAGE_SIZE, REFERRAL_TABS, parseReferralQuery, referralTable, referralsHref, whereTheyAre, type ReferralQuery } from "@/lib/client/referral-table";
+import { REFERRAL_PAGE_SIZE, REFERRAL_TABS, inTab, parseReferralQuery, referralTable, referralsHref, whereTheyAre, type ReferralQuery } from "@/lib/client/referral-table";
 import { REFERRALS_SCAN_MAX, readReferrals } from "@/lib/client/referrals";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -22,8 +22,7 @@ export default async function ClientReferrals({ searchParams }: { searchParams: 
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Referrals" />
+      <Page bar={<PageBar title="Referrals" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -59,12 +58,12 @@ export default async function ClientReferrals({ searchParams }: { searchParams: 
           referredBy: r.referredBy,
           job: r.jobTitle ?? "Untitled job",
           where: where.label,
-          whereTone: where.tone,
+          whereTone: where.tone === "green" ? "green" : inTab(r.stage, "active") ? "sel" : "grey",
           referred: ago(r.referredAt, now),
           referredTitle: r.referredAt.slice(0, 10),
         };
       })}
-      total={table.total}
+      all={referrals.length.toLocaleString("en-US")}
       range={table.total ? `${first.toLocaleString("en-US")}–${(first + table.rows.length - 1).toLocaleString("en-US")} of ${table.total.toLocaleString("en-US")}` : "0"}
       prev={table.page > 1 ? referralsHref({ ...query, page: table.page - 1 }) : null}
       next={table.page < table.pages ? referralsHref({ ...query, page: table.page + 1 }) : null}
