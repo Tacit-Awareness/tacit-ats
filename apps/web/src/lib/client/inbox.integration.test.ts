@@ -59,6 +59,7 @@ const token = (subject: string, workosOrgId = ACME_WORKOS) => {
 const ada = { actorId: ADMIN, orgId: ACME, accessLevel: "admin" as const };
 const lee = { actorId: LEAD, orgId: ACME, accessLevel: "elevated" as const };
 const ivan = { actorId: INTERVIEWER, orgId: ACME, accessLevel: "limited" as const };
+const dashboard = (who: typeof ada | typeof lee) => ({ ...who, source: "dashboard" as const });
 
 const NOW = new Date();
 const at = (h: number) => new Date(NOW.getTime() + h * 3_600_000).toISOString();
@@ -188,23 +189,23 @@ describe("the Inbox", () => {
 
   test("Mark it done clears an overdue next action and the issue leaves; a second try changes nothing", async () => {
     const client = token("user_ib_ada");
-    expect(await clearOverdueAction(client, ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: true });
+    expect(await clearOverdueAction(client, dashboard(ada), { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: true });
     const { data } = must(await db().from("applications").select("next_action, next_action_due").eq("id", app(3)).single());
     expect(data).toEqual({ next_action: null, next_action_due: null });
     expect((await readInbox(client, ada, NOW)).issues.some((i) => i.key === `app-${app(3)}`)).toBe(false);
-    expect(await clearOverdueAction(client, ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
+    expect(await clearOverdueAction(client, dashboard(ada), { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
   });
 
   test("a next action moved to a later date is left alone", async () => {
     must(await db().from("applications").update({ next_action_due: at(72).slice(0, 10) }).eq("id", app(3)));
-    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
+    expect(await clearOverdueAction(token("user_ib_ada"), dashboard(ada), { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
     const { data } = must(await db().from("applications").select("next_action").eq("id", app(3)).single());
     expect(data?.next_action).toBe("Send the brief");
   });
 
   test("a next action someone replaced is left alone, even overdue", async () => {
     must(await db().from("applications").update({ next_action: "Call the reference" }).eq("id", app(3)));
-    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
+    expect(await clearOverdueAction(token("user_ib_ada"), dashboard(ada), { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toMatchObject({ ok: true, changed: false });
     const { data } = must(await db().from("applications").select("next_action").eq("id", app(3)).single());
     expect(data?.next_action).toBe("Call the reference");
   });
@@ -222,8 +223,8 @@ describe("the Inbox", () => {
   });
 
   test("a hiring manager can't reach another job, and another company's application is nobody's", async () => {
-    expect(await clearOverdueAction(token("user_ib_lee"), LEAD, { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toEqual({ ok: false, error: "not_found" });
+    expect(await clearOverdueAction(token("user_ib_lee"), dashboard(lee), { applicationId: app(3), nextAction: "Send the brief" }, NOW)).toEqual({ ok: false, error: "not_found" });
     expect(await touchApplication(token("user_ib_lee"), LEAD, app(3))).toEqual({ ok: false, error: "not_found" });
-    expect(await clearOverdueAction(token("user_ib_ada"), ADMIN, { applicationId: GLOBEX_APP, nextAction: "Globex's" }, NOW)).toEqual({ ok: false, error: "not_found" });
+    expect(await clearOverdueAction(token("user_ib_ada"), dashboard(ada), { applicationId: GLOBEX_APP, nextAction: "Globex's" }, NOW)).toEqual({ ok: false, error: "not_found" });
   });
 });

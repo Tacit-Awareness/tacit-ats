@@ -1,15 +1,17 @@
 import type { Db } from "@tacit/db";
-import { logTouch, moveStage, setNextAction, setOwner } from "@tacit/core";
+import { logTouch, setOwner } from "@tacit/core";
+import { clientTools } from "@tacit-ats/core";
 import { closeReasonKind, type MoveInput, type NextActionInput } from "./candidate-edit-rules";
 
 // The candidate page's writes, and what its controls need to read, on the
-// member's OWN client (never a privileged one). Each write is core's pipeline
-// function, exactly as the job board's actions, so the policies decide again;
-// the checks before it (can the member read the application, may they edit
-// its job's pipeline) only answer with a code. A move carries the stage the
-// page showed, so one someone else already made is reported, not overwritten.
-// Nothing here writes audit_log: core's pipeline writes are not audited, and
-// clientTools' audited writes take a `source` with no value for the web app.
+// member's OWN client (never a privileged one), so the policies decide again;
+// the checks before a write (can the member read the application, may they
+// edit its job's pipeline) only answer with a code. A move carries the stage
+// the page showed, so one someone else already made is reported, not
+// overwritten. A move and a next action are clientTools' audited writes, with
+// source `dashboard`, so the connector's read-only switch does not stop them
+// and the hourly limit does. The owner and a touch have no clientTools write,
+// so they stay core's pipeline functions, which are not audited.
 
 export type CloseReason = { reasonId: string; name: string; kind: "rejected" | "withdrew" };
 export type OwnerChoice = { actorId: string; name: string };
@@ -60,7 +62,7 @@ export async function readEditing(db: Db, applicationIds: string[]): Promise<Edi
   };
 }
 
-export type EditError = "not_found" | "forbidden" | "changed" | "reason_required" | "not_member";
+export type EditError = "not_found" | "forbidden" | "changed" | "reason_required" | "not_member" | "rate_limited";
 export type EditOutcome = { ok: true; changed: boolean; roleId: string } | { ok: false; error: EditError };
 
 type Gate = { ok: true; app: { id: string; role_id: string; stage: string } } | { ok: false; error: "not_found" | "forbidden" };
@@ -75,35 +77,41 @@ async function gate(db: Db, applicationId: string): Promise<Gate> {
   return allowed.data === true ? { ok: true, app } : { ok: false, error: "forbidden" };
 }
 
+/** A clientTools refusal as this page's code. Anything else is a failure, not an answer. */
+function refused(err: unknown): { ok: false; error: EditError } {
+  if (err instanceof clientTools.ClientToolError && err.code !== "invalid") return { ok: false, error: err.code };
+  throw err;
+}
+
 /** Moves the application from the stage the page showed; a close needs one of the org's reasons of the matching kind. */
-export async function moveCandidate(db: Db, actorId: string, input: MoveInput): Promise<EditOutcome> {
+export async function moveCandidate(db: Db, ctx: clientTools.ClientToolCtx, input: MoveInput): Promise<EditOutcome> {
   const g = await gate(db, input.applicationId);
   if (!g.ok) return g;
   if (g.app.stage !== input.expectedStage) return { ok: false, error: "changed" };
   if (input.stage === input.expectedStage) return { ok: true, changed: false, roleId: g.app.role_id };
 
-  let closeReason: { reasonId: string; reasonName: string; note: string | null } | undefined;
-  const kind = closeReasonKind(input.stage);
-  if (kind) {
-    if (!input.reasonId) return { ok: false, error: "reason_required" };
-    const { data: reason, error } = await db
-      .from("rejection_reasons")
-      .select("id, name, kind, archived_at")
-      .eq("id", input.reasonId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!reason || reason.kind !== kind || reason.archived_at) return { ok: false, error: "reason_required" };
-    closeReason = { reasonId: reason.id, reasonName: reason.name, note: input.note };
+  const closing = closeReasonKind(input.stage) !== null;
+  if (closing && !input.reasonId) return { ok: false, error: "reason_required" };
+  try {
+    const moved = await clientTools.updateStage(db, ctx, {
+      applicationId: g.app.id,
+      stage: input.stage,
+      expectedStage: input.expectedStage,
+      reasonId: closing ? input.reasonId : null,
+      note: closing ? input.note : null,
+    });
+    // The stage matched a moment ago, so "unchanged" means someone else just
+    // made this same move. "reason_set" is that too, and this reason replaced theirs.
+    return moved.outcome === "moved" || moved.outcome === "reason_set"
+      ? { ok: true, changed: true, roleId: g.app.role_id }
+      : { ok: false, error: "changed" };
+  } catch (err) {
+    // The application was just read, so on a close these are about the reason.
+    if (closing && err instanceof clientTools.ClientToolError && (err.code === "not_found" || err.code === "invalid")) {
+      return { ok: false, error: "reason_required" };
+    }
+    return refused(err);
   }
-
-  const moved = await moveStage(db, {
-    applicationId: g.app.id,
-    stage: input.stage,
-    actorId,
-    expectedStage: input.expectedStage,
-    closeReason,
-  });
-  return moved.status === "updated" ? { ok: true, changed: true, roleId: g.app.role_id } : { ok: false, error: "changed" };
 }
 
 /** Hands the application to one of the org's members, or to nobody. */
@@ -125,12 +133,15 @@ export async function setCandidateOwner(
 }
 
 /** Sets or clears the next action and its due date. */
-export async function setCandidateNextAction(db: Db, actorId: string, input: NextActionInput): Promise<EditOutcome> {
+export async function setCandidateNextAction(db: Db, ctx: clientTools.ClientToolCtx, input: NextActionInput): Promise<EditOutcome> {
   const g = await gate(db, input.applicationId);
   if (!g.ok) return g;
-  const r = await setNextAction(db, { applicationId: g.app.id, nextAction: input.nextAction, due: input.due, actorId });
-  if (r.status === "not_found") return { ok: false, error: "not_found" };
-  return { ok: true, changed: r.status === "updated", roleId: g.app.role_id };
+  try {
+    const r = await clientTools.setApplicationNextAction(db, ctx, { applicationId: g.app.id, nextAction: input.nextAction, due: input.due });
+    return { ok: true, changed: r.outcome !== "unchanged", roleId: g.app.role_id };
+  } catch (err) {
+    return refused(err);
+  }
 }
 
 /** Records contact with the candidate, with an optional note of what happened. */

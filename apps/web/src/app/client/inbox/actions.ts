@@ -4,12 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clearOverdueAction, touchApplication } from "@/lib/client/inbox";
 import { requireClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import type { InboxError, InboxNotice } from "./messages";
 
 // The Inbox's two writes, both the candidate page's: clear an overdue next
-// action, or log a touch. Core's pipeline functions on the member's own
-// client, so the policies decide again. Posted fields are request data, so
-// the id and the `next` key are re-read.
+// action, through the audited clientTools, or log a touch, core's pipeline
+// function. Both on the member's own client, so the policies decide again.
+// Posted fields are request data, so the id and the `next` key are re-read.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISSUE_KEY = /^(app|appr|draft)-[0-9a-f-]{36}$/i;
@@ -24,7 +25,8 @@ const back = (params: { i?: string | null; notice?: InboxNotice; error?: InboxEr
 };
 
 export async function fixIssueAction(form: FormData): Promise<void> {
-  const { db, actorId } = await requireClient();
+  const member = await requireClient();
+  const { db, actorId } = member;
   const applicationId = form.get("applicationId");
   const write = form.get("write");
   if (typeof applicationId !== "string" || !UUID.test(applicationId) || (write !== "done" && write !== "touch")) return back({ error: "not_found" });
@@ -34,12 +36,15 @@ export async function fixIssueAction(form: FormData): Promise<void> {
 
   let outcome: Awaited<ReturnType<typeof touchApplication>>;
   try {
-    outcome = write === "done" ? await clearOverdueAction(db, actorId, { applicationId, nextAction: typeof expected === "string" ? expected : null }, new Date()) : await touchApplication(db, actorId, applicationId);
+    outcome = write === "done" ? await clearOverdueAction(db, toolCtx(member), { applicationId, nextAction: typeof expected === "string" ? expected : null }, new Date()) : await touchApplication(db, actorId, applicationId);
   } catch (err) {
     console.error("[client-inbox] fix failed:", err instanceof Error ? err.message : err);
     return back({ i: `app-${applicationId}`, error: "failed" });
   }
-  if (!outcome.ok) return back({ i: `app-${applicationId}`, error: outcome.error === "forbidden" ? "forbidden" : "not_found" });
+  if (!outcome.ok) {
+    const { error } = outcome;
+    return back({ i: `app-${applicationId}`, error: error === "forbidden" || error === "rate_limited" ? error : "not_found" });
+  }
 
   revalidatePath("/client/inbox");
   revalidatePath("/client/pipeline");

@@ -9,6 +9,7 @@ export const INBOX_NOTICES = {
 export const INBOX_ERRORS = {
   not_found: "That application isn't one you can see any more.",
   forbidden: "You can't change that job's pipeline.",
+  rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   failed: "That didn't work. Nothing was changed.",
 } as const;
 

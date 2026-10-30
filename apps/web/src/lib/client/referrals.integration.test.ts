@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
+import type { clientTools } from "@tacit-ats/core";
 
 import { addReferral, readAddForm, readReferrals } from "./referrals";
 
@@ -48,6 +49,8 @@ const member = (subject: string, workosOrgId = ACME_WORKOS) => {
   const signer = { alg: "HS256" as const, secret: process.env.SUPABASE_JWT_SECRET! };
   return createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () => mintClientMemberToken(signer, { subject, workosOrgId }));
 };
+
+const ctx = (actorId: string, accessLevel: clientTools.ClientToolCtx["accessLevel"]): clientTools.ClientToolCtx => ({ actorId, orgId: ACME, accessLevel, source: "dashboard" });
 
 const NOW = Date.now();
 const at = (h: number) => new Date(NOW + h * 3_600_000).toISOString();
@@ -119,7 +122,7 @@ describe("Referrals", () => {
     const lee = member("user_rf_lee");
     expect(ids((await readReferrals(lee)).referrals)).toEqual([app(1), app(2), app(3)]);
     expect((await readAddForm(lee)).jobs).toEqual([{ jobId: ENGINEER, title: "Founding Engineer" }]);
-    expect(await addReferral(lee, { orgId: ACME, actorId: LEAD }, {
+    expect(await addReferral(lee, ctx(LEAD, "elevated"), {
       jobId: DESIGNER, name: "Dana Designer", email: "dana@rf.test", linkedinUrl: null, referredBy: "Lee", note: null,
     })).toEqual({ ok: false, error: "forbidden" });
     // refused before anyone was created
@@ -131,7 +134,7 @@ describe("Referrals", () => {
     const ivan = member("user_rf_ivan");
     expect((await readReferrals(ivan)).referrals).toEqual([]);
     expect((await readAddForm(ivan)).jobs).toEqual([]);
-    expect(await addReferral(ivan, { orgId: ACME, actorId: INTERVIEWER }, {
+    expect(await addReferral(ivan, ctx(INTERVIEWER, "limited"), {
       jobId: ENGINEER, name: "Ivy", email: null, linkedinUrl: null, referredBy: "Ivan", note: null,
     })).toEqual({ ok: false, error: "forbidden" });
   });
@@ -140,14 +143,14 @@ describe("Referrals", () => {
     const ada = member("user_rf_ada");
     expect(ids((await readReferrals(ada)).referrals)).not.toContain(GLOBEX_APP);
     expect((await readAddForm(ada)).jobs.map((j) => j.jobId)).not.toContain(GLOBEX_ROLE);
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, {
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), {
       jobId: GLOBEX_ROLE, name: "Gus", email: null, linkedinUrl: null, referredBy: "Ada", note: null,
     })).toEqual({ ok: false, error: "forbidden" });
   });
 
   test("an added referral lands with source referral, the referrer, and the note", async () => {
     const ada = member("user_rf_ada");
-    const added = await addReferral(ada, { orgId: ACME, actorId: ADMIN }, {
+    const added = await addReferral(ada, ctx(ADMIN, "admin"), {
       jobId: DESIGNER, name: "  Rita   Referral ", email: "rita@rf.test", linkedinUrl: null, referredBy: "  Priya  Shah ", note: "Worked with her at Stripe.",
     });
     expect(added).toMatchObject({ ok: true, status: "added" });
@@ -157,6 +160,13 @@ describe("Referrals", () => {
     expect(row).toEqual({ org_id: ACME, person_id: added.personId, role_id: DESIGNER, stage: "sourced", source: "referral", source_detail: "Priya Shah", added_by_actor_id: ADMIN });
     const { data: who } = must(await db().from("people").select("org_id, display_name, email").eq("id", added.personId).single());
     expect(who).toEqual({ org_id: ACME, display_name: "Rita Referral", email: "rita@rf.test" });
+    // audited as the web app's, with the source but not who referred them
+    const { data: audit } = must(await db().from("audit_log").select("source, action, entity, after").eq("entity_id", added.applicationId));
+    expect(audit).toEqual([{
+      source: "dashboard", action: "application.add", entity: "application",
+      after: { job_id: DESIGNER, candidate_id: added.personId, new_candidate: true, source: "referral" },
+    }]);
+    expect(JSON.stringify(audit)).not.toContain("Priya");
     const { data: events } = must(await db().from("application_events").select("kind, detail").eq("application_id", added.applicationId).order("created_at"));
     expect(events).toEqual([{ kind: "added", detail: "referral" }, { kind: "note", detail: "Worked with her at Stripe." }]);
 
@@ -164,7 +174,7 @@ describe("Referrals", () => {
     expect((await readReferrals(ada)).referrals.find((r) => r.applicationId === added.applicationId)).toMatchObject({ name: "Rita Referral", referredBy: "Priya Shah", stage: "sourced" });
 
     // asked again: nothing changes, no second note
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, {
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), {
       jobId: DESIGNER, name: "Rita Referral", email: "rita@rf.test", linkedinUrl: null, referredBy: "Someone else", note: "again",
     })).toMatchObject({ ok: true, status: "exists", applicationId: added.applicationId });
     const { data: after } = must(await db().from("application_events").select("kind").eq("application_id", added.applicationId));
@@ -173,13 +183,13 @@ describe("Referrals", () => {
 
   test("an email already on someone the member can see adds that person; bad input is a code", async () => {
     const ada = member("user_rf_ada");
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, {
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), {
       jobId: DESIGNER, name: "Candidate 1", email: "c1@rf.test", linkedinUrl: null, referredBy: "Marco", note: null,
     })).toMatchObject({ ok: true, status: "added_existing", personId: person(1) });
     const base = { jobId: DESIGNER, name: "X Y", email: null, linkedinUrl: null, referredBy: "Marco", note: null };
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, { ...base, referredBy: "  " })).toEqual({ ok: false, error: "invalid_referrer" });
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, { ...base, name: " " })).toEqual({ ok: false, error: "invalid_name" });
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, { ...base, email: "not-an-email" })).toEqual({ ok: false, error: "invalid_email" });
-    expect(await addReferral(ada, { orgId: ACME, actorId: ADMIN }, { ...base, linkedinUrl: "https://example.com/me" })).toEqual({ ok: false, error: "invalid_linkedin" });
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), { ...base, referredBy: "  " })).toEqual({ ok: false, error: "invalid_referrer" });
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), { ...base, name: " " })).toEqual({ ok: false, error: "invalid_name" });
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), { ...base, email: "not-an-email" })).toEqual({ ok: false, error: "invalid_email" });
+    expect(await addReferral(ada, ctx(ADMIN, "admin"), { ...base, linkedinUrl: "https://example.com/me" })).toEqual({ ok: false, error: "invalid_linkedin" });
   });
 });

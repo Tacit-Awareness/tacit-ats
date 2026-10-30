@@ -144,14 +144,14 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
 }
 
 /** "Mark it done": clears the next action, only while it is still the overdue one the page showed. */
-export async function clearOverdueAction(db: Db, actorId: string, input: { applicationId: string; nextAction: string | null }, now: Date): Promise<EditOutcome> {
+export async function clearOverdueAction(db: Db, ctx: clientTools.ClientToolCtx, input: { applicationId: string; nextAction: string | null }, now: Date): Promise<EditOutcome> {
   const { applicationId } = input;
   const { data, error } = await db.from("applications").select("role_id, next_action, next_action_due").eq("id", applicationId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { ok: false, error: "not_found" };
   const overdue = data.next_action_due !== null && data.next_action_due < now.toISOString().slice(0, 10);
   if (!overdue || data.next_action !== input.nextAction) return { ok: true, changed: false, roleId: data.role_id };
-  return setCandidateNextAction(db, actorId, { applicationId, nextAction: null, due: null });
+  return setCandidateNextAction(db, ctx, { applicationId, nextAction: null, due: null });
 }
 
 /** "Log a touch": the candidate page's, with no note. */

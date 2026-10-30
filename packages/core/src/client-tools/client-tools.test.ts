@@ -53,6 +53,19 @@ describe("updateStage", () => {
     expect([...rpcs(same), ...rpcs(since)]).not.toContain("client_claim_write");
   });
 
+  test("the web app's writes are claimed with source dashboard", async () => {
+    const fake = new FakeSupabase([
+      { data: APP }, { data: true },
+      { data: "audit-1" },
+      { data: { stage: "screening" } }, { data: [{ id: "app-1" }] }, { data: null },
+      { data: null },
+    ]);
+    await updateStage(fake.asDb(), { ...ctx(), source: "dashboard" }, { applicationId: "app-1", stage: "interviewing" });
+    expect(fake.calls.find((c) => c.table === "client_claim_write")?.args).toEqual({
+      p_source: "dashboard", p_action: "application.stage_change", p_entity: "application",
+    });
+  });
+
   test("a move is claimed first and completed with before and after", async () => {
     const fake = new FakeSupabase([
       { data: APP }, { data: true },
@@ -146,6 +159,12 @@ describe("addCandidate", () => {
     expect((await refusal(addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", sourceDetail: "x".repeat(201) }))).code)
       .toBe("invalid");
     expect(fake.calls).toEqual([]);
+  });
+
+  test("a refused field is named, for a form to point at", async () => {
+    const fake = new FakeSupabase([{ data: true }, { data: true }, { data: "audit-1" }, { data: null }]);
+    const err = await refusal(addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "   " }));
+    expect(err).toMatchObject({ code: "invalid", field: "name" });
   });
 
   test("the source and its detail go on the new application; the audit row keeps the source only", async () => {

@@ -1,12 +1,14 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
+import type { clientTools } from "@tacit-ats/core";
 
 import { logCandidateTouch, moveCandidate, readEditing, setCandidateNextAction, setCandidateOwner } from "./candidate-edits";
 
 /**
  * The candidate page's writes against the local stack, on members' own
- * tokens: core's pipeline functions with the policies deciding, as on the job
- * board. The member token is signed with the stack's JWT secret, as in
+ * tokens, with the policies deciding: the move and the next action through
+ * the audited clientTools, the owner and a touch through core's pipeline
+ * functions. The member token is signed with the stack's JWT secret, as in
  * pipeline.integration.test.ts.
  */
 
@@ -41,9 +43,12 @@ async function clear() {
   for (const table of ["application_events", "interviews", "applications", "rejection_reasons", "hiring_team", "people", "roles", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
+  await db().from("audit_log").delete().in("actor_id", [ADMIN, LEAD, INTERVIEWER]);
   await db().from("actors").delete().in("org_id", ids);
   await db().from("orgs").delete().in("id", ids);
 }
+
+const ctx = (actorId: string, accessLevel: clientTools.ClientToolCtx["accessLevel"]): clientTools.ClientToolCtx => ({ actorId, orgId: ACME, accessLevel, source: "dashboard" });
 
 const member = (subject: string, workosOrgId = ACME_WORKOS) => {
   const signer = { alg: "HS256" as const, secret: process.env.SUPABASE_JWT_SECRET! };
@@ -53,6 +58,8 @@ const member = (subject: string, workosOrgId = ACME_WORKOS) => {
 const application = async (id: string) =>
   must(await db().from("applications").select("stage, owner_actor_id, next_action, next_action_due, rejection_reason_id, rejection_note, last_touch_at").eq("id", id).single())
     .data!;
+const audits = async (id: string) =>
+  must(await db().from("audit_log").select("source, action, entity, before, after").eq("entity_id", id).order("created_at")).data!;
 const events = async (id: string) =>
   must(await db().from("application_events").select("kind, from_stage, to_stage, detail, actor_id").eq("application_id", id).order("created_at")).data!;
 
@@ -124,7 +131,7 @@ describe("the candidate page's controls", () => {
 
 describe("the candidate page's writes", () => {
   test("an admin moves a stage, and the move lands in application_events", async () => {
-    const outcome = await moveCandidate(member("user_cedit_ada"), ADMIN, { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null });
+    const outcome = await moveCandidate(member("user_cedit_ada"), ctx(ADMIN, "admin"), { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null });
     expect(outcome).toEqual({ ok: true, changed: true, roleId: ENGINEER });
     expect((await application(app(1))).stage).toBe("interviewing");
     expect(await events(app(1))).toEqual([{ kind: "stage_changed", from_stage: "screening", to_stage: "interviewing", detail: null, actor_id: ADMIN }]);
@@ -133,7 +140,7 @@ describe("the candidate page's writes", () => {
   test("a reject needs a rejected reason of the org's; with one it records the reason and the note", async () => {
     const ada = member("user_cedit_ada");
     const reject = (reasonId: string | null) =>
-      moveCandidate(ada, ADMIN, { applicationId: app(1), stage: "rejected", expectedStage: "screening", reasonId, note: "Needs more systems work" });
+      moveCandidate(ada, ctx(ADMIN, "admin"), { applicationId: app(1), stage: "rejected", expectedStage: "screening", reasonId, note: "Needs more systems work" });
     expect(await reject(null)).toEqual({ ok: false, error: "reason_required" });
     // the wrong kind, and another company's reason
     expect(await reject(WITHDREW_REASON)).toEqual({ ok: false, error: "reason_required" });
@@ -146,17 +153,53 @@ describe("the candidate page's writes", () => {
     expect(await events(app(1))).toEqual([{ kind: "stage_changed", from_stage: "screening", to_stage: "rejected", detail: "Not enough experience", actor_id: ADMIN }]);
 
     // and a withdrawal needs a withdrew one
-    const withdraw = (reasonId: string) => moveCandidate(ada, ADMIN, { applicationId: app(2), stage: "withdrawn", expectedStage: "sourced", reasonId, note: null });
+    const withdraw = (reasonId: string) => moveCandidate(ada, ctx(ADMIN, "admin"), { applicationId: app(2), stage: "withdrawn", expectedStage: "sourced", reasonId, note: null });
     expect(await withdraw(REJECTED_REASON)).toEqual({ ok: false, error: "reason_required" });
     expect(await withdraw(WITHDREW_REASON)).toMatchObject({ ok: true, changed: true });
   });
 
   test("a move from a stage they are no longer at is refused and changes nothing", async () => {
     must(await db().from("applications").update({ stage: "interviewing" }).eq("id", app(1)));
-    const outcome = await moveCandidate(member("user_cedit_ada"), ADMIN, { applicationId: app(1), stage: "offer", expectedStage: "screening", reasonId: null, note: null });
+    const outcome = await moveCandidate(member("user_cedit_ada"), ctx(ADMIN, "admin"), { applicationId: app(1), stage: "offer", expectedStage: "screening", reasonId: null, note: null });
     expect(outcome).toEqual({ ok: false, error: "changed" });
     expect((await application(app(1))).stage).toBe("interviewing");
     expect(await events(app(1))).toEqual([]);
+  });
+
+  test("a move to the stage it is at changes nothing, even on a closed application", async () => {
+    must(await db().from("applications").update({ stage: "rejected", rejection_reason_id: REJECTED_REASON, rejection_note: "First" }).eq("id", app(1)));
+    const outcome = await moveCandidate(member("user_cedit_ada"), ctx(ADMIN, "admin"), { applicationId: app(1), stage: "rejected", expectedStage: "rejected", reasonId: REJECTED_REASON, note: "Second" });
+    expect(outcome).toEqual({ ok: true, changed: false, roleId: ENGINEER });
+    expect((await application(app(1))).rejection_note).toBe("First");
+    expect(await audits(app(1))).toEqual([]);
+  });
+
+  test("a move and a next action are audited as the web app's, and a close's note stays out of the audit", async () => {
+    const ada = member("user_cedit_ada");
+    const edits = ctx(ADMIN, "admin");
+    await moveCandidate(ada, edits, { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null });
+    await setCandidateNextAction(ada, edits, { applicationId: app(1), nextAction: "Send the take-home", due: "2026-11-02" });
+    await moveCandidate(ada, edits, { applicationId: app(1), stage: "rejected", expectedStage: "interviewing", reasonId: REJECTED_REASON, note: "Needs more systems work" });
+    const rows = await audits(app(1));
+    expect(rows).toEqual([
+      { source: "dashboard", action: "application.stage_change", entity: "application", before: { stage: "screening" }, after: { stage: "interviewing" } },
+      { source: "dashboard", action: "application.next_action", entity: "application", before: null, after: { next_action: "Send the take-home", due: "2026-11-02" } },
+      { source: "dashboard", action: "application.stage_change", entity: "application", before: { stage: "interviewing" }, after: { stage: "rejected", rejection_reason: "Not enough experience" } },
+    ]);
+    expect(JSON.stringify(rows)).not.toContain("systems work");
+  });
+
+  test("an edit that changed nothing leaves no audit row", async () => {
+    const ada = member("user_cedit_ada");
+    expect(await setCandidateNextAction(ada, ctx(ADMIN, "admin"), { applicationId: app(1), nextAction: null, due: null })).toMatchObject({ ok: true, changed: false });
+    expect(await audits(app(1))).toEqual([]);
+  });
+
+  test("an org that made its connector read-only still works here", async () => {
+    must(await db().from("orgs").update({ connector_access: "read_only" }).eq("id", ACME));
+    const outcome = await moveCandidate(member("user_cedit_ada"), ctx(ADMIN, "admin"), { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null });
+    expect(outcome).toMatchObject({ ok: true, changed: true });
+    expect((await application(app(1))).stage).toBe("interviewing");
   });
 
   test("an admin changes the owner, sets and clears the next action, and logs a touch", async () => {
@@ -165,9 +208,9 @@ describe("the candidate page's writes", () => {
     expect(await setCandidateOwner(ada, ADMIN, { applicationId: app(1), ownerActorId: GLOBEX_REASON })).toEqual({ ok: false, error: "not_member" });
     expect((await application(app(1))).owner_actor_id).toBe(LEAD);
 
-    expect(await setCandidateNextAction(ada, ADMIN, { applicationId: app(1), nextAction: "Send the take-home", due: "2026-11-02" })).toMatchObject({ ok: true, changed: true });
+    expect(await setCandidateNextAction(ada, ctx(ADMIN, "admin"), { applicationId: app(1), nextAction: "Send the take-home", due: "2026-11-02" })).toMatchObject({ ok: true, changed: true });
     expect(await application(app(1))).toMatchObject({ next_action: "Send the take-home", next_action_due: "2026-11-02" });
-    expect(await setCandidateNextAction(ada, ADMIN, { applicationId: app(1), nextAction: null, due: null })).toMatchObject({ ok: true, changed: true });
+    expect(await setCandidateNextAction(ada, ctx(ADMIN, "admin"), { applicationId: app(1), nextAction: null, due: null })).toMatchObject({ ok: true, changed: true });
     expect(await application(app(1))).toMatchObject({ next_action: null, next_action_due: null });
 
     expect(await logCandidateTouch(ada, ADMIN, { applicationId: app(1), note: "Called about timing" })).toMatchObject({ ok: true });
@@ -182,13 +225,13 @@ describe("the candidate page's writes", () => {
 
   test("a hiring manager edits their job's application but not another job's", async () => {
     const lee = member("user_cedit_lee");
-    expect(await moveCandidate(lee, LEAD, { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null })).toMatchObject({ ok: true, changed: true });
+    expect(await moveCandidate(lee, ctx(LEAD, "elevated"), { applicationId: app(1), stage: "interviewing", expectedStage: "screening", reasonId: null, note: null })).toMatchObject({ ok: true, changed: true });
     expect(await logCandidateTouch(lee, LEAD, { applicationId: app(1), note: null })).toMatchObject({ ok: true });
 
     const designer = { applicationId: app(2) };
-    expect((await moveCandidate(lee, LEAD, { ...designer, stage: "screening", expectedStage: "sourced", reasonId: null, note: null })).ok).toBe(false);
+    expect((await moveCandidate(lee, ctx(LEAD, "elevated"), { ...designer, stage: "screening", expectedStage: "sourced", reasonId: null, note: null })).ok).toBe(false);
     expect((await setCandidateOwner(lee, LEAD, { ...designer, ownerActorId: LEAD })).ok).toBe(false);
-    expect((await setCandidateNextAction(lee, LEAD, { ...designer, nextAction: "x", due: null })).ok).toBe(false);
+    expect((await setCandidateNextAction(lee, ctx(LEAD, "elevated"), { ...designer, nextAction: "x", due: null })).ok).toBe(false);
     expect((await logCandidateTouch(lee, LEAD, { ...designer, note: null })).ok).toBe(false);
     expect(await application(app(2))).toMatchObject({ stage: "sourced", owner_actor_id: null, next_action: null, last_touch_at: expect.any(String) });
     expect(await events(app(2))).toEqual([]);
@@ -196,9 +239,9 @@ describe("the candidate page's writes", () => {
 
   test("an interviewer is refused, even on the application they interview for", async () => {
     const ivy = member("user_cedit_ivy");
-    expect((await moveCandidate(ivy, INTERVIEWER, { applicationId: app(1), stage: "offer", expectedStage: "screening", reasonId: null, note: null })).ok).toBe(false);
+    expect((await moveCandidate(ivy, ctx(INTERVIEWER, "limited"), { applicationId: app(1), stage: "offer", expectedStage: "screening", reasonId: null, note: null })).ok).toBe(false);
     expect((await setCandidateOwner(ivy, INTERVIEWER, { applicationId: app(1), ownerActorId: INTERVIEWER })).ok).toBe(false);
-    expect((await setCandidateNextAction(ivy, INTERVIEWER, { applicationId: app(1), nextAction: "x", due: null })).ok).toBe(false);
+    expect((await setCandidateNextAction(ivy, ctx(INTERVIEWER, "limited"), { applicationId: app(1), nextAction: "x", due: null })).ok).toBe(false);
     expect((await logCandidateTouch(ivy, INTERVIEWER, { applicationId: app(1), note: null })).ok).toBe(false);
     expect(await application(app(1))).toMatchObject({ stage: "screening", owner_actor_id: ADMIN, next_action: null, last_touch_at: expect.any(String) });
     expect(Date.parse((await application(app(1))).last_touch_at)).toBe(Date.parse(OLD));
@@ -207,7 +250,7 @@ describe("the candidate page's writes", () => {
 
   test("another company's application is nobody's to edit", async () => {
     const ada = member("user_cedit_ada");
-    expect(await moveCandidate(ada, ADMIN, { applicationId: GLOBEX_APP, stage: "interviewing", expectedStage: "screening", reasonId: null, note: null })).toEqual({ ok: false, error: "not_found" });
+    expect(await moveCandidate(ada, ctx(ADMIN, "admin"), { applicationId: GLOBEX_APP, stage: "interviewing", expectedStage: "screening", reasonId: null, note: null })).toEqual({ ok: false, error: "not_found" });
     expect(await setCandidateOwner(ada, ADMIN, { applicationId: GLOBEX_APP, ownerActorId: ADMIN })).toEqual({ ok: false, error: "not_found" });
     expect(await logCandidateTouch(ada, ADMIN, { applicationId: GLOBEX_APP, note: null })).toEqual({ ok: false, error: "not_found" });
     expect((await application(GLOBEX_APP)).stage).toBe("screening");

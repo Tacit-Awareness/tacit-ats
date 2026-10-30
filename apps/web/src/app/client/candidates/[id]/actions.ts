@@ -11,14 +11,15 @@ import {
   type EditOutcome,
 } from "@/lib/client/candidate-edits";
 import { requireClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import type { CandidateError, CandidateNotice } from "./messages";
 
 // The candidate page's writes, one form each per job: move the stage, change
 // the owner, set or clear the next action, log a touch. lib/client/
-// candidate-edits.ts runs core's pipeline functions on the signed-in member's
-// own client, as the job board's actions do, so the policies decide whether
-// each lands (can_edit_pipeline on the job). Posted fields are request data,
-// so every id and choice is re-checked (lib/client/candidate-edit-rules.ts).
+// candidate-edits.ts runs them on the signed-in member's own client, the move
+// and the next action through the audited clientTools, so the policies decide
+// whether each lands (can_edit_pipeline on the job). Posted fields are request
+// data, so every id and choice is re-checked (lib/client/candidate-edit-rules.ts).
 
 // Only codes and ids go in the URL, never a name or a message.
 const back = (candidateId: string | null, params: { notice?: CandidateNotice; error?: CandidateError }): never => {
@@ -49,11 +50,11 @@ async function run(candidateId: string | null, notice: CandidateNotice, write: (
 }
 
 export async function moveCandidateAction(form: FormData): Promise<void> {
-  const { db, actorId } = await requireClient();
+  const member = await requireClient();
   const candidateId = candidateOf(form);
   const input = parseMove(form);
   if (!input) return back(candidateId, { error: "not_found" });
-  return run(candidateId, "moved", () => moveCandidate(db, actorId, input));
+  return run(candidateId, "moved", () => moveCandidate(member.db, toolCtx(member), input));
 }
 
 export async function setOwnerAction(form: FormData): Promise<void> {
@@ -65,11 +66,11 @@ export async function setOwnerAction(form: FormData): Promise<void> {
 }
 
 export async function setNextActionAction(form: FormData): Promise<void> {
-  const { db, actorId } = await requireClient();
+  const member = await requireClient();
   const candidateId = candidateOf(form);
   const parsed = parseNextAction(form);
   if (!parsed.ok) return back(candidateId, { error: parsed.error });
-  return run(candidateId, "next_action", () => setCandidateNextAction(db, actorId, parsed.input));
+  return run(candidateId, "next_action", () => setCandidateNextAction(member.db, toolCtx(member), parsed.input));
 }
 
 export async function logTouchAction(form: FormData): Promise<void> {
