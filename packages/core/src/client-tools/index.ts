@@ -1,6 +1,27 @@
 export { ClientToolError, LIST_MAX, NOTE_MAX } from "./context.js";
 export type { AccessLevel, ClientToolCtx, ClientToolErrorCode } from "./context.js";
 export { READ_ONLY_REFUSAL } from "./audit.js";
+export {
+  FOCUS_AREAS_MAX,
+  FOCUS_AREA_MAX,
+  INTERVIEW_CHANNELS,
+  INTERVIEW_PREFERENCES,
+  PROFILE_COLUMNS,
+  WEEKLY_CAP_MAX,
+  cleanFocusAreas,
+  cleanProfile,
+  profileFromRow,
+  setInterviewerProfile,
+} from "./interviewer-profiles.js";
+export type {
+  InterviewChannel,
+  InterviewPreference,
+  InterviewerProfile,
+  InterviewerProfileInput,
+  ProfileRow,
+  SetProfileResult,
+  StoredInterviewerProfile,
+} from "./interviewer-profiles.js";
 export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./connector.js";
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 import { weekBounds } from "./interviewer-load";
-import { readInterviewers } from "./interviewers";
+import { readInterviewers, readOwnProfile } from "./interviewers";
 
 /**
  * The Interviewers page's read against the local stack, on members' own
@@ -36,7 +36,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  for (const table of ["interview_feedback", "interviews", "application_events", "applications", "hiring_team", "people", "roles", "departments", "companies"] as const) {
+  for (const table of ["interviewer_profiles", "interview_feedback", "interviews", "application_events", "applications", "hiring_team", "people", "roles", "departments", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("actors").delete().in("org_id", ids);
@@ -177,5 +177,46 @@ describe("the Interviewers page's read", () => {
     const rows = flat(read);
     expect(Object.keys(rows)).toEqual([GLOBEX_IV]);
     expect(rows[GLOBEX_IV]).toMatchObject({ group: null, load: { nextWeek: 1 }, jobs: [{ id: GLOBEX_ROLE, title: "Globex Role" }] });
+  });
+
+  describe("profiles", () => {
+    beforeEach(async () => {
+      must(await db().from("interviewer_profiles").insert([
+        { actor_id: IVY, org_id: ACME, interview_preference: "avoids", weekly_interview_cap: 1, focus_areas: ["Go"], preferred_channel: "slack", away_until: "2030-01-02" },
+        { actor_id: LEAD, org_id: ACME, weekly_interview_cap: 4, focus_areas: [] },
+        { actor_id: GLOBEX_IV, org_id: GLOBEX, weekly_interview_cap: 9, focus_areas: [] },
+      ]));
+    });
+
+    test("an admin reads everyone's, and their own is null until they say", async () => {
+      const read = await readInterviewers(member("user_ivers_ada"), { actorId: ADMIN, orgId: ACME, accessLevel: "admin" }, new Date(NOW));
+      expect(flat(read)[IVY]?.profile).toMatchObject({ preference: "avoids", weeklyCap: 1, focusAreas: ["Go"], channel: "slack", awayUntil: "2030-01-02" });
+      expect(flat(read)[IRIS]?.profile).toBeNull();
+      expect(read.own).toBeNull();
+      expect(JSON.stringify(read)).not.toContain('"weeklyCap":9');
+    });
+
+    test("the company's hiring team reads theirs too, and has their own back though they are not a row", async () => {
+      const read = await readInterviewers(member("user_ivers_lee"), { actorId: LEAD, orgId: ACME, accessLevel: "elevated" }, new Date(NOW));
+      expect(flat(read)[IVY]?.profile).toMatchObject({ preference: "avoids" });
+      expect(flat(read)[LEAD]).toBeUndefined();
+      expect(read.own).toMatchObject({ weeklyCap: 4 });
+    });
+
+    test("an external recruiter reads not one teammate's profile", async () => {
+      // Job access raises them to elevated, the same level as a hiring manager.
+      const { data: role } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+      must(await db().from("job_access").insert({ org_id: ACME, actor_id: IAN, role_id: ENGINEER, access_role_id: role!.id }));
+      const read = await readInterviewers(member("user_ivers_ian"), { actorId: IAN, orgId: ACME, accessLevel: "elevated" }, new Date(NOW));
+      expect(Object.values(flat(read)).filter((r) => r.profile)).toEqual([]);
+      expect(JSON.stringify(read)).not.toContain("avoids");
+      expect(JSON.stringify(read)).not.toContain("2030-01-02");
+    });
+
+    test("an interviewer reads their own, and nobody else's by asking for it", async () => {
+      const ivy = member("user_ivers_ivy");
+      expect(await readOwnProfile(ivy, IVY)).toMatchObject({ preference: "avoids" });
+      expect(await readOwnProfile(ivy, LEAD)).toBeNull();
+    });
   });
 });
