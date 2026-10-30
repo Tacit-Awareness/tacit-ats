@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 import { groupInterviews } from "./interview-groups";
+import { readReviewed, setReviewed } from "./interview-reviews";
 import { readInterview, readInterviews, type Member } from "./interviews";
 
 /**
@@ -119,6 +120,59 @@ beforeEach(async () => {
 });
 
 afterAll(clear);
+
+describe("the reviewed check", () => {
+  test("a member checks one off and clears it, and doing either twice is the same answer", async () => {
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true })).toBe(true);
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true })).toBe(true);
+    expect([...(await readReviewed(admin.db, ADMIN, [iv(1), iv(3)]))]).toEqual([iv(1)]);
+
+    const { data } = must(await db().from("interview_reviews").select("org_id, actor_id").eq("interview_id", iv(1)));
+    expect(data).toEqual([{ org_id: ACME, actor_id: ADMIN }]);
+
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: false })).toBe(true);
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: false })).toBe(true);
+    expect((await readReviewed(admin.db, ADMIN, [iv(1)])).size).toBe(0);
+  });
+
+  test("each member has their own: a teammate's neither shows as yours nor clears when you uncheck", async () => {
+    await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true });
+    expect((await readReviewed(lead.db, LEAD, [iv(1)])).size).toBe(0);
+
+    await setReviewed(lead.db, LEAD, { interviewId: iv(1), reviewed: true });
+    await setReviewed(lead.db, LEAD, { interviewId: iv(1), reviewed: false });
+    expect((await readReviewed(admin.db, ADMIN, [iv(1)])).size).toBe(1);
+  });
+
+  test("an interviewer checks off one they sat on, and only that", async () => {
+    expect(await setReviewed(ivy.db, IVY, { interviewId: iv(1), reviewed: true })).toBe(true);
+    expect([...(await readReviewed(ivy.db, IVY, [iv(1)]))]).toEqual([iv(1)]);
+    expect(await setReviewed(ivy.db, IVY, { interviewId: iv(3), reviewed: true })).toBe(false);
+  });
+
+  test("an interview the member cannot read, another job's, another company's or none at all, is refused and writes nothing", async () => {
+    expect(await setReviewed(lead.db, LEAD, { interviewId: iv(3), reviewed: true })).toBe(false);
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: GLOBEX_IV, reviewed: true })).toBe(false);
+    expect(await setReviewed(admin.db, ADMIN, { interviewId: "d1e00000-0000-4000-8000-0000000000ff", reviewed: true })).toBe(false);
+    const { data } = must(await db().from("interview_reviews").select("interview_id").in("org_id", [ACME, GLOBEX]));
+    expect(data).toEqual([]);
+  });
+
+  test("a member cannot name someone else as the one who checked it, or take back someone else's", async () => {
+    const forged = await lead.db.from("interview_reviews").insert({ interview_id: iv(1), actor_id: ADMIN });
+    expect(forged.error).not.toBeNull();
+
+    await setReviewed(admin.db, ADMIN, { interviewId: iv(1), reviewed: true });
+    must(await lead.db.from("interview_reviews").delete().eq("interview_id", iv(1)).eq("actor_id", ADMIN));
+    expect((await readReviewed(admin.db, ADMIN, [iv(1)])).size).toBe(1);
+  });
+
+  test("reads every id it is given, past a single request's share", async () => {
+    await setReviewed(admin.db, ADMIN, { interviewId: iv(3), reviewed: true });
+    const many = [...Array.from({ length: 200 }, (_, n) => `d1e00000-0000-4000-9000-${String(n).padStart(12, "0")}`), iv(3)];
+    expect([...(await readReviewed(admin.db, ADMIN, many))]).toEqual([iv(3)]);
+  });
+});
 
 describe("the Interviews page's reads", () => {
   test("an admin sees every interview but cancelled ones, grouped by the feedback filed", async () => {

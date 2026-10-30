@@ -67,7 +67,7 @@ export const TOUR: TourStep[] = [
     href: "/client/interviews",
     targets: ['[data-tour="interviews"]'],
     title: "Interviews",
-    body: "Where a candidate is in their loop, who has met them, and how each round went.",
+    body: "Where a candidate is in their loop, who has met them, and how each round went. Check one off when you have been through it, or press E.",
   },
   {
     href: "/client/referrals",
