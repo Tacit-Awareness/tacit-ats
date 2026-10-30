@@ -8,9 +8,10 @@ import { ClientToolError, type ClientToolCtx } from "./context.js";
  * with one button: they sign in to Granola, and the OAuth grant for
  * Granola's MCP server (mcp.granola.ai) is stored in granola_connections
  * (20261019200000). No member token can read it, so the access token arrives
- * through `ClientGranola.accessToken`, which apps/mcp implements with the
- * service role (src/client/granola.ts), refreshing it when it has expired,
- * and which core asks only for the caller.
+ * through `ClientGranola.accessToken`, which apps/mcp (src/client/granola.ts)
+ * and apps/web (lib/client/granola-notes.ts) each implement with the service
+ * role and granolaGrantAccess below, refreshing it when it has expired, and
+ * which core asks only for the caller.
  *
  * Only the caller's own notes, and only on an interview the caller's own
  * token reads them on as an interviewer: the interview row is read on the
@@ -41,11 +42,95 @@ const EXCERPT_MAX = 400;
 export const GRANOLA_TEXT_MAX = 40_000;
 export const GRANOLA_TRANSCRIPT_MAX = 60_000;
 /** Granola's meeting ids are uuids; anything id-shaped is let through to Granola, which decides. */
-const NOTE_ID = /^[A-Za-z0-9_-]{6,64}$/;
+export const GRANOLA_NOTE_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 
 /** The caller's Granola access: a token, null when not connected, or `reconnect` when Granola no longer accepts the grant. */
 export type GranolaAccess = { token: string } | { reconnect: true } | null;
+
+const TOKEN_URL = "https://mcp-auth.granola.ai/oauth2/token";
+/** A cached access token is used until this long before it expires. */
+const EARLY_MS = 60_000;
+
+/**
+ * The member's Granola access from their grant in granola_connections, which
+ * no member token can read: `db` is the service role, here and only here, and
+ * each app's one module allowed a privileged client passes it (apps/mcp
+ * client/granola.ts, apps/web lib/client/granola-notes.ts). Both surfaces share
+ * this so they refresh one grant the same way.
+ *
+ * The cached access token is used until a minute before it expires; then the
+ * refresh token buys a new one. Granola rotates the refresh token on each
+ * refresh, so the new one is written back, conditional on the one read: when
+ * two calls refresh at once (the web reader and the connector, or two tabs),
+ * the winner's write stands, and the loser, whose old refresh token Granola now
+ * refuses, finds the winner's access token on a second read rather than saying
+ * Granola dropped the grant. Any other refusal (invalid_grant: revoked, or
+ * signed out) is `reconnect`, and the row stays until the member connects again
+ * or disconnects.
+ */
+export async function granolaGrantAccess(
+  db: Db,
+  orgId: string,
+  actorId: string,
+  fetchImpl: typeof fetch = fetch,
+  now: () => number = Date.now,
+): Promise<GranolaAccess> {
+  const read = async () => {
+    const { data, error } = await db
+      .from("granola_connections")
+      .select("oauth_client_id, refresh_token, access_token, access_token_expires_at")
+      .eq("org_id", orgId)
+      .eq("actor_id", actorId)
+      .maybeSingle();
+    if (error) throw new Error(`granola_connections: ${error.message}`);
+    return data;
+  };
+  const fresh = (row: { access_token: string | null; access_token_expires_at: string | null }): string | null => {
+    const expires = row.access_token_expires_at ? Date.parse(row.access_token_expires_at) : 0;
+    return row.access_token && expires - EARLY_MS > now() ? row.access_token : null;
+  };
+
+  const grant = await read();
+  if (!grant) return null;
+  const cached = fresh(grant);
+  if (cached) return { token: cached };
+
+  const res = await fetchImpl(TOKEN_URL, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token", refresh_token: grant.refresh_token, client_id: grant.oauth_client_id, resource: GRANOLA_MCP_URL,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const json = (await res.json().catch(() => null)) as
+    | { access_token?: unknown; refresh_token?: unknown; expires_in?: unknown; error?: unknown }
+    | null;
+  if (res.status === 400 || res.status === 401) {
+    if (json?.error === "invalid_grant" || json?.error === "invalid_client" || res.status === 401) {
+      const again = await read();
+      const theirs = again && again.refresh_token !== grant.refresh_token ? fresh(again) : null;
+      return theirs ? { token: theirs } : { reconnect: true };
+    }
+  }
+  if (!res.ok || typeof json?.access_token !== "string" || !json.access_token) {
+    throw new Error(`granola refresh: ${res.status}`);
+  }
+  const expiresIn = typeof json.expires_in === "number" && json.expires_in > 0 ? json.expires_in : 3600;
+  const { error: saveError } = await db
+    .from("granola_connections")
+    .update({
+      access_token: json.access_token,
+      access_token_expires_at: new Date(now() + expiresIn * 1000).toISOString(),
+      refresh_token: typeof json.refresh_token === "string" && json.refresh_token ? json.refresh_token : grant.refresh_token,
+    })
+    .eq("org_id", orgId)
+    .eq("actor_id", actorId)
+    .eq("refresh_token", grant.refresh_token);
+  if (saveError) console.error("[client-granola] saving the refreshed token failed:", saveError.message);
+  return { token: json.access_token };
+}
 
 export type ClientGranola = {
   /** The member's current Granola access token, refreshed if it had expired. Asked only for the caller. */
@@ -200,7 +285,7 @@ export async function getInterviewNotes(
   input: { interviewId: string; noteId?: string; includeTranscript?: boolean },
 ): Promise<InterviewNotes> {
   if (!deps) throw new ClientToolError("forbidden", "Granola is not set up on this Tacit deployment.");
-  if (input.noteId !== undefined && !NOTE_ID.test(input.noteId)) {
+  if (input.noteId !== undefined && !GRANOLA_NOTE_ID.test(input.noteId)) {
     throw new ClientToolError("invalid", "note_id is a Granola meeting id from an earlier result.");
   }
 

@@ -35,6 +35,8 @@ export type InterviewListItem = {
   status: string;
   step: string | null;
   interviewers: string[];
+  /** The member sat on it, so it may have Granola notes of theirs. */
+  mine: boolean;
   /** The recommendations of the feedback the member may read. */
   recommendations: string[];
 };
@@ -128,6 +130,7 @@ export async function readInterviews(db: Db, member: Member, now: Date, asked?: 
       step: i.step,
       // Interviewers no longer at the company drop out, as in core's get_feedback.
       interviewers: i.interviewer_actor_ids.flatMap((id) => (names.get(id) ? [names.get(id)!] : [])),
+      mine: i.interviewer_actor_ids.includes(member.actorId),
       recommendations: recommendations.get(i.id) ?? [],
     };
   });

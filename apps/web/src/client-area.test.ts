@@ -47,10 +47,14 @@ function resolveLocal(from: string, spec: string): string | null {
 const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createServiceClient|createTacitClient)\b/;
 /**
  * The client-area modules allowed a privileged client: first sign-in binding,
- * and the signed challenge to the company's bot (its secret is never granted
- * to a member's token).
+ * the signed challenge to the company's bot (its secret is never granted to a
+ * member's token), and a member's own Granola notes (their OAuth grant is never
+ * granted to a member's token, and using it rotates it, so a definer function
+ * would only hand the secret over). Each lets the member's own token decide
+ * first: granola-notes.ts takes no actor or org, only what the member's token
+ * reads of its own granola_connections row, so it cannot name another's grant.
  */
-const ALLOWED = new Set([join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts")]);
+const ALLOWED = new Set([join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts"), join(SRC, "lib/client/granola-notes.ts")]);
 
 describe("the client area never holds a privileged database client", () => {
   const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
@@ -91,6 +95,7 @@ describe("the client area never holds a privileged database client", () => {
       [...readFileSync(join(SRC, file), "utf8").matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
     expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedActor"]);
     expect(exportsOf("lib/client/bot.ts")).toEqual(["verifyCompanyBot"]);
+    expect(exportsOf("lib/client/granola-notes.ts")).toEqual(["readGranolaNotes"]);
   });
 });
 

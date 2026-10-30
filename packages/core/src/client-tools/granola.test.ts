@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import { FakeSupabase } from "../test-helpers/fake-supabase.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
-import { getInterviewNotes, granolaMcp, meetingsIn, type ClientGranola, type GranolaAccess } from "./granola.js";
+import { getInterviewNotes, granolaGrantAccess, granolaMcp, meetingsIn, type ClientGranola, type GranolaAccess } from "./granola.js";
 
 const ctx = (accessLevel: ClientToolCtx["accessLevel"] = "elevated"): ClientToolCtx => ({
   actorId: "actor-1", orgId: "org-1", accessLevel, source: "claude",
@@ -205,5 +205,65 @@ describe("getInterviewNotes", () => {
     const cancelled = new FakeSupabase([{ data: interview({ status: "cancelled" }) }]);
     expect((await refusal(getInterviewNotes(cancelled.asDb(), ctx(), g.deps, { interviewId: "iv-1" }))).message).toMatch(/cancelled/);
     expect(g.asks).toEqual([]);
+  });
+});
+
+describe("granolaGrantAccess", () => {
+  const NOW = Date.parse("2026-10-20T12:00:00Z");
+  const row = (over: Record<string, unknown> = {}) => ({
+    oauth_client_id: "client-1", refresh_token: "rt_old", access_token: "at_old", access_token_expires_at: "2026-10-20T13:00:00Z", ...over,
+  });
+  const expired = row({ access_token_expires_at: "2026-10-20T11:00:00Z" });
+  const access = (fake: FakeSupabase, fetchImpl: typeof fetch) => granolaGrantAccess(fake.asDb(), "org-1", "actor-1", fetchImpl, () => NOW);
+  const never = (async () => {
+    throw new Error("Granola should not be asked");
+  }) as unknown as typeof fetch;
+  const answers = (body: object, status = 200) => (async () => Response.json(body, { status })) as unknown as typeof fetch;
+
+  test("no grant is null, and Granola is not asked", async () => {
+    expect(await access(new FakeSupabase([{ data: null }]), never)).toBeNull();
+  });
+
+  test("a cached token is used, scoped to the caller's org and actor", async () => {
+    const fake = new FakeSupabase([{ data: row() }]);
+    expect(await access(fake, never)).toEqual({ token: "at_old" });
+    expect(fake.calls[0]!.filters.map((f) => [f.column, f.value])).toEqual([["org_id", "org-1"], ["actor_id", "actor-1"]]);
+  });
+
+  test("a token within a minute of expiring is refreshed, and the rotated refresh token is written back on the one read", async () => {
+    const fake = new FakeSupabase([{ data: row({ access_token_expires_at: "2026-10-20T12:00:30Z" }) }, { data: null }]);
+    const seen: string[] = [];
+    const fetchImpl = (async (_url: unknown, init?: RequestInit) => {
+      seen.push(String(init?.body));
+      return Response.json({ access_token: "at_new", refresh_token: "rt_new", expires_in: 3600 });
+    }) as unknown as typeof fetch;
+    expect(await access(fake, fetchImpl)).toEqual({ token: "at_new" });
+    expect(seen[0]).toContain("refresh_token=rt_old");
+    const save = fake.calls[1]!;
+    expect(save).toMatchObject({ table: "granola_connections", op: "update" });
+    expect(save.args).toEqual({ access_token: "at_new", access_token_expires_at: "2026-10-20T13:00:00.000Z", refresh_token: "rt_new" });
+    expect(save.filters.map((f) => [f.column, f.value])).toEqual([["org_id", "org-1"], ["actor_id", "actor-1"], ["refresh_token", "rt_old"]]);
+  });
+
+  test("a refresh Granola refuses is reconnect, and the row stays", async () => {
+    const fake = new FakeSupabase([{ data: expired }, { data: expired }]);
+    expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toEqual({ reconnect: true });
+    expect(fake.calls.map((c) => c.op)).toEqual(["select", "select"]);
+  });
+
+  test("losing a refresh race to another call uses the winner's token, not reconnect", async () => {
+    const won = row({ refresh_token: "rt_rotated", access_token: "at_theirs", access_token_expires_at: "2026-10-20T18:00:00Z" });
+    const fake = new FakeSupabase([{ data: expired }, { data: won }]);
+    expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toEqual({ token: "at_theirs" });
+  });
+
+  test("a refused grant whose row changed but holds no live token is still reconnect", async () => {
+    const fake = new FakeSupabase([{ data: expired }, { data: { ...expired, refresh_token: "rt_rotated" } }]);
+    expect(await access(fake, answers({ error: "invalid_grant" }, 400))).toEqual({ reconnect: true });
+  });
+
+  test("any other failure throws with the status alone", async () => {
+    const fake = new FakeSupabase([{ data: expired }]);
+    await expect(access(fake, answers({ error: "server_error" }, 503))).rejects.toThrow("granola refresh: 503");
   });
 });
