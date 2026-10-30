@@ -67,4 +67,19 @@ describe("serializePostText", () => {
     expect(once).toBe("a\n\n- b\n- c");
     expect(serializePostText(parsePostText(once))).toBe(once);
   });
+
+  test("whatever is thrown at it, a save loses no word and a second save changes nothing", () => {
+    const pieces = ["word", "two words", "- ", "* ", "• ", "-", "*", "\n", "\n\n", "\n \n", "\r\n", "  ", "\t", "🙂", "<b>x</b>", "$100 - $120", " "];
+    // Seeded, so a failure is the same failure next time.
+    let seed = 20261030;
+    const pick = (n: number) => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % n;
+    for (let run = 0; run < 3000; run++) {
+      const text = Array.from({ length: 1 + pick(24) }, () => pieces[pick(pieces.length)]).join("");
+      const once = serializePostText(parsePostText(text));
+      expect(serializePostText(parsePostText(once)), JSON.stringify(text)).toBe(once);
+      // Only spacing and bullet marks may change.
+      const words = (s: string) => s.split(/\s+/).filter((w) => w && !/^[-•*]$/.test(w)).join(" ");
+      expect(words(once), JSON.stringify(text)).toBe(words(text));
+    }
+  });
 });
