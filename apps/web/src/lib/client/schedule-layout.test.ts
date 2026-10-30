@@ -10,6 +10,7 @@ import {
   parseYmd,
   placeDay,
   readWindow,
+  spanAt,
   scheduleHref,
   scheduleKeyHref,
   stepAnchor,
@@ -343,5 +344,16 @@ describe("a pointer on the grid", () => {
   test("stays on the grid above and below it", () => {
     expect(minutesAt(-300, 56, span)).toBe(8 * 60);
     expect(minutesAt(5000, 56, span)).toBe(19 * 60 - 15);
+  });
+});
+
+describe("spanAt", () => {
+  test("a day, a time and a length as instants", () => {
+    expect(spanAt("2030-01-07", 10 * 60, 90, "America/New_York")).toEqual({ startsAt: "2030-01-07T15:00:00.000Z", endsAt: "2030-01-07T16:30:00.000Z" });
+  });
+
+  // A date field lets a year run past four digits, and takes it digit by digit: each is a value on the way.
+  test.each(["20261-10-30", "275760-09-13", "0002-10-30", "2026-02-31", "", "not a day"])("no time at all for %j, rather than a throw in the render", (day) => {
+    expect(spanAt(day, 600, 60, "UTC")).toBeNull();
   });
 });

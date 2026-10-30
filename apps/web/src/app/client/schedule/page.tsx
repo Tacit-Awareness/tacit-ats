@@ -69,6 +69,7 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
     startsAt: i.startsAt,
     endsAt: i.endsAt,
     tone: toneFor(i.departmentId, tones),
+    applicationId: i.applicationId,
     interviewerIds: i.interviewerIds,
     eventLink: i.eventLink ? safeHref(i.eventLink) : null,
     canChange: ahead(i) && schedulable.has(i.jobId),

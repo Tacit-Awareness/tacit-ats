@@ -5,6 +5,14 @@ const dana = { userId: "a", name: "Dana" };
 const lee = { userId: "b", name: "Lee" };
 const sam = { userId: "c", name: "Sam" };
 
+describe("a candidate with nobody to hear from", () => {
+  test("is not promised Google will tell them", () => {
+    const lines = changeLines({ status: "would_follow", action: "move", organizer: dana, candidateEmail: null });
+    expect(lines[0]).toBe("This moves the event on Dana's Google Calendar. Google tells everyone on it.");
+    expect(lines[1]).toContain("no usable email");
+  });
+});
+
 describe("names", () => {
   test("reads as a list", () => {
     expect(names([])).toBe("");
@@ -49,8 +57,8 @@ describe("bookLines", () => {
 
 describe("changeLines", () => {
   test("a move and a cancel name whose event, and that everyone on it hears", () => {
-    expect(changeLines({ status: "would_follow", action: "move", organizer: dana })[0]).toBe("This moves the event on Dana's Google Calendar. Google tells everyone on it, the candidate too.");
-    expect(changeLines({ status: "would_follow", action: "cancel", organizer: dana })[0]).toBe("This deletes the event from Dana's Google Calendar. Google tells everyone on it, the candidate too.");
+    expect(changeLines({ status: "would_follow", action: "move", organizer: dana, candidateEmail: "pat@acme.test" })[0]).toBe("This moves the event on Dana's Google Calendar. Google tells everyone on it, the candidate too.");
+    expect(changeLines({ status: "would_follow", action: "cancel", organizer: dana, candidateEmail: "pat@acme.test" })[0]).toBe("This deletes the event from Dana's Google Calendar. Google tells everyone on it, the candidate too.");
   });
 
   test("a blocked event says whose, and what the record-only button means", () => {

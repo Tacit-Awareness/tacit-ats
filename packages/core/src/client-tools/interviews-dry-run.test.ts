@@ -132,6 +132,7 @@ describe("a booking's own id", () => {
     const fake = before(APP, { data: "audit-1" }, { error: { code: "23505", message: 'duplicate key value violates unique constraint "interviews_pkey"' } }, { data: null });
     const err = await refusal(scheduleInterview(fake.asDb(), ctx, { ...base, interviewId: "12345678-1234-4234-8234-123456789012" }, { calendar: google.calendarWith({ "actor-1": ME }), now }));
     expect(err.message).toBe("This interview is already booked.");
+    expect(err.field).toBe("interview_id");
     expect(google.eventCalls()).toEqual([]);
   });
 
@@ -161,18 +162,18 @@ describe("updateInterview, dry run", () => {
 
   test("a cancel says whose event goes, and nothing is written or asked of Google but the token", async () => {
     const google = fakeGoogle();
-    const fake = loaded(booked, { data: people });
+    const fake = loaded(booked, { data: people }, APP);
     const r = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", status: "cancelled", dryRun: true }, { calendar: google.calendarWith({ "actor-9": HOLDER }), now });
-    expect(r).toMatchObject({ outcome: "preview", changed: ["status"], calendar: { status: "would_follow", action: "cancel", organizer: { userId: "actor-9", name: "Hana" } } });
+    expect(r).toMatchObject({ outcome: "preview", changed: ["status"], calendar: { status: "would_follow", action: "cancel", organizer: { userId: "actor-9", name: "Hana" }, candidateEmail: "pat@example.com" } });
     wroteNothing(fake);
     expect(google.eventCalls()).toEqual([]);
   });
 
   test("a move checks the new time and reports a clash instead of stopping", async () => {
     const google = fakeGoogle({ busy: { "at-hana": { "alice@co.test": [["2026-10-22T19:30:00Z", "2026-10-22T20:00:00Z"]] } } });
-    const fake = loaded(booked, { data: people });
+    const fake = loaded(booked, { data: people }, { data: { ...APP.data, people: { display_name: "Pat Lee", email: null } } });
     const r = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", ...later, dryRun: true }, { calendar: google.calendarWith({ "actor-9": HOLDER }), now });
-    expect(r).toMatchObject({ outcome: "preview", calendar: { status: "would_follow", action: "move" }, conflicts: { busy: [{ userId: "actor-2", name: "Alice" }] } });
+    expect(r).toMatchObject({ outcome: "preview", calendar: { status: "would_follow", action: "move", candidateEmail: null }, conflicts: { busy: [{ userId: "actor-2", name: "Alice" }] } });
     wroteNothing(fake);
     expect(google.eventCalls()).toEqual([]);
   });

@@ -11,7 +11,7 @@ const book = (over: Record<string, unknown> = {}) => ({
 });
 const move = (over: Record<string, unknown> = {}) => ({ op: "move", confirmed: true, interviewId: ID, startsAt: AT, endsAt: TO, timezone: "UTC", ...over });
 const cancel = (over: Record<string, unknown> = {}) => ({ op: "cancel", confirmed: true, interviewId: ID, timezone: "UTC", ...over });
-const find = (over: Record<string, unknown> = {}) => ({ op: "find", interviewerIds: [ID], durationMinutes: 60, windowStart: AT, windowEnd: TO, timezone: "UTC", ...over });
+const find = (over: Record<string, unknown> = {}) => ({ op: "find", interviewerIds: [ID], durationMinutes: 60, windowStart: AT, windowEnd: TO, timezone: "UTC", applicationId: OTHER, ...over });
 
 const confirmedOf = (body: unknown) => {
   const parsed = parseScheduleRequest(body);
@@ -38,11 +38,17 @@ describe("what confirms a write", () => {
 describe("parseScheduleRequest", () => {
   test("reads each kind of request, and nothing it does not know", () => {
     expect(parseScheduleRequest({ ...cancel(), org_id: "another", actorId: OTHER })).toEqual({
-      ok: true, request: { op: "cancel", confirmed: true, interviewId: ID, timezone: "UTC", recordOnly: false },
+      ok: true, request: { op: "cancel", confirmed: true, interviewId: ID, timezone: "UTC", recordOnly: false, was: null },
     });
     expect(parseScheduleRequest(move())).toMatchObject({ ok: true, request: { op: "move", startsAt: AT, endsAt: TO } });
-    expect(parseScheduleRequest(find())).toMatchObject({ ok: true, request: { op: "find", applicationId: null, durationMinutes: 60 } });
+    expect(parseScheduleRequest(find())).toMatchObject({ ok: true, request: { op: "find", applicationId: OTHER, durationMinutes: 60 } });
     expect(parseScheduleRequest(book({ step: "  ", locationOrLink: " Room 2 " }))).toMatchObject({ ok: true, request: { step: null, locationOrLink: "Room 2" } });
+  });
+
+  test("a move and a cancel carry the time the member was looking at", () => {
+    expect(parseScheduleRequest(move({ was: AT }))).toMatchObject({ ok: true, request: { was: AT } });
+    expect(parseScheduleRequest(cancel({ was: AT }))).toMatchObject({ ok: true, request: { was: AT } });
+    expect(parseScheduleRequest(move())).toMatchObject({ ok: true, request: { was: null } });
   });
 
   test("a repeated interviewer counts once", () => {
@@ -72,8 +78,24 @@ describe("parseScheduleRequest", () => {
     ["a length with a fraction", find({ durationMinutes: 1.5 })],
     ["a length as text", find({ durationMinutes: "60" })],
     ["an application that is no id", find({ applicationId: "x" })],
+    // Whose free and busy times are read hangs on the job: core asks can_schedule only of an application it is given.
+    ["Find a time for no application", find({ applicationId: undefined })],
+    ["Find a time for a null application", find({ applicationId: null })],
+    ["a move's known time that is not one", move({ was: "soon" })],
+    ["a cancel's known time as a number", cancel({ was: 5 })],
+    // Text Postgres cannot store: it would fail after the audit claim, and say it may have gone through.
+    ["a NUL in a step", book({ step: "Screen\u0000" })],
+    ["a NUL in a location", book({ locationOrLink: "Room\u00002" })],
+    ["half a surrogate pair in a step", book({ step: "Screen \ud83d" })],
   ])("refuses %s", (_, body) => {
     expect(parseScheduleRequest(body)).toEqual({ ok: false });
+  });
+});
+
+describe("text from anywhere", () => {
+  test("whatever people write stays as they wrote it", () => {
+    const step = "日本語 <script>alert(1)</script> 🧑‍💻 ' OR 1=1";
+    expect(parseScheduleRequest(book({ step, locationOrLink: step }))).toMatchObject({ ok: true, request: { step, locationOrLink: step } });
   });
 });
 

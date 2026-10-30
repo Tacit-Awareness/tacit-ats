@@ -33,6 +33,7 @@ export type ScheduleItem = {
   endsAt: string;
   step: string | null;
   interviewers: string[];
+  applicationId: string;
   /** The same people's ids, for Find a time when it is moved. */
   interviewerIds: string[];
   locationOrLink: string | null;
@@ -152,6 +153,7 @@ async function assemble(db: Db, member: Member, rows: InterviewRow[], max: numbe
       const app = apps.get(i.application_id!)!;
       return {
         interviewId: i.id,
+        applicationId: i.application_id!,
         ...app,
         departmentId: departmentOf.get(app.jobId) ?? null,
         startsAt: i.starts_at,

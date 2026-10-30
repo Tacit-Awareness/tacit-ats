@@ -24,7 +24,11 @@ export type FindRequest = {
   windowStart: string;
   windowEnd: string;
   timezone: string;
-  applicationId: string | null;
+  /**
+   * Always one: whose free and busy times a member may read hangs on a job they
+   * may schedule on, and core asks that only of an application it is given.
+   */
+  applicationId: string;
 };
 export type BookRequest = {
   op: "book";
@@ -51,6 +55,8 @@ export type MoveRequest = {
   timezone: string;
   bookDespiteConflicts: boolean;
   recordOnly: boolean;
+  /** When the member last saw it start. Moved since: refused, not put over someone else's move. */
+  was?: string | null;
 };
 export type CancelRequest = {
   op: "cancel";
@@ -58,6 +64,7 @@ export type CancelRequest = {
   interviewId: string;
   timezone: string;
   recordOnly: boolean;
+  was?: string | null;
 };
 export type ScheduleRequest = FindRequest | BookRequest | MoveRequest | CancelRequest;
 
@@ -92,7 +99,9 @@ export const SIGNED_OUT = "Your session has ended. Reload the page and sign in a
 type Parsed = { ok: true; request: ScheduleRequest } | { ok: false };
 const NO: Parsed = { ok: false };
 
-const isText = (v: unknown, max = TEXT_MAX): v is string => typeof v === "string" && v.length <= max;
+// NUL and half a surrogate pair are text JSON can carry and Postgres cannot store.
+const STORABLE = /^(?:[^\0\ud800-\udfff]|[\ud800-\udbff][\udc00-\udfff])*$/;
+const isText = (v: unknown, max = TEXT_MAX): v is string => typeof v === "string" && v.length <= max && STORABLE.test(v);
 const isId = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
 const isInstant = (v: unknown): v is string => typeof v === "string" && INSTANT.test(v.trim()) && !Number.isNaN(Date.parse(v));
 const isZone = (v: unknown): v is string => isText(v, 100) && v.trim().length > 0;
@@ -103,6 +112,11 @@ const words = (v: unknown): { value: string | null } | null => {
   if (v === undefined || v === null) return { value: null };
   if (!isText(v)) return null;
   return { value: v.trim() || null };
+};
+/** A time the page was showing: absent is none, and anything else must be one. */
+const known = (v: unknown): { value: string | null } | null => {
+  if (v === undefined || v === null) return { value: null };
+  return isInstant(v) ? { value: v } : null;
 };
 
 /** What came over the wire, read as a request, or nothing. Anything off the shape is refused, not repaired. */
@@ -120,9 +134,8 @@ export function parseScheduleRequest(body: unknown): Parsed {
       const interviewerIds = ids(b.interviewerIds);
       if (!interviewerIds || !isInstant(b.windowStart) || !isInstant(b.windowEnd)) return NO;
       if (typeof b.durationMinutes !== "number" || !Number.isInteger(b.durationMinutes)) return NO;
-      const applicationId = b.applicationId ?? null;
-      if (applicationId !== null && !isId(applicationId)) return NO;
-      return { ok: true, request: { op: "find", interviewerIds, durationMinutes: b.durationMinutes, windowStart: b.windowStart, windowEnd: b.windowEnd, timezone, applicationId } };
+      if (!isId(b.applicationId)) return NO;
+      return { ok: true, request: { op: "find", interviewerIds, durationMinutes: b.durationMinutes, windowStart: b.windowStart, windowEnd: b.windowEnd, timezone, applicationId: b.applicationId } };
     }
     case "book": {
       const interviewerIds = ids(b.interviewerIds);
@@ -138,12 +151,16 @@ export function parseScheduleRequest(body: unknown): Parsed {
         },
       };
     }
-    case "move":
-      if (!isId(b.interviewId) || !isInstant(b.startsAt) || !isInstant(b.endsAt)) return NO;
-      return { ok: true, request: { op: "move", confirmed, interviewId: b.interviewId, startsAt: b.startsAt, endsAt: b.endsAt, timezone, bookDespiteConflicts: anyway, recordOnly } };
-    case "cancel":
-      if (!isId(b.interviewId)) return NO;
-      return { ok: true, request: { op: "cancel", confirmed, interviewId: b.interviewId, timezone, recordOnly } };
+    case "move": {
+      const was = known(b.was);
+      if (!was || !isId(b.interviewId) || !isInstant(b.startsAt) || !isInstant(b.endsAt)) return NO;
+      return { ok: true, request: { op: "move", confirmed, interviewId: b.interviewId, startsAt: b.startsAt, endsAt: b.endsAt, timezone, bookDespiteConflicts: anyway, recordOnly, was: was.value } };
+    }
+    case "cancel": {
+      const was = known(b.was);
+      if (!was || !isId(b.interviewId)) return NO;
+      return { ok: true, request: { op: "cancel", confirmed, interviewId: b.interviewId, timezone, recordOnly, was: was.value } };
+    }
     default:
       return NO;
   }

@@ -9,8 +9,8 @@ import type { Member } from "./interviews";
 // visits never book anything. Whether they may schedule is the same question a
 // write asks (can_on_role), so a job they cannot book on never shows.
 
-/** Applications one dialog reads at most, the most recently touched first. */
-const CHOICES_MAX = 1000;
+/** Applications one dialog reads at most, the most recently touched first. Under PostgREST's max_rows of 1,000, or the one past the cap that says there are more never comes back. */
+const CHOICES_MAX = 999;
 
 export type ApplicationChoice = {
   applicationId: string;
@@ -50,8 +50,10 @@ export async function readBookingChoices(db: Db, member: Member): Promise<Bookin
   const [apps, people] = await Promise.all([
     db
       .from("applications")
-      .select("id, role_id, stage, people(display_name), roles(title, status, interview_steps)")
+      .select("id, role_id, stage, people(display_name), roles!inner(title, status, interview_steps)")
       .in("stage", [...ACTIVE_STAGES])
+      // In the query, so people on closed jobs do not use up the cap.
+      .eq("roles.status", "open")
       .is("merged_into_id", null)
       .order("last_touch_at", { ascending: false })
       .order("id")
@@ -61,7 +63,7 @@ export async function readBookingChoices(db: Db, member: Member): Promise<Bookin
   if (apps.error) throw new Error(apps.error.message);
   if (people.error) throw new Error(people.error.message);
 
-  const open = (apps.data ?? []).slice(0, CHOICES_MAX).filter((a) => a.roles?.status === "open");
+  const open = (apps.data ?? []).slice(0, CHOICES_MAX);
   const allowed = await schedulableRoles(db, open.map((a) => a.role_id));
   return {
     applications: open
@@ -69,9 +71,9 @@ export async function readBookingChoices(db: Db, member: Member): Promise<Bookin
       .map((a) => ({
         applicationId: a.id,
         candidate: a.people?.display_name ?? "Candidate",
-        jobTitle: a.roles?.title ?? "",
+        jobTitle: a.roles.title,
         stage: a.stage,
-        steps: clientTools.stepsOf(a.roles?.interview_steps),
+        steps: clientTools.stepsOf(a.roles.interview_steps),
       })),
     interviewers: (people.data ?? []).flatMap((p) => (p.id && p.display_name ? [{ actorId: p.id, name: p.display_name }] : [])),
     truncated: (apps.data ?? []).length > CHOICES_MAX,

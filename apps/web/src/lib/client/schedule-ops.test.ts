@@ -32,13 +32,22 @@ const book: BookRequest = {
 const move: MoveRequest = { op: "move", confirmed: false, interviewId: ID, startsAt: "2030-01-08T15:00:00Z", endsAt: "2030-01-08T16:00:00Z", timezone: "UTC", bookDespiteConflicts: false, recordOnly: false };
 const cancel: CancelRequest = { op: "cancel", confirmed: false, interviewId: ID, timezone: "UTC", recordOnly: false };
 
-/** The interview a move or a cancel reads first. */
-const db = (row: { status: string; starts_at: string } | null, error: { message: string } | null = null) => {
-  const q: Record<string, unknown> = {};
-  for (const m of ["select", "eq"]) q[m] = () => q;
-  q.maybeSingle = async () => ({ data: row, error });
-  return { from: () => q } as unknown as Db;
+type Row = { status: string; starts_at: string };
+type App = { stage: string; merged_into_id: string | null; roles: { status: string } | null };
+const IN_PROCESS: App = { stage: "interviewing", merged_into_id: null, roles: { status: "open" } };
+
+/** The interview a move or a cancel reads first (each read the next of `rows`, the last again), and the application a book reads. */
+const dbOf = (rows: Array<Row | null>, app: App | null = IN_PROCESS, error: { message: string } | null = null) => {
+  let at = 0;
+  const query = (read: () => unknown) => {
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "eq"]) q[m] = () => q;
+    q.maybeSingle = async () => ({ data: read(), error });
+    return q;
+  };
+  return { from: (table: string) => query(() => (table === "applications" ? app : rows[Math.min(at++, rows.length - 1)])) } as unknown as Db;
 };
+const db = (row: Row | null, error: { message: string } | null = null) => dbOf([row], IN_PROCESS, error);
 const ahead = db({ status: "scheduled", starts_at: "2030-01-09T15:00:00Z" });
 
 let log: ReturnType<typeof vi.spyOn>;
@@ -106,9 +115,59 @@ describe("what is no longer there to change", () => {
     expect(updateInterview).not.toHaveBeenCalled();
   });
 
-  test("a status that changed under the write comes back unchanged, never as done", async () => {
-    updateInterview.mockResolvedValue({ outcome: "unchanged", changed: [], calendar: "left_alone", conflicts: { busy: [], unknown: [] }, candidateDraft: null, noDraftBecause: null });
+  const untouched = { outcome: "unchanged", changed: [], calendar: "left_alone", conflicts: { busy: [], unknown: [] }, candidateDraft: null, noDraftBecause: null };
+
+  test("a retry of what did go through comes back unchanged, never as done", async () => {
+    updateInterview.mockResolvedValue(untouched);
     expect(await runScheduleRequest(ahead, ctx, { ...cancel, confirmed: true }, deps)).toEqual({ ok: true, kind: "unchanged" });
+  });
+
+  test("a move that lost to a cancel says so, not that it was already that way", async () => {
+    updateInterview.mockResolvedValue(untouched);
+    const raced = dbOf([{ status: "scheduled", starts_at: "2030-01-09T15:00:00Z" }, { status: "cancelled", starts_at: "2030-01-09T15:00:00Z" }]);
+    expect(await runScheduleRequest(raced, ctx, { ...move, confirmed: true }, deps)).toMatchObject({ ok: false, code: "stale", message: expect.stringContaining("cancelled") });
+  });
+
+  test("someone else moved it since the page was read: the time asked for is not put over theirs", async () => {
+    const was = "2030-01-09T14:00:00Z"; // The grid's; the row says 15:00.
+    for (const request of [{ ...move, confirmed: true, was }, { ...move, was }, { ...cancel, confirmed: true, was }]) {
+      expect(await runScheduleRequest(ahead, ctx, request, deps)).toMatchObject({ ok: false, code: "stale", message: expect.stringContaining("since") });
+    }
+    expect(updateInterview).not.toHaveBeenCalled();
+  });
+
+  test("a retry of this very move, after an answer that never came, is not someone else's move", async () => {
+    updateInterview.mockResolvedValue(untouched);
+    const there = db({ status: "scheduled", starts_at: "2030-01-08T15:00:00+00:00" }); // Where `move` is going.
+    expect(await runScheduleRequest(there, ctx, { ...move, confirmed: true, was: "2030-01-09T15:00:00Z" }, deps)).toEqual({ ok: true, kind: "unchanged" });
+  });
+
+  test("the same instant in another spelling is the same time", async () => {
+    updateInterview.mockResolvedValue(untouched);
+    expect(await runScheduleRequest(ahead, ctx, { ...cancel, was: "2030-01-09T10:00:00-05:00" }, deps)).toEqual({ ok: true, kind: "unchanged" });
+  });
+
+  test.each([
+    ["rejected", { ...IN_PROCESS, stage: "rejected" }],
+    ["hired", { ...IN_PROCESS, stage: "hired" }],
+    ["merged into another record", { ...IN_PROCESS, merged_into_id: ID }],
+    ["on a job that closed", { ...IN_PROCESS, roles: { status: "closed" } }],
+  ])("a candidate %s is not booked: the dialog was read before that happened", async (_, app) => {
+    for (const request of [book, { ...book, confirmed: true }]) {
+      expect(await runScheduleRequest(dbOf([null], app), ctx, request, deps)).toMatchObject({ ok: false, code: "stale" });
+    }
+    expect(scheduleInterview).not.toHaveBeenCalled();
+  });
+
+  test("an application the member cannot read is core's to refuse", async () => {
+    scheduleInterview.mockRejectedValue(new clientTools.ClientToolError("not_found", "No application with that id that you can see."));
+    expect(await runScheduleRequest(dbOf([null], null), ctx, book, deps)).toMatchObject({ ok: false, code: "not_found" });
+    expect(scheduleInterview).toHaveBeenCalled();
+  });
+
+  test("the same booking again, after an answer that never came, is the booking", async () => {
+    scheduleInterview.mockRejectedValue(new clientTools.ClientToolError("invalid", "This interview is already booked.", "interview_id"));
+    expect(await runScheduleRequest(ahead, ctx, { ...book, confirmed: true }, deps)).toEqual({ ok: true, kind: "unchanged" });
   });
 
   test("a clash that turned up since the dry run comes back with nothing written", async () => {
@@ -146,7 +205,7 @@ describe("what a failure may say", () => {
     findInterviewTimes.mockResolvedValue({
       timezone: "UTC", durationMinutes: 60, slots: [], checked: [{ userId: "a", name: "Dana", via: "their_calendar" }], unknown: [{ userId: "b", name: "Lee", reason: "not_connected" }],
     });
-    const answer = await runScheduleRequest(ahead, ctx, { op: "find", interviewerIds: [ID], durationMinutes: 60, windowStart: "2030-01-07T12:00:00Z", windowEnd: "2030-01-20T12:00:00Z", timezone: "UTC", applicationId: null }, deps);
+    const answer = await runScheduleRequest(ahead, ctx, { op: "find", interviewerIds: [ID], durationMinutes: 60, windowStart: "2030-01-07T12:00:00Z", windowEnd: "2030-01-20T12:00:00Z", timezone: "UTC", applicationId: ID }, deps);
     expect(answer).toMatchObject({ ok: true, kind: "times", found: { checked: ["Dana"], unknown: [{ name: "Lee", why: clientTools.unknownText("not_connected") }] } });
   });
 });

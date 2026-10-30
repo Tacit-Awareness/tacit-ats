@@ -47,12 +47,15 @@ export function bookLines(calendar: BookCalendar): string[] {
 /** The Confirm card's sentences for a move or a cancel. */
 export function changeLines(calendar: ChangeCalendar): string[] {
   switch (calendar.status) {
-    case "would_follow":
+    case "would_follow": {
+      const told = `Google tells everyone on it${calendar.candidateEmail ? ", the candidate too" : ""}.`;
       return [
         calendar.action === "cancel"
-          ? `This deletes the event from ${calendar.organizer.name}'s Google Calendar. Google tells everyone on it, the candidate too.`
-          : `This moves the event on ${calendar.organizer.name}'s Google Calendar. Google tells everyone on it, the candidate too.`,
+          ? `This deletes the event from ${calendar.organizer.name}'s Google Calendar. ${told}`
+          : `This moves the event on ${calendar.organizer.name}'s Google Calendar. ${told}`,
+        ...(calendar.candidateEmail ? [] : ["The candidate has no usable email on file, so Google cannot tell them."]),
       ];
+    }
     case "blocked":
       return [
         calendar.reason === "not_set_up"

@@ -130,6 +130,18 @@ export function zonedInstant(day: Ymd, minutes: number, timeZone: string): strin
   return new Date(real.length ? Math.min(...real) : wall - before).toISOString();
 }
 
+/**
+ * The instants a date field, a time and a length stand for, or null when the
+ * date is not one yet: a date field gives a value for every digit of the year,
+ * and past four digits it is one `Date` cannot read, so this runs in a render.
+ */
+export function spanAt(day: string, minutes: number, length: number, timeZone: string): { startsAt: string; endsAt: string } | null {
+  const real = parseYmd(day);
+  if (!real) return null;
+  const startsAt = zonedInstant(real, minutes, timeZone);
+  return { startsAt, endsAt: new Date(Date.parse(startsAt) + length * 60_000).toISOString() };
+}
+
 /** What a drag on the grid snaps to, as in design/tats. */
 export const SNAP_MINUTES = 15;
 

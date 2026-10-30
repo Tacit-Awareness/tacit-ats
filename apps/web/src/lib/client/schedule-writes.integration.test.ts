@@ -173,7 +173,7 @@ describe("booking", () => {
     const google = fakeGoogle({ busy: free });
     const deps = { calendar: calendarOf(google), now };
     expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toMatchObject({ ok: true, kind: "booked" });
-    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toEqual({ ok: false, code: "invalid", message: "This interview is already booked." });
+    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)).toEqual({ ok: true, kind: "unchanged" });
     expect(google.eventCalls()).toHaveLength(1);
     expect(must(await db().from("interviews").select("id").eq("id", NEW_ID)).data).toHaveLength(1);
     expect(await row(NEW_ID)).toMatchObject({ status: "scheduled" });
@@ -185,6 +185,35 @@ describe("booking", () => {
     const answers = await Promise.all([1, 2].map(() => runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), deps)));
     expect(answers.filter((a) => a.ok && a.kind === "booked")).toHaveLength(1);
     expect(google.eventCalls()).toHaveLength(1);
+  });
+
+  test("someone rejected since the dialog opened is told nothing: no row, no event, no audit", async () => {
+    const google = fakeGoogle({ busy: free });
+    const deps = { calendar: calendarOf(google), now };
+    must(await db().from("applications").update({ stage: "rejected" }).eq("id", APP));
+    for (const request of [book(), book({ confirmed: true })]) {
+      expect(await runScheduleRequest(admin.db, admin.ctx, request, deps)).toMatchObject({ ok: false, code: "stale" });
+    }
+    expect(google.calls).toEqual([]);
+    expect(await row(NEW_ID)).toBeNull();
+    expect(await audit(ADMIN)).toEqual([]);
+  });
+
+  test("a job that closed since, or a record merged away, is the same", async () => {
+    const google = fakeGoogle({ busy: free });
+    const deps = { calendar: calendarOf(google), now };
+    must(await db().from("roles").update({ status: "closed" }).eq("id", DESIGNER));
+    const closed = await runScheduleRequest(admin.db, admin.ctx, book({ applicationId: DESIGN_APP, step: null, confirmed: true }), deps);
+    expect(closed).toMatchObject({ ok: false, code: "stale", message: expect.stringContaining("no longer open") });
+    expect(google.eventCalls()).toEqual([]);
+  });
+
+  test("what the audit row keeps of a booking: no address, no token", async () => {
+    const google = fakeGoogle({ busy: free });
+    await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), { calendar: calendarOf(google), now });
+    const kept = JSON.stringify(await audit(ADMIN));
+    expect(kept).toContain("interview.schedule");
+    for (const secret of ["pat@sw.test", "Pat@sw.test", "ivy@sw.test", "rt-ada", "at-ada"]) expect(kept).not.toContain(secret);
   });
 
   test("the same step of the same candidate again is refused in the Calendar's words", async () => {
@@ -263,6 +292,26 @@ describe("moving and cancelling", () => {
     expect(items.map((i) => i.interviewId)).toEqual([]);
   });
 
+  test("someone else moved it since the page was read: the event stays where they put it", async () => {
+    const google = fakeGoogle({ busy: free });
+    const deps = { calendar: calendarOf(google), now };
+    must(await db().from("interviews").update({ starts_at: "2031-03-04T17:00:00Z", ends_at: "2031-03-04T18:00:00Z" }).eq("id", ONSITE));
+    const answer = await runScheduleRequest(admin.db, admin.ctx, move({ confirmed: true, was: "2031-03-04T15:00:00Z" }), deps);
+    expect(answer).toMatchObject({ ok: false, code: "stale" });
+    expect(await row(ONSITE)).toMatchObject({ starts_at: expect.stringContaining("2031-03-04T17:00") });
+    expect(google.eventCalls()).toEqual([]);
+  });
+
+  test("the confirmation says whether the candidate has anyone to hear from", async () => {
+    const google = fakeGoogle({ busy: free });
+    const deps = { calendar: calendarOf(google), now };
+    const withAddress = await runScheduleRequest(admin.db, admin.ctx, cancel(), deps);
+    expect(withAddress).toMatchObject({ ok: true, preview: { calendar: { status: "would_follow", candidateEmail: "pat@sw.test" } } });
+    must(await db().from("interviews").update({ application_id: DESIGN_APP }).eq("id", ONSITE));
+    const without = await runScheduleRequest(admin.db, admin.ctx, cancel(), deps);
+    expect(without).toMatchObject({ ok: true, preview: { calendar: { status: "would_follow", candidateEmail: null } } });
+  });
+
   test("a second cancel is told it is already cancelled, and Google is not called again", async () => {
     const google = fakeGoogle();
     const deps = { calendar: calendarOf(google), now };
@@ -298,7 +347,7 @@ describe("who may", () => {
     for (const request of every()) {
       expect(await runScheduleRequest(ivy.db, ivy.ctx, request, { calendar: calendarOf(google), now })).toMatchObject({ ok: false });
     }
-    expect(await runScheduleRequest(ivy.db, ivy.ctx, { op: "find", interviewerIds: [IVY], durationMinutes: 60, windowStart: "2031-03-04T00:00:00Z", windowEnd: "2031-03-10T00:00:00Z", timezone: "UTC", applicationId: null }, { calendar: calendarOf(google), now })).toMatchObject({ ok: false, code: "forbidden" });
+    expect(await runScheduleRequest(ivy.db, ivy.ctx, { op: "find", interviewerIds: [IVY], durationMinutes: 60, windowStart: "2031-03-04T00:00:00Z", windowEnd: "2031-03-10T00:00:00Z", timezone: "UTC", applicationId: APP }, { calendar: calendarOf(google), now })).toMatchObject({ ok: false, code: "forbidden" });
     expect(google.eventCalls()).toEqual([]);
     expect(await row(ONSITE)).toMatchObject({ status: "scheduled" });
     expect(await row(NEW_ID)).toBeNull();
@@ -349,9 +398,23 @@ describe("Find a time", () => {
     expect(google.eventCalls()).toEqual([]);
   });
 
+  test("a member who schedules on no job reads nobody's times, and no grant is read for them", async () => {
+    const google = fakeGoogle({ busy: free });
+    const asked: string[][] = [];
+    const real = calendarOf(google);
+    const calendar = { ...real, connections: (org: string, ids: string[]) => (asked.push(ids), real.connections(org, ids)) };
+    const hana = { db: client("user_sw_hana", ACME_WORKOS), ctx: who(HANA, ACME, "elevated") };
+    const answer = await runScheduleRequest(hana.db, hana.ctx, {
+      op: "find", interviewerIds: [ADMIN], durationMinutes: 60, windowStart: "2031-03-05T00:00:00Z", windowEnd: "2031-03-06T00:00:00Z", timezone: "UTC", applicationId: APP,
+    }, { calendar, now });
+    expect(answer).toMatchObject({ ok: false });
+    expect(asked).toEqual([]);
+    expect(google.calls).toEqual([]);
+  });
+
   test("no calendars at all is a sentence, not a failure", async () => {
     const answer = await runScheduleRequest(admin.db, admin.ctx, {
-      op: "find", interviewerIds: [ADMIN], durationMinutes: 60, windowStart: "2031-03-05T00:00:00Z", windowEnd: "2031-03-06T00:00:00Z", timezone: "UTC", applicationId: null,
+      op: "find", interviewerIds: [ADMIN], durationMinutes: 60, windowStart: "2031-03-05T00:00:00Z", windowEnd: "2031-03-06T00:00:00Z", timezone: "UTC", applicationId: APP,
     }, { calendar: null, now });
     expect(answer).toMatchObject({ ok: false, code: "forbidden", message: expect.stringContaining("not set up") });
   });
@@ -386,6 +449,6 @@ describe("the dialogs' choices and the Calendar's own marks", () => {
 
   test("the Calendar's read carries what the card needs", async () => {
     const { items } = await readSchedule(admin.db, admin.ctx, { from: "2031-03-01T00:00:00Z", to: "2031-03-10T00:00:00Z" }, NOW);
-    expect(items).toMatchObject([{ interviewId: ONSITE, status: "scheduled", interviewerIds: [IVY], eventLink: null }]);
+    expect(items).toMatchObject([{ interviewId: ONSITE, applicationId: APP, status: "scheduled", interviewerIds: [IVY], eventLink: null }]);
   });
 });

@@ -340,7 +340,13 @@ export type UpdatePreview = {
   startsAt: string;
   endsAt: string;
   calendar:
-    | { status: "would_follow"; action: "move" | "update" | "cancel"; organizer: Person }
+    | {
+        status: "would_follow";
+        action: "move" | "update" | "cancel";
+        organizer: Person;
+        /** The candidate's address on file, or null when they have no usable one, so Google has nobody to tell. */
+        candidateEmail: string | null;
+      }
     /** The event cannot follow; the real call refuses unless told to leave it (update_calendar: false). */
     | { status: "blocked"; reason: "not_connected" | "not_set_up"; organizer: Person | null; yours: boolean }
     | { status: "left_alone" }
@@ -556,7 +562,7 @@ export async function scheduleInterview(
     const { error: insertError } = await db.from("interviews").insert(row);
     // The caller's own id again: this booking already went through, so nothing is booked twice.
     if (insertError?.code === "23505" && input.interviewId && /interviews_pkey/.test(insertError.message)) {
-      throw new ClientToolError("invalid", "This interview is already booked.");
+      throw new ClientToolError("invalid", "This interview is already booked.", "interview_id");
     }
     // interviews_one_active_per_step: one scheduled interview per step of an application.
     if (insertError?.code === "23505") {
@@ -754,6 +760,7 @@ export async function updateInterview(
     eventPreview = {
       status: "would_follow", action: cancelling ? "cancel" : moved ? "move" : "update",
       organizer: { userId: holder, name: organizer?.name ?? "the member who booked it" },
+      candidateEmail: input.dryRun ? (await applicationDetail(db, current.application_id)).candidateEmail : null,
     };
   }
   if (input.dryRun) return { outcome: "preview", changed, startsAt, endsAt, calendar: eventPreview, conflicts };

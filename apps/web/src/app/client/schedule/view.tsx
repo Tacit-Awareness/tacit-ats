@@ -62,6 +62,7 @@ export type CalendarEvent = {
   startsAt: string;
   endsAt: string;
   tone: EventTone;
+  applicationId: string;
   interviewerIds: string[];
   /** Its Google Calendar event, only when it reads as an http(s) URL. */
   eventLink: string | null;

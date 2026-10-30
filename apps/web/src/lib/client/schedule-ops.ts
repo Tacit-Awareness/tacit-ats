@@ -1,4 +1,5 @@
 import type { Db } from "@tacit/db";
+import { ACTIVE_STAGES } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
 import { COULD_NOT_FINISH, type ScheduleAnswer, type ScheduleRequest } from "./schedule-requests";
 
@@ -22,19 +23,39 @@ export type ScheduleDeps = {
   now?: () => Date;
 };
 
+/**
+ * Whether the dialog's choice still stands: it was read when the dialog opened,
+ * and a confirmed booking emails the candidate. The same rule as
+ * schedule-choices.ts. One the member cannot read is core's to refuse.
+ */
+async function bookable(db: Db, applicationId: string): Promise<ScheduleAnswer | null> {
+  const { data, error } = await db.from("applications").select("stage, merged_into_id, roles(status)").eq("id", applicationId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  if (data.merged_into_id) return { ok: false, code: "stale", message: "That candidate was merged into another record. Nothing was booked." };
+  if (!(ACTIVE_STAGES as readonly string[]).includes(data.stage)) return { ok: false, code: "stale", message: "That candidate is no longer in process on this job. Nothing was booked." };
+  if (data.roles?.status !== "open") return { ok: false, code: "stale", message: "That job is no longer open. Nothing was booked." };
+  return null;
+}
+
 /** An interview a move or a cancel can act on, or why not, read on the member's own token. */
-async function changeable(db: Db, interviewId: string, now: Date): Promise<ScheduleAnswer | null> {
+async function changeable(db: Db, interviewId: string, now: Date, was?: string | null, movingTo?: string): Promise<ScheduleAnswer | null> {
   const { data, error } = await db.from("interviews").select("status, starts_at").eq("id", interviewId).maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { ok: false, code: "not_found", message: "That interview is no longer there for you." };
   if (data.status === "cancelled") return { ok: false, code: "stale", message: "That interview was already cancelled." };
   if (data.status !== "scheduled") return { ok: false, code: "stale", message: "That interview has already been marked done." };
   if (Date.parse(data.starts_at) <= now.getTime()) return { ok: false, code: "stale", message: "That interview has already started, so it can no longer be moved or cancelled here." };
+  // Already at the time asked for is a retry of this move, whose answer never came.
+  const since = !!was && Date.parse(was) !== Date.parse(data.starts_at) && !(movingTo && Date.parse(movingTo) === Date.parse(data.starts_at));
+  if (since) return { ok: false, code: "stale", message: "That interview has moved since this page was read. Nothing was changed." };
   return null;
 }
 
 function refusal(err: unknown): ScheduleAnswer {
   if (err instanceof clientTools.ClientToolError) {
+    // The dialog's own id again: an earlier try went through and its answer never came.
+    if (err.field === "interview_id") return { ok: true, kind: "unchanged" };
     // Core's not_found sentences are for the connector's model, and name its tools.
     if (err.code === "not_found") return { ok: false, code: "not_found", message: "That candidate or teammate is no longer there for you." };
     return { ok: false, code: err.code, message: err.message };
@@ -55,7 +76,7 @@ async function run(db: Db, ctx: clientTools.ClientToolCtx, request: ScheduleRequ
         windowStart: request.windowStart,
         windowEnd: request.windowEnd,
         timezone: request.timezone,
-        applicationId: request.applicationId ?? undefined,
+        applicationId: request.applicationId,
       }, now);
       return {
         ok: true,
@@ -71,6 +92,8 @@ async function run(db: Db, ctx: clientTools.ClientToolCtx, request: ScheduleRequ
     }
 
     case "book": {
+      const gone = await bookable(db, request.applicationId);
+      if (gone) return gone;
       const input = {
         interviewId: request.interviewId,
         applicationId: request.applicationId,
@@ -94,7 +117,7 @@ async function run(db: Db, ctx: clientTools.ClientToolCtx, request: ScheduleRequ
 
     case "move":
     case "cancel": {
-      const stopped = await changeable(db, request.interviewId, now);
+      const stopped = await changeable(db, request.interviewId, now, request.was, request.op === "move" ? request.startsAt : undefined);
       if (stopped) return stopped;
       const input = {
         interviewId: request.interviewId,
@@ -114,8 +137,8 @@ async function run(db: Db, ctx: clientTools.ClientToolCtx, request: ScheduleRequ
       }
       const done = await clientTools.updateInterview(db, ctx, input, scheduling);
       if (done.outcome === "conflicts") return { ok: true, kind: "conflicts", conflicts: done.conflicts };
-      // Its status changed under the write, so the conditional update touched nothing.
-      if (done.outcome === "unchanged") return { ok: true, kind: "unchanged" };
+      // Nothing to do, or its status changed under the write and the conditional update touched nothing.
+      if (done.outcome === "unchanged") return (await changeable(db, request.interviewId, now)) ?? { ok: true, kind: "unchanged" };
       return { ok: true, kind: "changed", op: request.op, calendar: done.calendar };
     }
   }

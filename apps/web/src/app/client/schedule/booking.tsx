@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Avatar } from "@/components/page";
-import { SNAP_MINUTES, todayIn, zoned, zonedInstant, type Ymd } from "@/lib/client/schedule-layout";
+import { SNAP_MINUTES, spanAt, todayIn, zoned, type Ymd } from "@/lib/client/schedule-layout";
 import type { ApplicationChoice, BookingChoices } from "@/lib/client/schedule-choices";
 import { bookLines, changeLines, conflictLines, doneSentence } from "@/lib/client/schedule-copy";
 import {
@@ -26,6 +26,7 @@ import { bookingChoicesAction } from "./actions";
 
 export type CalendarEventRef = {
   id: string;
+  applicationId: string;
   href: string;
   candidate: string;
   step: string;
@@ -47,6 +48,8 @@ export type Flow =
 
 const DURATIONS = [30, 45, 60, 90];
 const FIND_DAYS = 14;
+/** Keeps a date field's year to four digits, as far as the browser will. `spanAt` holds the rest. */
+const LAST_DAY = "2200-12-31";
 
 const field =
   "w-full rounded-lg border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
@@ -126,7 +129,7 @@ type Confirming = {
 };
 
 /** The one place a write is sent with `confirmed`. */
-function ConfirmCard({ c, back, backLabel, done, setBusy }: { c: Confirming; back: () => void; backLabel: string; done: (sentence: string) => void; setBusy: (b: boolean) => void }) {
+function ConfirmCard({ c, back, backLabel, done, setBusy, reread }: { c: Confirming; back: () => void; backLabel: string; done: (sentence: string) => void; setBusy: (b: boolean) => void; reread: () => void }) {
   const [state, setState] = React.useState(c);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -142,7 +145,11 @@ function ConfirmCard({ c, back, backLabel, done, setBusy }: { c: Confirming; bac
     const answer = await ask(request);
     setPending(false);
     setBusy(false);
-    if (!answer.ok) return setError(answer.message);
+    if (!answer.ok) {
+      // The grid behind this card is out of date: what it shows is not what is there.
+      if (answer.code === "stale" || answer.code === "not_found") reread();
+      return setError(answer.message);
+    }
     if (answer.kind === "conflicts") {
       setState((s) => ({
         ...s,
@@ -305,12 +312,11 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
   const apps = (choices?.applications ?? []).filter((a) => match(`${a.candidate} ${a.jobTitle}`, appQ)).slice(0, 50);
   const people = (choices?.interviewers ?? []).filter((p) => interviewerIds.includes(p.actorId) || match(p.name, ivQ)).slice(0, 50);
 
-  const startsAt = zonedInstant(day, minutesOf(time), timeZone);
-  const endsAt = new Date(Date.parse(startsAt) + length * 60_000).toISOString();
-  const ready = !!app && interviewerIds.length > 0 && (!steps.length || !!step) && !!day && !!time;
+  const at = spanAt(day, minutesOf(time), length, timeZone);
+  const ready = !!app && interviewerIds.length > 0 && (!steps.length || !!step) && !!at && !!time;
 
   const onFind = async () => {
-    if (pending || !ready) return;
+    if (pending || !ready || !app) return;
     setPending(true);
     setBusy(true);
     setError(null);
@@ -321,7 +327,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
       windowStart: new Date(now).toISOString(),
       windowEnd: new Date(now + FIND_DAYS * 86_400_000).toISOString(),
       timezone: timeZone,
-      applicationId,
+      applicationId: app.applicationId,
     });
     setPending(false);
     setBusy(false);
@@ -329,8 +335,9 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
     if (answer.kind === "times") setFound(answer.found);
   };
 
-  const onReview = async (at?: { startsAt: string; endsAt: string }) => {
-    if (pending || !app) return;
+  const onReview = async (slot?: { startsAt: string; endsAt: string }) => {
+    const when = slot ?? at;
+    if (pending || !app || !when) return;
     setPending(true);
     setBusy(true);
     setError(null);
@@ -339,8 +346,8 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
       confirmed: false,
       interviewId,
       applicationId: app.applicationId,
-      startsAt: at?.startsAt ?? startsAt,
-      endsAt: at?.endsAt ?? endsAt,
+      startsAt: when.startsAt,
+      endsAt: when.endsAt,
       interviewerIds,
       step: step.trim() || null,
       locationOrLink: location.trim() || null,
@@ -356,9 +363,9 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
   };
 
   const pickSlot = (s: string, e: string) => {
-    const at = zoned(s, timeZone);
-    setDay(at.day);
-    setTime(hhmm(at.minutes));
+    const local = zoned(s, timeZone);
+    setDay(local.day);
+    setTime(hhmm(local.minutes));
     setPickedAt(s);
     void onReview({ startsAt: s, endsAt: e });
   };
@@ -484,7 +491,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
               <div className="grid grid-cols-2 gap-2">
                 <label className="grid gap-1 text-[12.5px] text-muted-foreground">
                   Date
-                  <input type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
+                  <input type="date" value={day} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
                 </label>
                 <label className="grid gap-1 text-[12.5px] text-muted-foreground">
                   Starts
@@ -569,7 +576,7 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
     setPending(true);
     setBusy(true);
     setError(null);
-    const request: MoveRequest = { op: "move", confirmed: false, interviewId: event.id, startsAt, endsAt, timezone: timeZone, bookDespiteConflicts: false, recordOnly: false };
+    const request: MoveRequest = { op: "move", confirmed: false, interviewId: event.id, startsAt, endsAt, timezone: timeZone, bookDespiteConflicts: false, recordOnly: false, was: event.startsAt };
     const answer = await ask(request);
     setPending(false);
     setBusy(false);
@@ -590,7 +597,7 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
       windowStart: new Date(now).toISOString(),
       windowEnd: new Date(now + FIND_DAYS * 86_400_000).toISOString(),
       timezone: timeZone,
-      applicationId: null,
+      applicationId: event.applicationId,
     });
     setPending(false);
     setBusy(false);
@@ -598,8 +605,7 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
     if (answer.kind === "times") setFound(answer.found);
   };
 
-  const startsAt = zonedInstant(day, minutesOf(time), timeZone);
-  const endsAt = new Date(Date.parse(startsAt) + length * 60_000).toISOString();
+  const at = spanAt(day, minutesOf(time), length, timeZone);
   return (
     <>
       <Head id="schedule-dialog-title" title="Reschedule" sub={`${event.candidate}, ${event.step}. Now ${whenWords(event.startsAt, event.endsAt, timeZone)}.`} />
@@ -607,7 +613,7 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
         <div className="grid grid-cols-2 gap-2">
           <label className="grid gap-1 text-[12.5px] text-muted-foreground">
             Date
-            <input type="date" value={day} min={todayIn(timeZone, now)} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
+            <input type="date" value={day} min={todayIn(timeZone, now)} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
           </label>
           <label className="grid gap-1 text-[12.5px] text-muted-foreground">
             Starts
@@ -626,7 +632,7 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
             {found ? "Look again" : "Find a time"}
           </button>
         ) : null}
-        <button type="button" onClick={() => void review(startsAt, endsAt)} disabled={pending} className={cn(button, primary)}>
+        <button type="button" onClick={() => at && void review(at.startsAt, at.endsAt)} disabled={pending || !at} className={cn(button, primary)}>
           {pending ? "Checking…" : "Review"}
         </button>
       </Foot>
@@ -639,12 +645,21 @@ function Previewing({ request, event, timeZone, confirm, back, setBusy }: { requ
   const [error, setError] = React.useState<string | null>(null);
   // In a ref, so a parent's redraw does not read it twice.
   const asked = React.useRef(false);
+  // Back is pressable while it reads: an answer after that opens no Confirm card.
+  const here = React.useRef(true);
+  React.useEffect(() => {
+    here.current = true;
+    return () => {
+      here.current = false;
+    };
+  }, []);
   React.useEffect(() => {
     if (asked.current) return;
     asked.current = true;
     setBusy(true);
     void ask(request).then((answer) => {
       setBusy(false);
+      if (!here.current) return;
       if (!answer.ok) return setError(answer.message);
       if (answer.kind === "change_preview") return confirm(changeConfirm(request, answer, event, timeZone));
       setError("That is when it already is.");
@@ -659,6 +674,22 @@ function Previewing({ request, event, timeZone, confirm, back, setBusy }: { requ
           Back
         </button>
       </Foot>
+    </>
+  );
+}
+
+/**
+ * The Confirm card over a form. The form stays mounted behind it, hidden: Back
+ * returns to what was filled in, and a booking keeps its one id, so a retry
+ * after a lost answer finds the booking rather than making a second. First in
+ * the tree, so the dialog's title is the card's while it shows.
+ */
+export function Panels({ card, form, other }: { card: React.ReactNode; form: React.ReactNode; other: React.ReactNode }) {
+  return (
+    <>
+      {card}
+      {form ? <div className={cn("min-h-0 flex-col", card ? "hidden" : "flex")}>{form}</div> : null}
+      {card ? null : other}
     </>
   );
 }
@@ -713,34 +744,45 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
           <path d="m4 4 8 8M12 4l-8 8" />
         </svg>
       </button>
-      {confirming ? (
-        <ConfirmCard
-          c={confirming}
-          back={() => (flow.kind === "cancel" || (flow.kind === "move" && flow.to) ? backToEvent() : setConfirming(null))}
-          backLabel={flow.kind === "cancel" ? "Keep it" : "Back"}
-          done={finish}
-          setBusy={setBusy}
-        />
-      ) : flow.kind === "book" ? (
-        <BookForm flow={flow} timeZone={timeZone} now={now} confirm={setConfirming} setBusy={setBusy} />
-      ) : flow.kind === "event" ? (
-        <EventCard event={flow.event} timeZone={timeZone} go={go} />
-      ) : flow.kind === "move" && !flow.to ? (
-        <MoveForm event={flow.event} timeZone={timeZone} now={now} confirm={setConfirming} back={backToEvent} setBusy={setBusy} />
-      ) : (
-        <Previewing
-          request={
-            flow.kind === "move"
-              ? { op: "move", confirmed: false, interviewId: flow.event.id, startsAt: flow.to!.startsAt, endsAt: flow.to!.endsAt, timezone: timeZone, bookDespiteConflicts: false, recordOnly: false }
-              : { op: "cancel", confirmed: false, interviewId: flow.event.id, timezone: timeZone, recordOnly: false }
-          }
-          event={flow.event}
-          timeZone={timeZone}
-          confirm={setConfirming}
-          back={backToEvent}
-          setBusy={setBusy}
-        />
-      )}
+      <Panels
+        card={
+          confirming ? (
+            <ConfirmCard
+              c={confirming}
+              back={() => (flow.kind === "cancel" || (flow.kind === "move" && flow.to) ? backToEvent() : setConfirming(null))}
+              backLabel={flow.kind === "cancel" ? "Keep it" : "Back"}
+              done={finish}
+              setBusy={setBusy}
+              reread={() => router.refresh()}
+            />
+          ) : null
+        }
+        form={
+          flow.kind === "book" ? (
+            <BookForm flow={flow} timeZone={timeZone} now={now} confirm={setConfirming} setBusy={setBusy} />
+          ) : flow.kind === "move" && !flow.to ? (
+            <MoveForm event={flow.event} timeZone={timeZone} now={now} confirm={setConfirming} back={backToEvent} setBusy={setBusy} />
+          ) : null
+        }
+        other={
+          flow.kind === "event" ? (
+            <EventCard event={flow.event} timeZone={timeZone} go={go} />
+          ) : flow.kind === "cancel" || (flow.kind === "move" && flow.to) ? (
+            <Previewing
+              request={
+                flow.kind === "move"
+                  ? { op: "move", confirmed: false, interviewId: flow.event.id, startsAt: flow.to!.startsAt, endsAt: flow.to!.endsAt, timezone: timeZone, bookDespiteConflicts: false, recordOnly: false, was: flow.event.startsAt }
+                  : { op: "cancel", confirmed: false, interviewId: flow.event.id, timezone: timeZone, recordOnly: false, was: flow.event.startsAt }
+              }
+              event={flow.event}
+              timeZone={timeZone}
+              confirm={setConfirming}
+              back={backToEvent}
+              setBusy={setBusy}
+            />
+          ) : null
+        }
+      />
     </dialog>
   );
 }
