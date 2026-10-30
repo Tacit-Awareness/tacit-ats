@@ -13,7 +13,8 @@ import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 // each, a past one with its reviewed check (review.tsx). The reader is one
 // card: its head, the candidate's loop as a tree (each round, who ran it and whether
 // they filed; this round highlighted, later ones faded), then this
-// interview's feedback as far as the member may read it. Notes are the
+// interview's feedback as far as the member may read it, then the member's own
+// Granola notes when page.tsx passes them (./granola.tsx). Notes are the
 // interviewer's own words: plain text, never markup.
 
 export type ListRow = {
@@ -283,8 +284,8 @@ function Feedback({ reader }: { reader: Reader }) {
   );
 }
 
-/** One `.rc` card: the head, the loop, the feedback. */
-function InterviewReader({ reader }: { reader: Reader }) {
+/** One `.rc` card: the head, the loop, the feedback, the member's Granola notes. */
+function InterviewReader({ reader, granola }: { reader: Reader; granola: React.ReactNode }) {
   return (
     <article className="@container mx-auto max-w-[860px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
@@ -299,6 +300,7 @@ function InterviewReader({ reader }: { reader: Reader }) {
       </header>
       <Loop reader={reader} />
       <Feedback reader={reader} />
+      {granola}
     </article>
   );
 }
@@ -308,6 +310,7 @@ export function InterviewsView({
   counts,
   reviewed,
   reader,
+  granola,
   open,
   readerError,
 }: {
@@ -316,6 +319,8 @@ export function InterviewsView({
   /** The past interviews this member has checked off; null when that could not be read. */
   reviewed: string[] | null;
   reader: Reader | null;
+  /** The member's own Granola notes on this interview, already behind its Suspense boundary. Null when there can be none. */
+  granola: React.ReactNode;
   /** An interview was picked (`?i=`): on a phone the reader replaces the list. */
   open: boolean;
   readerError: string | null;
@@ -337,7 +342,7 @@ export function InterviewsView({
         }
         reader={
           reader ? (
-            <InterviewReader reader={reader} />
+            <InterviewReader reader={reader} granola={granola} />
           ) : (
             <Empty className="p-2">{readerError ?? "Pick an interview to read its loop and feedback."}</Empty>
           )

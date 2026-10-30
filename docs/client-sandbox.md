@@ -189,4 +189,10 @@ token cannot read applications.
   follows the org's feedback visibility, and a line says when some is hidden.
 - [ ] Interviewer: only the interviews they sit on, with only their own
   feedback.
-- Left out: a "reviewed" check, and Granola notes and transcripts.
+- [ ] As an interviewer with Granola connected, on an interview you sat on
+  that has started: **Your Granola notes** fills in after the rest of the page,
+  says how it matched, and **Show the transcript** adds the transcript (or says
+  it needs a paid plan). The rest of the reader never waits on it.
+- [ ] Not connected: a line pointing at Integrations. No match: the meetings
+  around then, each with **Use this one**.
+- [ ] As Admin on an interview you did not sit on: no Granola section at all.
