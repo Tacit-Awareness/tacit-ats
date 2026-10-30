@@ -3,6 +3,8 @@ import { clientTools } from "@tacit-ats/core";
 import type { AccessLevel } from "./session";
 import { departmentScope, inScope, type DepartmentOption } from "./department-tree";
 import { readDepartments } from "./departments";
+import { readHomeTargets } from "./home-targets";
+import type { HomeTargets } from "./home-target-rules";
 import { readPipeline } from "./pipeline";
 import {
   bins,
@@ -60,8 +62,12 @@ export type HomeRead = {
   names: Record<string, string>;
   /** interviewerActivity, or null for someone who manages no job. It has no job filter: every job they manage. */
   feedback: FeedbackRow[] | null;
+  /** Median hours from an interview ending to feedback, over all of `feedback`'s filings; null with none. */
+  feedbackMedianHours: number | null;
   /** The oldest feedback not filed (interviewerActivity's, so every job they manage), at most OUTSTANDING_PREVIEW. */
   outstanding: OutstandingRow[];
+  /** What the company has set, or null when they could not be read. The company's, whatever is filtered. */
+  targets: HomeTargets | null;
   /** A read stopped at its cap, so a number is a floor. */
   truncated: boolean;
 };
@@ -151,7 +157,7 @@ export async function readHome(
 
   const prevFrom = new Date(nowMs - 2 * input.days * DAY).toISOString();
   const since = sinceDay(now, input.days);
-  const [moves, apps, ivs, activity] = await Promise.all([
+  const [moves, apps, ivs, activity, targets] = await Promise.all([
     movesFor(db, entries.map((e) => e.applicationId)),
     // A department is narrowed here, after the read, so a long list of job ids never rides in the URL.
     scanRows<{ created_at: string; role_id: string }>((from, to) => {
@@ -180,6 +186,7 @@ export async function readHome(
       if (err instanceof clientTools.ClientToolError && err.code === "forbidden") return null;
       throw err;
     }),
+    readHomeTargets(db),
   ]);
 
   const appRows = apps.rows.filter((a) => counts(a.role_id));
@@ -226,7 +233,9 @@ export async function readHome(
     interviews,
     names,
     feedback: activity ? activity.interviewers : null,
+    feedbackMedianHours: activity ? activity.medianHoursToFeedback : null,
     outstanding,
+    targets,
     truncated: apps.truncated || ivs.truncated || reports.some((r) => r.truncated) || (activity?.truncated ?? false),
   };
 }
