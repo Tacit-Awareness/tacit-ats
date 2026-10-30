@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 // department (a <details>, so no script), and a row per job: its title over
 // its location, how many are in its pipeline, its post's state when it is
 // not live, and (on hover) the public link while the post takes applications. The row opens the
-// posting; "Board" opens the job's pipeline.
+// posting, where whoever manages the job edits it; "Board" opens the job's
+// pipeline. "Add a role" and each band's + open the empty editor for an admin.
 
 export type PostingRowProps = {
   jobId: string;
@@ -28,6 +29,14 @@ export type PostingRowProps = {
 export type PostingGroupProps = { key: string; name: string | null; rows: PostingRowProps[] };
 
 const icon = "size-3.5 flex-none fill-none stroke-current [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]";
+
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className={cn(icon, "size-[13px]")} aria-hidden>
+      <path d="M8 3v10M3 8h10" />
+    </svg>
+  );
+}
 
 /** design/tats's `.jp-row`: 48px, ruled underneath, the actions only on hover. */
 function Row({ row }: { row: PostingRowProps }) {
@@ -80,7 +89,7 @@ export function JobPostingsView({
   live,
   groups,
   empty,
-  connectorNote,
+  canAdd,
 }: {
   orgName: string;
   /** The public board, while it has a live post to show. */
@@ -89,8 +98,8 @@ export function JobPostingsView({
   live: number;
   groups: PostingGroupProps[];
   empty: string;
-  /** Whether to say where posts are written: not for an interviewer, who cannot. */
-  connectorNote: boolean;
+  /** "Add a role": making a job is an admin's. */
+  canAdd: boolean;
 }) {
   return (
     <Page narrow bar={(
@@ -106,6 +115,16 @@ export function JobPostingsView({
       <div>
         <div className="flex h-11 items-center gap-2 border-b border-[color:var(--line)] px-2.5 text-[13px] text-faint">
           {total} {total === 1 ? "role" : "roles"}
+          {canAdd ? (
+            <Link
+              href="/client/jobs/new"
+              data-tour="add-role"
+              className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 font-medium text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+            >
+              <PlusIcon />
+              Add a role
+            </Link>
+          ) : null}
         </div>
         {groups.length === 0 ? (
           <Empty className="px-2.5 py-3">{empty}</Empty>
@@ -128,6 +147,16 @@ export function JobPostingsView({
                   </svg>
                   <b className="font-medium">{g.name}</b>
                   <span className="text-faint">{g.rows.length}</span>
+                  {canAdd && g.key !== "other" ? (
+                    <Link
+                      href={`/client/jobs/new?department=${g.key}`}
+                      aria-label={`Add a role to ${g.name}`}
+                      title={`Add a role to ${g.name}`}
+                      className="ml-auto grid size-7 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+                    >
+                      <PlusIcon />
+                    </Link>
+                  ) : null}
                 </summary>
                 <ul className="m-0 list-none p-0">
                   {g.rows.map((r) => (
@@ -139,11 +168,6 @@ export function JobPostingsView({
           )
         )}
       </div>
-      {connectorNote ? (
-        <p className="m-0 mt-6 text-center text-xs text-faint">
-          Posts are written and published from your Claude connector for now (create_job_post, update_job_post, set_job_post_status).
-        </p>
-      ) : null}
     </Page>
   );
 }

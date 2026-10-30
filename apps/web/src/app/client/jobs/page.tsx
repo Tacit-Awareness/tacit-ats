@@ -11,9 +11,8 @@ import { JobPostingsView, type PostingGroupProps } from "./view";
 // shows it: by department, each with its lead post's state, how many applied
 // and the public link. An admin sees the org's jobs (not confidential ones),
 // the hiring team the jobs they have access on, an interviewer the jobs they
-// interview for, in one list with no counts and no departments. Read-only:
-// posts are written through the client connector until the web app has an
-// audit source of its own.
+// interview for, in one list with no counts and no departments. Rows open the
+// posting; an admin also gets "Add a role" (new/page.tsx).
 
 export default async function ClientJobs() {
   const gate = await resolveClient();
@@ -48,7 +47,7 @@ export default async function ClientJobs() {
       live={liveCount(groups)}
       groups={props}
       empty={accessLevel === "admin" ? "No jobs yet." : "You haven't been added to a job yet."}
-      connectorNote={accessLevel !== "limited"}
+      canAdd={accessLevel === "admin"}
     />
   );
 }
