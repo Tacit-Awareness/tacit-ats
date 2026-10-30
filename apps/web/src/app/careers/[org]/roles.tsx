@@ -4,14 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Ico, ICON } from "@/components/careers/frame";
 import { groupBoard, matchRole, type BoardRole } from "@/lib/public/board";
+import { withVia, type Channel } from "@/lib/public/channel";
 
 // The board's roles: a folding band per team (a <details>, so it folds with no
 // script) and a filter over them. The prototype's ⌘K menu is this one line: ⌘K
 // or Ctrl K focuses it.
 
-function RoleRow({ role }: { role: BoardRole }) {
+function RoleRow({ role, channel }: { role: BoardRole; channel: Channel }) {
   return (
-    <Link className="tv-row tv-leaf" href={`/jobs/${role.slug}`}>
+    <Link className="tv-row tv-leaf" href={withVia(`/jobs/${role.slug}`, channel)}>
       <Ico d={ICON.file} />
       <span className="tv-label">{role.title}</span>
       {role.location ? <span className="tv-meta">{role.location}</span> : null}
@@ -23,7 +24,7 @@ function RoleRow({ role }: { role: BoardRole }) {
   );
 }
 
-export function Roles({ roles }: { roles: BoardRole[] }) {
+export function Roles({ roles, channel }: { roles: BoardRole[]; channel: Channel }) {
   const [query, setQuery] = useState("");
   const input = useRef<HTMLInputElement>(null);
 
@@ -66,11 +67,11 @@ export function Roles({ roles }: { roles: BoardRole[] }) {
               </span>
             </summary>
             {g.roles.map((r) => (
-              <RoleRow key={r.slug} role={r} />
+              <RoleRow key={r.slug} role={r} channel={channel} />
             ))}
           </details>
         ) : (
-          g.roles.map((r) => <RoleRow key={r.slug} role={r} />)
+          g.roles.map((r) => <RoleRow key={r.slug} role={r} channel={channel} />)
         ),
       )}
     </>

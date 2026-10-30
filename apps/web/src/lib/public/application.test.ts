@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formSections, guideProgress, guideSteps } from "./application";
+import { formNotice, formSections, guideProgress, guideSteps } from "./application";
 import type { PublicQuestion } from "./jobs";
 
 const q = (id: string, type: PublicQuestion["type"], required = true): PublicQuestion => ({ id, type, label: id, required });
@@ -12,6 +12,20 @@ describe("formSections", () => {
     expect(resume.map((x) => x.id)).toEqual(["resume"]);
     expect(about.map((x) => x.id)).toEqual(["name", "email", "phone"]);
     expect(custom.map((x) => x.id)).toEqual(["q_why1", "q_note"]);
+  });
+});
+
+describe("formNotice", () => {
+  test("words each code the route sends back", () => {
+    expect(formNotice("required", "Email")).toBe("Please answer: Email");
+    expect(formNotice("required", null)).toBe("Please answer every required question.");
+    expect(formNotice("busy", null)).toContain("Too many applications");
+  });
+
+  test("anything else in the URL is no notice, an object's own keys included", () => {
+    for (const code of [undefined, "", "nope", "constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(formNotice(code, null)).toBeNull();
+    }
   });
 });
 

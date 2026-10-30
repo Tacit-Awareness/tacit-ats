@@ -1,15 +1,17 @@
 import { createUserClient, type Db } from "@tacit/db";
 import type { BoardRole } from "./board";
+import type { Channel } from "./channel";
 
 /**
  * The public job pages (/careers/[org], /jobs/[slug] and
  * /api/jobs/[slug]/apply): a client's live posts, read and applied to by anyone
  * with the link. No session of any kind, and only the publishable key with no
- * token, so every call goes out as `anon`, which may run exactly three
- * functions here (packages/db, 20261016150000_client_job_posts and
- * 20261030130000_job_board_public): job_board_public, an org's live posts,
- * job_post_page, one post's public fields, and submit_job_application, the
- * one way in. None returns anything about who is on file.
+ * token, so every call goes out as `anon`, which may run exactly four
+ * functions here (packages/db, 20261016150000_client_job_posts,
+ * 20261030130000_job_board_public and 20261030180000_job_post_views_channels):
+ * job_board_public, an org's live posts, job_post_page, one post's public
+ * fields, submit_job_application, the one way in, and record_job_post_view, a
+ * count of one more view. None returns anything about who is on file.
  * src/client-area.test.ts fails if anything reachable from the public pages
  * can get another database client or a session.
  */
@@ -182,12 +184,32 @@ export async function submitApplication(
   answers: Record<string, string>,
   honeypot: string,
   eeoc: Record<string, string> = {},
+  channel: Channel | null = null,
 ): Promise<ApplyOutcome> {
   if (!SLUG.test(slug)) return { status: "not_found" };
-  const { error } = await anonDb().rpc("submit_job_application", {
-    p_slug: slug, p_answers: answers, p_honeypot: honeypot, ...(Object.keys(eeoc).length ? { p_eeoc: eeoc } : {}),
-  });
+  // The channel is the function's five-argument form, which takes every argument. Null is not recorded.
+  const { error } = await anonDb().rpc(
+    "submit_job_application",
+    channel
+      ? { p_slug: slug, p_answers: answers, p_honeypot: honeypot, p_eeoc: eeoc, p_channel: channel }
+      : { p_slug: slug, p_answers: answers, p_honeypot: honeypot, ...(Object.keys(eeoc).length ? { p_eeoc: eeoc } : {}) },
+  );
   const outcome = applyOutcome(error);
   if (outcome.status === "failed") console.error("[jobs] an application failed:", error?.code, error?.message);
   return outcome;
+}
+
+/**
+ * One more view of a post, or nothing for a post that is not live: the
+ * function answers alike and holds its own per-post limits. A count is never
+ * worth a failure a reader can see, so this never throws.
+ */
+export async function recordJobPostView(slug: string): Promise<void> {
+  if (!SLUG.test(slug)) return;
+  try {
+    const { error } = await anonDb().rpc("record_job_post_view", { p_slug: slug });
+    if (error) console.error("[jobs] a view was not counted:", error.code, error.message);
+  } catch (e) {
+    console.error("[jobs] a view was not counted:", e instanceof Error ? e.message : "unknown");
+  }
 }
