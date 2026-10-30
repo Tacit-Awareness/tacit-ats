@@ -335,6 +335,13 @@
   padding: 0;
 }
 
+/* a page with a bar (page.tsx Page's `bar`): the bar runs edge to edge across
+   the panel, as design/tats's .bar, and the page's column brings its own padding */
+.shell-page:has(> .page-top) {
+  max-width: none;
+  padding: 0;
+}
+
 /* the active sidebar item: a plain soft fill, as in design/tats */
 .nav-on {
   background: var(--soft-strong);

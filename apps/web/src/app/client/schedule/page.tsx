@@ -10,6 +10,9 @@ import { ScheduleView, type CalendarEvent } from "./view";
 // (lib/client/schedule.ts), so an interviewer sees their own interviews only.
 // Not /client/calendar, which is the Google Calendar connect redirect.
 //
+// `?dept=` narrows it to one department's interviews (the prototype's team
+// menu), by the outermost department's name, filtered in view.tsx.
+//
 // The server never lays out a clock time: it does not know the member's time
 // zone. It reads a window wide enough for any zone (readWindow) and hands the
 // interviews as instants to view.tsx, a client component that places them in
@@ -33,6 +36,10 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
   const now = new Date();
   const { items, departments, truncated } = await readSchedule(db, { actorId, orgId: org.id, accessLevel }, readWindow(view, anchor, now), now);
   const tones = departmentTones(departments);
+  // The department filter's choices: the outermost departments the member may read, by name.
+  const names = [...new Set([...tones.values()].map((t) => t.name))].sort((a, b) => a.localeCompare(b));
+  const asDept = one(sp.dept);
+  const dept = names.includes(asDept) ? asDept : null;
 
   const events: CalendarEvent[] = items.map((i) => ({
     id: i.interviewId,
@@ -54,6 +61,8 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
       view={view}
       anchor={anchor}
       events={events}
+      departments={names}
+      dept={dept}
       truncated={truncated}
     />
   );

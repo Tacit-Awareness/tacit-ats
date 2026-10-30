@@ -1,5 +1,5 @@
 import { listPendingInvites } from "@tacit-ats/core";
-import { Avatar, Empty, Notice, Page, PageHeader, Pill, Row, Rows, Section, Split } from "@/components/page";
+import { Avatar, Empty, Notice, Page, PageBar, Pill, Row, Rows, Section, Split } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
@@ -25,7 +25,7 @@ export default async function ClientTeam({
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
   const { notice, error } = await searchParams;
-  const { db, org, accessLevel, actorId } = gate.ctx;
+  const { db, accessLevel, actorId } = gate.ctx;
   const isAdmin = accessLevel === "admin";
   const [team, pending] = await Promise.all([
     db.from("org_members").select("id, display_name, email, access_level").order("display_name"),
@@ -57,9 +57,7 @@ export default async function ClientTeam({
   );
 
   return (
-    <Page>
-      <PageHeader title="Team" subtitle={isAdmin ? `Who works on hiring at ${org.name}, and who you've invited.` : `Who works on hiring at ${org.name}.`} />
-
+    <Page bar={<PageBar title="Team" />}>
       {isTeamNotice(notice) ? <Notice>{TEAM_NOTICES[notice]}</Notice> : null}
       {isTeamError(error) ? <Notice tone="error">{TEAM_ERRORS[error]}</Notice> : null}
 

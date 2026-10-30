@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Empty, Page } from "@/components/page";
+import { Empty, Page, PageBar, SubBar, Tabs } from "@/components/page";
 import { cn } from "@/lib/utils";
-import { FilterMenu, type FilterOption } from "../filter-menu";
+import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { CareersChart, type ChartPoint } from "./chart";
 import { ExportButton } from "./export-button";
 
@@ -51,39 +51,26 @@ const LABELLED = 10;
 
 const ICON = "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5";
 
-function Header({ filters, tabs }: AnalyticsHeader) {
+/** The page bar (the crumb, the department chip) and the tabs under it, as Home's. */
+function Bar({ filters, tabs }: AnalyticsHeader) {
   return (
-    <header className="grid">
-      <div className="flex min-h-12 flex-wrap items-center gap-2 border-b border-[color:var(--line)] pb-2">
-        <h1 className="m-0 flex min-w-0 items-center gap-2 text-[13.5px] font-medium">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" className="size-[15px] text-muted-foreground" aria-hidden>
+    <>
+      <PageBar
+        title="Analytics"
+        icon={
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" aria-hidden>
             <path d={ICON} />
           </svg>
-          Analytics
-        </h1>
-        <span className="flex-1" />
-        <div className="flex flex-wrap items-center gap-1">
-          {filters.map((f) => (
-            <FilterMenu key={f.label} {...f} />
-          ))}
-        </div>
-      </div>
-      <nav aria-label="Analytics" className="flex flex-wrap gap-1 border-b border-[color:var(--line)] py-3">
-        {tabs.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            aria-current={t.active ? "page" : undefined}
-            className={cn(
-              "inline-flex h-8 items-center rounded-lg px-3 text-[13.5px] transition-colors",
-              t.active ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </Link>
+        }
+      >
+        {filters.map((f) => (
+          <FilterMenu key={f.label} {...f} />
         ))}
-      </nav>
-    </header>
+      </PageBar>
+      <SubBar>
+        <Tabs strip label="Analytics" tabs={tabs} />
+      </SubBar>
+    </>
   );
 }
 
@@ -152,8 +139,7 @@ const chevron = (up: boolean) => (
 
 export function CareersView({ header, p }: { header: AnalyticsHeader; p: CareersProps }) {
   return (
-    <Page>
-      <Header {...header} />
+    <Page bar={<Bar {...header} />}>
       <div className="grid gap-2 rounded-[20px] bg-[color:var(--soft)] p-2">
         <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3 pb-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Applications</h2>
@@ -238,8 +224,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
 export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: ExplorerProps }) {
   const fill = (j: number) => ({ background: p.segments[j].color });
   return (
-    <Page>
-      <Header {...header} />
+    <Page bar={<Bar {...header} />}>
       <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         <div className="flex items-baseline px-4 pt-5 min-[768px]:px-6">
           <h2 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">Pipeline</h2>
