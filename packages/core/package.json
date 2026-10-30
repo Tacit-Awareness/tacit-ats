@@ -12,8 +12,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tacit/core": "file:../../vendor/tacit-core-0425736.tgz",
-    "@tacit/db": "file:../../vendor/tacit-db-0425736.tgz"
+    "@tacit/core": "file:../../vendor/tacit-core-f739f36.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db-f739f36.tgz"
   },
   "devDependencies": {
     "@types/node": "^26.1.2"

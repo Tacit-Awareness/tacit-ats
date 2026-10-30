@@ -8,7 +8,7 @@ import type { BoardRole } from "./board";
  * token, so every call goes out as `anon`, which may run exactly three
  * functions here (packages/db, 20261016150000_client_job_posts and
  * 20261030130000_job_board_public): job_board_public, an org's live posts,
- * job_post_public, one post's public fields, and submit_job_application, the
+ * job_post_page, one post's public fields, and submit_job_application, the
  * one way in. None returns anything about who is on file.
  * src/client-area.test.ts fails if anything reachable from the public pages
  * can get another database client or a session.
@@ -102,7 +102,7 @@ function anonDb(): Db {
 /** A live post on an open job, or null for anything else (wrong, draft, closed, job not open). */
 export async function readJobPost(slug: string): Promise<PublicJobPost | null> {
   if (!SLUG.test(slug)) return null;
-  const { data, error } = await anonDb().rpc("job_post_public", { p_slug: slug });
+  const { data, error } = await anonDb().rpc("job_post_page", { p_slug: slug });
   if (error) throw new Error(error.message);
   const row = data?.[0];
   if (!row) return null;

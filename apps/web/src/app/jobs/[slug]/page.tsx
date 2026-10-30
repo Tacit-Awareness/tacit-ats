@@ -12,7 +12,7 @@ import { ApplicationBar, ApplicationGuide } from "./guide";
 // Overview and Application tabs (packages/db, 20261016150000_client_job_posts).
 // Public on purpose: proxy.ts exempts jobs/ and api/jobs/, and nothing here
 // reads a session. The only database access is lib/public/jobs.ts, on the
-// publishable key with no token, through job_post_public. A wrong slug, a
+// publishable key with no token, through job_post_page. A wrong slug, a
 // draft, a closed post and a post on a job that is not open are all the same
 // 404. The form posts to /api/jobs/[slug]/apply, which redirects back here with
 // a code; the tabs are links and the form is plain HTML, so all of it works
