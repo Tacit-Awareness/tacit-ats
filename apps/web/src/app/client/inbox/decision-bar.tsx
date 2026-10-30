@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { ConfirmCopy, ConfirmMode, DecisionAction, DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
+import type { IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { decideIssueAction } from "./actions";
 import { button, plain, primary } from "./fix-bar";
+import { DismissButton } from "./set-aside";
 
 // A decision in the reader, on design/tats's keys: on an approval A approves
 // and R rejects; on the team's call A is Next round (their page), O moves to
@@ -107,6 +109,7 @@ function ConfirmDialog({
   mode,
   copy,
   decision,
+  instance,
   terms,
   next,
   close,
@@ -114,6 +117,7 @@ function ConfirmDialog({
   mode: ConfirmMode;
   copy: ConfirmCopy;
   decision: DecisionProps;
+  instance: IssueInstance;
   terms: TermLine[] | null;
   next: string | null;
   close: () => void;
@@ -162,6 +166,8 @@ function ConfirmDialog({
         <Settled busy={busy} done={close} />
         <input type="hidden" name={decision.target.name} value={decision.target.value} />
         <input type="hidden" name="decision" value={mode} />
+        <input type="hidden" name="issueReason" value={instance.reason} />
+        <input type="hidden" name="issueAt" value={instance.at} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <h2 id="decision-title" className="m-0 text-[15px] font-semibold break-words">
           {copy.title}
@@ -189,11 +195,13 @@ function KeyCap({ action }: { action: DecisionAction }) {
 
 export function DecisionBar({
   decision,
+  instance,
   terms,
   next,
   secondary,
 }: {
   decision: DecisionProps;
+  instance: IssueInstance;
   terms: TermLine[] | null;
   next: string | null;
   secondary: { label: string; href: string } | null;
@@ -222,12 +230,13 @@ export function DecisionBar({
           </button>
         ),
       )}
+      <DismissButton instance={instance} next={next} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}
         </Link>
       ) : null}
-      {open ? <ConfirmDialog mode={open.mode} copy={open.copy} decision={decision} terms={terms} next={next} close={() => setOpen(null)} /> : null}
+      {open ? <ConfirmDialog mode={open.mode} copy={open.copy} decision={decision} instance={instance} terms={terms} next={next} close={() => setOpen(null)} /> : null}
     </div>
   );
 }

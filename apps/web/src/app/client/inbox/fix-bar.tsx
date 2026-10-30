@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
-import type { IssueFix } from "@/lib/client/inbox-issues";
+import type { IssueFix, IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { fixIssueAction } from "./actions";
+import { DismissButton } from "./set-aside";
 
 // The reader's buttons (design/tats's `.kb-bar`, a label then its key): the
 // one thing that deals with this issue, on F (the same link or the same form
-// post), and the candidate's page. A decision has its own bar (decision-bar.tsx:
-// A, O, R, as design/tats, which has no F there). design/tats's E (Dismiss) is
-// left out: nothing stores one. Its "Ask Grokbot" needs the bot.
+// post), Dismiss on E (set-aside.tsx), and the candidate's page. A decision has
+// its own bar (decision-bar.tsx: A, O, R, as design/tats, which has no F there).
+// design/tats's "Ask Grokbot" needs the bot.
 
 export const button = "inline-flex h-7 items-center gap-2 rounded-2xl border px-3 text-[13px] font-medium whitespace-nowrap transition-colors";
 export const primary = "border-[color:var(--accent)] bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-106 disabled:opacity-60";
@@ -55,7 +56,7 @@ function LinkFix({ fix }: { fix: Extract<IssueFix, { type: "link" }> }) {
   );
 }
 
-function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; next: string | null }) {
+function WriteFix({ fix, instance, next }: { fix: Extract<IssueFix, { type: "write" }>; instance: IssueInstance; next: string | null }) {
   const form = useRef<HTMLFormElement>(null);
   const submit = useRef<HTMLButtonElement | null>(null);
   return (
@@ -63,6 +64,8 @@ function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; ne
       <FixKey press={() => void (submit.current && isShown(form.current) && form.current?.requestSubmit(submit.current))} label={fix.label} />
       <input type="hidden" name="applicationId" value={fix.applicationId} />
       <input type="hidden" name="write" value={fix.write} />
+      <input type="hidden" name="issueReason" value={instance.reason} />
+      <input type="hidden" name="issueAt" value={instance.at} />
       {fix.nextAction !== null ? <input type="hidden" name="expected" value={fix.nextAction} /> : null}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <Submit label={fix.label} refFn={(b) => void (submit.current = b)} />
@@ -70,10 +73,21 @@ function WriteFix({ fix, next }: { fix: Extract<IssueFix, { type: "write" }>; ne
   );
 }
 
-export function FixBar({ fix, next, secondary }: { fix: Extract<IssueFix, { type: "link" | "write" }>; next: string | null; secondary: { label: string; href: string } | null }) {
+export function FixBar({
+  fix,
+  instance,
+  next,
+  secondary,
+}: {
+  fix: Extract<IssueFix, { type: "link" | "write" }>;
+  instance: IssueInstance;
+  next: string | null;
+  secondary: { label: string; href: string } | null;
+}) {
   return (
     <div data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
-      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} next={next} />}
+      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} instance={instance} next={next} />}
+      <DismissButton instance={instance} next={next} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}

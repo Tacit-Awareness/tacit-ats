@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
-import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page";
+import { Avatar, ListReader, PageBar, Tabs, textLink } from "@/components/page";
 import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
-import { ISSUE_KINDS, type IssueFix, type IssueKind } from "@/lib/client/inbox-issues";
+import { ISSUE_KINDS, type IssueFix, type IssueInstance, type IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
 import { DecisionBar, OfferTerms } from "./decision-bar";
@@ -13,14 +13,17 @@ import { FixBar } from "./fix-bar";
 // #inbox as a list and a reader under one bar. The list is the queue by kind,
 // a row each: an icon, what is wrong, who it waits on and why, its age. The
 // reader: the same heading, the one fix (fix-bar.tsx, key F) or the decision
-// (decision-bar.tsx, keys A, O, R), the card saying what is waiting, an offer's
-// terms for the approver reading it, then the candidate's story. Everything a
-// member or a candidate wrote renders as text.
+// (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E), the card
+// saying what is waiting, an offer's terms for the approver reading it, then
+// the candidate's story. Open and Done are tabs in the bar; done-view.tsx is
+// Done. Everything a member or a candidate wrote renders as text.
 
 export type IssueRow = { key: string; kind: IssueKind; href: string; what: string; who: string | null; line: string; age: string; active: boolean };
 
 export type IssueReaderProps = {
   kind: IssueKind;
+  /** What E names: `key` alone would be every issue this application ever has. */
+  instance: IssueInstance;
   what: string;
   subject: string;
   card: { title: string; detail: string };
@@ -60,7 +63,7 @@ function KindIcon({ kind, className }: { kind: IssueKind; className?: string }) 
   );
 }
 
-function Row({ r }: { r: IssueRow }) {
+export function Row({ r }: { r: IssueRow }) {
   return (
     <Link
       href={r.href}
@@ -81,6 +84,25 @@ function Row({ r }: { r: IssueRow }) {
         <span className="truncate">{r.line}</span>
       </span>
     </Link>
+  );
+}
+
+/** The bar on both tabs: design/tats's `.ib-tabs` beside the title, Open with what is left in it. */
+export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: number }) {
+  return (
+    <PageBar
+      title="Inbox"
+      lead={
+        <Tabs
+          label="Inbox"
+          className="ml-1"
+          tabs={[
+            { label: "Open", href: "/client/inbox", active: tab === "open", ...(openCount ? { count: openCount } : {}) },
+            { label: "Done", href: "/client/inbox?tab=done", active: tab === "done" },
+          ]}
+        />
+      }
+    />
   );
 }
 
@@ -126,9 +148,9 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
       <h1 className="m-0 text-[20px] leading-tight font-semibold tracking-[-0.01em] break-words">{issue.what}</h1>
       <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">{issue.subject}</p>
       {issue.decision ? (
-        <DecisionBar key={issue.decision.key} decision={issue.decision} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
+        <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
       ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
-        <FixBar fix={issue.fix} next={issue.next} secondary={issue.secondary} />
+        <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
       ) : null}
       <section className="mt-5 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
         <div className="flex items-center gap-3">
@@ -158,25 +180,22 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
 export function InboxView({
   rows,
   issue,
-  notice,
-  error,
+  flash,
   open,
   truncated,
   draftsCapped,
 }: {
   rows: IssueRow[];
   issue: IssueReaderProps | null;
-  notice: string | null;
-  error: string | null;
+  flash: React.ReactNode;
   open: boolean;
   truncated: boolean;
   draftsCapped: boolean;
 }) {
-  const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
   if (!issue) {
     return (
       <div className="list-reader flex min-h-0 flex-1 flex-col">
-        <PageBar title="Inbox" />
+        <InboxBar tab="open" openCount={0} />
         <div className="grid flex-1 content-center justify-items-center gap-2 p-6 text-center">
           {flash}
           <span aria-hidden className="grid size-11 place-items-center rounded-full bg-[color:var(--green-soft)] text-[color:var(--green)]">
@@ -186,9 +205,14 @@ export function InboxView({
           </span>
           <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
           <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
-          <Link href="/client/pipeline" className={cn(textLink, "mt-1")}>
-            Open Pipeline
-          </Link>
+          <div className="mt-1 flex items-center gap-3">
+            <Link href="/client/inbox?tab=done" className={textLink}>
+              See Done
+            </Link>
+            <Link href="/client/pipeline" className={textLink}>
+              Open Pipeline
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -198,7 +222,7 @@ export function InboxView({
       listLabel="Issues"
       readerLabel="Issue"
       open={open}
-      bar={<PageBar title="Inbox" count={rows.length} />}
+      bar={<InboxBar tab="open" openCount={rows.length} />}
       list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} />}
       reader={
         <div className="grid content-start gap-3 md:px-6 md:pt-3 md:pb-10">

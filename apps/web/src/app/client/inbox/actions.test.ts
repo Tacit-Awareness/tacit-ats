@@ -5,7 +5,15 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // codes and ids only, and nothing a member typed reaches the URL or the log.
 
 const session = vi.hoisted(() => ({ requireClient: vi.fn() }));
-const inbox = vi.hoisted(() => ({ decideInboxApproval: vi.fn(), decideInboxApplication: vi.fn(), clearOverdueAction: vi.fn(), touchApplication: vi.fn() }));
+const inbox = vi.hoisted(() => ({
+  decideInboxApproval: vi.fn(),
+  decideInboxApplication: vi.fn(),
+  clearOverdueAction: vi.fn(),
+  touchApplication: vi.fn(),
+  dismissIssue: vi.fn(),
+  restoreIssue: vi.fn(),
+  noteResolved: vi.fn(),
+}));
 const redirected = vi.hoisted(() => ({ to: [] as string[] }));
 
 vi.mock("@/lib/client/session", () => session);
@@ -18,7 +26,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { decideIssueAction } from "./actions";
+import { decideIssueAction, dismissIssueAction, fixIssueAction, restoreIssueAction } from "./actions";
 
 const REQUEST = "11111111-1111-4111-8111-111111111111";
 const APPLICATION = "22222222-2222-4222-8222-222222222222";
@@ -99,6 +107,150 @@ describe("decideIssueAction", () => {
     expect(url.searchParams.get("i")).toBe(`appr-${REQUEST}`);
     expect(url.search).not.toContain("Budget");
     expect(JSON.stringify(log.mock.calls)).not.toContain("Budget");
+    log.mockRestore();
+  });
+
+  const INSTANCE = { issueReason: "decide", issueAt: "2026-10-28T10:00:00.000Z" };
+
+  test("a decision that changed something leaves a resolved row, under the id it acted on", async () => {
+    inbox.decideInboxApplication.mockResolvedValue({ ok: true, changed: true, roleId: "r" });
+    await post({ decision: "offer", applicationId: APPLICATION, issueKey: `draft-${REQUEST}`, ...INSTANCE });
+    expect(inbox.noteResolved.mock.calls[0]![1]).toEqual({ key: `app-${APPLICATION}`, reason: "decide", at: INSTANCE.issueAt });
+  });
+
+  test.each([
+    ["an approval someone else decided", "not_pending"],
+    ["a reset request", "reset"],
+  ])("%s isn't resolved by this member", async (_, outcome) => {
+    inbox.decideInboxApproval.mockResolvedValue({ ok: true, outcome, kind: "offer" });
+    await post({ decision: "approve", requestId: REQUEST, ...INSTANCE, issueReason: "approval" });
+    expect(inbox.noteResolved).not.toHaveBeenCalled();
+  });
+
+  test("a move that changed nothing, or was refused, isn't resolved", async () => {
+    inbox.decideInboxApplication.mockResolvedValue({ ok: true, changed: false, roleId: "r" });
+    await post({ decision: "offer", applicationId: APPLICATION, ...INSTANCE });
+    inbox.decideInboxApplication.mockResolvedValue({ ok: false, error: "changed" });
+    await post({ decision: "offer", applicationId: APPLICATION, ...INSTANCE });
+    expect(inbox.noteResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("fixIssueAction", () => {
+  const FIX = { applicationId: APPLICATION, write: "done", expected: "Ring", issueReason: "overdue", issueAt: "2026-10-27T00:00:00Z" };
+  const fix = async (fields: Record<string, string>) => {
+    await expect(fixIssueAction(form(fields))).rejects.toThrow("NEXT_REDIRECT");
+    return new URL(redirected.to.at(-1)!, "http://x");
+  };
+
+  test("a fix that changed something leaves a resolved row", async () => {
+    inbox.clearOverdueAction.mockResolvedValue({ ok: true, changed: true, roleId: "r" });
+    await fix(FIX);
+    expect(inbox.noteResolved.mock.calls[0]![1]).toEqual({ key: `app-${APPLICATION}`, reason: "overdue", at: FIX.issueAt });
+  });
+
+  test("one that changed nothing doesn't", async () => {
+    inbox.clearOverdueAction.mockResolvedValue({ ok: true, changed: false, roleId: "r" });
+    expect((await fix(FIX)).searchParams.get("notice")).toBe("unchanged");
+    expect(inbox.noteResolved).not.toHaveBeenCalled();
+  });
+
+  test("the record can fail without saying the fix did", async () => {
+    inbox.touchApplication.mockResolvedValue({ ok: true, changed: true, roleId: "r" });
+    expect((await fix({ applicationId: APPLICATION, write: "touch" })).searchParams.get("notice")).toBe("touched");
+    expect(inbox.noteResolved.mock.calls[0]![1]).toBeNull();
+  });
+});
+
+describe("dismissIssueAction", () => {
+  const FIELDS = { issueKey: NEXT, issueReason: "quiet", issueAt: "2026-10-20T10:00:00.123456+00:00" };
+  const OTHER = `appr-${REQUEST}`;
+  const ROW = "44444444-4444-4444-8444-444444444444";
+  const dismiss = async (fields: Record<string, string>) => {
+    await expect(dismissIssueAction(form(fields))).rejects.toThrow("NEXT_REDIRECT");
+    return new URL(redirected.to.at(-1)!, "http://x");
+  };
+
+  test("nothing happens without a session", async () => {
+    session.requireClient.mockRejectedValue(new Error("unauthenticated: signed_out"));
+    await expect(dismissIssueAction(form(FIELDS))).rejects.toThrow("unauthenticated");
+    expect(inbox.dismissIssue).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["no key", { ...FIELDS, issueKey: "" }],
+    ["a key with words in it", { ...FIELDS, issueKey: "app-Sam Lee" }],
+    ["an unknown reason", { ...FIELDS, issueReason: "bored" }],
+    ["a date that isn't one", { ...FIELDS, issueAt: "tomorrow" }],
+  ])("%s writes nothing", async (_, fields) => {
+    expect((await dismiss(fields)).searchParams.get("error")).toBe("not_found");
+    expect(inbox.dismissIssue).not.toHaveBeenCalled();
+  });
+
+  test("only key, reason and date reach the write: no org, actor or how", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
+    await dismiss({ ...FIELDS, org_id: "x", actor_id: "y", how: "resolved" });
+    expect(inbox.dismissIssue.mock.calls[0]![1]).toEqual({ key: NEXT, reason: "quiet", at: FIELDS.issueAt });
+  });
+
+  test("on to the next issue, with Undo", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
+    const url = await dismiss({ ...FIELDS, next: OTHER });
+    expect(url.pathname).toBe("/client/inbox");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ i: OTHER, notice: "dismissed", undo: ROW });
+  });
+
+  test("a second press moves on with no Undo", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: false });
+    expect(Object.fromEntries((await dismiss({ ...FIELDS, next: OTHER })).searchParams)).toEqual({ i: OTHER, notice: "unchanged" });
+  });
+
+  test("a refusal stays on the issue", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: false, error: "refused" });
+    expect(Object.fromEntries((await dismiss({ ...FIELDS, next: OTHER })).searchParams)).toEqual({ i: NEXT, error: "dismiss_refused" });
+  });
+
+  test("a failure stays on the issue and logs only the message", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    inbox.dismissIssue.mockRejectedValue(new Error("the database went away"));
+    expect(Object.fromEntries((await dismiss({ ...FIELDS, next: OTHER })).searchParams)).toEqual({ i: NEXT, error: "dismiss_failed" });
+    expect(log).toHaveBeenCalledOnce();
+    log.mockRestore();
+  });
+});
+
+describe("restoreIssueAction", () => {
+  const ROW = "44444444-4444-4444-8444-444444444444";
+  const restore = async (fields: Record<string, string>) => {
+    await expect(restoreIssueAction(form(fields))).rejects.toThrow("NEXT_REDIRECT");
+    return new URL(redirected.to.at(-1)!, "http://x");
+  };
+
+  test("nothing happens without a session", async () => {
+    session.requireClient.mockRejectedValue(new Error("unauthenticated: signed_out"));
+    await expect(restoreIssueAction(form({ id: ROW }))).rejects.toThrow("unauthenticated");
+    expect(inbox.restoreIssue).not.toHaveBeenCalled();
+  });
+
+  test("an id that isn't one reaches no query", async () => {
+    await restore({ id: "1 or 1=1" });
+    expect(inbox.restoreIssue).not.toHaveBeenCalled();
+  });
+
+  test("back on the issue it was", async () => {
+    inbox.restoreIssue.mockResolvedValue({ key: NEXT });
+    expect(Object.fromEntries((await restore({ id: ROW })).searchParams)).toEqual({ i: NEXT, notice: "restored" });
+  });
+
+  test("a row that isn't there, or isn't theirs, says so and changes nothing", async () => {
+    inbox.restoreIssue.mockResolvedValue(null);
+    expect(Object.fromEntries((await restore({ id: ROW })).searchParams)).toEqual({ notice: "restore_gone" });
+  });
+
+  test("a failure stays on Done", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    inbox.restoreIssue.mockRejectedValue(new Error("the database went away"));
+    expect(Object.fromEntries((await restore({ id: ROW })).searchParams)).toEqual({ tab: "done", i: ROW, error: "restore_failed" });
     log.mockRestore();
   });
 });

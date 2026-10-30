@@ -13,6 +13,9 @@ export const INBOX_NOTICES = {
   approval_reset: "That request was reset or withdrawn: the terms or the approvers changed. Your decision wasn't recorded.",
   moved_offer: "Moved to offer. No offer has been drafted or sent.",
   closed: "Rejected. No email went out.",
+  dismissed: "Moved to Done.",
+  restored: "Back in your Inbox.",
+  restore_gone: "That was already back in your Inbox.",
 } as const;
 
 export const INBOX_ERRORS = {
@@ -24,6 +27,9 @@ export const INBOX_ERRORS = {
   rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   // Not "nothing changed": a stage can move and its event then fail.
   failed: "That didn't work, and it may be only partly saved. Look at the candidate before trying again.",
+  dismiss_refused: "You can't set that aside. Nothing was changed.",
+  dismiss_failed: "That didn't work. Nothing was set aside: try again.",
+  restore_failed: "That didn't work, so it's still under Done: try again.",
 } as const;
 
 export type InboxNotice = keyof typeof INBOX_NOTICES;

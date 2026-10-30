@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRAFT_LATE_MS, inboxIssues, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding } from "./inbox-issues";
+import { DRAFT_LATE_MS, inboxIssues, instanceId, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, standingIssues, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const DAY = 86_400_000;
@@ -198,6 +198,51 @@ describe("issueFix", () => {
   test("the candidate's page is offered unless the fix already is it", () => {
     expect(secondaryLink(overdue, issueFix(overdue, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
     expect(secondaryLink(overdue, issueFix(overdue, false))).toBeNull();
+  });
+});
+
+describe("a dismissal", () => {
+  const offOf = (...list: Issue[]) => new Set(list.map(instanceId));
+  const input = {
+    cards: [card("a", { column: "decide", nextAction: "Ring", nextActionDue: daysAgo(3).slice(0, 10), stalled: ["overdue", "no_touch"] })],
+    outstanding: [missing("a")],
+    approvals: [],
+    drafts: [],
+  };
+
+  test("hides that one instance, and the next that holds on the application takes its place", () => {
+    const first = inboxIssues(input, NOW)[0]!;
+    expect(first.reason).toBe("feedback");
+    const second = inboxIssues(input, NOW, offOf(first))[0]!;
+    expect(second).toMatchObject({ key: first.key, reason: "overdue" });
+    const third = inboxIssues(input, NOW, offOf(first, second))[0]!;
+    expect(third.reason).toBe("decide");
+    const fourth = inboxIssues(input, NOW, offOf(first, second, third))[0]!;
+    expect(fourth.reason).toBe("quiet");
+    expect(inboxIssues(input, NOW, offOf(first, second, third, fourth))).toEqual([]);
+  });
+
+  test("matches as instants, in whatever format the row comes back", () => {
+    const quiet = { cards: [card("a", { lastTouchAt: "2026-10-20T10:00:00.123456+00:00", stalled: ["no_touch"] })], outstanding: [], approvals: [], drafts: [] };
+    const row = { key: "app-a", reason: "quiet" as const, at: "2026-10-20T10:00:00.123+00:00" };
+    expect(inboxIssues(quiet, NOW, new Set([instanceId(row)]))).toEqual([]);
+  });
+
+  test("a later issue with the same key and reason isn't hidden, even dated before the dismissal", () => {
+    const first = inboxIssues({ ...input, outstanding: [] }, NOW)[0]!;
+    const moved = { ...input, outstanding: [], cards: [card("a", { nextAction: "Ring", nextActionDue: daysAgo(1).slice(0, 10), stalled: ["overdue"] })] };
+    expect(inboxIssues(moved, NOW, offOf(first)).map((i) => i.reason)).toEqual(["overdue"]);
+  });
+
+  test("a dismissed approval gives its place back to its application's issue", () => {
+    const withApproval = { cards: [card("a", { stalled: ["no_touch"] })], outstanding: [], drafts: [], approvals: [approval({ applicationId: "a" })] };
+    const shown = inboxIssues(withApproval, NOW);
+    expect(shown.map((i) => i.reason)).toEqual(["approval"]);
+    expect(inboxIssues(withApproval, NOW, offOf(shown[0]!)).map((i) => i.reason)).toEqual(["quiet"]);
+  });
+
+  test("standingIssues lists what holds, dismissed or not, behind a more pressing one too", () => {
+    expect(standingIssues(input, NOW).map((i) => i.reason)).toEqual(["feedback", "overdue", "decide", "quiet"]);
   });
 });
 
