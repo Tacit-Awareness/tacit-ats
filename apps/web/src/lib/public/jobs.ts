@@ -1,17 +1,22 @@
 import { createUserClient, type Db } from "@tacit/db";
+import type { BoardRole } from "./board";
 
 /**
- * The public job posts (/jobs/[slug] and /api/jobs/[slug]/apply): a client's
- * live post read and applied to by anyone with its link. No session of any
- * kind, and only the publishable key with no token, so every call goes out as
- * `anon`, which may run exactly two functions here (packages/db,
- * 20261016150000_client_job_posts): job_post_public, a live post's public
- * fields, and submit_job_application, the one way in. Neither returns anything
- * about who is on file. src/client-area.test.ts fails if anything reachable
- * from the public pages can get another database client or a session.
+ * The public job pages (/careers/[org], /jobs/[slug] and
+ * /api/jobs/[slug]/apply): a client's live posts, read and applied to by anyone
+ * with the link. No session of any kind, and only the publishable key with no
+ * token, so every call goes out as `anon`, which may run exactly three
+ * functions here (packages/db, 20261016150000_client_job_posts and
+ * 20261030130000_job_board_public): job_board_public, an org's live posts,
+ * job_post_page, one post's public fields, and submit_job_application, the
+ * one way in. None returns anything about who is on file.
+ * src/client-area.test.ts fails if anything reachable from the public pages
+ * can get another database client or a session.
  */
 
 export const SLUG = /^[a-z0-9]{24,64}$/;
+/** An org's slug, as `slugifyOrgName` makes them. */
+export const ORG_SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;
 /** The form's hidden field; a person never fills it, and the database answers a filled one with a quiet success. */
 export const HONEYPOT_FIELD = "website";
 /** Each answer's field is a_<question id>, so no question can collide with the honeypot. */
@@ -82,7 +87,12 @@ export type PublicJobPost = {
   location: string | null;
   description: string | null;
   questions: PublicQuestion[];
+  /** The org's board, null when it has none (Tacit's own). */
+  orgSlug: string | null;
+  department: string | null;
 };
+
+export type PublicJobBoard = { company: string; roles: BoardRole[] };
 
 /** The anon client: the publishable key and never a token. Not memoized; nothing in it is per-user anyway. */
 function anonDb(): Db {
@@ -92,7 +102,7 @@ function anonDb(): Db {
 /** A live post on an open job, or null for anything else (wrong, draft, closed, job not open). */
 export async function readJobPost(slug: string): Promise<PublicJobPost | null> {
   if (!SLUG.test(slug)) return null;
-  const { data, error } = await anonDb().rpc("job_post_public", { p_slug: slug });
+  const { data, error } = await anonDb().rpc("job_post_page", { p_slug: slug });
   if (error) throw new Error(error.message);
   const row = data?.[0];
   if (!row) return null;
@@ -102,6 +112,21 @@ export async function readJobPost(slug: string): Promise<PublicJobPost | null> {
     location: row.location,
     description: row.description,
     questions: Array.isArray(row.questions) ? (row.questions as unknown as PublicQuestion[]) : [],
+    orgSlug: row.org_slug,
+    department: row.department,
+  };
+}
+
+/** A client's board, or null for an org that is not one or has no live post: the same answer, so a stranger learns nothing. */
+export async function readJobBoard(org: string): Promise<PublicJobBoard | null> {
+  if (!ORG_SLUG.test(org)) return null;
+  const { data, error } = await anonDb().rpc("job_board_public", { p_org: org });
+  if (error) throw new Error(error.message);
+  const first = data?.[0];
+  if (!first) return null;
+  return {
+    company: first.company,
+    roles: data.map((r) => ({ slug: r.slug, title: r.title, location: r.location, department: r.department })),
   };
 }
 

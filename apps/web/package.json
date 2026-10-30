@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@tacit-ats/core": "workspace:^",
-    "@tacit/core": "file:../../vendor/tacit-core-73193ae.tgz",
-    "@tacit/db": "file:../../vendor/tacit-db-73193ae.tgz",
+    "@tacit/core": "file:../../vendor/tacit-core-f739f36.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db-f739f36.tgz",
     "@workos-inc/authkit-nextjs": "4.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
