@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { clientTools } from "@tacit-ats/core";
 import { clientTools as tools } from "@tacit-ats/core";
-import { defaultQuestions, draftFromPost, draftPayload, editorBlocks, newRoleDraft, previewQuestions } from "./posting-draft";
+import { carryOn, defaultQuestions, draftFromPost, draftPayload, editorBlocks, leavesPage, newRoleDraft, previewQuestions, tooBigToSend } from "./posting-draft";
 import { parseDraft } from "./posting-edit-rules";
 
 const QUESTIONS: clientTools.Question[] = [
@@ -53,8 +53,8 @@ describe("draftFromPost", () => {
     expect(draft.questions).toEqual(defaultQuestions());
   });
 
-  test("a post with no location of its own shows the job's", () => {
-    expect(draftFromPost({ job: JOB, departmentId: null, steps: [], post: { title: "T", location: null, description: null, questions: QUESTIONS } }).location).toBe("Paris");
+  test("a post with no location has none: job_post_page shows only the post's, and a cleared one stays cleared", () => {
+    expect(draftFromPost({ job: JOB, departmentId: null, steps: [], post: { title: "T", location: null, description: null, questions: QUESTIONS } }).location).toBe("");
   });
 });
 
@@ -87,5 +87,46 @@ describe("previewQuestions", () => {
       { key: "b", type: "select", label: "Pick", required: false, options: ["One", " "] },
     ];
     expect(previewQuestions(draft).slice(2)).toEqual([{ questionId: "b", type: "select", label: "Pick", required: false, options: ["One"] }]);
+  });
+});
+
+describe("carryOn", () => {
+  const none = { jobId: null, postId: null };
+
+  test("keeps how far a save got", () => {
+    expect(carryOn(none, { jobId: "j", postId: "p" })).toEqual({ jobId: "j", postId: "p" });
+  });
+
+  test("an answer that does not name the post does not forget it, or the next save makes a second", () => {
+    expect(carryOn({ jobId: "j", postId: "p" }, { jobId: "j" })).toEqual({ jobId: "j", postId: "p" });
+    expect(carryOn({ jobId: "j", postId: "p" }, {})).toEqual({ jobId: "j", postId: "p" });
+  });
+});
+
+describe("tooBigToSend", () => {
+  test("stays under the server action's 1 MB, counted in bytes", () => {
+    expect(tooBigToSend("x".repeat(900_000))).toBe(false);
+    expect(tooBigToSend("x".repeat(1_000_000))).toBe(true);
+    expect(tooBigToSend("€".repeat(400_000))).toBe(true);
+  });
+});
+
+describe("leavesPage", () => {
+  const here = "https://ats.test/client/jobs/1/post?tab=application";
+  const click = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false, defaultPrevented: false };
+  const link = (href: string, patch = {}) => ({ href, target: "", download: "", ...patch });
+
+  test("another page of the app, or another post of this job", () => {
+    expect(leavesPage(click, link("https://ats.test/client/jobs"), here)).toBe(true);
+    expect(leavesPage(click, link("https://ats.test/client/jobs/1/post?post=2"), here)).toBe(true);
+  });
+
+  test("not a new tab, a modified click, a download, the same address, or another site, which the browser asks about itself", () => {
+    expect(leavesPage(click, link("https://ats.test/client/jobs", { target: "_blank" }), here)).toBe(false);
+    expect(leavesPage({ ...click, metaKey: true }, link("https://ats.test/client/jobs"), here)).toBe(false);
+    expect(leavesPage({ ...click, button: 1 }, link("https://ats.test/client/jobs"), here)).toBe(false);
+    expect(leavesPage(click, link("https://ats.test/x.pdf", { download: "x.pdf" }), here)).toBe(false);
+    expect(leavesPage(click, link(here), here)).toBe(false);
+    expect(leavesPage(click, link("https://example.com/"), here)).toBe(false);
   });
 });

@@ -5,7 +5,9 @@ import type { PostingError } from "@/app/client/jobs/messages";
 // whatever the page sent. Pure, and unit-tested. The limits are the columns'
 // own (the writes check them again and the database again), so a refusal is a
 // sentence about the field instead of a failed save halfway through. A new
-// role especially: everything here is checked before its job is made.
+// role especially: everything here is checked before its job is made, and what
+// no sentence can help with is taken out: Postgres stores no NUL or half a
+// surrogate pair in any text, and a plan's step takes no control character.
 
 export const POST_TITLE_MAX = 200;
 export const POST_LOCATION_MAX = 200;
@@ -25,10 +27,18 @@ export type PostingDraft = {
 
 export type ParsedDraft = { ok: true; draft: PostingDraft } | { ok: false; error: PostingError };
 
+/** The job's half of what the editor opened: a post's version does not cover it. */
+export type SeenJob = { steps: string[]; departmentId: string | null };
+
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const refuse = (error: PostingError): ParsedDraft => ({ ok: false, error });
-const line = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
+/** One line of text as it is stored, for comparing a stored step with a draft's. */
+// eslint-disable-next-line no-control-regex
+export const cleanLine = (v: unknown) => (typeof v === "string" ? v.replace(/[\s\u0000-\u001f\u007f\p{Cs}]+/gu, " ").trim() : "");
+const line = cleanLine;
+// eslint-disable-next-line no-control-regex
+const cleanText = (v: string) => v.replace(/[\u0000\p{Cs}]/gu, "").trim();
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 export function parseDraft(raw: unknown): ParsedDraft {
@@ -38,7 +48,7 @@ export function parseDraft(raw: unknown): ParsedDraft {
   if (title.length > POST_TITLE_MAX) return refuse("title_too_long");
   const location = line(raw.location);
   if (location.length > POST_LOCATION_MAX) return refuse("location_too_long");
-  const description = typeof raw.description === "string" ? raw.description.trim() : "";
+  const description = typeof raw.description === "string" ? cleanText(raw.description) : "";
   if (description.length > POST_DESCRIPTION_MAX) return refuse("description_too_long");
   const departmentId = raw.departmentId === null || raw.departmentId === "" || raw.departmentId === undefined ? null : raw.departmentId;
   if (departmentId !== null && (typeof departmentId !== "string" || !UUID.test(departmentId))) return refuse("invalid_department");
@@ -80,4 +90,12 @@ export function parseDraft(raw: unknown): ParsedDraft {
     throw err;
   }
   return { ok: true, draft: { title, location: location || null, departmentId, description: description || null, steps, questions } };
+}
+
+/** What the page says it opened of the job; null, which checks nothing, for anything else. */
+export function parseSeenJob(raw: unknown): SeenJob | null {
+  if (!isRecord(raw) || !Array.isArray(raw.steps)) return null;
+  const { departmentId } = raw;
+  if (departmentId !== null && typeof departmentId !== "string") return null;
+  return { steps: raw.steps.map(line).filter(Boolean), departmentId: departmentId || null };
 }

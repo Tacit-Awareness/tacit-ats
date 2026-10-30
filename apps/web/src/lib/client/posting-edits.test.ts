@@ -166,4 +166,56 @@ describe("savePosting", () => {
     tools.updateJobPost.mockRejectedValue(new Error("connection reset"));
     await expect(savePosting(DB, CTX, INPUT)).rejects.toThrow("connection reset");
   });
+
+  test("a failed request after a first post exists says which post, or the next save makes a second", async () => {
+    tools.updateJob.mockRejectedValue(new Error("connection reset"));
+    expect(await savePosting(DB, CTX, { ...INPUT, postId: null, seenUpdatedAt: null })).toEqual({ ok: false, error: "failed", jobId: "job-1", postId: "post-1" });
+  });
+
+  test("an interviewer is refused before anything is read back to them", async () => {
+    tools.listJobPosts.mockResolvedValue([{ postId: "post-1", updatedAt: "v2" }]);
+    expect(await savePosting(DB, { ...CTX, accessLevel: "limited" }, INPUT)).toMatchObject({ ok: false, error: "forbidden" });
+    expect(tools.listJobPosts).not.toHaveBeenCalled();
+  });
+
+  describe("the job's half, which the post's version does not cover", () => {
+    const stored = (department_id: string | null, interview_steps: unknown) =>
+      ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { department_id, interview_steps }, error: null }) }) }) }) }) as unknown as Db;
+    const seenJob = { steps: ["Screen"], departmentId: "dept-1" };
+
+    test("what the member did not change is not written, whatever is there now", async () => {
+      expect(await savePosting(stored("dept-2", ["Theirs"]), CTX, { ...INPUT, seenJob })).toMatchObject({ ok: true });
+      expect(tools.updateJob).not.toHaveBeenCalled();
+      expect(tools.setInterviewPlan).not.toHaveBeenCalled();
+      expect(tools.updateJobPost).toHaveBeenCalled();
+    });
+
+    test("only the half they changed is written", async () => {
+      const db = stored("dept-1", ["Screen"]);
+      await savePosting(db, CTX, { ...INPUT, seenJob, draft: { ...DRAFT, steps: ["Screen", "Onsite"] } });
+      expect(tools.updateJob).not.toHaveBeenCalled();
+      expect(tools.setInterviewPlan).toHaveBeenCalledWith(db, CTX, { jobId: "job-1", steps: ["Screen", "Onsite"] });
+    });
+
+    test.each([
+      ["steps", { steps: ["Mine"] }, stored("dept-1", ["Theirs"])],
+      ["department", { departmentId: "dept-3" }, stored("dept-2", ["Screen"])],
+    ])("a change over someone else's %s comes back changed, before the post is touched", async (_, change, db) => {
+      expect(await savePosting(db, CTX, { ...INPUT, seenJob, draft: { ...DRAFT, ...change }, status: "live" })).toMatchObject({ ok: false, error: "changed" });
+      expect(tools.updateJobPost).not.toHaveBeenCalled();
+      expect(tools.setJobPostStatus).not.toHaveBeenCalled();
+    });
+
+    test("Save mine over it writes what they changed, and still nothing they did not", async () => {
+      await savePosting(stored("dept-2", ["Theirs"]), CTX, { ...INPUT, seenJob, overwrite: true, draft: { ...DRAFT, steps: ["Mine"] } });
+      expect(tools.setInterviewPlan).toHaveBeenCalled();
+      expect(tools.updateJob).not.toHaveBeenCalled();
+    });
+
+    test("no record of what was seen, as when the job was only just made: both are written", async () => {
+      await savePosting(DB, CTX, { ...INPUT, seenJob: null });
+      expect(tools.updateJob).toHaveBeenCalled();
+      expect(tools.setInterviewPlan).toHaveBeenCalled();
+    });
+  });
 });

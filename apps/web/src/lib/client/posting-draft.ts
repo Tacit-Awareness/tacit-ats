@@ -85,7 +85,8 @@ export function draftFromPost(input: {
   const { job, post } = input;
   return {
     title: post?.title ?? job.title,
-    location: post?.location ?? job.location ?? "",
+    // A post's own, cleared or not: job_post_page shows no other, so falling back here would put a cleared one back on the next save.
+    location: post ? (post.location ?? "") : (job.location ?? ""),
     departmentId: input.departmentId ?? "",
     blocks: editorBlocks(post?.description),
     steps: input.steps,
@@ -136,4 +137,31 @@ export function previewQuestions(d: EditorDraft): clientTools.Question[] {
       required: q.required,
       ...(q.type === "select" ? { options: q.options.map((o) => o.trim()).filter(Boolean) } : {}),
     }));
+}
+
+/** A job or post a save made before it stopped, which the next save carries on from. */
+export type Made = { jobId: string | null; postId: string | null };
+
+/** An answer names what it knows of, so one that does not name the post has not unmade it. */
+export function carryOn(made: Made, result: { jobId?: string; postId?: string }): Made {
+  return { jobId: result.jobId ?? made.jobId, postId: result.postId ?? made.postId };
+}
+
+// Next refuses a server action's body over 1 MB before the action runs, which the page could only call a failed save.
+const SEND_BYTES_MAX = 950_000;
+export const tooBigToSend = (sent: string): boolean => new TextEncoder().encode(sent).length > SEND_BYTES_MAX;
+
+type Click = Pick<MouseEvent, "button" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey" | "defaultPrevented">;
+
+/**
+ * A plain click on a link that moves this tab elsewhere in the app. Next's
+ * Link changes page with no `beforeunload`, so the editor has to ask for these
+ * itself; a link to another site is the browser's to ask about.
+ */
+export function leavesPage(click: Click, link: { href: string; target: string; download: string }, here: string): boolean {
+  if (click.defaultPrevented || click.button !== 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return false;
+  if ((link.target && link.target !== "_self") || link.download) return false;
+  const to = new URL(link.href, here);
+  const at = new URL(here);
+  return to.origin === at.origin && (to.pathname !== at.pathname || to.search !== at.search);
 }

@@ -9,7 +9,7 @@ import { Notice, Page, PageBar, Tabs, textLink, type Tab } from "@/components/pa
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
-  CUSTOM_KINDS, OPTIONAL_BUILT_INS, draftPayload, previewQuestions, type DraftQuestion, type EditorDraft,
+  CUSTOM_KINDS, OPTIONAL_BUILT_INS, carryOn, draftPayload, leavesPage, previewQuestions, tooBigToSend, type DraftPayload, type DraftQuestion, type EditorDraft, type Made,
 } from "@/lib/client/posting-draft";
 import type { SaveResult } from "@/lib/client/posting-edits";
 import type { DepartmentChoice } from "@/lib/client/postings";
@@ -35,7 +35,9 @@ type EditorPost = Pick<
   "postId" | "status" | "accepting" | "applications" | "publishedAt" | "closedAt" | "updatedAt"
 >;
 
-type Message = { notice: PostingNotice; keptOnInterviews: number } | { error: PostingError };
+type Status = "live" | "closed" | null;
+/** `status` is what the refused save was also doing, for "Save mine over it" to finish. */
+type Message = { notice: PostingNotice; keptOnInterviews: number } | { error: PostingError; status: Status };
 
 const select = "rounded-md border border-[color:var(--line)] bg-transparent px-1.5 py-0.5 text-[12.5px] text-muted-foreground";
 const addButton = "mt-1.5 -ml-2 inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2 text-[13px] font-medium text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground";
@@ -325,7 +327,7 @@ export function PostingEditor({
   const [tab, setTab] = useState(firstTab);
   const [message, setMessage] = useState<Message | null>(notice ? { notice, keptOnInterviews: 0 } : null);
   // A job or post made by a save that then stopped: the next save carries on from them.
-  const [made, setMade] = useState<{ jobId: string | null; postId: string | null }>({ jobId: null, postId: null });
+  const [made, setMade] = useState<Made>({ jobId: null, postId: null });
   const [pending, start] = useTransition();
 
   const payload = useMemo(() => draftPayload(draft), [draft]);
@@ -346,12 +348,30 @@ export function PostingEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
+  // Closing the tab, and a link in the app, which changes page with no `beforeunload`. The G keys go round this.
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    const onClick = (e: MouseEvent) => {
+      const link = (e.target as Element | null)?.closest?.<HTMLAnchorElement>("a[href]");
+      if (!link || !leavesPage(e, link, window.location.href)) return;
+      if (window.confirm("Leave without saving? What you changed here will be lost.")) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", onClick, true);
+    };
   }, [dirty]);
+
+  // Save is in the bar, which stays on screen; what it answers is at the top of a long page.
+  const said = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (message) said.current?.scrollIntoView({ block: "nearest" });
+  }, [message]);
 
   // A new line's element exists only after the render that adds it, so focus waits for it.
   const pendingFocus = useRef<string | null>(null);
@@ -370,22 +390,29 @@ export function PostingEditor({
     pendingFocus.current = path;
   };
 
-  const save = (status: "live" | "closed" | null, overwrite = false) =>
+  const save = (status: Status, overwrite = false) =>
     start(async () => {
       setMessage(null);
       const sent = JSON.stringify(payload);
+      if (tooBigToSend(sent)) {
+        setMessage({ error: "description_too_long", status });
+        return;
+      }
+      // A role made by this page has nothing anyone else could have changed yet.
+      const seen = JSON.parse(baseline) as DraftPayload;
+      const seenJob = job.id ? { steps: seen.steps, departmentId: seen.departmentId } : null;
       let result: SaveResult;
       try {
         result = jobId
-          ? await savePostingAction({ jobId, postId, draft: payload, seenUpdatedAt: post?.updatedAt ?? null, overwrite, status })
+          ? await savePostingAction({ jobId, postId, draft: payload, seenUpdatedAt: post?.updatedAt ?? null, seenJob, overwrite, status })
           : await createRoleAction({ draft: payload, publish: status === "live" });
       } catch {
         result = { ok: false, error: "failed" };
       }
       if (!result.ok) {
-        if (result.jobId && !job.id) setMade({ jobId: result.jobId, postId: result.postId ?? null });
-        else if (result.postId && !post) setMade({ jobId: null, postId: result.postId });
-        setMessage({ error: result.error });
+        const { jobId: madeJob, postId: madePost } = result;
+        setMade((m) => carryOn(m, { jobId: madeJob, postId: madePost }));
+        setMessage({ error: result.error, status });
         if (QUESTION_ERRORS.includes(result.error)) {
           setPreview(false);
           setTab("application");
@@ -397,7 +424,7 @@ export function PostingEditor({
         router.replace(`/client/jobs/${result.jobId}/post?notice=${result.notice}`);
         return;
       }
-      if (!post) setMade({ jobId: null, postId: result.postId });
+      if (!post) setMade((m) => carryOn(m, { postId: result.postId }));
       const live = status === null && post?.status === "live";
       setMessage({ notice: live ? "saved_live" : result.notice, keptOnInterviews: result.keptOnInterviews });
     });
@@ -459,33 +486,35 @@ export function PostingEditor({
   return (
     <Page className="max-w-[1000px]" bar={bar} stickyBar>
       <div ref={root} className="grid gap-4">
-        {message ? (
-          "error" in message ? (
-            <Notice tone="error">
-              {POSTING_ERRORS[message.error]}
-              {message.error === "changed" ? (
-                <>
-                  {" "}
-                  <button type="button" className="underline" onClick={() => save(null, true)}>
-                    Save mine over it
-                  </button>
-                  {" or "}
-                  <a className="underline" href={window.location.href}>
-                    reload to see theirs
-                  </a>
-                  .
-                </>
-              ) : null}
-            </Notice>
-          ) : (
-            <Notice>
-              {POSTING_NOTICES[message.notice]}
-              {message.keptOnInterviews > 0
-                ? ` ${message.keptOnInterviews === 1 ? "An interview" : `${message.keptOnInterviews} interviews`} already on a removed step ${message.keptOnInterviews === 1 ? "keeps" : "keep"} its name.`
-                : ""}
-            </Notice>
-          )
-        ) : null}
+        <div ref={said} className="scroll-mt-16 empty:hidden">
+          {message ? (
+            "error" in message ? (
+              <Notice tone="error">
+                {POSTING_ERRORS[message.error]}
+                {message.error === "changed" ? (
+                  <>
+                    {" "}
+                    <button type="button" className="underline" disabled={pending} onClick={() => save(message.status, true)}>
+                      Save mine over it{message.status === "live" ? " and publish" : message.status === "closed" ? " and close" : ""}
+                    </button>
+                    {" or "}
+                    <a className="underline" href={window.location.href}>
+                      reload to see theirs
+                    </a>
+                    .
+                  </>
+                ) : null}
+              </Notice>
+            ) : (
+              <Notice>
+                {POSTING_NOTICES[message.notice]}
+                {message.keptOnInterviews > 0
+                  ? ` ${message.keptOnInterviews === 1 ? "An interview" : `${message.keptOnInterviews} interviews`} already on a removed step ${message.keptOnInterviews === 1 ? "keeps" : "keep"} its name.`
+                  : ""}
+              </Notice>
+            )
+          ) : null}
+        </div>
         {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
         <article className="rounded-2xl border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
@@ -531,14 +560,15 @@ export function PostingEditor({
                   )}
                 </Fact>
               ) : null}
-              {job.id ? (
+              {/* The team's, not the applicant's: job_post_page returns none of these. */}
+              {job.id && !preview ? (
                 <Fact label="Job">
                   <StatusBadge status={job.status as Parameters<typeof StatusBadge>[0]["status"]} />
                 </Fact>
               ) : null}
-              {post?.publishedAt ? <Fact label="Published">{day(post.publishedAt)}</Fact> : null}
-              {post?.status === "closed" && post.closedAt ? <Fact label="Closed">{day(post.closedAt)}</Fact> : null}
-              {post && post.applications !== null ? <Fact label="Applied">{post.applications}</Fact> : null}
+              {post?.publishedAt && !preview ? <Fact label="Published">{day(post.publishedAt)}</Fact> : null}
+              {post?.status === "closed" && post.closedAt && !preview ? <Fact label="Closed">{day(post.closedAt)}</Fact> : null}
+              {post && post.applications !== null && !preview ? <Fact label="Applied">{post.applications}</Fact> : null}
             </aside>
             <div className="min-w-0">
               <div role="tablist" aria-label="Post" className="mb-6 flex gap-5 border-b border-[color:var(--line)]">

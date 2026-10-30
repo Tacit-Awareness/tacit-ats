@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { parseDraft, UUID } from "@/lib/client/posting-edit-rules";
+import { parseDraft, parseSeenJob, UUID } from "@/lib/client/posting-edit-rules";
 import { createRole, savePosting, type SaveResult } from "@/lib/client/posting-edits";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
@@ -31,11 +31,12 @@ export async function savePostingAction(input: {
   postId: string | null;
   draft: unknown;
   seenUpdatedAt: string | null;
+  seenJob: unknown;
   overwrite: boolean;
   status: "live" | "closed" | null;
 }): Promise<SaveResult> {
   const member = await requireClient();
-  const { jobId, postId, draft, seenUpdatedAt, overwrite, status } = input ?? {};
+  const { jobId, postId, draft, seenUpdatedAt, seenJob, overwrite, status } = input ?? {};
   if (typeof jobId !== "string" || !UUID.test(jobId)) return { ok: false, error: "not_found" };
   if (postId !== null && (typeof postId !== "string" || !UUID.test(postId))) return { ok: false, error: "not_found", jobId };
   if (status !== null && status !== "live" && status !== "closed") return { ok: false, error: "invalid", jobId };
@@ -49,6 +50,7 @@ export async function savePostingAction(input: {
       postId,
       draft: parsed.draft,
       seenUpdatedAt: typeof seenUpdatedAt === "string" ? seenUpdatedAt : null,
+      seenJob: parseSeenJob(seenJob),
       overwrite: overwrite === true,
       status,
     });

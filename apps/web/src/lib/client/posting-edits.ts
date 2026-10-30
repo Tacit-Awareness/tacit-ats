@@ -1,7 +1,7 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
 import type { PostingError, PostingNotice } from "@/app/client/jobs/messages";
-import type { PostingDraft } from "./posting-edit-rules";
+import { cleanLine, type PostingDraft, type SeenJob } from "./posting-edit-rules";
 
 // The posting editor's writes, on the member's OWN client, through the same
 // audited clientTools the connector calls, with lib/client/tool-ctx.ts's
@@ -87,21 +87,53 @@ export type SaveInput = {
   draft: PostingDraft;
   /** The version the editor opened; a post saved since then comes back `changed`. Null skips the check. */
   seenUpdatedAt: string | null;
+  /**
+   * The job's department and steps as the editor opened them, which the post's
+   * version says nothing about. Only what differs from this is written, so
+   * saving a post never puts back what someone else changed on the job. Left
+   * out, or null for a job this editor has only just made, both are written.
+   */
+  seenJob?: SeenJob | null;
   /** Saves over whatever is there now. */
   overwrite: boolean;
   /** After the save, publish (`live`) or take down (`closed`). */
   status: "live" | "closed" | null;
 };
 
+const sameSteps = (a: string[], b: string[]) => a.length === b.length && a.every((s, n) => s === b[n]);
+
 /**
- * Saves the editor: the post, then the job's department and hiring steps,
- * then the status. It stops at the first refusal, so a post someone else
- * changed is not half overwritten and never goes live with text the member
- * did not see.
+ * Which of the job's two fields this save writes: the ones the member changed,
+ * and `changed` if someone else moved one of those to something else since.
+ * Equal to the draft is this member's own save that stopped partway.
+ */
+async function jobWrites(db: Db, input: SaveInput): Promise<{ department: boolean; steps: boolean }> {
+  const { draft, seenJob: seen } = input;
+  if (!seen) return { department: true, steps: true };
+  const writes = { department: draft.departmentId !== seen.departmentId, steps: !sameSteps(draft.steps, seen.steps) };
+  if (input.overwrite || (!writes.department && !writes.steps)) return writes;
+  const { data, error } = await db.from("roles").select("department_id, interview_steps").eq("id", input.jobId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Stopped("not_found");
+  const steps = clientTools.stepsOf(data.interview_steps).map(cleanLine);
+  const theirs =
+    (writes.department && data.department_id !== seen.departmentId && data.department_id !== draft.departmentId) ||
+    (writes.steps && !sameSteps(steps, seen.steps) && !sameSteps(steps, draft.steps));
+  if (theirs) throw new Stopped("changed");
+  return writes;
+}
+
+/**
+ * Saves the editor: the post, then what the member changed of the job's
+ * department and hiring steps, then the status. It stops at the first refusal,
+ * so a post someone else changed is not half overwritten and never goes live
+ * with text the member did not see.
  */
 export async function savePosting(db: Db, ctx: clientTools.ClientToolCtx, input: SaveInput): Promise<SaveResult> {
   const { jobId, draft, status } = input;
   let postId = input.postId ?? undefined;
+  // updateJobPost would say the same, later: this also tells them nothing about the post.
+  if (ctx.accessLevel === "limited") return { ok: false, error: "forbidden", jobId, postId };
   try {
     if (input.postId) {
       const id = input.postId;
@@ -109,14 +141,18 @@ export async function savePosting(db: Db, ctx: clientTools.ClientToolCtx, input:
       const current = posts.find((p) => p.postId === id);
       if (!current) return { ok: false, error: "not_found", jobId };
       if (!input.overwrite && input.seenUpdatedAt && current.updatedAt !== input.seenUpdatedAt) return { ok: false, error: "changed", jobId, postId };
+    }
+    const writes = await jobWrites(db, input);
+    if (input.postId) {
+      const id = input.postId;
       const saved = await step("post", () => clientTools.updateJobPost(db, ctx, { postId: id, ...postFields(draft) }));
       if (saved.outcome === "changed_since") return { ok: false, error: "changed", jobId, postId };
     } else {
       postId = (await step("post", () => clientTools.createJobPost(db, ctx, { jobId, ...postFields(draft) }))).postId;
     }
     const target = postId!;
-    await step("job", () => clientTools.updateJob(db, ctx, { jobId, department: draft.departmentId }));
-    const plan = await step("plan", () => clientTools.setInterviewPlan(db, ctx, { jobId, steps: draft.steps }));
+    if (writes.department) await step("job", () => clientTools.updateJob(db, ctx, { jobId, department: draft.departmentId }));
+    const plan = writes.steps ? await step("plan", () => clientTools.setInterviewPlan(db, ctx, { jobId, steps: draft.steps })) : null;
     if (status) {
       const moved = await step("status", () => clientTools.setJobPostStatus(db, ctx, { postId: target, status }));
       if (moved.outcome === "changed_since") return { ok: false, error: "changed", jobId, postId };
@@ -126,10 +162,15 @@ export async function savePosting(db: Db, ctx: clientTools.ClientToolCtx, input:
       jobId,
       postId: target,
       notice: status === "live" ? "published" : status === "closed" ? "closed" : "saved",
-      keptOnInterviews: plan.keptOnInterviews.reduce((n, k) => n + k.interviews, 0),
+      keptOnInterviews: plan?.keptOnInterviews.reduce((n, k) => n + k.interviews, 0) ?? 0,
     };
   } catch (err) {
     if (err instanceof Stopped) return { ok: false, error: err.code, jobId, postId };
+    // As in createRole: a first post that now exists has to be named, or the next save makes a second.
+    if (postId && !input.postId) {
+      console.error("[client-postings] saving stopped partway:", err instanceof Error ? err.message : err);
+      return { ok: false, error: "failed", jobId, postId };
+    }
     throw err;
   }
 }

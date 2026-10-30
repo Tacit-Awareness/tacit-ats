@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools as tools, type clientTools } from "@tacit-ats/core";
 
 import { draftFromPost, draftPayload, newRoleDraft } from "./posting-draft";
 import { parseDraft, type PostingDraft } from "./posting-edit-rules";
@@ -22,6 +22,9 @@ const ADMIN = "f7a00000-0000-4000-8000-0000000000f1";
 const LEAD = "f7a00000-0000-4000-8000-0000000000f2";
 const INTERVIEWER = "f7a00000-0000-4000-8000-0000000000f3";
 const GLOBEX_ADMIN = "f7a10000-0000-4000-8000-0000000000f1";
+const EXTERNAL = "f7a00000-0000-4000-8000-0000000000f4";
+const TEAM_MEMBER = "f7a00000-0000-4000-8000-0000000000f5";
+const RECRUITER = "f7a00000-0000-4000-8000-0000000000f6";
 const ENG = "f7e00000-0000-4000-8000-0000000000f1";
 const OLD_DEPT = "f7e00000-0000-4000-8000-0000000000f2";
 const ENGINEER = "f7b00000-0000-4000-8000-0000000000f1";
@@ -44,7 +47,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  await db().from("audit_log").delete().in("actor_id", [ADMIN, LEAD, INTERVIEWER, GLOBEX_ADMIN]);
+  await db().from("audit_log").delete().in("org_id", ids);
   for (const table of ["openings", "job_offices", "interviews", "applications", "job_posts", "hiring_team", "people", "roles", "departments", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
@@ -62,6 +65,9 @@ const ctx = (actorId: string, accessLevel: clientTools.AccessLevel, orgId = ACME
 const admin = () => [member("user_ed_ada"), ctx(ADMIN, "admin")] as const;
 const lead = () => [member("user_ed_lee"), ctx(LEAD, "elevated")] as const;
 const interviewer = () => [member("user_ed_ivan"), ctx(INTERVIEWER, "limited")] as const;
+const external = () => [member("user_ed_ext"), ctx(EXTERNAL, "elevated")] as const;
+const teamMember = () => [member("user_ed_tam"), ctx(TEAM_MEMBER, "elevated")] as const;
+const recruiter = () => [member("user_ed_rae"), ctx(RECRUITER, "elevated")] as const;
 
 const auditRows = async (actor: string) =>
   must(await db().from("audit_log").select("source, action, entity, entity_id, before, after").eq("actor_id", actor).order("created_at")).data!;
@@ -92,6 +98,9 @@ beforeEach(async () => {
     { id: LEAD, org_id: ACME, slug: "itest-ed-lead", display_name: "Lee Lead", email: "lee@ed.test", access_level: "elevated", auth_subject: "user_ed_lee" },
     { id: INTERVIEWER, org_id: ACME, slug: "itest-ed-ivan", display_name: "Ivan Interviewer", email: "ivan@ed.test", access_level: "limited", auth_subject: "user_ed_ivan" },
     { id: GLOBEX_ADMIN, org_id: GLOBEX, slug: "itest-ed-gina", display_name: "Gina", email: "gina@ed.test", access_level: "admin", auth_subject: "user_ed_gina" },
+    { id: EXTERNAL, org_id: ACME, slug: "itest-ed-ext", display_name: "Ext Recruiter", email: "ext@ed.test", access_level: "elevated", auth_subject: "user_ed_ext" },
+    { id: TEAM_MEMBER, org_id: ACME, slug: "itest-ed-tam", display_name: "Tam Team", email: "tam@ed.test", access_level: "elevated", auth_subject: "user_ed_tam" },
+    { id: RECRUITER, org_id: ACME, slug: "itest-ed-rae", display_name: "Rae Recruiter", email: "rae@ed.test", access_level: "elevated", auth_subject: "user_ed_rae" },
   ]));
   must(await db().from("departments").insert([
     { id: ENG, org_id: ACME, name: "Engineering" },
@@ -109,7 +118,11 @@ beforeEach(async () => {
   must(await db().from("hiring_team").insert([
     { org_id: ACME, role_id: ENGINEER, actor_id: LEAD, team_role: "hiring_manager" },
     { org_id: ACME, role_id: ENGINEER, actor_id: INTERVIEWER, team_role: "interviewer" },
+    { org_id: ACME, role_id: ENGINEER, actor_id: RECRUITER, team_role: "recruiter" },
+    { org_id: ACME, role_id: ENGINEER, actor_id: TEAM_MEMBER, team_role: "coordinator" },
   ]));
+  const { data: externalRole } = must(await db().from("access_roles").select("id").eq("org_id", ACME).eq("name", "External Recruiter").single());
+  must(await db().from("job_access").insert({ org_id: ACME, role_id: ENGINEER, actor_id: EXTERNAL, access_role_id: externalRole!.id, source: "manual" }));
   const form = [
     { id: "name", type: "name", label: "Full name", required: true },
     { id: "email", type: "email", label: "Email", required: true },
@@ -184,6 +197,31 @@ describe("adding a role", () => {
     expect(must(await db().from("roles").select("id").eq("org_id", ACME)).data!.length).toBe(before);
   });
 
+  test("characters the database refuses cannot leave half a role behind", async () => {
+    const before = must(await db().from("roles").select("id").eq("org_id", ACME)).data!.length;
+    const d = newRoleDraft(null);
+    d.title = "Clean\u0000 me";
+    d.blocks = [{ kind: "text", text: "Half a pair \ud83d and a NUL \u0000 and a whole 🙂" }];
+    d.steps = ["Sc\u0007reen"];
+    d.questions[5].label = "Visa\u0000?";
+    const parsed = parseDraft(draftPayload(d));
+    if (!parsed.ok) throw new Error(parsed.error);
+    const result = await createRole(...admin(), parsed.draft, { publish: true });
+    if (!result.ok) throw new Error(`stopped at ${result.error}, ${result.jobId ? "with the job made" : "with nothing made"}`);
+    expect(await postRow(result.postId)).toMatchObject({ status: "live", title: "Clean me" });
+    expect((await postRow(result.postId)).description).toContain("🙂");
+    expect(must(await db().from("roles").select("id").eq("org_id", ACME)).data!.length).toBe(before + 1);
+  });
+
+  test("an org with no company row yet gets one with its first role", async () => {
+    must(await db().from("job_posts").delete().eq("org_id", GLOBEX));
+    must(await db().from("roles").delete().eq("org_id", GLOBEX));
+    must(await db().from("companies").delete().eq("org_id", GLOBEX));
+    const made = await createRole(member("user_ed_gina", GLOBEX_WORKOS), ctx(GLOBEX_ADMIN, "admin", GLOBEX), { ...draft(), departmentId: null }, { publish: true });
+    expect(made).toMatchObject({ ok: true, notice: "posted" });
+    expect(must(await db().from("companies").select("id").eq("org_id", GLOBEX)).data).toHaveLength(1);
+  });
+
   test("another company's department is not found", async () => {
     const result = await createRole(member("user_ed_gina", GLOBEX_WORKOS), ctx(GLOBEX_ADMIN, "admin", GLOBEX), { ...draft(), departmentId: ENG }, { publish: false });
     expect(result).toMatchObject({ ok: false, error: "not_found" });
@@ -197,6 +235,14 @@ describe("the editor's reads", () => {
     expect(await readPostingEditing(client, context, read.job)).toEqual({ steps: ["Screen", "Onsite"], departments: [{ id: ENG, path: "Engineering" }] });
     const inOld = await readPostingEditing(client, context, { ...read.job, departmentId: OLD_DEPT });
     expect(inOld!.departments.map((d) => d.id).sort()).toEqual([ENG, OLD_DEPT].sort());
+  });
+
+  test("a recruiter on the job edits it; an external recruiter and a coordinator only read it", async () => {
+    for (const who of [external(), teamMember()]) {
+      expect(await readPosting(...who, ENGINEER)).not.toBeNull();
+      expect(await readPostingEditing(...who, { id: ENGINEER, departmentId: null })).toBeNull();
+    }
+    expect(await readPostingEditing(...recruiter(), { id: ENGINEER, departmentId: null })).not.toBeNull();
   });
 
   test("a hiring manager on one job edits that one only; an interviewer edits none", async () => {
@@ -315,6 +361,65 @@ describe("saving a post", () => {
     const [client, context] = lead();
     expect(await savePosting(client, context, { jobId: SRE, postId: SRE_POST, draft: refused, seenUpdatedAt: null, overwrite: false, status: null })).toMatchObject({ ok: false, error: "not_found" });
     expect(await postRow(SRE_POST)).toMatchObject({ title: "SRE" });
+  });
+
+  test("called directly, an external recruiter and a coordinator change nothing, whatever they ask for", async () => {
+    const draft = await edited(ENGINEER, (d) => {
+      d.title = "Taken over";
+    });
+    for (const who of [external(), teamMember()]) {
+      expect(await save(who, draft, { status: "live", overwrite: true })).toMatchObject({ ok: false, error: "forbidden" });
+      expect(await savePosting(...who, { jobId: ENGINEER, postId: null, draft, seenUpdatedAt: null, overwrite: false, status: null })).toMatchObject({ ok: false, error: "forbidden" });
+      expect(await createRole(...who, draft, { publish: true })).toMatchObject({ ok: false, error: "forbidden" });
+    }
+    expect(await postRow(ENGINEER_POST)).toMatchObject({ title: "Founding Engineer", status: "draft" });
+    expect(must(await db().from("job_posts").select("id").eq("role_id", ENGINEER)).data).toHaveLength(1);
+  });
+
+  test("a confidential job is not an admin's to touch unless they are on it", async () => {
+    const draft = await edited(ENGINEER);
+    must(await db().from("roles").update({ confidential: true }).eq("id", ENGINEER));
+    expect(await save(admin(), draft, { overwrite: true })).toMatchObject({ ok: false, error: "not_found" });
+    expect(await savePosting(...admin(), { jobId: ENGINEER, postId: null, draft, seenUpdatedAt: null, overwrite: false, status: null })).toMatchObject({ ok: false, error: "not_found" });
+  });
+
+  test("what the job holds is not put back by someone saving the post", async () => {
+    const seenUpdatedAt = (await postRow(ENGINEER_POST)).updated_at;
+    const seenJob = { steps: ["Screen", "Onsite"], departmentId: null };
+    const mine = await edited(ENGINEER, (d) => {
+      d.title = "Only the title";
+    });
+    // Lee changes the plan and the department while Ada has the page open. Neither touches the post.
+    await tools.setInterviewPlan(...lead(), { jobId: ENGINEER, steps: ["Screen", "Onsite", "References"] });
+    await tools.updateJob(...lead(), { jobId: ENGINEER, department: ENG });
+    expect(await save(admin(), mine, { seenUpdatedAt, seenJob })).toMatchObject({ ok: true });
+    expect((await postRow(ENGINEER_POST)).title).toBe("Only the title");
+    expect(must(await db().from("roles").select("department_id, interview_steps").eq("id", ENGINEER).single()).data).toEqual({
+      department_id: ENG, interview_steps: ["Screen", "Onsite", "References"],
+    });
+  });
+
+  test("changing the steps someone else changed asks first, before anything is written", async () => {
+    const seenUpdatedAt = (await postRow(ENGINEER_POST)).updated_at;
+    const seenJob = { steps: ["Screen", "Onsite"], departmentId: null };
+    const mine = await edited(ENGINEER, (d) => {
+      d.title = "Not yet";
+      d.steps = ["Screen"];
+    });
+    await tools.setInterviewPlan(...lead(), { jobId: ENGINEER, steps: ["Screen", "Onsite", "References"] });
+    expect(await save(admin(), mine, { seenUpdatedAt, seenJob, status: "live" })).toMatchObject({ ok: false, error: "changed" });
+    expect(await postRow(ENGINEER_POST)).toMatchObject({ title: "Founding Engineer", status: "draft" });
+    expect(await save(admin(), mine, { seenUpdatedAt, seenJob, overwrite: true })).toMatchObject({ ok: true });
+    expect(must(await db().from("roles").select("interview_steps").eq("id", ENGINEER).single()).data).toEqual({ interview_steps: ["Screen"] });
+  });
+
+  test("a save that stopped partway carries on: its own steps are not someone else's", async () => {
+    const seenJob = { steps: ["Screen", "Onsite"], departmentId: null };
+    const mine = await edited(ENGINEER, (d) => {
+      d.steps = ["Screen", "Onsite", "Mine"];
+    });
+    await tools.setInterviewPlan(...admin(), { jobId: ENGINEER, steps: mine.steps });
+    expect(await save(admin(), mine, { seenJob })).toMatchObject({ ok: true });
   });
 
   test("another company's post is nobody's", async () => {

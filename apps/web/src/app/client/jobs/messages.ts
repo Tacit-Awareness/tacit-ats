@@ -28,7 +28,7 @@ export const POSTING_ERRORS = {
   invalid_post: "The post was refused as it stands. Check its text and questions.",
   invalid_steps: "The hiring steps were refused, though the post's text saved.",
   job_not_open: "The post can't go live while its job isn't open. Anything else you changed is saved.",
-  changed: "Someone else saved this post since you opened it.",
+  changed: "Someone else changed this posting since you opened it.",
   not_found: "That job or post isn't there, or you can't see it.",
   forbidden: "You can't change this job. Ask whoever manages it, or an admin.",
   rate_limited: "You've made 300 changes in the last hour, the limit. Try again later.",

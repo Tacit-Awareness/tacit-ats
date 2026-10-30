@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { parseDraft } from "./posting-edit-rules";
+import { parseDraft, parseSeenJob } from "./posting-edit-rules";
 
 const DEPT = "f5e00000-0000-4000-8000-0000000000f1";
 const QUESTIONS = [
@@ -92,5 +92,31 @@ describe("parseDraft", () => {
 
   test("only a dropdown carries choices", () => {
     expect(questions({ type: "short_text", label: "Q", options: ["a", "b"] })[2]).not.toHaveProperty("options");
+  });
+
+  test("what the database or the plan would refuse never gets as far as making a job", () => {
+    const parsed = parseDraft({
+      ...DRAFT,
+      title: "Staff\u0000 Engineer\ud83d",
+      location: "Par\u0007is",
+      description: "Hello\u0000 \ud83d world 🙂",
+      steps: ["Sc\u0007reen", "\u001b"],
+      questions: [...QUESTIONS, { type: "select", label: "Pi\u0000ck", options: ["O\u0000ne", "T\udc00wo"] }],
+    });
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(JSON.stringify(parsed.draft)).not.toMatch(/\\u00|\\ud[89a-f]/);
+    expect(parsed.draft.steps).toEqual(["Sc reen"]);
+    expect(parsed.draft.description).toBe("Hello  world 🙂");
+  });
+});
+
+describe("parseSeenJob", () => {
+  test("reads what the editor opened, tidied the way the draft is", () => {
+    expect(parseSeenJob({ steps: [" Screen  one ", ""], departmentId: DEPT })).toEqual({ steps: ["Screen one"], departmentId: DEPT });
+    expect(parseSeenJob({ steps: [], departmentId: "" })).toEqual({ steps: [], departmentId: null });
+  });
+
+  test.each([null, undefined, "x", 3, [], { steps: "Screen" }, { steps: [] }, { steps: [], departmentId: 4 }])("anything else is no record at all: %j", (raw) => {
+    expect(parseSeenJob(raw)).toBeNull();
   });
 });
