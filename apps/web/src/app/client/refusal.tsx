@@ -1,4 +1,5 @@
 import { Section } from "@/components/page";
+import { Button } from "@/components/ui/button";
 import type { ClientGate } from "@/lib/client/session";
 
 // What a client-area page shows when resolveClient() turns the user away.
@@ -17,7 +18,7 @@ const REFUSALS: Record<RefusalReason, { title: string; body: string }> = {
   },
   no_org: {
     title: "No company on this sign-in",
-    body: "You signed in without a company. Use the invitation link your admin sent you.",
+    body: "You signed in without a company. Sign out, then open the invitation link your admin sent you.",
   },
   unknown_org: {
     title: "This company isn't set up yet",
@@ -43,6 +44,14 @@ export function Refusal({ reason }: { reason: RefusalReason }) {
       <Section>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.02em]">{refusal.title}</h1>
         <p className="m-0 text-[13.5px] leading-relaxed text-muted-foreground">{refusal.body}</p>
+        {/* A refused sign-in gets no sidebar, so this is its only way out of the session. */}
+        {reason === "signed_out" ? null : (
+          <form action="/client/signout" method="post">
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        )}
       </Section>
     </main>
   );
