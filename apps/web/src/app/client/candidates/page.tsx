@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { clientTools } from "@tacit-ats/core";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { CRM_SCAN_MAX, readCandidates } from "@/lib/client/crm";
 import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, inJobs, parseCrmQuery, stageLabel, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
@@ -6,6 +7,7 @@ import { departmentScope, departmentTabs } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import { Refusal } from "../refusal";
 import { Icon, type IconName } from "./icons";
 import { CrmView, type CrmColumn } from "./view";
@@ -15,7 +17,8 @@ import { CrmView, type CrmColumn } from "./view";
 // arranges it: the department, the view tab, the search, the sort and the
 // page are URL params (`?department=`, `?view=`, `?q=`, `?sort=` / `?dir=`,
 // `?page=`), worked out in lib/client/crm-views.ts and, for the department,
-// lib/client/department-tree.ts. Read-only: a row opens the candidate page.
+// lib/client/department-tree.ts. A row opens the candidate page; the writes
+// here are the bulk actions (bulk.tsx, actions.ts), which act row by row.
 
 // design/tats's CRM_COLS, each with its icon; Profile does not sort.
 const COLUMNS: { key: CrmSort | "profile"; label: string; icon: IconName }[] = [
@@ -65,8 +68,15 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
     );
   }
 
+  const ctx = toolCtx(gate.ctx);
   const parsed = parseCrmQuery(await searchParams);
-  const [{ candidates: everyone, truncated }, structure] = await Promise.all([readCandidates(db), readDepartments(db)]);
+  const [{ candidates: everyone, truncated }, structure, reasons, tags, pools] = await Promise.all([
+    readCandidates(db),
+    readDepartments(db),
+    clientTools.listRejectionReasons(db, ctx),
+    clientTools.listTags(db, ctx),
+    clientTools.listPools(db, ctx),
+  ]);
   const scope = departmentScope(structure, parsed.department);
   const query: CrmQuery = { ...parsed, department: scope.departmentId };
   const candidates = scope.jobIds ? inJobs(everyone, scope.jobIds) : everyone;
@@ -104,6 +114,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
         ownerName: r.ownerName,
         lastTouchAt: r.lastTouchAt,
         lastTouch: ago(r.lastTouchAt, now),
+        bulk: { candidateId: r.candidateId, name: r.name, apps: r.openApps },
       }))}
       total={table.total}
       range={table.total ? `${first.toLocaleString("en-US")}–${(first + table.rows.length - 1).toLocaleString("en-US")} of ${table.total.toLocaleString("en-US")}` : "0"}
@@ -112,6 +123,11 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
       search={{ q: query.q, hidden }}
       note={truncated ? `Counting the first ${CRM_SCAN_MAX.toLocaleString("en-US")} candidates.` : null}
       empty={candidates.length === 0 ? (query.department ? "Nobody in this department's jobs yet." : "Nobody yet.") : table.total === 0 ? "Nobody matches." : null}
+      bulk={{
+        reasons: reasons.filter((r) => r.kind === "rejected").map((r) => ({ reasonId: r.reasonId, name: r.name })),
+        tags: tags.map((t) => t.name),
+        pools: pools.map((p) => p.name),
+      }}
     />
   );
 }

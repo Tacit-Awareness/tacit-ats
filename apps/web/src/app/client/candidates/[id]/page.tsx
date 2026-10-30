@@ -49,6 +49,7 @@ export default async function ClientCandidate({
       candidate={read.candidate}
       activity={read.activity}
       owners={Object.fromEntries(read.owners)}
+      past={read.past}
       editing={
         editing && editing.editable.size
           ? { apps: Object.fromEntries(editing.editable), owners: editing.owners, reasons: editing.reasons }

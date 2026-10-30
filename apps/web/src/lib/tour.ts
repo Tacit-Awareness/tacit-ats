@@ -43,7 +43,7 @@ export const TOUR: TourStep[] = [
     href: "/client/candidates",
     targets: ['[data-tour="crm"]'],
     title: "CRM",
-    body: "Everyone you can see, one table: in process, and everyone the funnel has closed, hired or not.",
+    body: "Everyone you can see, one table: in process, and everyone the funnel has closed, hired or not. X selects a row, to reject, tag or add to a pool in bulk.",
   },
   {
     href: "/client/jobs",

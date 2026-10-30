@@ -176,3 +176,39 @@ describe("every server action checks who is calling, first", () => {
     ).toEqual([]);
   });
 });
+
+/**
+ * The server-side packages stay out of the browser: @tacit/core's barrel is
+ * tacit-internal's domain logic and a megabyte of JavaScript, and the first
+ * value import from a client component ships all of it to every member. A
+ * type import is erased, so it does not count.
+ */
+describe("a client component never reaches the server's packages", () => {
+  const SERVER_ONLY = /^@tacit(-ats)?\/(core|db)(\/|$)/;
+  const VALUE_IMPORT = /^\s*(?:import|export)\s+(?!type\b)([^;'"]*?)\s+from\s*["']([^"']+)["']/gm;
+
+  const valueImportsOf = (file: string): string[] =>
+    [...readFileSync(file, "utf8").matchAll(VALUE_IMPORT)]
+      .filter((m) => !/^\{(\s*type\s+[^,}]+,?)*\s*\}$/.test(m[1]!.trim()))
+      .map((m) => m[2]!);
+
+  test("no value import from a \"use client\" file, at any depth, lands on @tacit/core, @tacit/db or @tacit-ats/core", () => {
+    const roots = walk(SRC).filter((f) => /^\s*["']use client["']/.test(readFileSync(f, "utf8")));
+    expect(roots.map(rel)).toContain("app/client/candidates/bulk.tsx");
+    const offenders: string[] = [];
+    const seen = new Set<string>();
+    const visit = (file: string, trail: string[]) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const here = [...trail, rel(file)];
+      for (const spec of valueImportsOf(file)) {
+        if (SERVER_ONLY.test(spec)) offenders.push(`${here.join(" -> ")} -> ${spec}`);
+        const next = resolveLocal(file, spec);
+        // A server action reached from a client file is a reference across the boundary, not code in the bundle.
+        if (next && !/^\s*["']use server["']/.test(readFileSync(next, "utf8"))) visit(next, here);
+      }
+    };
+    for (const root of roots) visit(root, []);
+    expect(offenders, "Keep the constant or type a client component needs in a module with no such import.").toEqual([]);
+  });
+});

@@ -15,7 +15,8 @@ export type KeyHandler = (e: KeyboardEvent) => void;
 /**
  * Binds keys on the window while mounted: `{ j: next, Enter: open }`, letters
  * lower-case. Skips typing, ⌘ / Ctrl / Alt and handled events (lib/keys.ts's
- * ignoreKey); a bound key's default is prevented, so nothing else acts on it.
+ * ignoreKey), and anything while a <dialog> is open; a bound key's default is
+ * prevented, so nothing else acts on it.
  */
 export function useKeys(bindings: Record<string, KeyHandler>, enabled = true) {
   const ref = useRef(bindings);
@@ -23,7 +24,8 @@ export function useKeys(bindings: Record<string, KeyHandler>, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (ignoreKey(e)) return;
+      // A modal owns the keyboard: nothing behind it acts, and Esc stays the dialog's to close it.
+      if (ignoreKey(e) || document.querySelector("dialog[open]")) return;
       const run = ref.current[keyName(e.key)];
       if (!run) return;
       e.preventDefault();
@@ -128,7 +130,9 @@ export function KeyList({
   const box = useRef<HTMLDivElement>(null);
   const step = (d: 1 | -1) => {
     const all = Array.from(box.current?.querySelectorAll<HTMLElement>(items) ?? []);
-    const focused = all.findIndex((el) => el === document.activeElement);
+    // A table row's item may not be what has focus: the CRM's checkbox sits beside its link.
+    const active = document.activeElement;
+    const focused = all.findIndex((el) => el === active || (active && el.closest("[role=row]")?.contains(active)));
     const cur = focused >= 0 ? focused : all.findIndex((el) => el.hasAttribute("aria-current"));
     const i = stepIndex(cur, all.length, d);
     const el = all[i];

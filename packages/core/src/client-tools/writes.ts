@@ -119,7 +119,8 @@ const isClosing = (s: string): s is (typeof CLOSING)[number] => (CLOSING as read
  * Moves an application. Closing one (rejected, withdrawn) needs a reason from
  * list_rejection_reasons, of the matching kind, and takes an optional note;
  * the same call on an application already closed at that stage replaces its
- * reason. Leaving those stages clears the reason (the database does that).
+ * reason, unless `expectedStage` says the caller thought it was still open.
+ * Leaving those stages clears the reason (the database does that).
  */
 export async function updateStage(
   db: Db,
