@@ -78,7 +78,7 @@ export default async function ClientJob({
               closedStages={CLOSED_STAGES}
               now={Date.now()}
               actions={editable ? CLIENT_PIPELINE_ACTIONS : undefined}
-              links={{}}
+              links={{ person: "/client/candidates" }}
             />
           )}
         </Section>
