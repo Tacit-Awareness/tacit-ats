@@ -1,47 +1,90 @@
 @import "tailwindcss";
 
-/* ---------- Tacit design tokens ----------
-   tacit-internal's apps/internal globals.css, copied: its 2026-10 redesign (Hy): a Linear-style app shell -- sidebar on the frame,
-   one inset panel for the page -- in the Overseer dashboard's skin: a
-   green-black frame, Geist + Geist Mono, Departure Mono for big numbers,
-   green reserved for "now", "done" and focus, red for overdue. Two themes:
+/* ---------- Tacit ATS design tokens ----------
+   Hy's tATS client dashboard (design/tats, the prototype this area is being
+   ported from): warm off-white surfaces, near-black in dark, one indigo
+   accent for the primary action, green for ok / done, red for what's broken,
+   the 4-24px spacing scale. Values are the prototype's resolved ones (its
+   style.css redefines them in layers; the last :root wins). Two themes:
    light below, dark in the blocks after it. With no choice made the page
    follows the system; the sidebar's toggle stores one in the `tacit-theme`
    cookie, which the root layout renders as <html data-theme>, so there is no
    flash of the wrong theme and no before-paint script.
 
-   The older token names (--canvas, --hairline, --card-border, ...) are
-   kept because the copied primitives still name them. */
+   Until 2026-10-29 these were tacit-internal's apps/internal tokens (its
+   green-black Overseer skin); the names stayed, so the components did not
+   change. --green* is the prototype's --ok, --muted-text its --muted. The
+   older token names (--canvas, --hairline, --card-border, ...) are kept
+   because the copied primitives still name them. */
 :root {
-  --frame: #eef2ef; /* the sidebar and everything behind the panel */
-  --surface: #f7f9f8; /* the inset panel a page sits on */
-  --paper: #ffffff; /* cards */
+  --frame: #ededea; /* the sidebar and everything behind the panel */
+  --surface: #f7f7f4; /* the inset panel a page sits on */
+  --paper: #fafaf8; /* cards */
   --raised: #ffffff; /* popovers, the active nav item */
-  --ink: #171b18;
-  --fg-rgb: 23, 27, 24; /* ink as a triplet, for alpha-stepped uses */
-  --muted-text: #5c655f;
-  --faint: #7a837d;
-  --line: #e1e6e2; /* card borders, dividers */
-  --line-strong: #cfd6d1; /* inputs, outlined buttons */
-  --soft: #eef2ef; /* recessed fill: hovers, bands, avatar chips */
-  --soft-strong: #e4eae6;
-  --accent: #00803a; /* green: focus, active, links on hover */
-  --accent-soft: #e3f3e8;
-  --green: #00a449;
-  --green-bright: #00803a;
-  --green-soft: #ddf3e5;
-  --red: #c04545;
-  --red-soft: #fbe3e3;
-  --dot-off: rgba(23, 27, 24, 0.1);
-  --shadow: 0 1px 2px rgba(23, 27, 24, 0.08);
-  --pop-shadow: 0 18px 48px rgba(23, 27, 24, 0.14), 0 2px 8px rgba(23, 27, 24, 0.08);
-  --active-inset: inset 0 -0.5px 1px rgba(0, 128, 58, 0.25), 0 0 0 0.5px #dce2de;
-  /* one ordered scale for stages and tiers: slate (just started) to green (furthest along) */
-  --tone-1: #8792a0;
-  --tone-2: #4f7fc0;
-  --tone-3: #20909f;
-  --tone-4: #1d9a68;
-  --tone-5: #00803a;
+  --pane: #f3f3ef; /* a reader pane, one shade under its list */
+  --band: #f1f1ed; /* group headers, table heads */
+  --ink: #1b1b1f;
+  --fg-rgb: 27, 27, 31; /* ink as a triplet, for alpha-stepped uses */
+  --muted-text: #66686f;
+  --faint: #9a9ca3;
+  --line: #e1e1dc; /* card borders, dividers */
+  --line-strong: #cfcfc9; /* inputs, outlined buttons */
+  --soft: #efefeb; /* recessed fill: hovers, bands, avatar chips */
+  --soft-strong: #e5e5e0; /* the active nav item */
+  --hover: rgba(40, 35, 20, 0.045);
+  --sel: #f0f1fb; /* a selected row */
+  --scrim: rgba(20, 20, 24, 0.24);
+  --accent: #5e6ad2; /* indigo: the primary action, focus */
+  --accent-ink: #ffffff; /* text on the accent */
+  --accent-soft: #eceefb;
+  --green: #2c8a4f; /* ok / done */
+  --green-bright: #2c8a4f;
+  --green-soft: #e7f5ec;
+  --red: #e5484d;
+  --red-soft: #fdecec;
+  --amber: #a8650a;
+  --amber-soft: #fcf1dc;
+  --blue: #2f6fe0;
+  --blue-soft: #eaf1fd;
+  --orange: #f2784b;
+  --dot-off: rgba(27, 27, 31, 0.1);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --active-inset: 0 0 0 0.5px var(--line);
+  /* one ordered scale for tiers: grey (just started) to indigo (furthest along) */
+  --tone-1: #d6d7da;
+  --tone-2: #a3a5ab;
+  --tone-3: #f0cc5c;
+  --tone-4: #f2994a;
+  --tone-5: #5e6ad2;
+  /* pipeline status dots, New to Your call, and the closed states */
+  --st-1: #a3a5ab;
+  --st-2: #a3a5ab;
+  --st-3: #e8b931;
+  --st-4: #f2994a;
+  --st-5: #5e6ad2;
+  --done: #5e6ad2;
+  --closed: #a3a5ab;
+  /* calendar events: a fill and its text */
+  --ev-blue: #d3e6f8;
+  --ev-blue-ink: #1f4f7d;
+  --ev-mint: #c5ecdd;
+  --ev-mint-ink: #1b5d47;
+  --ev-pink: #f9d2e4;
+  --ev-pink-ink: #8a2b5b;
+  --ev-peach: #fcdcbc;
+  --ev-peach-ink: #7c4516;
+  --ev-lav: #e4dcfd;
+  --ev-lav-ink: #5638b8;
+  --ev-gray: #eeeef0;
+  --ev-gray-ink: #55555c;
+  /* the spacing scale; 24px is the page gutter */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
   --radius: 0.5rem;
   color-scheme: light;
 
@@ -56,78 +99,138 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --frame: #1f2421;
-    --surface: #252a27;
-    --paper: #2a302c;
-    --raised: #2d332f;
-    --ink: #f5f5f6;
-    --fg-rgb: 245, 245, 246;
-    --muted-text: #a6a6ab;
-    --faint: #7c7c82;
-    --line: rgba(150, 150, 150, 0.16);
-    --line-strong: rgba(150, 150, 150, 0.28);
-    --soft: rgba(255, 255, 255, 0.045);
-    --soft-strong: rgba(255, 255, 255, 0.08);
-    --accent: #4ade80;
-    --accent-soft: rgba(74, 222, 128, 0.1);
-    --green: #00a449;
-    --green-bright: #4ade80;
-    --green-soft: rgba(74, 222, 128, 0.12);
-    --red: #f08a8a;
-    --red-soft: rgba(240, 138, 138, 0.12);
+    --frame: #0e0e10;
+    --surface: #151517;
+    --paper: #18181b;
+    --raised: #1d1d20;
+    --pane: #18181b;
+    --band: rgba(255, 255, 255, 0.035);
+    --ink: #e8e8ea;
+    --fg-rgb: 232, 232, 234;
+    --muted-text: #9b9da4;
+    --faint: #6b6e75;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.11);
+    --soft: rgba(255, 255, 255, 0.04);
+    --soft-strong: rgba(255, 255, 255, 0.075);
+    --hover: rgba(255, 255, 255, 0.035);
+    --sel: rgba(113, 112, 255, 0.1);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --accent: #7170ff;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(113, 112, 255, 0.14);
+    --green: #6fcf97;
+    --green-bright: #6fcf97;
+    --green-soft: rgba(111, 207, 151, 0.12);
+    --red: #f07178;
+    --red-soft: rgba(240, 113, 120, 0.12);
+    --amber: #e8b45a;
+    --amber-soft: rgba(232, 180, 90, 0.12);
+    --blue: #7aa7f5;
+    --blue-soft: rgba(122, 167, 245, 0.12);
+    --orange: #f2895c;
     --dot-off: rgba(0, 0, 0, 0.3);
-    --shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    --pop-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
-    --active-inset: inset 0 -0.5px 1px rgba(0, 116, 51, 0.25), inset 0 0.25px 0.5px rgba(255, 255, 255, 0.5);
-    --tone-1: #8a94a1;
-    --tone-2: #82a6d4;
-    --tone-3: #6cc3cf;
-    --tone-4: #5fd4a0;
-    --tone-5: #4ade80;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --active-inset: 0 0 0 0.5px var(--line);
+    --tone-1: #3a3b40;
+    --tone-2: #6c6f76;
+    --tone-3: #d9b444;
+    --tone-4: #e8914a;
+    --tone-5: #7170ff;
+    --st-1: #7c7f86;
+    --st-2: #7c7f86;
+    --st-3: #e8c14a;
+    --st-4: #f2a15a;
+    --st-5: #7c7ff0;
+    --done: #7c7ff0;
+    --closed: #6c6f76;
+    --ev-blue: rgba(96, 165, 250, 0.18);
+    --ev-blue-ink: #a4cbf6;
+    --ev-mint: rgba(52, 211, 153, 0.16);
+    --ev-mint-ink: #8fdcbb;
+    --ev-pink: rgba(244, 114, 182, 0.17);
+    --ev-pink-ink: #f3a9cb;
+    --ev-peach: rgba(251, 146, 60, 0.17);
+    --ev-peach-ink: #f6bd8f;
+    --ev-lav: rgba(167, 139, 250, 0.18);
+    --ev-lav-ink: #c6b6fa;
+    --ev-gray: rgba(255, 255, 255, 0.07);
+    --ev-gray-ink: #a6a6ad;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --frame: #1f2421;
-  --surface: #252a27;
-  --paper: #2a302c;
-  --raised: #2d332f;
-  --ink: #f5f5f6;
-  --fg-rgb: 245, 245, 246;
-  --muted-text: #a6a6ab;
-  --faint: #7c7c82;
-  --line: rgba(150, 150, 150, 0.16);
-  --line-strong: rgba(150, 150, 150, 0.28);
-  --soft: rgba(255, 255, 255, 0.045);
-  --soft-strong: rgba(255, 255, 255, 0.08);
-  --accent: #4ade80;
-  --accent-soft: rgba(74, 222, 128, 0.1);
-  --green: #00a449;
-  --green-bright: #4ade80;
-  --green-soft: rgba(74, 222, 128, 0.12);
-  --red: #f08a8a;
-  --red-soft: rgba(240, 138, 138, 0.12);
+  --frame: #0e0e10;
+  --surface: #151517;
+  --paper: #18181b;
+  --raised: #1d1d20;
+  --pane: #18181b;
+  --band: rgba(255, 255, 255, 0.035);
+  --ink: #e8e8ea;
+  --fg-rgb: 232, 232, 234;
+  --muted-text: #9b9da4;
+  --faint: #6b6e75;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.11);
+  --soft: rgba(255, 255, 255, 0.04);
+  --soft-strong: rgba(255, 255, 255, 0.075);
+  --hover: rgba(255, 255, 255, 0.035);
+  --sel: rgba(113, 112, 255, 0.1);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --accent: #7170ff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(113, 112, 255, 0.14);
+  --green: #6fcf97;
+  --green-bright: #6fcf97;
+  --green-soft: rgba(111, 207, 151, 0.12);
+  --red: #f07178;
+  --red-soft: rgba(240, 113, 120, 0.12);
+  --amber: #e8b45a;
+  --amber-soft: rgba(232, 180, 90, 0.12);
+  --blue: #7aa7f5;
+  --blue-soft: rgba(122, 167, 245, 0.12);
+  --orange: #f2895c;
   --dot-off: rgba(0, 0, 0, 0.3);
-  --shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --pop-shadow: 0 18px 48px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
-  --active-inset: inset 0 -0.5px 1px rgba(0, 116, 51, 0.25), inset 0 0.25px 0.5px rgba(255, 255, 255, 0.5);
-  --tone-1: #8a94a1;
-  --tone-2: #82a6d4;
-  --tone-3: #6cc3cf;
-  --tone-4: #5fd4a0;
-  --tone-5: #4ade80;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --active-inset: 0 0 0 0.5px var(--line);
+  --tone-1: #3a3b40;
+  --tone-2: #6c6f76;
+  --tone-3: #d9b444;
+  --tone-4: #e8914a;
+  --tone-5: #7170ff;
+  --st-1: #7c7f86;
+  --st-2: #7c7f86;
+  --st-3: #e8c14a;
+  --st-4: #f2a15a;
+  --st-5: #7c7ff0;
+  --done: #7c7ff0;
+  --closed: #6c6f76;
+  --ev-blue: rgba(96, 165, 250, 0.18);
+  --ev-blue-ink: #a4cbf6;
+  --ev-mint: rgba(52, 211, 153, 0.16);
+  --ev-mint-ink: #8fdcbb;
+  --ev-pink: rgba(244, 114, 182, 0.17);
+  --ev-pink-ink: #f3a9cb;
+  --ev-peach: rgba(251, 146, 60, 0.17);
+  --ev-peach-ink: #f6bd8f;
+  --ev-lav: rgba(167, 139, 250, 0.18);
+  --ev-lav-ink: #c6b6fa;
+  --ev-gray: rgba(255, 255, 255, 0.07);
+  --ev-gray-ink: #a6a6ad;
   color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--surface);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-geist), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
   --font-pixel: var(--font-departure), "Geist Mono", ui-monospace, monospace;
 
-  --color-ring: color-mix(in srgb, var(--accent) 45%, transparent); /* green focus ring */
+  --color-ring: color-mix(in srgb, var(--accent) 45%, transparent); /* indigo focus ring */
   --color-input: var(--line-strong);
   --color-border: var(--line);
   --color-destructive: var(--red);
@@ -184,8 +287,8 @@
     letter-spacing: -0.02em;
   }
   ::selection {
-    background: var(--accent);
-    color: var(--surface);
+    background: var(--accent-soft);
+    color: var(--ink);
   }
 }
 
@@ -203,24 +306,9 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* the active sidebar item: a raised chip whose right edge blooms into a
-   field of green dots (Overseer's glow) */
-.nav-glow {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: var(--raised);
-  box-shadow: var(--shadow), var(--active-inset);
-}
-.nav-glow::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 0 0 0 45%;
-  background: radial-gradient(circle, var(--green-bright) 0.7px, transparent 1px) 0 0 / 3px 3px;
-  -webkit-mask-image: radial-gradient(60% 140% at 100% 50%, #000 0%, transparent 75%);
-  mask-image: radial-gradient(60% 140% at 100% 50%, #000 0%, transparent 75%);
-  opacity: 0.75;
+/* the active sidebar item: a plain soft fill, as in design/tats */
+.nav-on {
+  background: var(--soft-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {

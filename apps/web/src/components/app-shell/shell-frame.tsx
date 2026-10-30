@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { avatarColor } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 
@@ -53,7 +54,7 @@ function NavItem({ link, active }: { link: NavLink; active: boolean }) {
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex h-7 items-center gap-2.5 rounded-md px-2 text-[13px] whitespace-nowrap transition-colors duration-150",
-        active ? "nav-glow font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
+        active ? "nav-on font-medium text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
       )}
     >
       <Icon name={link.icon} className={active ? "text-foreground" : undefined} />
@@ -75,10 +76,10 @@ function JobsBlock({ jobs, activeTotal }: { jobs: ShellJob[]; activeTotal: numbe
         aria-current={onList ? "page" : undefined}
         className={cn(
           "flex h-8 items-center gap-2.5 rounded-md px-2 text-[14px] font-semibold transition-colors duration-150",
-          onList ? "nav-glow" : "hover:bg-accent",
+          onList ? "nav-on" : "hover:bg-accent",
         )}
       >
-        <Icon name="jobs" className="text-[color:var(--green-bright)]" />
+        <Icon name="jobs" className="text-muted-foreground" />
         Jobs
         {activeTotal ? <span className="ml-auto font-mono text-[11.5px] font-normal text-muted-foreground">{activeTotal}</span> : null}
       </Link>
@@ -165,7 +166,7 @@ export function ShellFrame({
         <span className="tacit-mark size-4" aria-hidden />
         <span className="truncate text-sm font-semibold">{org}</span>
       </div>
-      {drawer ? <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
+      {drawer ? <div className="fixed inset-0 z-40 bg-[color:var(--scrim)] md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
 
       <aside
         className={cn(
@@ -176,8 +177,8 @@ export function ShellFrame({
         aria-label="Workspace"
       >
         <Link href="/client" className="flex h-8 min-w-0 items-center gap-2.5 rounded-md px-1.5 text-[14px] font-medium">
-          <span className="grid size-6 shrink-0 place-items-center rounded-[6px] bg-black shadow-[inset_0_0_0_0.5px_rgba(74,222,128,0.4)]">
-            <span className="tacit-mark size-3 bg-[#4ade80]!" aria-hidden />
+          <span className="grid size-6 shrink-0 place-items-center rounded-[6px] bg-[color:var(--ink)]">
+            <span className="tacit-mark size-3 bg-[color:var(--paper)]!" aria-hidden />
           </span>
           <span className="truncate">{org}</span>
         </Link>
@@ -190,7 +191,10 @@ export function ShellFrame({
         </nav>
 
         <div className="mt-auto flex items-center gap-2.5 rounded-lg border border-[color:var(--line)] bg-gradient-to-b from-[var(--paper)] to-[var(--surface)] px-2.5 py-2 shadow-[var(--shadow)]">
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-black font-mono text-[10px] text-[#e6f7ea] shadow-[inset_0_-2px_4px_rgba(74,222,128,0.3),0_0_0_1px_#1f5537]">
+          <span
+            style={{ background: avatarColor(user.name || user.email) }}
+            className="grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-semibold text-white"
+          >
             {initials(user.name || user.email)}
           </span>
           <span className="grid min-w-0">

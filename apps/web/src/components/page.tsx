@@ -3,11 +3,11 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // The page grammar of tacit-internal's 2026-10 Workspace redesign (its
-// apps/internal components/page.tsx; Hy's mockup): a header with the title, a
-// muted line and the actions on the right; a KPI strip in pixel numbers;
-// cards with a small section heading and count; compact list rows; pills
-// that only take colour when it means something (green now/done, red
-// overdue). Server components, no state: every page composes these instead
+// apps/internal components/page.tsx; Hy's mockup), in design/tats's palette
+// since 2026-10-29: a header with the title, a muted line and the actions on
+// the right; a KPI strip in pixel numbers; cards with a small section heading
+// and count; compact list rows; pills that only take colour when it means
+// something (green ok/done, red broken or overdue, indigo for the action). Server components, no state: every page composes these instead
 // of restating the classes, so the pages cannot drift apart.
 
 /** The page column: the mockup's 1180px measure, 16px between blocks. */
@@ -308,13 +308,24 @@ export function initialsOf(name: string | null | undefined): string {
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "")).toUpperCase();
 }
 
-/** The mockup's round initials avatar: black with a green inner glow. */
+// design/tats's people colours: muted, dark enough for white initials in
+// both themes. There is no colour column, so a name always hashes to the same one.
+const AVATAR_COLORS = ["#3c6e8f", "#7a5c3e", "#6b7a90", "#4f7a65", "#8a6a3a", "#5b5f99", "#8a4f6e", "#4d6f8c", "#9a5a4a", "#6a7d3c"] as const;
+
+export function avatarColor(name: string | null | undefined): string {
+  let h = 0;
+  for (const ch of (name ?? "").trim().toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
+}
+
+/** The round initials avatar: a solid person colour, white initials. */
 export function Avatar({ name, size = "sm" }: { name: string | null | undefined; size?: "sm" | "xl" }) {
   return (
     <span
       aria-hidden
+      style={{ background: avatarColor(name) }}
       className={cn(
-        "grid flex-none place-items-center rounded-full bg-black font-mono tracking-[-0.02em] text-[#dff7e5] shadow-[inset_0_-2px_4px_rgba(74,222,128,.28),inset_0_2px_2px_rgba(74,222,128,.18),0_0_0_1px_#1f5537]",
+        "grid flex-none place-items-center rounded-full font-semibold text-white",
         size === "xl" ? "size-11 text-[15px]" : "size-[22px] text-[9.5px]",
       )}
     >
@@ -373,8 +384,8 @@ export function Live({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Inline text link: quiet until hovered, green on hover. */
-export const textLink = "inline-flex items-center gap-1 text-[12.5px] text-foreground/75 transition-colors hover:text-positive";
+/** Inline text link: quiet until hovered, the accent on hover. */
+export const textLink = "inline-flex items-center gap-1 text-[12.5px] text-foreground/75 transition-colors hover:text-[color:var(--accent)]";
 
 /** A 30px app tile for connector rows: a glyph or an icon on the raised fill. */
 export function AppTile({ children, className }: { children: React.ReactNode; className?: string }) {
