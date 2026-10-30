@@ -34,6 +34,7 @@ const ICONS = {
   chart: "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5",
   tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
+  inbox: "M2.5 9h3l1 2h3l1-2h3M4 3h8l1.5 6v4h-11V9Z",
   ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
   cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
@@ -60,6 +61,7 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
 type NavLink = { href: string; label: string; icon: IconName; activeUnder?: string[] };
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
+const INBOX: NavLink = { href: "/client/inbox", label: "Inbox", icon: "inbox" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
@@ -275,6 +277,7 @@ export function ShellFrame({
 
   const commands: CommandItem[] = [
     { group: "Go to", label: HOME.label, href: HOME.href },
+    { group: "Go to", label: INBOX.label, href: INBOX.href },
     { group: "Go to", label: CRM.label, href: CRM.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
     { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
@@ -338,6 +341,7 @@ export function ShellFrame({
 
         <nav className="grid gap-0.5" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
+          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} />
           <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </nav>
 
