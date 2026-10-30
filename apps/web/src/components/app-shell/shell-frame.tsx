@@ -343,25 +343,7 @@ export function ShellFrame({
         </nav>
 
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")} rail={rail}>
-          <NavItem link={JOBS} active={pathname === JOBS.href} rail={rail} />
-          {rail
-            ? null
-            : jobs.map((job) => {
-                const here = pathname === `/client/jobs/${job.id}` || pathname.startsWith(`/client/jobs/${job.id}/`);
-                return (
-                  <Link
-                    key={job.id}
-                    href={`/client/jobs/${job.id}`}
-                    aria-current={here ? "page" : undefined}
-                    className={cn(
-                      "flex h-[30px] items-center rounded-lg pr-2.5 pl-10 text-[13.5px] whitespace-nowrap transition-colors duration-100",
-                      here ? "nav-on font-medium" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
-                    )}
-                  >
-                    <span className="truncate">{job.title}</span>
-                  </Link>
-                );
-              })}
+          <NavItem link={JOBS} active={isActive(JOBS)} rail={rail} />
           <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} />
           <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
         </Section>
