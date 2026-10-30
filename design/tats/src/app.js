@@ -122,8 +122,10 @@ const CH_NAME = { slack: "Slack", imessage: "iMessage", gmail: "Gmail", cal: "Ca
 const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
 // A Grokbot is its person's avatar with a spark badge: it acts as them.
-const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot">${personAv(id, size)}<i>${SPARK}</i></span>`;
-const candAv = (a, size = "") => `<span class="av cand ${size}" data-hc="a:${a.id}" aria-label="${esc(a.name)}">${initials(a.name)}</span>`;
+// Every Grokbot wears the Grokbot picture; whose it is shows in the text beside it.
+const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot" title="${esc(first(id))}'s Grokbot"><span class="av grok ${size}"></span></span>`;
+// Applicants have no photos, so they get no picture placeholder: their name carries the row.
+const candAv = () => "";
 const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color}"></i>`;
 const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
 function court(a) {
@@ -696,7 +698,7 @@ function crmPage() {
         ${CRM_COLS.map(([k, n, ic]) => `<button class="crm-hc ${sort.k === k ? "on" : ""}" data-act="crmSort" data-k="${k}">${ico(ic)}${n}${sort.k === k ? `<i>${sort.dir < 0 ? "↓" : "↑"}</i>` : ""}</button>`).join("")}</div>
       ${rows.map((h) => `<div class="crm-r ${pick.has(h.id) ? "picked" : ""}" role="row" data-tid="${h.id}" data-act="openHist" data-id="${h.id}">
         <span class="crm-c"><button class="ck ${pick.has(h.id) ? "on" : ""}" data-act="crmPick" data-id="${h.id}" aria-label="Select ${esc(h.name)}"></button></span>
-        <span class="crm-name"><span class="av cand">${initials(h.name)}</span><b>${esc(h.name)}</b>${h.again ? `<a class="h-again" href="#t~${h.again}">Active again</a>` : ""}</span>
+        <span class="crm-name"><b>${esc(h.name)}</b>${h.again ? `<a class="h-again" href="#t~${h.again}">Active again</a>` : ""}</span>
         <span><span class="crm-tag">${esc(ROLES[h.role].title)}</span></span>
         <span class="crm-link">${profileOf(h)}</span>
         <span class="crm-own">${esc(PEOPLE[ownerOf(h)].name)}</span>
@@ -1018,7 +1020,7 @@ function referralsPage() {
       <div class="scroll" id="scroller"><div class="crm-t" role="table">
         <div class="crm-r rf-r crm-h" role="row"><span class="crm-hc">${ico("people")}Candidate</span><span class="crm-hc">${ico("users")}Referred by</span><span class="crm-hc">${ico("brief")}Role</span><span class="crm-hc">${ico("flag")}Where they are</span><span class="crm-hc">${ico("cal")}Referred</span></div>
         ${rows.map((r) => `<div class="crm-r rf-r" role="row" data-tid="rf-${r.id}" ${r.a ? `data-act="openRow" data-id="${r.a.id}"` : `data-act="openHist" data-id="${r.id}"`}>
-          <span class="crm-name"><span class="av cand">${initials(r.name)}</span><b>${esc(r.name)}</b></span>
+          <span class="crm-name"><b>${esc(r.name)}</b></span>
           <span class="crm-own">${r.by ? `${personAv(r.by)}${esc(PEOPLE[r.by].name)}` : `<span class="faint">Unknown</span>`}</span>
           <span><span class="crm-tag">${esc(ROLES[r.role].title)}</span></span>
           <span><span class="h-out ${r.hired ? "ok" : r.open ? "live" : ""}">${esc(r.status)}</span></span>
@@ -2297,7 +2299,7 @@ function renderSide() {
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
       ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
-    <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
+    <div class="sb-me">${personAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
     <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
   </div>`);
 }
@@ -2497,7 +2499,7 @@ function ibDigest() {
       late: () => i.run ? `${first(i.run.on)} still owes feedback on ${a.name}, ${dur(i.late)} after the interview.` : `${a.name} hasn't started the Testbench, ${dur(i.late)} after it went out.`,
       decide: () => `${a.read ? first(a.read.by) : "The interviewer"} read ${a.name} as ${a.read ? a.read.verdict.toLowerCase() : "in"}; the next step is your call.` })[i.k]();
     const who = i.k === "late" && !i.run ? [candAv(a)] : i.k === "decide" && a.read ? [personAv(a.read.by), candAv(a)] : [i.k === "bot" ? personAv(i.run.bot) : personAv(a.iv || ME), candAv(a)];
-    const names = i.k === "late" && !i.run ? a.name : `${i.k === "bot" ? PEOPLE[i.run.bot].name : PEOPLE[a.iv || ME].name} +1`;
+    const names = i.k === "late" && !i.run ? a.name : `${i.k === "bot" ? PEOPLE[i.run.bot].name : PEOPLE[a.iv || ME].name}`;
     return { key: `n-${a.id}`, kind: "need", a, iss: i, src: i.k === "late" && !i.run ? "testbench" : ISSUE_SRC[i.k], what, who, meta: `${names} · ${esc(ROLES[a.role].title)} · ${ibWhen(i.at)}` };
   });
   const evs = [];
@@ -2511,9 +2513,9 @@ function ibDigest() {
     if (e.actor === "me" && /^Assigned to/.test(t)) decided.push({ key, a, src: "grok", what: `${a.name} goes to ${TEAMS[a.team] ? TEAMS[a.team].name : "a team"} for an interview.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
     else if (e.actor === "orch" && (m = t.match(/^Picked (\w+)/))) decided.push({ key, a, src: "grok", what: `${m[1]} will interview ${a.name}: ${t.split(": ")[1] || "best fit this week"}.`, who: [personAv(a.iv), candAv(a)], meta: `${TEAMS[a.team] ? TEAMS[a.team].name : ""} Grokbots · ${ibWhen(e.at)}`, at: e.at });
     else if (e.actor === "me" && /^(Rejected|Moved to offer|Passed)/.test(t)) decided.push({ key, a, src: "grok", what: /offer/.test(t) ? `${a.name} moves to an offer.` : `${a.name} is a no. The note went out from the interviewer.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${ibWhen(e.at)}`, at: e.at });
-    else if (/picked .*On both calendars/.test(t)) booked.push({ key, a, src: "cal", what: `${a.name} is booked with ${first(a.iv)}${a.at ? ` for ${fmtWhen(a.at)}` : ""}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} +1 · Calendar · ${ibWhen(e.at)}`, at: e.at });
+    else if (/picked .*On both calendars/.test(t)) booked.push({ key, a, src: "cal", what: `${a.name} is booked with ${first(a.iv)}${a.at ? ` for ${fmtWhen(a.at)}` : ""}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} · Calendar · ${ibWhen(e.at)}`, at: e.at });
     else if (e.actor === "tb" && /Scored/.test(t)) fyi.push({ key, a, src: "testbench", what: `${a.name} finished the Testbench: ${a.tb.score}/100, better than ${a.tb.pct}% of applicants.`, who: [candAv(a)], meta: `${a.name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
-    else if (/^Read:/.test(t)) fyi.push({ key, a, src: "slack", what: `${first(a.iv)} sent a read on ${a.name}: ${(a.read || {}).verdict || "in"}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} +1 · Slack · ${ibWhen(e.at)}`, at: e.at });
+    else if (/^Read:/.test(t)) fyi.push({ key, a, src: "slack", what: `${first(a.iv)} sent a read on ${a.name}: ${(a.read || {}).verdict || "in"}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} · Slack · ${ibWhen(e.at)}`, at: e.at });
   });
   const byTime = (x, y) => y.at - x.at;
   const groups = [["need", "Needs you", "alert", needs], ["decided", "Decisions made", "flag", decided.sort(byTime).slice(0, 6)], ["booked", "Booked", "cal", booked.sort(byTime).slice(0, 6)], ["fyi", "FYI", "help", fyi.sort(byTime).slice(0, 6)]].filter((g) => g[3].length);
