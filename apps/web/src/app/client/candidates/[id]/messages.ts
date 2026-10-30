@@ -15,6 +15,7 @@ export const CANDIDATE_ERRORS = {
   reason_required: "Pick a reason of the right kind to reject or withdraw them.",
   not_member: "Pick an owner from your team.",
   invalid_due: "A due date needs a next action and a real date.",
+  rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   failed: "That didn't work. Nothing was changed.",
 } as const;
 

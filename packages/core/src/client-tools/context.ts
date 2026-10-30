@@ -19,9 +19,11 @@ export type ClientToolCtx = {
   accessLevel: AccessLevel;
   /**
    * Where the call came from, for the audit row: cli is tats, tacit-ats's
-   * command line (tacit-internal 20261029200000_client_cli_source).
+   * command line (tacit-internal 20261029200000_client_cli_source); dashboard
+   * is apps/web, which the connector's read-only switch does not stop
+   * (20261030120000_client_dashboard_source).
    */
-  source: "claude" | "chatgpt" | "cli";
+  source: "claude" | "chatgpt" | "cli" | "dashboard";
 };
 
 export type ClientToolErrorCode = "not_found" | "forbidden" | "invalid" | "rate_limited";
@@ -31,6 +33,8 @@ export class ClientToolError extends Error {
   constructor(
     readonly code: ClientToolErrorCode,
     message: string,
+    /** On an invalid input with a form behind it: which field to point at. */
+    readonly field?: string,
   ) {
     super(message);
     this.name = "ClientToolError";

@@ -1,15 +1,16 @@
 import type { Db } from "@tacit/db";
-import { addCandidateToRole, logTouch } from "@tacit/core";
+import { logTouch } from "@tacit/core";
+import { clientTools } from "@tacit-ats/core";
 import { cleanReferrer, type Referral } from "./referral-table";
 
 // Referrals' read and its one write, on the member's OWN client (never a
 // privileged one). The read is `applications` with source `referral`, the
 // person and the job: the policies decide which come back (an admin's whole
 // org, a hiring-team member's own jobs, an external recruiter's own adds),
-// nothing here filters by org or level. The add is the job board's old "Add a
-// candidate" (core's addCandidateToRole, not the audited
-// clientTools.addCandidate, whose source has no value for the web app) with
-// source `referral` and the referrer in `source_detail`.
+// nothing here filters by org or level. The add is the audited
+// clientTools.addCandidate, with audit source `dashboard`, the application's
+// source `referral` and the referrer in `source_detail`, which stays out of
+// the audit row.
 
 /** Rows per request: PostgREST's own maximum. */
 const PAGE = 1000;
@@ -98,7 +99,10 @@ export type ReferralInput = {
 
 export type AddReferralOutcome =
   | { ok: true; status: "added" | "added_existing" | "exists"; applicationId: string; personId: string }
-  | { ok: false; error: "forbidden" | "invalid_name" | "invalid_email" | "invalid_linkedin" | "invalid_referrer" };
+  | { ok: false; error: "forbidden" | "rate_limited" | "invalid_name" | "invalid_email" | "invalid_linkedin" | "invalid_referrer" };
+
+const INVALID_FIELD = { name: "invalid_name", email: "invalid_email", linkedin: "invalid_linkedin" } as const;
+const isInvalidField = (f: string | undefined): f is keyof typeof INVALID_FIELD => f !== undefined && Object.hasOwn(INVALID_FIELD, f);
 
 /**
  * A referral into a job: the person (found by an email the member can see, or
@@ -107,33 +111,32 @@ export type AddReferralOutcome =
  * logTouch). Someone already in the job keeps the application and source they
  * had: nothing changes, and the note is not added.
  */
-export async function addReferral(db: Db, who: { orgId: string; actorId: string }, input: ReferralInput): Promise<AddReferralOutcome> {
+export async function addReferral(db: Db, ctx: clientTools.ClientToolCtx, input: ReferralInput): Promise<AddReferralOutcome> {
   const referredBy = cleanReferrer(input.referredBy);
   if (!referredBy) return { ok: false, error: "invalid_referrer" };
 
-  // Checked first so a refused add does not leave a person row behind with no
-  // application. The policies check both again on the inserts.
-  const [canAdd, canEdit] = await Promise.all([
-    db.rpc("can_add_people"),
-    db.rpc("can_on_role", { p_role: input.jobId, perm: "can_edit_pipeline" }),
-  ]);
-  if (canAdd.error) throw new Error(canAdd.error.message);
-  if (canEdit.error) throw new Error(canEdit.error.message);
-  if (canAdd.data !== true || canEdit.data !== true) return { ok: false, error: "forbidden" };
+  // addCandidate checks can_add_people() and can_edit_pipeline first, so a
+  // refused add leaves no person row behind; the policies check again on the inserts.
+  let added: clientTools.AddCandidateResult;
+  try {
+    added = await clientTools.addCandidate(db, ctx, {
+      jobId: input.jobId,
+      name: input.name,
+      email: input.email,
+      linkedinUrl: input.linkedinUrl,
+      source: "referral",
+      sourceDetail: referredBy,
+    });
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError) {
+      if (err.code === "forbidden" || err.code === "rate_limited") return { ok: false, error: err.code };
+      if (err.code === "invalid" && isInvalidField(err.field)) return { ok: false, error: INVALID_FIELD[err.field] };
+    }
+    throw err;
+  }
+  const { applicationId, candidateId: personId } = added;
+  if (added.outcome === "already_in_pipeline") return { ok: true, status: "exists", applicationId, personId };
 
-  const result = await addCandidateToRole(db, {
-    orgId: who.orgId,
-    roleId: input.jobId,
-    actorId: who.actorId,
-    name: input.name,
-    email: input.email,
-    linkedinUrl: input.linkedinUrl,
-    source: "referral",
-    sourceDetail: referredBy,
-  });
-  if (result.status === "invalid") return { ok: false, error: `invalid_${result.field}` };
-  if (result.status === "exists") return { ok: true, status: "exists", applicationId: result.applicationId, personId: result.personId };
-
-  if (input.note) await logTouch(db, { applicationId: result.applicationId, actorId: who.actorId, note: input.note });
-  return { ok: true, status: result.personCreated ? "added" : "added_existing", applicationId: result.applicationId, personId: result.personId };
+  if (input.note) await logTouch(db, { applicationId, actorId: ctx.actorId, note: input.note });
+  return { ok: true, status: added.newCandidate ? "added" : "added_existing", applicationId, personId };
 }

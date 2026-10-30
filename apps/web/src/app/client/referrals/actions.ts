@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { addReferral, type AddReferralOutcome } from "@/lib/client/referrals";
 import { requireClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import type { ReferralError, ReferralNotice } from "./messages";
 
-// "Add referral": lib/client/referrals.ts's addReferral runs core's
-// addCandidateToRole on the signed-in member's own client, with source
-// `referral` and the referrer in `source_detail`, after checking
-// can_add_people() and can_edit_pipeline on the job; the policies decide
-// again on the inserts. Posted fields are request data, so the job id is
-// re-checked.
+// "Add referral": lib/client/referrals.ts's addReferral runs the audited
+// clientTools.addCandidate on the signed-in member's own client, with source
+// `referral` and the referrer in `source_detail`, which checks can_add_people()
+// and can_edit_pipeline on the job first; the policies decide again on the
+// inserts. Posted fields are request data, so the job id is re-checked.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -25,13 +25,13 @@ const back = (params: { error: ReferralError } | { notice: ReferralNotice }): ne
   redirect("error" in params ? `/client/referrals/new?error=${params.error}` : `/client/referrals?notice=${params.notice}`);
 
 export async function addReferralAction(form: FormData): Promise<void> {
-  const { db, actorId, org } = await requireClient();
+  const member = await requireClient();
   const jobId = form.get("jobId");
   if (typeof jobId !== "string" || !UUID.test(jobId)) return back({ error: "invalid_job" });
 
   let outcome: AddReferralOutcome;
   try {
-    outcome = await addReferral(db, { orgId: org.id, actorId }, {
+    outcome = await addReferral(member.db, toolCtx(member), {
       jobId,
       name: text(form, "name") ?? "",
       email: text(form, "email"),

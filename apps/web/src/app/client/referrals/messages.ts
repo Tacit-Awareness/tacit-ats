@@ -14,6 +14,7 @@ export const REFERRAL_ERRORS = {
   invalid_referrer: "Say who referred them, in 200 characters or fewer.",
   invalid_job: "Pick a job.",
   forbidden: "You can't add people to that job.",
+  rate_limited: "You've made 300 changes in the last hour, the limit. Nobody was added. Try again later.",
   failed: "That didn't work. Nobody was added.",
 } as const;
 

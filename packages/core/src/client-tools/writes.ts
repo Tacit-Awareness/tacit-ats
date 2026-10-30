@@ -75,7 +75,7 @@ export async function addCandidate(
   });
   if (result.status === "invalid") {
     const what = { name: "a name", email: "a valid email address", linkedin: "a linkedin.com profile link" }[result.field];
-    throw new ClientToolError("invalid", `That needs ${what}.`);
+    throw new ClientToolError("invalid", `That needs ${what}.`, result.field);
   }
   return {
     outcome: result.status === "added" ? "added" : "already_in_pipeline",
