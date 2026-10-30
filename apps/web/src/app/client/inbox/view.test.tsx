@@ -62,6 +62,24 @@ describe("the reader's frame", () => {
   });
 });
 
+// "You're all caught up" is a claim about everything, and the reads have caps:
+// a hundred dismissed drafts hold the whole of the drafts read, so older ones
+// never reach the queue and the page has nothing left to say so on.
+describe("all caught up", () => {
+  const empty = (caps: { truncated: boolean; draftsCapped: boolean }) => renderToStaticMarkup(<InboxView rows={[]} issue={null} flash={null} open={false} {...caps} />);
+
+  test("says so when a read stopped at its cap", () => {
+    expect(empty({ truncated: false, draftsCapped: true })).toContain("Showing your newest 100 unsent drafts.");
+    expect(empty({ truncated: true, draftsCapped: false })).toContain("some missing feedback may not be listed");
+  });
+
+  test("says nothing when nothing did", () => {
+    const html = empty({ truncated: false, draftsCapped: false });
+    expect(html).not.toContain("Showing your newest");
+    expect(html).not.toContain("may not be listed");
+  });
+});
+
 // What a `"use client"` file exports reaches a server component as a reference,
 // not a value: its class strings come through as nothing, the Done reader's link
 // lost its button, and neither the types nor a test here can tell. Only its

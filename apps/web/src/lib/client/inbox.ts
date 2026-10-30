@@ -37,6 +37,8 @@ const STORY_MAX = 12;
 const DONE_MAX = 200;
 /** Ids in one `in` filter, as the Pipeline board reads: past this the URL gets too long. */
 const IDS_A_READ = 150;
+/** PostgREST's row limit, which ends a read with no error. */
+const ROWS_A_READ = 1000;
 
 const UNIQUE_VIOLATION = "23505";
 const REFUSED = "42501";
@@ -95,16 +97,24 @@ async function readDrafts(db: Db, actorId: string, now: Date): Promise<InboxDraf
  */
 async function readDismissed(db: Db, standing: Issue[]): Promise<Set<string>> {
   const dismissed = new Set<string>();
-  const reads = await Promise.all(
-    chunks([...new Set(standing.map((i) => i.key))]).map((keys) => db.from("inbox_dismissals").select("issue_key, reason, issue_at").eq("how", "dismissed").in("issue_key", keys)),
-  );
-  for (const { data, error } of reads) {
-    if (error) throw new Error(error.message);
-    for (const r of data ?? []) {
+  const parts = await Promise.all(chunks([...new Set(standing.map((i) => i.key))]).map((keys) => readDismissalsOn(db, keys)));
+  for (const rows of parts) {
+    for (const r of rows) {
       if (isIssueReason(r.reason)) dismissed.add(instanceId({ key: r.issue_key, reason: r.reason, at: r.issue_at }));
     }
   }
   return dismissed;
+}
+
+/** Every dismissal on these keys, by pages: a key keeps its past instances, and a read cut off at the row limit would bring a dismissed issue back. */
+async function readDismissalsOn(db: Db, keys: string[]) {
+  const rows: { issue_key: string; reason: string; issue_at: string }[] = [];
+  for (;;) {
+    const { data, error } = await db.from("inbox_dismissals").select("issue_key, reason, issue_at").eq("how", "dismissed").in("issue_key", keys).order("id").range(rows.length, rows.length + ROWS_A_READ - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROWS_A_READ) return rows;
+  }
 }
 
 export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, now: Date): Promise<InboxRead> {

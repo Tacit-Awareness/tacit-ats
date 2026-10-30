@@ -305,6 +305,15 @@ describe("Done", () => {
     expect((await queue(adaDb(), ada)).some((i) => i.key === quiet.key)).toBe(false);
   });
 
+  test("years of dismissals on what stands, past PostgREST's row limit, still hide the one that matches", async () => {
+    const quiet = await issueOn(adaDb(), ada, `app-${app(2)}`);
+    const past = Array.from({ length: 1005 }, (_, n) => ({ org_id: ACME, actor_id: ADMIN, issue_key: quiet.key, reason: "quiet", issue_at: new Date(Date.parse(quiet.at) - (n + 1) * 60_000).toISOString() }));
+    for (let i = 0; i < past.length; i += 300) must(await db().from("inbox_dismissals").insert(past.slice(i, i + 300)));
+    await dismissIssue(adaDb(), instance(quiet));
+
+    expect((await queue(adaDb(), ada)).some((i) => i.key === quiet.key)).toBe(false);
+  });
+
   test("a queue past one read of keys still hides what was dismissed", async () => {
     const n = 160;
     const ids = Array.from({ length: n }, (_, i) => `e9d10000-0000-4000-8000-${String(i).padStart(12, "0")}`);

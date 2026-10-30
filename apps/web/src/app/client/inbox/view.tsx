@@ -106,6 +106,16 @@ export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: 
   );
 }
 
+/** Where a read stopped at its cap, so nothing here reads as the whole of it. */
+function CapNotes({ truncated, draftsCapped }: { truncated: boolean; draftsCapped: boolean }) {
+  return (
+    <>
+      {truncated ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
+      {draftsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
+    </>
+  );
+}
+
 function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean }) {
   return (
     <KeyList title="Inbox" next="Next issue" mode="select" data-tour="inbox" className="grid content-start gap-0.5">
@@ -124,8 +134,7 @@ function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; trunca
           </section>
         );
       })}
-      {truncated ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
-      {draftsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
+      <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
     </KeyList>
   );
 }
@@ -205,6 +214,7 @@ export function InboxView({
           </span>
           <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
           <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
+          <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
           <div className="mt-1 flex items-center gap-3">
             <Link href="/client/inbox?tab=done" className={textLink}>
               See Done
