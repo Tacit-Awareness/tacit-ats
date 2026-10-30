@@ -32,6 +32,29 @@ and its interviews are real events on Ryan's calendar.
 5. In Claude, connect the client connector (https://ats-mcp.tacitawareness.com/api/client)
    and sign in as Tacit Test Co, so Claude can book and move interviews as the admin.
 
+## Mock data
+
+`scripts/seed-test-co/` fills the company with design/tats's Meridian cast:
+ten teammates who never sign in (Priya the talent engineer, Daniel, Sam, ...),
+six jobs in three departments with hiring teams, interview plans and job
+board posts, and 43 fictional candidates across every stage. That includes 12
+unrouted job board applicants for Applicant Tickets, with their answers, and
+past interviews with feedback, so Pipeline's Your call column and Interviews
+have something to show. Emails are `@example.com`. It makes no upcoming
+interviews, because the company's bot is real and would get a reminder for
+each one.
+
+```bash
+pnpm seed:test-co --env-file=<tacit-internal checkout>/.env            # add what is missing
+pnpm seed:test-co --env-file=<tacit-internal checkout>/.env --reset    # remove, then seed again with times relative to now
+pnpm seed:test-co --env-file=<tacit-internal checkout>/.env --remove   # take it all out
+```
+
+The env file needs `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (production's).
+Every row's id comes from a fixed key, so `--remove` deletes only the seed's
+rows, plus anything since added to its applications (routing events,
+interviews, feedback). The script refuses to run against any other org.
+
 ## The interview notifications run
 
 About 30 minutes. Times are from the booking; the cron runs every two minutes.

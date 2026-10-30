@@ -14,7 +14,8 @@
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "pnpm -r clean",
-    "sync:tacit": "node scripts/sync-tacit.mjs"
+    "sync:tacit": "node scripts/sync-tacit.mjs",
+    "seed:test-co": "node scripts/seed-test-co/index.mjs"
   },
   "pnpm": {
     "overrides": {
