@@ -54,6 +54,7 @@ type NavLink = { href: string; label: string; icon: IconName; activeUnder?: stri
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "team" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
+const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "menu" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "team" };
 const SETTINGS: NavLink[] = [
@@ -256,6 +257,7 @@ export function ShellFrame({
     { group: "Go to", label: HOME.label, href: HOME.href },
     { group: "Go to", label: CRM.label, href: CRM.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
+    { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
     { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
@@ -335,6 +337,7 @@ export function ShellFrame({
                   </Link>
                 );
               })}
+          <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} />
         </Section>
 
         <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
