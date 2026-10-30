@@ -137,6 +137,7 @@ describe("the Calendar's read", () => {
     expect(truncated).toBe(false);
     expect(items.find((i) => i.interviewId === iv(1))).toEqual({
       interviewId: iv(1),
+      applicationId: expect.any(String),
       candidateName: "Candidate 1",
       jobId: ENGINEER,
       jobTitle: "Founding Engineer",
