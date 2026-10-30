@@ -11,7 +11,7 @@ import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections, with the team's pages, the member and the footer at the bottom.
+// sections (Top of Funnel, Routing & Tracking), with the team's pages, the member and the footer at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail, ⌘K opens the
 // command menu. No counts: the sidebar is for getting around, not a report.
@@ -21,6 +21,7 @@ import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 const ICONS = {
   home: "M2.5 7.2 8 2.8l5.5 4.4V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5Z",
   brief: "M2.5 5.5h11v7.5h-11ZM6 5.5V3.5h4v2M2.5 8.5h11",
+  people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
   team: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2",
   integrations: "M6 10 4.6 11.4a2.1 2.1 0 0 1-3-3L3 7M10 6l1.4-1.4a2.1 2.1 0 0 1 3 3L13 9M6 10l4-4",
   help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
@@ -52,6 +53,7 @@ type NavLink = { href: string; label: string; icon: IconName; activeUnder?: stri
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
+const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people" };
 const SETTINGS: NavLink[] = [
   { href: "/client/team", label: "Team", icon: "team" },
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
@@ -251,6 +253,7 @@ export function ShellFrame({
   const commands: CommandItem[] = [
     { group: "Go to", label: HOME.label, href: HOME.href },
     { group: "Go to", label: JOBS.label, href: JOBS.href },
+    { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -327,6 +330,10 @@ export function ShellFrame({
                   </Link>
                 );
               })}
+        </Section>
+
+        <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
+          <NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />
         </Section>
 
         <div className="mt-auto grid gap-2">
