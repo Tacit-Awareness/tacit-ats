@@ -7,7 +7,7 @@ import { requireClient } from "@/lib/client/session";
 import { clientInvitations } from "@/lib/client/workos";
 import type { TeamError, TeamNotice } from "./messages";
 
-// The team page's writes. Both run on the signed-in member's own database
+// The invitations' writes. Both run on the signed-in member's own database
 // client: the definer functions behind them decide whether the caller is an
 // admin and keep every write inside the org on their token, which is also the
 // only org an invitation can be sent into. Nothing from the form names an org.
@@ -22,7 +22,7 @@ const str = (form: FormData, key: string) => {
 // Only a code goes in the URL, never a message: a message can carry an email
 // address, and a query string ends up in logs and browser history.
 const back = (params: { notice?: TeamNotice; error?: TeamError }): never =>
-  redirect(`/client/team?${new URLSearchParams(params)}`);
+  redirect(`/client/interviewers?${new URLSearchParams(params)}`);
 
 function codeFor(err: unknown, what: string): TeamError {
   if (err instanceof ClientInviteError) return err.code;
@@ -46,7 +46,7 @@ export async function inviteAction(form: FormData): Promise<void> {
   } catch (err) {
     return back({ error: codeFor(err, "the invitation") });
   }
-  revalidatePath("/client/team");
+  revalidatePath("/client/interviewers");
   return back({ notice });
 }
 
@@ -60,6 +60,6 @@ export async function withdrawAction(form: FormData): Promise<void> {
   } catch (err) {
     return back({ error: codeFor(err, "withdrawing an invitation") });
   }
-  revalidatePath("/client/team");
+  revalidatePath("/client/interviewers");
   return back(withdrawn ? { notice: "withdrawn" } : { error: "not_found" });
 }

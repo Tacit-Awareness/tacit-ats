@@ -87,9 +87,9 @@ About 30 minutes. Times are from the booking; the cron runs every two minutes.
 The pages ported from design/tats (2026-10-29) have not been used by a signed-in
 person yet. Walk through them on https://ats.tacitawareness.com once they are
 deployed, about 15 minutes. You need three sign-ins to see every role: Ryan as
-**Admin**, plus a **Hiring team** member (the Team page's access levels; give
-them one job) and an **Interviewer**, both invited from Team to addresses you
-can read. The sidebar shows the level under the member's name. Set up first: at
+**Admin**, plus a **Hiring team** member (the access levels on Interviewers' invite
+form; give them one job) and an **Interviewer**, both invited from Interviewers
+to addresses you can read. The sidebar shows the level under the member's name. Set up first: at
 least two open jobs, a few candidates spread across stages (add them from a
 job's board, or use the client connector), one interview booked with a second
 person as interviewer, and one application from a public job post

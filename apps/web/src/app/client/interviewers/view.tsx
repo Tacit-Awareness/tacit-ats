@@ -120,6 +120,8 @@ export function InterviewersView({
   feedback,
   note,
   empty,
+  notices,
+  children,
 }: {
   groups: InterviewerViewGroup[];
   /** Whether the feedback column is shown. */
@@ -127,12 +129,17 @@ export function InterviewersView({
   /** A line under the table, such as the read stopping short. */
   note: string | null;
   empty: string | null;
+  /** What the last invite or withdrawal said, above the table. */
+  notices?: React.ReactNode;
+  /** The team and invitations, under the table. */
+  children?: React.ReactNode;
 }) {
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
   const max = Math.max(0, ...groups.flatMap((g) => g.rows.map((r) => r.thisWeek)));
   const grid = gridOf(feedback);
   return (
     <Page className="max-w-[1040px]" bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
+      {notices}
       <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line)] px-3.5 text-[13.5px] font-medium">
           Interviewers
@@ -178,6 +185,7 @@ export function InterviewersView({
         )}
       </section>
       {note ? <p className="m-0 text-xs text-faint">{note}</p> : null}
+      {children}
     </Page>
   );
 }

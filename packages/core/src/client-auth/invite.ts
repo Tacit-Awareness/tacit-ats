@@ -3,7 +3,7 @@ import type { Db } from "@tacit/db";
 import type { AccessLevel, IdentityProvider } from "@tacit/core";
 
 /**
- * A client org's admin inviting their own team (apps/web's /client/team, apps/mcp's invite tools).
+ * A client org's admin inviting their own team (apps/web's /client/interviewers, apps/mcp's invite tools).
  *
  * The staff path (tacit-internal's inviteOrgMember) runs on the service role. This one
  * runs on the admin's OWN database client: the actor row is written by the
