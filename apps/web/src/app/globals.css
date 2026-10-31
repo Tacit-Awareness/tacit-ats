@@ -809,3 +809,90 @@ body:has(.ui-root) {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* The Inbox's opening (inbox/opening-card.tsx, design/tats's `.ibx-think`): each
+   source ticks off, the panel folds away, then the rows arrive group by group.
+   Nothing here exists under reduced motion, so the card is simply there. */
+.opening-reading,
+.opening-sources {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .inbox-opening .opening-worth {
+    display: none;
+  }
+  .inbox-opening .opening-reading {
+    display: inline;
+  }
+  .inbox-opening .opening-sources {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px 24px;
+    overflow: hidden;
+    animation: opening-fold 0.12s ease-in 0.42s both;
+  }
+  .opening-source {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 14px;
+    align-items: center;
+    gap: 8px;
+    animation: opening-source 0.12s ease-out calc(var(--n) * 0.04s) both;
+  }
+  .opening-tick {
+    color: var(--green);
+    animation: opening-tick 0.1s ease-out calc(0.1s + var(--n) * 0.08s) both;
+  }
+  .inbox-opening .opening-list > :nth-child(2) {
+    --g: 1;
+  }
+  .inbox-opening .opening-list > :nth-child(3) {
+    --g: 2;
+  }
+  .inbox-opening .opening-list > :nth-child(n + 4) {
+    --g: 3;
+  }
+  .inbox-opening .opening-list section > :nth-child(2) {
+    --r: 1;
+  }
+  .inbox-opening .opening-list section > :nth-child(3) {
+    --r: 2;
+  }
+  .inbox-opening .opening-list section > :nth-child(4) {
+    --r: 3;
+  }
+  .inbox-opening .opening-list section > :nth-child(5) {
+    --r: 4;
+  }
+  .inbox-opening .opening-list section > :nth-child(n + 6) {
+    --r: 5;
+  }
+  .inbox-opening .opening-list section > *,
+  .inbox-opening > footer {
+    animation: opening-row 0.16s var(--spring) calc(0.52s + var(--g, 0) * 0.04s + var(--r, 0) * 0.02s) both;
+  }
+}
+@keyframes opening-fold {
+  to {
+    max-height: 0;
+    margin-bottom: -20px;
+    opacity: 0;
+  }
+}
+@keyframes opening-source {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes opening-tick {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes opening-row {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}

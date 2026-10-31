@@ -254,6 +254,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
           asOf: now.toISOString(),
           total: digest.total,
           shown: digest.shown,
+          sources: digest.sources,
           unread: digest.unread.length,
           capped: digest.capped,
           groups: digest.groups.map((g) => ({ ...g, rows: g.rows.map((r) => ({ ...r, age: ago(r.at, nowMs), active: r.id === shownRow?.id, next: rowAfter(walk, r.id) })) })),
