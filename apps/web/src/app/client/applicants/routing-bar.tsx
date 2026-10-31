@@ -72,17 +72,15 @@ function MovePill({ move, picked, onPick }: { move: (typeof MOVES)[number]; pick
   );
 }
 
-/** The submit for one move, disabled while a route is in flight. Only the picked one shows. */
+/** The submit for the picked move, disabled while a route is in flight. */
 function Route({
   value,
-  shown,
   primary,
   refFn,
   onClick,
   children,
 }: {
   value: MoveKey;
-  shown: boolean;
   primary: boolean;
   refFn: (b: HTMLButtonElement | null) => void;
   onClick?: (e: MouseEvent) => void;
@@ -90,7 +88,7 @@ function Route({
 }) {
   const { pending } = useFormStatus();
   return (
-    <button ref={refFn} type="submit" name="route" value={value} disabled={pending} onClick={onClick} className={cn(pill, control, "px-4", primary && pillPrimary, !shown && "hidden")}>
+    <button ref={refFn} type="submit" name="route" value={value} disabled={pending} onClick={onClick} className={cn(pill, control, "px-4", primary && pillPrimary)}>
       {children}
     </button>
   );
@@ -171,6 +169,10 @@ export function RoutingBar({
           ref={reason}
           id="reasonId"
           name="reasonId"
+          // Esc leaves the select, so the page keys work again.
+          onKeyDown={(e) => {
+            if (e.key === "Escape") e.currentTarget.blur();
+          }}
           defaultValue=""
           className={cn(pill, control, "w-[200px] max-w-full bg-transparent pr-2 text-muted-foreground outline-none focus-visible:border-[color:var(--accent)]")}
         >
@@ -184,11 +186,11 @@ export function RoutingBar({
       </span>
       {team ? <TeamField team={team} /> : null}
       <span className="md:ml-auto">
-        {MOVES.map((m) => (
+        {/* Only the picked one is in the form: Enter in the reason submits the form's first button, which must be this. */}
+        {MOVES.filter((m) => m.key === move).map((m) => (
           <Route
             key={m.key}
             value={m.key}
-            shown={m.key === move}
             primary={lead}
             refFn={(b) => void (buttons.current[m.key] = b)}
             onClick={
