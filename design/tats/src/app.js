@@ -2867,7 +2867,6 @@ function renderSide() {
     <nav class="sb-group" aria-label="Inbox">
       ${item("#home", ico("home"), "Home", r.name === "home")}
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", sbNew("inbox"), "", "New in your Inbox")}
-      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
     <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
@@ -2885,6 +2884,7 @@ function renderSide() {
     <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
       ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
       ${item("#setup~process", ico("route"), "Interview process", r.name === "setup" && r.id === "process")}
+      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
     <button class="sb-acct" data-act="acct" aria-haspopup="menu" title="Account, theme and sign out"><span class="trunc">${PEOPLE[ME].name}</span><svg class="chev" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
     <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
