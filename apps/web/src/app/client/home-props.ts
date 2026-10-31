@@ -11,9 +11,12 @@ import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 
 /** People a time-in-stage row lists before "All in Pipeline". */
 const STAGE_PREVIEW = 8;
+/** Bars the workload card shows, most hours first. */
+const LOAD_ROWS = 6;
 const SHORT: Record<string, string> = { new: "New", screening: "Screen", scheduling: "Sched", booked: "Booked", decide: "Call", offer: "Offer" };
 const STAGE_NAMES: Record<string, string> = { sourced: "Sourced", contacted: "Contacted", screening: "Screening", interviewing: "Interviewing", offer: "Offer" };
 
+const hoursLabel = (h: number) => `${Math.round(h * 10) / 10}h`;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** Each card's name, the target dialog's title. */
@@ -121,6 +124,8 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
 
   const fb = read.feedback ? feedbackSummary(read.feedback) : null;
   const load = workload(read.interviews, days, now);
+  // By department, or by person for a company with none on these jobs: one "No department" bar would say nothing.
+  const byTeam = load.byTeam.some((t) => t.name !== null);
   const weekly = days > 7;
   const bars: Bar[] = read.applications.bins.map((b) => ({
     n: b.n,
@@ -184,12 +189,10 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
       held: load.held,
       booked: load.booked,
       target: target("workload", load.hours),
-      people: load.byInterviewer.slice(0, 6).map((x) => ({
-        id: x.id,
-        name: read.names[x.id] ?? "Unknown",
-        hours: x.hours,
-        label: `${Math.round(x.hours * 10) / 10}h`,
-      })),
+      byTeam,
+      rows: byTeam
+        ? load.byTeam.slice(0, LOAD_ROWS).map((t) => ({ id: t.name ?? "none", name: t.name ?? "No department", hours: t.hours, label: hoursLabel(t.hours) }))
+        : load.byInterviewer.slice(0, LOAD_ROWS).map((x) => ({ id: x.id, name: read.names[x.id] ?? "Unknown", hours: x.hours, label: hoursLabel(x.hours) })),
     },
     bottlenecks: bottlenecks(read.waiting, fb ? fb.outstanding : null, now, {
       ...read.targets,
@@ -230,6 +233,13 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
       more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.column ?? undefined), label: `All ${r.people.length} in Pipeline` } : null,
     })),
     active: read.waiting.length,
+    efficiency: read.efficiency && {
+      closed: read.efficiency.closed,
+      hires: read.efficiency.hires,
+      rounds: read.efficiency.rounds.map((r) => ({ label: r.label, share: r.rate, value: `${Math.round(r.rate * 100)}%`, title: `${r.to} of ${r.from} went on` })),
+      perHire: read.efficiency.interviewsPerHire === null ? "—" : read.efficiency.interviewsPerHire.toFixed(1),
+      hoursPerHire: read.efficiency.hoursPerHire === null ? "—" : `${read.efficiency.hoursPerHire.toFixed(1)}h`,
+    },
     stays: read.stays.map((s) => ({ label: STAGE_NAMES[s.stage] ?? s.stage, avgDays: s.avgDays, stays: s.stays })),
     truncated: read.truncated,
   };

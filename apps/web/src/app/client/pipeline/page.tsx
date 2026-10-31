@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
-import { stageLabel } from "@/lib/client/crm-views";
-import { departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
+import { crmHref, stageLabel } from "@/lib/client/crm-views";
+import { departmentAndBelow, departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
+import { countPastMatches, pastMatchWords } from "@/lib/client/past-matches";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
@@ -37,6 +38,8 @@ import { PipelineView, type PipelineListProps } from "./view";
 // `?stage=` is also the stage bar's: one filter, so a view's stage shows on the
 // bar. Using the bar drops `view`, because the URL is no longer that view (its
 // source and label stay), and a stage alone is not a view, so it gets no crumb.
+// A name filter also counts the closed applications it would find, a count and
+// a link into the CRM (lib/client/past-matches.ts), never the people themselves.
 
 /** Cards a column shows before "Show all", as design/tats's board. */
 const COLUMN_PREVIEW = 12;
@@ -90,6 +93,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   const needle = q.toLowerCase();
   const matches = (e: PipelineEntry) => (!job || e.roleId === job) && (!needle || `${e.personName} ${e.headline ?? ""}`.toLowerCase().includes(needle));
   const shown = viewed.filter(matches);
+  const pastCount = q ? await countPastMatches(db, q, { jobId: job, departmentIds: department ? [...departmentAndBelow(structure.departments, department)] : null }) : 0;
 
   const viewParams = { stage: filters.stage, source: filters.source, tag: filters.tag, view: viewId };
   const modeContext: ModeContext = { ...viewParams, all: expanded, q: q || null };
@@ -177,6 +181,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
         ) : null
       }
       capped={pipeline.capped}
+      past={pastCount ? { href: crmHref({ department, view: "all", q, sort: "last", dir: "desc", page: 1 }), label: pastMatchWords(pastCount, q) } : null}
       departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null, leaveView: true }))}
       job={
         jobs.length

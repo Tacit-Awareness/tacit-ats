@@ -4,8 +4,8 @@ import type { StageName } from "./process-stages";
 
 // Home's arithmetic (design/tats's Recruiting Overview): the period and its
 // comparison, applications per day or week, how long the people in each
-// pipeline column have waited, the bottlenecks, interview hours and feedback
-// follow-through. Pure: lib/client/home.ts reads, this counts, the view draws.
+// pipeline column have waited, the bottlenecks, interview hours, feedback
+// follow-through and interview efficiency. Pure: lib/client/home.ts reads, this counts, the view draws.
 
 const H = 3_600_000;
 const DAY = 24 * H;
@@ -231,7 +231,15 @@ export function bottlenecks(waiting: Waiting[], outstandingFeedback: number | nu
 // Interview workload
 // ---------------------------------------------------------------------------
 
-export type WorkloadInterview = { startsAt: string; endsAt: string; interviewerIds: string[] };
+export type WorkloadInterview = {
+  startsAt: string;
+  endsAt: string;
+  interviewerIds: string[];
+  /** The job's department by name; null for a job in none. */
+  team?: string | null;
+};
+
+export type TeamLoad = { name: string | null; hours: number; interviews: number };
 
 export type Workload = {
   interviews: number;
@@ -241,6 +249,8 @@ export type Workload = {
   hours: number;
   /** Most hours first. */
   byInterviewer: { id: string; hours: number; interviews: number }[];
+  /** The same hours by the job's department: most first, the jobs in none last. */
+  byTeam: TeamLoad[];
 };
 
 /**
@@ -251,6 +261,7 @@ export function workload(interviews: WorkloadInterview[], days: number, now: num
   const lo = now - days * DAY;
   const hi = now + days * DAY;
   const per = new Map<string, { id: string; hours: number; interviews: number }>();
+  const teams = new Map<string | null, TeamLoad>();
   let held = 0;
   let booked = 0;
   let hours = 0;
@@ -260,6 +271,11 @@ export function workload(interviews: WorkloadInterview[], days: number, now: num
     if (Date.parse(i.endsAt) <= now) held += 1;
     else booked += 1;
     const length = Math.max(0, Date.parse(i.endsAt) - start) / H;
+    const name = i.team ?? null;
+    const team = teams.get(name) ?? { name, hours: 0, interviews: 0 };
+    team.hours += length * i.interviewerIds.length;
+    team.interviews += 1;
+    teams.set(name, team);
     for (const id of i.interviewerIds) {
       const row = per.get(id) ?? { id, hours: 0, interviews: 0 };
       row.hours += length;
@@ -268,7 +284,98 @@ export function workload(interviews: WorkloadInterview[], days: number, now: num
       hours += length;
     }
   }
-  return { interviews: held + booked, held, booked, hours, byInterviewer: [...per.values()].sort((a, b) => b.hours - a.hours || a.id.localeCompare(b.id)) };
+  return {
+    interviews: held + booked,
+    held,
+    booked,
+    hours,
+    byInterviewer: [...per.values()].sort((a, b) => b.hours - a.hours || a.id.localeCompare(b.id)),
+    byTeam: [...teams.values()].sort((a, b) => Number(a.name === null) - Number(b.name === null) || b.hours - a.hours || (a.name ?? "").localeCompare(b.name ?? "")),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Interview efficiency
+// ---------------------------------------------------------------------------
+
+/** How far back a closed application counts. */
+export const EFFICIENCY_DAYS = 365;
+/** Closed applications below which a percentage would say more than it knows. */
+export const EFFICIENCY_MIN_CLOSED = 5;
+
+/** A move into a closed stage, with the stage its application is at now. */
+export type ClosingMove = { applicationId: string; roleId: string; toStage: string; stage: string };
+
+export type ClosedApplication = { id: string; roleId: string; stage: string };
+
+/**
+ * The applications these moves leave closed, once each. A move that a later
+ * one undid, a rejection before they came back and withdrew, is not the one
+ * that closed it.
+ */
+export function closedApplications(moves: ClosingMove[]): ClosedApplication[] {
+  const out = new Map<string, ClosedApplication>();
+  for (const m of moves) if (m.toStage === m.stage) out.set(m.applicationId, { id: m.applicationId, roleId: m.roleId, stage: m.stage });
+  return [...out.values()];
+}
+
+export type EfficiencyInterview = { applicationId: string; step: string | null; status: string; startsAt: string; endsAt: string; interviewerIds: string[] };
+
+/** One step along the plans: of who reached round `from`, how many reached the next. */
+export type RoundRate = { label: string; from: number; to: number; rate: number };
+
+export type InterviewEfficiency = {
+  closed: number;
+  hires: number;
+  /** Earliest round first; a round nobody reached has no row. */
+  rounds: RoundRate[];
+  /** Interviews held on every closed application, over the hires; null with no hire. */
+  interviewsPerHire: number | null;
+  /** The same in interviewer hours: an interview's length once per interviewer on it. */
+  hoursPerHire: number | null;
+};
+
+/**
+ * How many get through each round, and what a hire costs in interviews. A round
+ * is a position in the job's own plan, whatever the company calls that step, so
+ * jobs with different plans add up: the furthest position an application held an
+ * interview at is how far it got, and only a job whose plan has a next position
+ * counts toward getting there. The last position of the longest plan is "the
+ * final". An interview on no step of the plan counts toward the hours and not
+ * toward a round. Null with too little to say: too few closed, or nothing but
+ * applications that closed before any interview and no hire.
+ */
+export function interviewEfficiency(closed: ClosedApplication[], interviews: EfficiencyInterview[], plans: Map<string, string[]>, now: number): InterviewEfficiency | null {
+  if (closed.length < EFFICIENCY_MIN_CLOSED) return null;
+  const key = (s: string) => s.trim().toLowerCase();
+  const positions = new Map([...plans].map(([job, steps]) => [job, new Map(steps.map((s, i) => [key(s), i + 1]))]));
+  const closedIds = new Map(closed.map((a) => [a.id, a]));
+  const reached = new Map<string, number>();
+  let count = 0;
+  let hours = 0;
+  for (const i of interviews) {
+    const app = closedIds.get(i.applicationId);
+    const held = i.status === "done" || (i.status === "scheduled" && Date.parse(i.endsAt) <= now);
+    if (!app || !held) continue;
+    count += 1;
+    hours += (Math.max(0, Date.parse(i.endsAt) - Date.parse(i.startsAt)) / H) * i.interviewerIds.length;
+    const at = i.step ? positions.get(app.roleId)?.get(key(i.step)) : undefined;
+    if (at) reached.set(app.id, Math.max(at, reached.get(app.id) ?? 0));
+  }
+
+  const planLength = (a: ClosedApplication) => plans.get(a.roleId)?.length ?? 0;
+  const longest = Math.max(0, ...closed.map(planLength));
+  const rounds: RoundRate[] = [];
+  for (let n = 1; n < longest; n += 1) {
+    const atRound = closed.filter((a) => planLength(a) > n && (reached.get(a.id) ?? 0) >= n);
+    if (!atRound.length) continue;
+    const to = atRound.filter((a) => (reached.get(a.id) ?? 0) > n).length;
+    rounds.push({ label: n + 1 === longest ? `Round ${n} to the final` : `Round ${n} to round ${n + 1}`, from: atRound.length, to, rate: to / atRound.length });
+  }
+
+  const hires = closed.filter((a) => a.stage === "hired").length;
+  if (!rounds.length && !hires) return null;
+  return { closed: closed.length, hires, rounds, interviewsPerHire: hires ? count / hires : null, hoursPerHire: hires ? hours / hires : null };
 }
 
 // ---------------------------------------------------------------------------

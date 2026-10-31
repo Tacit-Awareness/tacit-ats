@@ -101,11 +101,14 @@ Home is the Recruiting Overview: it answers *where are candidates getting stuck?
 
 - **Cards**: new applications against the period before, candidates in process, how long people wait for review and for scheduling, interviewer feedback on time, and interview workload.
 - **Bottlenecks**: each one links to the page that clears it, with the longest waits listed under time in stage.
-- **Feedback**: time to feedback by interviewer, the average stay in each stage, and the oldest outstanding feedback.
+- **Feedback**: time to feedback by interviewer and the oldest outstanding feedback. The average stay in each stage sits under time in stage.
+- **Interview efficiency**: from applications closed in the last 12 months, whatever period is picked: how many got from each round to the next, interviews per hire and interviewer time per hire, counting every closed application's interviews. A round is a step's position in the job's interview plan, so jobs with different plans add up. Until enough have closed it says so, rather than show a percentage of two people.
 
 Once your company has drawn its [interview process](/docs/app-interviews#interview-process), candidates in process and time in stage use the stages you named. Steps side by side after a split count as one stage. A job whose plan doesn't match the process keeps the usual labels, and so does anyone who can't read the process. Admins change the stages from **Edit stages**. The stage a candidate is in is worked out each time: nothing about them changes when you rename a step.
 
 The feedback card appears for admins and whoever manages a job, and covers every job they manage even when you pick one job.
+
+Interview workload is split by the job's department, or by interviewer if those jobs are in no department.
 
 ### Targets
 
@@ -236,7 +239,7 @@ Pick one job and its board appears. **List** and **Board** at the top switch bet
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
 
-Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page.
+Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
 
 On a job's board, where you can edit that job, move a card by dragging it, with its **Move** button, or from the keyboard:
 

@@ -47,6 +47,25 @@ describe("a row", () => {
   });
 });
 
+describe("past candidates", () => {
+  const past = { href: "/client/candidates?q=rust", label: "3 past candidates in CRM also match “rust”" };
+
+  test("a line that leads to the CRM, and no people", () => {
+    const html = page({ past });
+    expect(html).toContain('href="/client/candidates?q=rust"');
+    expect(html).toContain(past.label);
+  });
+
+  test("hidden with none", () => {
+    expect(page({ past: null })).not.toContain("past candidate");
+    expect(page()).not.toContain("past candidate");
+  });
+
+  test("shows over an empty pipeline too", () => {
+    expect(page({ past, empty: "Nobody is in an open job's pipeline yet." })).toContain(past.label);
+  });
+});
+
 describe("the List / Board switch", () => {
   test("across jobs Board is off, and says why", () => {
     const html = page();

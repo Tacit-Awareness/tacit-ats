@@ -34,7 +34,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  for (const table of ["interview_feedback", "application_events", "interviews", "applications", "hiring_team", "people", "roles", "companies"] as const) {
+  for (const table of ["interview_feedback", "application_events", "interviews", "applications", "hiring_team", "people", "roles", "departments", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
   await db().from("actors").delete().in("org_id", ids);
@@ -166,6 +166,62 @@ describe("Home's read", () => {
     // They manage the engineer search, so the feedback card is theirs.
     expect(read.feedback?.map((r) => r.userId)).toEqual([IV]);
     for (const w of read.waiting) expect(w.applicationId).not.toBe(GLOBEX_APP);
+  });
+
+  test("interview workload carries each job's department, on the member's token", async () => {
+    const dept = "a7ee0000-0000-4000-8000-0000000000f1";
+    must(await db().from("departments").insert({ id: dept, org_id: ACME, name: "Engineering" }));
+    must(await db().from("roles").update({ department_id: dept }).eq("id", ENGINEER));
+    must(await db().from("interviews").insert({ org_id: ACME, application_id: app(4), starts_at: at(-2), ends_at: at(-1), status: "scheduled", step: "Screen", interviewer_actor_ids: [IV] }));
+    const read = await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: null }, new Date(NOW));
+    expect(workload(read.interviews, 7, NOW).byTeam).toEqual([
+      { name: "Engineering", hours: 3, interviews: 2 },
+      { name: null, hours: 1, interviews: 1 },
+    ]);
+  });
+
+  describe("interview efficiency", () => {
+    /** 5 is hired on the designer; 6 rejected on the engineer; these close more on the engineer. */
+    async function closures() {
+      const more = [[8, "rejected"], [9, "rejected"], [10, "withdrawn"], [11, "hired"]] as const;
+      must(await db().from("people").insert(more.map(([n]) => ({ id: person(n), org_id: ACME, display_name: `Candidate ${n}`, email: `c${n}@hm.test` }))));
+      must(await db().from("applications").insert(more.map(([n, stage]) => ({ id: app(n), org_id: ACME, person_id: person(n), role_id: ENGINEER, stage }))));
+      must(await db().from("roles").update({ interview_steps: ["Screen", "Onsite"] }).eq("id", ENGINEER));
+      const closed = [[5, "hired", 20], [6, "rejected", 20], [8, "rejected", 30], [9, "rejected", 30], [10, "withdrawn", 300], [11, "hired", 40]] as const;
+      must(await db().from("application_events").insert(closed.map(([n, to_stage, d]) => ({ org_id: ACME, application_id: app(n), kind: "stage_changed", from_stage: "interviewing", to_stage, created_at: daysAgo(d) }))));
+      const held = (n: number, step: string, interviewers: string[] = [IV]) => ({ org_id: ACME, application_id: app(n), starts_at: at(-1000), ends_at: at(-999), status: "done", step, interviewer_actor_ids: interviewers });
+      must(await db().from("interviews").insert([held(8, "Screen"), held(9, "Screen"), held(11, "screen", [IV, ADMIN]), held(11, "Onsite"), { ...held(9, "Onsite"), status: "cancelled" }]));
+      must(await db().from("interviews").insert({ org_id: GLOBEX, application_id: GLOBEX_APP, starts_at: at(-1000), ends_at: at(-999), status: "done", step: "Screen", interviewer_actor_ids: [] }));
+      must(await db().from("application_events").insert({ org_id: GLOBEX, application_id: GLOBEX_APP, kind: "stage_changed", from_stage: "interviewing", to_stage: "rejected", created_at: daysAgo(10) }));
+    }
+
+    test("an admin's rounds and cost per hire, whatever the period", async () => {
+      await closures();
+      const read = await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: null }, new Date(NOW));
+      expect(read.efficiency).toEqual({
+        closed: 6,
+        hires: 2,
+        rounds: [{ label: "Round 1 to the final", from: 3, to: 1, rate: 1 / 3 }],
+        interviewsPerHire: 2,
+        hoursPerHire: 2.5,
+      });
+    });
+
+    test("too few closed says so, and a hiring manager's are only their job's", async () => {
+      expect((await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: null }, new Date(NOW))).efficiency).toBeNull();
+      await closures();
+      // Their job's five closed, the designer's hire not among them.
+      const lee = await readHome(member("user_hm_lee"), as(LEAD, "elevated"), { days: 7, jobId: null }, new Date(NOW));
+      expect(lee.efficiency).toMatchObject({ closed: 5, hires: 1 });
+    });
+
+    test("a job filter narrows it, and more than a year ago is out", async () => {
+      await closures();
+      expect((await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: DESIGNER }, new Date(NOW))).efficiency).toBeNull();
+      must(await db().from("application_events").update({ created_at: daysAgo(400) }).eq("application_id", app(10)));
+      const read = await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: ENGINEER }, new Date(NOW));
+      expect(read.efficiency).toBeNull();
+    });
   });
 
   test("someone who manages no job sees nothing to count and no feedback card", async () => {
