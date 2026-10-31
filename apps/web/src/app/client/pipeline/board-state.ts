@@ -1,4 +1,5 @@
 import type { CardMoves } from "@/lib/client/pipeline-moves";
+import { uiScale } from "@/lib/ui-scale";
 
 // The Pipeline board's data as the client holds it, and the two pure steps a
 // move needs. Unit-tested in board-state.test.ts.
@@ -11,6 +12,7 @@ export type BoardCard = {
   line: string;
   status: string;
   ownerName: string | null;
+  ownerActorId: string | null;
   stalled: boolean;
   stage: string;
   stageLabel: string;
@@ -50,4 +52,34 @@ export function neighbourOf(columns: BoardColumn[], applicationId: string): stri
   const all = columns.flatMap((c) => c.cards);
   const i = all.findIndex((x) => x.applicationId === applicationId);
   return i < 0 ? null : ((all[i + 1] ?? all[i - 1])?.applicationId ?? null);
+}
+
+/** A desktop's pointer, with room for a menu: a long press on a phone fires `contextmenu` too. */
+export const DESKTOP_POINTER = "(hover: hover) and (pointer: fine) and (min-width: 768px)";
+
+/**
+ * Whether a right-click means the row menu: on a desktop, with a mouse, over a
+ * row whose job the member may edit (`moves`, the board's own gate), and nothing
+ * in the way. Anything else keeps the browser's menu; Shift asks for it.
+ */
+export function takesRowMenu(e: { shiftKey: boolean; pointerType?: string }, desktop: boolean, card: { moves: unknown } | undefined, blocked: boolean): boolean {
+  return desktop && !blocked && !e.shiftKey && e.pointerType !== "touch" && !!card?.moves;
+}
+
+/** Where the menu sits: the pointer, or the row when the menu key sent it, which comes with no position. */
+export function menuSpot(x: number, y: number, row: { left: number; bottom: number }) {
+  const z = uiScale();
+  const left = (x || y ? x : row.left) / z;
+  const top = (x || y ? y : row.bottom) / z;
+  return { left, right: left, top, bottom: top };
+}
+
+/** The move as moveCardAction takes it, carrying the stage the page showed. */
+export function moveForm(card: { applicationId: string; personId: string; stage: string }, stage: string): FormData {
+  const form = new FormData();
+  form.set("applicationId", card.applicationId);
+  form.set("candidateId", card.personId);
+  form.set("stage", stage);
+  form.set("expectedStage", card.stage);
+  return form;
 }

@@ -212,6 +212,7 @@ describe("a row", () => {
     const e = entry({ column: "new", sourceDetail: "Ana Ruiz", source: "referral", ownerName: "Sam", stalled: ["no_touch"], lastTouchAt: daysAgo(9), headline: "Engineer at Acme" });
     expect(toRow(e, NOW)).toEqual({
       applicationId: e.applicationId,
+      personId: e.personId,
       href: `/client/candidates/${e.personId}`,
       name: e.personName,
       status: "Ana Ruiz",

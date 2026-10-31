@@ -1,18 +1,27 @@
 import Link from "next/link";
 import { KeyList } from "@/components/keys";
 import type { PipelineRow, RowGroup, StageCount } from "@/lib/client/pipeline-list";
+import { hoverAttr } from "@/lib/hover-card";
 import { cn } from "@/lib/utils";
+import type { CardMoves } from "@/lib/client/pipeline-moves";
+import { RowMenus, type RowCard } from "./row-menu";
 
 // The Pipeline's list, design/tats's "Pipeline at scale": a stage bar that
 // filters, then one email-like line per person, grouped by stage. Links, so the
 // URL holds the state and J / K / Enter work through KeyList. Rows carry no
-// buttons: a row opens the candidate in a pop-up (popup.tsx, `?open=`), and moves
-// stay on the board and in there. Over the list J and K move focus and Enter
-// opens; in the pop-up they walk the rows, as the Inbox's do.
+// buttons: a row opens the candidate in a pop-up (popup.tsx, `?open=`), and a
+// right-click or S is the board's stage menu on a job the member may edit
+// (row-menu.tsx). Over the list J and K move focus and Enter opens; in the
+// pop-up they walk the rows, as the Inbox's do.
 // The soft reds are the prototype's `.pl-sc em`.
 
 export type StageCard = StageCount & { href: string; active: boolean };
-export type ListRow = PipelineRow & { openHref: string; active: boolean };
+export type ListRow = PipelineRow & {
+  openHref: string;
+  active: boolean;
+  /** What a move needs, on a job the member may edit: the same check as a board card's. */
+  menu?: { stage: string; stageLabel: string; moves: CardMoves } | null;
+};
 export type ListGroup = Omit<RowGroup, "rows"> & { rows: ListRow[]; moreHref: string | null };
 
 const SOFT_RED =
@@ -69,7 +78,9 @@ function Row({ row }: { row: ListRow }) {
       className="grid h-10 grid-cols-[8px_minmax(120px,170px)_minmax(0,1fr)_44px] items-center gap-3 px-3 text-[14px] transition-colors hover:bg-[color:var(--hover)] hover:shadow-[inset_0_0_0_1px_var(--line)] focus-visible:bg-[color:var(--sel)] max-sm:h-auto max-sm:grid-cols-[8px_minmax(0,1fr)_44px] max-sm:gap-y-0.5 max-sm:py-2"
     >
       <i aria-hidden className={cn("size-[7px] rounded-full", row.stuck && "bg-negative")} />
-      <span className={cn("truncate", row.stuck ? "font-semibold" : "font-medium")}>{row.name}</span>
+      <span data-hc={hoverAttr("candidate", row.personId)} className={cn("truncate", row.stuck ? "font-semibold" : "font-medium")}>
+        {row.name}
+      </span>
       <span className="min-w-0 truncate max-sm:col-span-2 max-sm:col-start-2 max-sm:row-start-2 max-sm:text-[13px]">
         <b className="font-semibold">{row.status}</b>
         <span className="ml-2.5 text-muted-foreground">{row.facts}</span>
@@ -85,29 +96,38 @@ function Row({ row }: { row: ListRow }) {
 }
 
 export function PipelineList({ groups, popup }: { groups: ListGroup[]; popup: boolean }) {
+  const cards = groups.flatMap((g) =>
+    g.rows.flatMap((r): RowCard[] =>
+      r.menu
+        ? [{ applicationId: r.applicationId, personId: r.personId, name: r.name, href: r.href, openHref: r.openHref, stage: r.menu.stage, stageLabel: r.menu.stageLabel, moves: r.menu.moves }]
+        : [],
+    ),
+  );
   return (
-    <KeyList title="Pipeline" next="Next person" mode={popup ? "select" : "focus"} data-tour="board">
-      {groups.map((g) => (
-        <section key={g.key} aria-label={g.label}>
-          <h2 className="m-0 flex items-center gap-2 px-3 pt-5 pb-1 text-[13px] font-medium text-muted-foreground">
-            {g.label}
-            <span className="font-normal text-faint tabular-nums">{g.total}</span>
-          </h2>
-          {g.rows.map((row) => (
-            <Row key={row.applicationId} row={row} />
-          ))}
-          {g.more && g.moreHref ? (
-            <Link
-              href={g.moreHref}
-              scroll={false}
-              className="mt-2 ml-3 inline-flex h-8 items-center rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-4 text-[13px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
-            >
-              {g.more.label}
-            </Link>
-          ) : null}
-        </section>
-      ))}
-    </KeyList>
+    <RowMenus cards={cards} popup={popup}>
+      <KeyList title="Pipeline" next="Next person" mode={popup ? "select" : "focus"} data-tour="board">
+        {groups.map((g) => (
+          <section key={g.key} aria-label={g.label}>
+            <h2 className="m-0 flex items-center gap-2 px-3 pt-5 pb-1 text-[13px] font-medium text-muted-foreground">
+              {g.label}
+              <span className="font-normal text-faint tabular-nums">{g.total}</span>
+            </h2>
+            {g.rows.map((row) => (
+              <Row key={row.applicationId} row={row} />
+            ))}
+            {g.more && g.moreHref ? (
+              <Link
+                href={g.moreHref}
+                scroll={false}
+                className="mt-2 ml-3 inline-flex h-8 items-center rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-4 text-[13px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+              >
+                {g.more.label}
+              </Link>
+            ) : null}
+          </section>
+        ))}
+      </KeyList>
+    </RowMenus>
   );
 }
 

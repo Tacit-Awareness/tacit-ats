@@ -1,12 +1,13 @@
 import { NEXT_ACTION_MAX } from "@tacit/core";
-import { MiniTitle } from "@/components/page";
+import { Chip, MiniTitle } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { Input, selectClass } from "@/components/ui/input";
-import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
+import type { CloseReason, LabelChoices, OwnerChoice } from "@/lib/client/candidate-edits";
 import { closeReasonKind, MOVABLE_STAGES, nextStage, NOTE_MAX } from "@/lib/client/candidate-edit-rules";
 import { stageLabel } from "@/lib/client/crm-views";
 import { cn } from "@/lib/utils";
 import { logTouchAction, moveCandidateAction, setNextActionAction, setOwnerAction } from "./actions";
+import { LabelMenu } from "./label-menu";
 
 // One job's edit controls on the candidate page, shown only where the member
 // may edit that job's pipeline (page.tsx asks can_on_role). Plain forms, no
@@ -14,6 +15,9 @@ import { logTouchAction, moveCandidateAction, setNextActionAction, setOwnerActio
 // stage this page showed (`expectedStage`), so a move someone else made in
 // the meantime is reported instead of overwritten. Rejecting and withdrawing
 // are their own forms, each offering only the org's reasons of its kind.
+// Labels are the candidate's, not a job's: chips for anyone, and for whoever may
+// change the record (`choices`, can_edit_person) the menu, label-menu.tsx, the one
+// control here that needs script, so it can answer inside the Pipeline's pop-up.
 
 export type JobEditing = {
   candidateId: string;
@@ -69,6 +73,12 @@ function CloseForm({ e, kind }: { e: JobEditing; kind: "rejected" | "withdrew" }
   );
 }
 
+/** Null `choices`: read-only, the chips and nothing else. */
+export function CandidateLabels({ candidateId, labels, choices }: { candidateId: string; labels: string[]; choices: LabelChoices | null }) {
+  if (choices?.length) return <LabelMenu candidateId={candidateId} labels={labels} options={choices} />;
+  return labels.map((t) => <Chip key={`tag-${t}`}>{t}</Chip>);
+}
+
 export function JobControls({ e }: { e: JobEditing }) {
   const next = nextStage(e.stage);
   const closed = closeReasonKind(e.stage) !== null;
@@ -90,7 +100,7 @@ export function JobControls({ e }: { e: JobEditing }) {
           <label htmlFor={id("stage")} className="sr-only">
             Stage
           </label>
-          <select id={id("stage")} name="stage" defaultValue={closed ? "" : e.stage} required className={cn(selectClass, "h-7 w-[150px]")}>
+          <select id={id("stage")} name="stage" data-command="stage" defaultValue={closed ? "" : e.stage} required className={cn(selectClass, "h-7 w-[150px]")}>
             {closed ? (
               <option value="" disabled>
                 Reopen at…
@@ -109,7 +119,7 @@ export function JobControls({ e }: { e: JobEditing }) {
       </div>
 
       {!closed ? (
-        <details className="group">
+        <details className="group" data-command="close">
           <summary className="cursor-pointer text-xs text-muted-foreground select-none hover:text-foreground">Reject or withdraw…</summary>
           <div className="mt-2 grid gap-3 md:grid-cols-2">
             <CloseForm e={e} kind="rejected" />

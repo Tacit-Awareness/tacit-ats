@@ -53,7 +53,7 @@ export async function scanRows<T>(page: (from: number, to: number) => PromiseLik
 }
 
 /** Who has a profile the member may read, out of these. */
-async function readProfiles(db: Db, ids: string[]): Promise<Map<string, StoredProfile>> {
+export async function readProfiles(db: Db, ids: string[]): Promise<Map<string, StoredProfile>> {
   const { data, error } = await db.from("interviewer_profiles").select(clientTools.PROFILE_COLUMNS).in("actor_id", ids);
   if (error) throw new Error(error.message);
   return new Map((data ?? []).map((r) => [r.actor_id, clientTools.profileFromRow(r)]));

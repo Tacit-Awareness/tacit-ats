@@ -38,6 +38,7 @@ export function NoteComposer({ candidateId, max }: { candidateId: string; max: n
         <textarea
           ref={box}
           id="candidate-note"
+          data-command="note"
           name="text"
           rows={2}
           required

@@ -4,14 +4,15 @@ import { FlashToast } from "@/components/flash-toast";
 import { Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
 import { FEED_MAX } from "@/lib/client/candidate";
 import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
-import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
+import type { CloseReason, LabelChoices, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
 import type { PastApplication } from "@/lib/client/past-applications";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { cn, safeHttpUrl } from "@/lib/utils";
 import { ActivityStory } from "../activity-story";
 import { LocalDay } from "../local-day";
-import { JobControls } from "./controls";
+import { CandidateCommands } from "./commands";
+import { CandidateLabels, JobControls } from "./controls";
 import { NoteComposer } from "./note-composer";
 
 // The candidate page's markup, props only (page.tsx does the reads), laid
@@ -42,6 +43,8 @@ export type CandidateViewProps = {
     owners: OwnerChoice[];
     reasons: CloseReason[];
   } | null;
+  /** The labels the member may put on or take off; null when they may not change this candidate. */
+  labels?: LabelChoices | null;
   notice: string | null;
   error: string | null;
   now: number;
@@ -218,7 +221,7 @@ function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewP
 }
 
 /** The page's content, also what the Pipeline's pop-up holds (`popup`: its header already names them). */
-export function CandidateBody({ candidate, activity, owners, past, editing, notice, error, now, popup = false }: CandidateViewProps & { popup?: boolean }) {
+export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, notice, error, now, popup = false }: CandidateViewProps & { popup?: boolean }) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
@@ -247,6 +250,13 @@ export function CandidateBody({ candidate, activity, owners, past, editing, noti
 
   return (
     <div className="grid min-[1100px]:grid-cols-[minmax(0,1fr)_280px]">
+      <CandidateCommands
+        name={name}
+        note={noteable(candidate.name)}
+        labels={!!labels?.length}
+        stage={current.some((a) => editing?.apps[a.applicationId])}
+        close={current.some((a) => editing?.apps[a.applicationId] && !CLOSED.has(a.stage))}
+      />
       {/* design/tats's `.detail .body`: unboxed, at most 840px, 24px between blocks */}
       <div className="mx-auto grid w-full max-w-[840px] min-w-0 content-start gap-6 px-4 pt-8 pb-20 md:px-12">
         {error ? <Notice tone="error">{error}</Notice> : notice ? <FlashToast text={notice} /> : null}
@@ -257,7 +267,7 @@ export function CandidateBody({ candidate, activity, owners, past, editing, noti
               {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}
             </div>
           </div>
-          {current.length || candidate.tags.length ? (
+          {current.length || candidate.tags.length || labels?.length ? (
             <Chips aria-label="Stage and tags">
               {current.map((a) => (
                 <Chip key={a.applicationId} title={a.jobTitle ?? undefined}>
@@ -278,9 +288,7 @@ export function CandidateBody({ candidate, activity, owners, past, editing, noti
                   Applied before
                 </Chip>
               ) : null}
-              {candidate.tags.map((t) => (
-                <Chip key={`tag-${t}`}>{t}</Chip>
-              ))}
+              <CandidateLabels candidateId={candidate.candidateId} labels={candidate.tags} choices={labels} />
             </Chips>
           ) : null}
         </div>

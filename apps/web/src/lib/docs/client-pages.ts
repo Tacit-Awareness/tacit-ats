@@ -232,6 +232,8 @@ Each candidate has one page with their profile, tags, pools, the jobs they are i
 
 Where you can edit the job, you can move the stage, reject or mark withdrawn with a reason, change the owner, set the next action and log a touch. Anyone who can open the page can leave a note: press \`C\` to write and \`⌘↵\` to save. Notes cannot be edited or deleted.
 
+Where you can change a candidate's record, **Labels** beside their chips, or \`L\`, puts your company's labels on them and takes them off. It answers in place, in the Pipeline's pop-up too. New labels are made from the CRM's bulk actions.
+
 Interviewers see a short card: the resume, their own notes and their own interviews.
 
 ## Pipeline
@@ -253,12 +255,14 @@ Pick one job and its board appears. **List** and **Board** at the top switch bet
 
 Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
 
-On a job's board, where you can edit that job, move a card by dragging it, with its **Move** button, or from the keyboard:
+On a computer, rest the mouse on a name for a short card: who they are, their stage, job, source, team, owner and interviewer, each only if you can read it. The same works on a teammate's avatar and on the Interviewers page. Touch screens don't show them.
+
+On a job's board, where you can edit that job, move a card by dragging it, with its **Move** button, or from the keyboard. On a computer, right-click a card or a row on the list for the same moves with **Open** first; \`S\` opens the menu on a row too, and Shift with a right-click gives you the browser's own menu.
 
 | Key | What it does |
 | --- | --- |
 | \`J\` / \`K\` | Walk through the cards |
-| \`S\` | Open the stage menu |
+| \`S\` or right-click | Open the stage menu |
 | \`A\` | Move to the next stage |
 | \`F\` or \`/\` | Filter by name |
 | \`B\` | List or board |
@@ -381,7 +385,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 
 | Key | What it does |
 | --- | --- |
-| \`⌘K\` | Command menu: go to any page, job or saved view. On these docs, it searches them |
+| \`⌘K\` | Command menu: go to any page, job or saved view, find a candidate by name, email, title or company, and on an open candidate jump to a note, labels, a stage or rejecting them. Interviewers find only the people they interview. On these docs, it searches them |
 | \`G\` then \`H\` | Home |
 | \`G\` then \`C\` | CRM |
 | \`G\` then \`J\` | Job Postings |

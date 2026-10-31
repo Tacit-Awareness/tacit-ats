@@ -163,6 +163,7 @@ export function shortSpan(iso: string, now: number): string {
 
 export type PipelineRow = {
   applicationId: string;
+  personId: string;
   href: string;
   name: string;
   status: string;
@@ -177,6 +178,7 @@ export type PipelineRow = {
 
 export const toRow = (e: PipelineEntry, now: number): PipelineRow => ({
   applicationId: e.applicationId,
+  personId: e.personId,
   href: `/client/candidates/${e.personId}`,
   name: e.personName?.trim() || "Unnamed",
   status: statusOf(e, now),
