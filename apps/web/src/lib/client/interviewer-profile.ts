@@ -49,6 +49,27 @@ export function profileFromForm(form: FormData): clientTools.InterviewerProfileI
   };
 }
 
+const fold = (area: string) => area.toLowerCase().normalize("NFC");
+
+/**
+ * What the tag input adds, a line or a pasted list: repeats dropped as core's
+ * cleanFocusAreas drops them, ignoring case and keeping the first. Over a limit
+ * nothing is added and `refused` says why, so what was typed stays in the field.
+ */
+export function addAreas(current: string[], raw: string): { areas: string[]; refused: string | null } {
+  const areas = [...current];
+  const seen = new Set(current.map(fold));
+  for (const line of raw.split(/\r\n?|[\n\u0085\u2028\u2029]/u)) {
+    const area = line.trim();
+    if (!area || seen.has(fold(area))) continue;
+    if ([...area].length > FOCUS_AREA_MAX) return { areas: current, refused: `Each one is ${FOCUS_AREA_MAX} characters at most.` };
+    seen.add(fold(area));
+    areas.push(area);
+  }
+  if (areas.length > FOCUS_AREAS_MAX) return { areas: current, refused: `${FOCUS_AREAS_MAX} is the most one person can have.` };
+  return { areas, refused: null };
+}
+
 /** The last day is inclusive, and today is UTC's: an org has no time zone yet, as with the weeks. */
 export const isAway = (awayUntil: string | null, now: Date): boolean => awayUntil !== null && awayUntil >= now.toISOString().slice(0, 10);
 

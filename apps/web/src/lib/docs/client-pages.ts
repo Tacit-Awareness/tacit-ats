@@ -310,6 +310,14 @@ These moved to Onboarding, and the Interviewers page links there. **Team**, in t
 | Your company's hiring team | Read it, and change their own title |
 | Interviewers and external recruiters | A pointer back to Home |
 
+### Teams
+
+**Teams** shows your people against your teams. Tick a box and it saves at once. Someone on more than one team is marked Multidisciplinary. Once someone is on a team, **Lead** makes them its lead, and a team has one lead at most. **New team** adds a team, and a team inside another shows its full path, like Engineering › Platform. On a phone it is a list per person. Archived departments don't appear.
+
+### Interview skills
+
+**Interview skills** lists the kinds of interview your company runs. Nothing is filled in for you, so start with **Add an interview type**. Rename or archive a type from its row. Adding an archived type's name brings it back, with who ran it. Under each person, an admin adds their skills, up to 20, and taps the interview types they run. The star says to ask them first. Everyone changes their own skills from the **Interviewers** page. If someone else saved a person's profile a moment ago, your change isn't saved, and the page shows what it says now.
+
 **People** lists your team with each person's access and title. Anyone can set their own title; an admin can set anyone's. Interviewers set theirs on the **Interviewers** page, with the rest of their profile. An external recruiter sees the team on the **Interviewers** page too.
 
 Teams, Interview skills, Interview process and Review are coming next, and their pages say so. The checklist already counts what your company has in them.`,
