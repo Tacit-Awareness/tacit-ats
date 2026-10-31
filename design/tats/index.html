@@ -3497,7 +3497,6 @@ b[data-hc]:hover, .card .name[data-hc]:hover { text-decoration: underline; text-
 .rc-mh > span:last-child { flex-shrink: 0; }
 
 /* ================= v31: interviewer + Grokbot pairing ================= */
-.gb-ex { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 18px; align-items: center; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .gb-pair { display: flex; align-items: center; }
 .gb-pair .av.xl { width: 36px; height: 36px; font-size: 13px; }
 .gb-link { width: 14px; height: 1px; background: var(--line-strong); }
@@ -5325,10 +5324,6 @@ i.pill-glass.press { transform-origin: center; }
 .fc-q { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50% !important; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; }
 
 /* v80 the Grokbot, live on Onboarding: a cursor with a name tag that comes in and makes the change */
-.su-live { display: inline-flex; align-items: center; gap: 8px; height: 30px; margin: 0 0 var(--s5); padding: 0 12px 0 6px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--paper); color: var(--muted); font-size: 13px; box-shadow: var(--elev); }
-.su-live:hover { color: var(--ink); background: var(--hover); }
-.su-live .bot .av { width: 20px; height: 20px; }
-.su-live-dot { width: 6px; height: 6px; border-radius: 50% !important; background: #30a46c; box-shadow: 0 0 0 3px color-mix(in srgb, #30a46c 22%, transparent); }
 .gb-cur { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; will-change: transform; }
 .gb-cur svg { display: block; width: 20px; height: 20px; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3)); }
 .gb-cur svg path { fill: #1d1d20; stroke: #fff; stroke-width: 1.2; stroke-linejoin: round; }
@@ -5338,35 +5333,52 @@ i.pill-glass.press { transform-origin: center; }
 .gb-what { color: rgba(255, 255, 255, 0.72); }
 .gb-hit { animation: gb-hit 0.7s ease-out; }
 @keyframes gb-hit { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
-.gb-ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.gb-ex .chip { cursor: pointer; }
 
-/* v81 the Grokbot pop-up on Onboarding: says it can do this, where to ask, a couple of requests for this step */
-.gb-pop { position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 340px; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 12px 32px -12px rgba(118, 92, 255, 0.35), 0 8px 24px -14px rgba(255, 92, 170, 0.3), var(--elev-hi); animation: gb-in 0.2s var(--spring); }
-@keyframes gb-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
-.gb-ph { display: flex; align-items: center; gap: 10px; }
-.gb-ph .bot .av { width: 28px; height: 28px; }
-.gb-pt { flex: 1; display: grid; gap: 2px; }
-.gb-pt b { font-size: 14px; font-weight: 600; }
-.gb-pt span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.gb-pp { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.gb-where { display: flex; gap: 8px; }
-.gb-where span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--surface); color: var(--ink); font-size: 12.5px; }
-.gb-where svg { width: 13px; height: 13px; }
-.gb-where .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.gb-tries { display: grid; gap: 4px; }
-.gb-try { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 10px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.35; transition: background 0.15s, border-color 0.15s; }
-.gb-try:hover { background: var(--hover); border-color: var(--line-strong); }
-.gb-try .ico { width: 12px; height: 12px; flex: none; color: var(--muted); }
-.gb-in { display: flex; gap: 6px; }
-.gb-in input { flex: 1; min-width: 0; height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
-.gb-in input:focus { outline: none; border-color: var(--accent); }
-.gb-in .btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
-.gb-pill { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev-hi); font-size: 13.5px; font-weight: 500; color: var(--ink); animation: gb-in 0.2s var(--spring); }
-.gb-pill .bot .av { width: 24px; height: 24px; }
-.gb-pill:hover { background: var(--hover); }
-.su-side .gb-pop { position: static; width: auto; margin-bottom: var(--s5); }
-.su-side .gb-pill { position: static; margin-bottom: var(--s5); }
+/* v82 the Grokbot lives in Slack and the CLI; Onboarding only shows it working */
+.su-surf { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+.su-surf:hover { border-bottom-color: var(--ink); }
+.su-surf svg { width: 13px; height: 13px; }
+.su-surf .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+body.surface { margin: 0; height: 100vh; overflow: hidden; }
+body.surface.cli { background: #0d0d0f; }
+.cli { display: flex; flex-direction: column; height: 100vh; font: 13.5px/1.6 "SF Mono", ui-monospace, Menlo, monospace; color: #e6e6e6; }
+.cli-bar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; background: #1a1a1d; border-bottom: 1px solid #26262a; color: #8b8b92; font-size: 12px; }
+.cli-bar i { width: 11px; height: 11px; border-radius: 50% !important; background: #3a3a3f; }
+.cli-bar span { flex: 1; text-align: center; margin-right: 50px; }
+.cli-out { flex: 1; overflow: auto; padding: 16px 20px; display: grid; align-content: start; gap: 4px; }
+.cli-l.dim { color: #7d7d85; }
+.cli-l.me { color: #fff; margin-top: 10px; }
+.cli-l.ok { color: #7ee2a8; }
+.cli-ex { display: inline-block; margin: 2px 6px 0 0; padding: 0 6px; border: 1px solid #2c2c31; color: #c9c9cf; cursor: pointer; }
+.cli-ex:hover { border-color: #55555c; color: #fff; }
+.cli-in { display: flex; align-items: center; gap: 10px; padding: 12px 20px 18px; border-top: 1px solid #1f1f23; }
+.cli-in span { color: #7ee2a8; }
+.cli-in input { flex: 1; background: none; border: 0; outline: none; color: #fff; font: inherit; caret-color: #7ee2a8; }
+body.surface.slack { background: #fff; }
+.slk { display: grid; grid-template-columns: 220px 1fr; height: 100vh; font-family: Inter, system-ui, sans-serif; color: #1d1c1d; }
+.slk-side { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; background: #3f0e40; color: #cfc3cf; font-size: 14px; }
+.slk-side b { color: #fff; padding: 4px 10px 12px; font-size: 16px; }
+.slk-side span { display: flex; align-items: center; gap: 8px; padding: 4px 10px; }
+.slk-side span.on { background: #1164a3; color: #fff; }
+.slk-side .bot .av { width: 18px; height: 18px; }
+.slk-main { display: flex; flex-direction: column; min-width: 0; }
+.slk-main header { display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 20px; border-bottom: 1px solid #e8e8e8; font-size: 15px; }
+.slk-main header .bot .av { width: 22px; height: 22px; }
+.slk-main header em, .slk-m em { font-style: normal; font-size: 10px; font-weight: 600; padding: 1px 4px; background: #e8e8e8; color: #616061; }
+.slk-out { flex: 1; overflow: auto; padding: 16px 20px; display: grid; align-content: start; gap: 14px; }
+.slk-m { display: flex; gap: 10px; }
+.slk-m > .bot .av, .slk-m > .av { width: 36px; height: 36px; border-radius: 6px !important; flex: none; }
+.slk-m b { font-size: 15px; font-weight: 800; }
+.slk-t { margin-left: 8px; color: #616061; font-size: 12px; }
+.slk-m p { margin: 2px 0 0; font-size: 15px; line-height: 1.46; }
+.slk-m p.dim { color: #616061; font-style: italic; }
+.slk-ex { display: inline-block; margin: 4px 4px 0 0; padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px !important; background: #f8f8f8; font-size: 13px; cursor: pointer; }
+.slk-ex:hover { background: #eee; }
+.slk-in { padding: 0 20px 20px; }
+.slk-in input { width: 100%; height: 44px; padding: 0 14px; border: 1px solid #bbb; border-radius: 8px !important; font: inherit; font-size: 15px; outline: none; }
+.slk-in input:focus { border-color: #1264a3; box-shadow: 0 0 0 1px #1264a3; }
+body.surface { padding: 0 !important; display: block !important; }
+.cli-l, .slk-m p { white-space: pre-line; }
 
 </style>
 
@@ -5603,6 +5615,9 @@ const state = {
   lastList: [],
   tq: 0,
 };
+// ?surface=slack or ?surface=cli opens the Grokbot somewhere else: a Slack DM or a terminal. tATS tabs hear it and do the work.
+const SURFACE = new URLSearchParams(location.search).get("surface");
+const GROK_CH = "BroadcastChannel" in window ? new BroadcastChannel("tats-grokbot") : null;
 try { const t = localStorage.getItem("tats-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
 
 /* ---------------- formatting ---------------- */
@@ -6556,15 +6571,14 @@ function setupPage(step) {
     <div class="su-main">
       <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
       <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
-      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."}</p>
+      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."} Or ask your Grokbot in <a class="su-surf" href="?surface=slack" target="_blank" rel="noopener">${CH.slack}Slack</a> or <a class="su-surf" href="?surface=cli" target="_blank" rel="noopener">${ico("code")}the CLI</a> and watch it happen here.</p>
       <nav class="su-steps">${SETUP_STEPS.map(([k, n], i) => `${i ? `<i></i>` : ""}<a href="#setup~${k}" class="${k === step ? "on" : ""} ${done[k] && k !== step ? "done" : ""}"><span>${done[k] && k !== step ? ico("check") : i + 1}</span>${n}</a>`).join("")}</nav>
       <div class="su-frame">${body}
         <div class="su-foot"><a class="su-skip" href="#home">${state.setupSaved ? "Back to tATS" : "Skip for now"}</a><span class="grow"></span>
           ${idx ? `<a class="btn" href="#setup~${SETUP_STEPS[idx - 1][0]}">${ico("chevL")}Back</a>` : ""}
           ${idx < SETUP_STEPS.length - 1 ? `<a class="btn primary dark" href="#setup~${SETUP_STEPS[idx + 1][0]}">Continue${ico("chevR")}</a>` : `<button class="btn primary dark" data-act="suFinish">${state.setupSaved ? "Save" : "Open tATS"}${ico("chevR")}</button>`}</div></div>
     </div>
-    ${step === "process" ? gbPop(step) : ""}
-    <aside class="su-side">${step === "process" ? "" : gbPop(step)}
+    <aside class="su-side">
       <section class="su-check"><div class="su-check-h"><b>Setup checklist</b><span>${ndone}/${SETUP_STEPS.length}</span></div><i class="su-prog"><i style="width:${(ndone / SETUP_STEPS.length) * 100}%"></i></i>
         ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "process" ? `${fcSummary().steps} steps, ${fcSummary().ivs} interviews` : k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
 
@@ -7015,10 +7029,9 @@ function setupOps(raw) {
   }
   return { ops, say: "I can put people on teams, turn Grokbots on or off, set what someone interviews for, tag skills, add people, or change the interview process." };
 }
-let gbBusy = false;
-async function grokDo(ops) {
-  if (gbBusy) return;
-  gbBusy = true;
+let gbQ = Promise.resolve();
+const grokDo = (ops) => (gbQ = gbQ.then(() => grokRun(ops)));
+async function grokRun(ops) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), still = !G || calm();
   const cur = document.createElement("div");
   cur.className = "gb-cur";
@@ -7027,7 +7040,14 @@ async function grokDo(ops) {
   const what = $(".gb-what", cur), put = (x, y) => (G ? G.set(cur, { x, y }) : (cur.style.transform = `translate(${x}px,${y}px)`));
   put(innerWidth - 120, innerHeight - 40);
   if (G && !still) G.fromTo(cur, { opacity: 0 }, { opacity: 1, duration: 0.15 });
-  const glide = (x, y) => new Promise((res) => (still ? (put(x, y), res()) : G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: res })));
+  // A timer backs up each glide, so the change still lands if tATS is in a background window.
+  const glide = (x, y) => new Promise((res) => {
+    if (still) { put(x, y); return res(); }
+    let done = false;
+    const fin = () => { if (done) return; done = true; G.killTweensOf(cur, "x,y"); put(x, y); res(); };
+    G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: fin });
+    setTimeout(fin, 800);
+  });
   for (const op of ops) {
     if (state.route.name !== "setup" || state.route.id !== op.step) { what.textContent = `Opening ${SETUP_STEPS.find((s) => s[0] === op.step)[1]}`; go(`setup~${op.step}`); await sleep(260); }
     let el = $(op.sel);
@@ -7046,50 +7066,15 @@ async function grokDo(ops) {
   }
   what.textContent = "Done";
   await sleep(900);
-  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() }); else cur.remove();
-  gbBusy = false;
+  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() });
+  setTimeout(() => cur.remove(), 400);
 }
-// The same request from Slack, the CLI, or the box on this page.
+// The same request from Slack or the CLI: the cursor does it here, then the Grokbot answers there.
 function setupAsk(text) {
-  const r = setupOps(text);
-  if (!r.ops.length) return toast(typeof r.say === "function" ? r.say() : r.say);
-  grokDo(r.ops).then(() => { const s = typeof r.say === "function" ? r.say() : r.say; if (s) toast(s.replace(/<[^>]+>/g, "")); });
+  const r = setupOps(text), sayOf = () => (typeof r.say === "function" ? r.say() : r.say);
+  if (!r.ops.length) return Promise.resolve({ ok: false, say: sayOf() });
+  return grokDo(r.ops).then(() => ({ ok: true, say: sayOf() }));
 }
-// On Onboarding, a pop-up that says the Grokbot can do any of this, with requests for the step you're on.
-// Opens the first time; minimizes to a pill. Same requests work in Slack and the CLI.
-try { state.gbPop = localStorage.getItem("tats.gbpop") || "open"; } catch { state.gbPop = "open"; }
-const GB_EX = {
-  people: ["Add Jane Doe as staff engineer", "Turn off Wei's Grokbot"],
-  teams: ["Put Daniel Okafor on Product and Research", "Take Theo off Research"],
-  skills: ["Star Sam for Systems design", "Tag Noor with CUDA and Inference"],
-  process: ["Add a references check before the offer in the process", "Remove the cross-team interview from the process"],
-  review: ["Put Wei on Research", "Star Aisha for Research deep dive"],
-};
-function gbPop(step) {
-  if (state.gbPop === "min") return `<button class="gb-pill" data-act="gbPop" data-v="open">${botAv(ME)}Ask your Grokbot<i class="su-live-dot"></i></button>`;
-  return `<aside class="gb-pop" role="dialog" aria-label="Your Grokbot">
-    <div class="gb-ph">${botAv(ME)}<span class="gb-pt"><b>Ask your Grokbot</b><span><i class="su-live-dot"></i>Live on this page</span></span><button class="icon-btn" data-act="gbPop" data-v="min" aria-label="Minimize" title="Minimize">${ico("chevD")}</button></div>
-    <p class="gb-pp">It can do anything on this page. Ask in Slack or the CLI, the way you'd ask a teammate, and watch it make the change here.</p>
-    <div class="gb-where"><span>${CH.slack}Slack DM</span><span>${ico("code")}CLI</span></div>
-    <div class="gb-tries">${(GB_EX[step] || GB_EX.review).map((x) => `<button class="gb-try" data-act="gbTry" data-v="${esc(x)}">${ico("arrowR")}<span>${esc(x)}</span></button>`).join("")}</div>
-    <form class="gb-in" id="gbPopForm"><input id="gbPopIn" placeholder="Message your Grokbot…" autocomplete="off"><button class="btn primary sm" type="submit" aria-label="Send">${ico("arrowUp")}</button></form>
-  </aside>`;
-}
-document.addEventListener("submit", (e) => {
-  if (e.target.id !== "gbPopForm") return;
-  e.preventDefault();
-  const i = $("#gbPopIn"), q = i.value.trim();
-  if (!q) return;
-  i.value = ""; i.blur();
-  setupAsk(q);
-});
-function openSetupAsk() {
-  const ex = ["Put Daniel Okafor on Infra, Product and Research", "Star Sam for Systems design", "Turn off Wei's Grokbot", "Tag Noor with CUDA and Inference"];
-  openForm({ title: "Message your Grokbot", sub: "The same as asking in Slack or the CLI. You'll see it make the change here.", submit: "Send",
-    body: `<label class="fm-f"><input name="q" placeholder="${esc(ex[0])}" autocomplete="off"></label><div class="gb-ex">${ex.map((x) => `<button type="button" class="chip" data-act="suEx" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>`,
-    onSubmit: (v) => { const q = (v.q || "").trim(); if (!q) return false; setTimeout(() => setupAsk(q), 60); } });
-}
-
 function addPerson(name, email, role) {
   name = (name || "").trim().replace(/\s+/g, " ");
   if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
@@ -9757,6 +9742,7 @@ function parseHash() {
   return { name: "inbox" };
 }
 function render() {
+  if (SURFACE) return;
   ibThinkEnd();
   const act = document.activeElement;
   const keep = act && act.id && $("#panel").contains(act) ? { id: act.id, s: act.selectionStart, e: act.selectionEnd } : null;
@@ -10038,11 +10024,7 @@ const ACT = {
   setView: (el) => { state.view = el.dataset.v; render(); },
   flowEdit: () => openFlow(),
   goProcess: () => go("setup~process"),
-  suAsk: () => openSetupAsk(),
-  gbPop: (el) => { state.gbPop = el.dataset.v; try { localStorage.setItem("tats.gbpop", state.gbPop); } catch {} render(); if (state.gbPop === "open") setTimeout(() => $("#gbPopIn")?.focus(), 30); },
-  gbTry: (el) => setupAsk(el.dataset.v),
   goSetup: (el) => go(`setup~${el.dataset.id || "people"}`),
-  suEx: (el) => { const i = $('.fm input[name="q"]'); if (i) { i.value = el.dataset.v; i.focus(); } },
   fcAdd: (el) => fcAddNode(el.dataset.k),
   fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
   fcFit: () => fcFit(),
@@ -10532,6 +10514,55 @@ setTimeout(() => {
   touch(a);
 }, 14000);
 setInterval(() => { if (!menu && !palette && !modal && !ibAnim && state.route.name !== "triage" && !document.activeElement.closest("input, textarea, [contenteditable='true']")) render(); }, 30000);
+
+/* ---------------- The Grokbot outside tATS: a Slack DM and the CLI ---------------- */
+// tATS listens: a request from Slack or the CLI runs here with the Grokbot's cursor, and the answer goes back.
+if (GROK_CH && !SURFACE) GROK_CH.onmessage = async ({ data }) => {
+  if (!data || data.type !== "ask") return;
+  GROK_CH.postMessage({ type: "ack", id: data.id });
+  const r = await setupAsk(data.text);
+  let say = r.say;
+  if (!r.ok) { const g = grokReply(data.text); if (g && g.html) say = [plain(g.html), ...(g.list || []).map((x) => `• ${plain(x)}`)].join("\n"); render(); }
+  GROK_CH.postMessage({ type: "done", id: data.id, say: String(say || "").split("\n").map(plain).join("\n") });
+};
+function mountSurface(kind) {
+  const cli = kind === "cli", ex = ["put Daniel Okafor on Infra, Product and Research", "star Sam for Systems design", "turn off Wei's Grokbot", "add a references check before the offer in the process"];
+  document.title = cli ? "grokbot — Meridian" : "Grokbot · Slack";
+  [...document.body.children].forEach((c) => { if (!/^(STYLE|LINK|SCRIPT)$/.test(c.tagName)) c.remove(); });
+  document.body.className = `surface ${kind}`;
+  const t = () => fmtTime(Date.now());
+  const wrap = document.createElement("div");
+  wrap.innerHTML = cli
+    ? `<div class="cli"><div class="cli-bar"><i></i><i></i><i></i><span>grokbot — meridian</span></div><div class="cli-out" id="sOut"><div class="cli-l dim">Grokbot · signed in as ${esc(first(ME).toLowerCase())}@meridian.com · connected to tATS</div><div class="cli-l dim">Keep tATS open in another window to watch the changes happen.</div><div class="cli-l dim">Try: ${ex.map((x) => `<span class="cli-ex">${esc(x)}</span>`).join("")}</div></div><form class="cli-in" id="sForm"><span>›</span><input id="sIn" autocomplete="off" spellcheck="false" aria-label="Message your Grokbot"></form></div>`
+    : `<div class="slk"><aside class="slk-side"><b>${esc(ORG.name)}</b><span># hiring</span><span># interviews</span><span class="on">${botAv(ME)}Grokbot</span></aside><main class="slk-main"><header>${botAv(ME)}<b>Grokbot</b><em>APP</em></header>
+      <div class="slk-out" id="sOut"><div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p>Hi ${esc(first(ME))}. Tell me what to change in tATS and I'll do it while you watch there. For example: ${ex.map((x) => `<span class="slk-ex">${esc(x)}</span>`).join(" ")}</p></div></div></div>
+      <form class="slk-in" id="sForm"><input id="sIn" placeholder="Message Grokbot" autocomplete="off" aria-label="Message Grokbot"></form></main></div>`;
+  document.body.appendChild(wrap.firstElementChild);
+  const out = $("#sOut"), add = (html) => { out.insertAdjacentHTML("beforeend", html); out.scrollTop = out.scrollHeight; return out.lastElementChild; };
+  const mine = (x) => (cli ? `<div class="cli-l me">› ${esc(x)}</div>` : `<div class="slk-m">${personAv(ME)}<div><b>${esc(PEOPLE[ME].name)}</b><span class="slk-t">${t()}</span><p>${esc(x)}</p></div></div>`);
+  const bot = (x, cls = "") => (cli ? `<div class="cli-l ${cls || "ok"}">${cls === "dim" ? "…" : "✓"} ${esc(x)}</div>` : `<div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p class="${cls}">${esc(x)}</p></div></div>`);
+  out.addEventListener("click", (e) => { const x = e.target.closest(".cli-ex, .slk-ex"); if (x) { $("#sIn").value = x.textContent; $("#sIn").focus(); } });
+  $("#sForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const i = $("#sIn"), q = i.value.trim();
+    if (!q) return;
+    i.value = "";
+    add(mine(q));
+    const wait = add(bot("Working in tATS…", "dim")), id = `${Date.now()}${Math.random()}`;
+    let acked = false;
+    const on = ({ data }) => {
+      if (!data || data.id !== id) return;
+      if (data.type === "ack") acked = true;
+      if (data.type === "done") { wait.outerHTML = bot(data.say || "Done."); out.scrollTop = out.scrollHeight; GROK_CH.removeEventListener("message", on); }
+    };
+    if (!GROK_CH) { wait.outerHTML = bot("This browser can't reach tATS from here.", "dim"); return; }
+    GROK_CH.addEventListener("message", on);
+    GROK_CH.postMessage({ type: "ask", id, text: q });
+    setTimeout(() => { if (!acked) { wait.outerHTML = bot("Open tATS in another window and I'll make the change there while you watch.", "dim"); GROK_CH.removeEventListener("message", on); } }, 1500);
+  });
+  setTimeout(() => $("#sIn").focus(), 50);
+}
+if (SURFACE) mountSurface(SURFACE === "cli" ? "cli" : "slack");
 
 </script>
 

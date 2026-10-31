@@ -23,6 +23,9 @@ const state = {
   lastList: [],
   tq: 0,
 };
+// ?surface=slack or ?surface=cli opens the Grokbot somewhere else: a Slack DM or a terminal. tATS tabs hear it and do the work.
+const SURFACE = new URLSearchParams(location.search).get("surface");
+const GROK_CH = "BroadcastChannel" in window ? new BroadcastChannel("tats-grokbot") : null;
 try { const t = localStorage.getItem("tats-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
 
 /* ---------------- formatting ---------------- */
@@ -976,15 +979,14 @@ function setupPage(step) {
     <div class="su-main">
       <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
       <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
-      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."}</p>
+      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."} Or ask your Grokbot in <a class="su-surf" href="?surface=slack" target="_blank" rel="noopener">${CH.slack}Slack</a> or <a class="su-surf" href="?surface=cli" target="_blank" rel="noopener">${ico("code")}the CLI</a> and watch it happen here.</p>
       <nav class="su-steps">${SETUP_STEPS.map(([k, n], i) => `${i ? `<i></i>` : ""}<a href="#setup~${k}" class="${k === step ? "on" : ""} ${done[k] && k !== step ? "done" : ""}"><span>${done[k] && k !== step ? ico("check") : i + 1}</span>${n}</a>`).join("")}</nav>
       <div class="su-frame">${body}
         <div class="su-foot"><a class="su-skip" href="#home">${state.setupSaved ? "Back to tATS" : "Skip for now"}</a><span class="grow"></span>
           ${idx ? `<a class="btn" href="#setup~${SETUP_STEPS[idx - 1][0]}">${ico("chevL")}Back</a>` : ""}
           ${idx < SETUP_STEPS.length - 1 ? `<a class="btn primary dark" href="#setup~${SETUP_STEPS[idx + 1][0]}">Continue${ico("chevR")}</a>` : `<button class="btn primary dark" data-act="suFinish">${state.setupSaved ? "Save" : "Open tATS"}${ico("chevR")}</button>`}</div></div>
     </div>
-    ${step === "process" ? gbPop(step) : ""}
-    <aside class="su-side">${step === "process" ? "" : gbPop(step)}
+    <aside class="su-side">
       <section class="su-check"><div class="su-check-h"><b>Setup checklist</b><span>${ndone}/${SETUP_STEPS.length}</span></div><i class="su-prog"><i style="width:${(ndone / SETUP_STEPS.length) * 100}%"></i></i>
         ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "process" ? `${fcSummary().steps} steps, ${fcSummary().ivs} interviews` : k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
 
@@ -1435,10 +1437,9 @@ function setupOps(raw) {
   }
   return { ops, say: "I can put people on teams, turn Grokbots on or off, set what someone interviews for, tag skills, add people, or change the interview process." };
 }
-let gbBusy = false;
-async function grokDo(ops) {
-  if (gbBusy) return;
-  gbBusy = true;
+let gbQ = Promise.resolve();
+const grokDo = (ops) => (gbQ = gbQ.then(() => grokRun(ops)));
+async function grokRun(ops) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), still = !G || calm();
   const cur = document.createElement("div");
   cur.className = "gb-cur";
@@ -1447,7 +1448,14 @@ async function grokDo(ops) {
   const what = $(".gb-what", cur), put = (x, y) => (G ? G.set(cur, { x, y }) : (cur.style.transform = `translate(${x}px,${y}px)`));
   put(innerWidth - 120, innerHeight - 40);
   if (G && !still) G.fromTo(cur, { opacity: 0 }, { opacity: 1, duration: 0.15 });
-  const glide = (x, y) => new Promise((res) => (still ? (put(x, y), res()) : G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: res })));
+  // A timer backs up each glide, so the change still lands if tATS is in a background window.
+  const glide = (x, y) => new Promise((res) => {
+    if (still) { put(x, y); return res(); }
+    let done = false;
+    const fin = () => { if (done) return; done = true; G.killTweensOf(cur, "x,y"); put(x, y); res(); };
+    G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: fin });
+    setTimeout(fin, 800);
+  });
   for (const op of ops) {
     if (state.route.name !== "setup" || state.route.id !== op.step) { what.textContent = `Opening ${SETUP_STEPS.find((s) => s[0] === op.step)[1]}`; go(`setup~${op.step}`); await sleep(260); }
     let el = $(op.sel);
@@ -1466,50 +1474,15 @@ async function grokDo(ops) {
   }
   what.textContent = "Done";
   await sleep(900);
-  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() }); else cur.remove();
-  gbBusy = false;
+  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() });
+  setTimeout(() => cur.remove(), 400);
 }
-// The same request from Slack, the CLI, or the box on this page.
+// The same request from Slack or the CLI: the cursor does it here, then the Grokbot answers there.
 function setupAsk(text) {
-  const r = setupOps(text);
-  if (!r.ops.length) return toast(typeof r.say === "function" ? r.say() : r.say);
-  grokDo(r.ops).then(() => { const s = typeof r.say === "function" ? r.say() : r.say; if (s) toast(s.replace(/<[^>]+>/g, "")); });
+  const r = setupOps(text), sayOf = () => (typeof r.say === "function" ? r.say() : r.say);
+  if (!r.ops.length) return Promise.resolve({ ok: false, say: sayOf() });
+  return grokDo(r.ops).then(() => ({ ok: true, say: sayOf() }));
 }
-// On Onboarding, a pop-up that says the Grokbot can do any of this, with requests for the step you're on.
-// Opens the first time; minimizes to a pill. Same requests work in Slack and the CLI.
-try { state.gbPop = localStorage.getItem("tats.gbpop") || "open"; } catch { state.gbPop = "open"; }
-const GB_EX = {
-  people: ["Add Jane Doe as staff engineer", "Turn off Wei's Grokbot"],
-  teams: ["Put Daniel Okafor on Product and Research", "Take Theo off Research"],
-  skills: ["Star Sam for Systems design", "Tag Noor with CUDA and Inference"],
-  process: ["Add a references check before the offer in the process", "Remove the cross-team interview from the process"],
-  review: ["Put Wei on Research", "Star Aisha for Research deep dive"],
-};
-function gbPop(step) {
-  if (state.gbPop === "min") return `<button class="gb-pill" data-act="gbPop" data-v="open">${botAv(ME)}Ask your Grokbot<i class="su-live-dot"></i></button>`;
-  return `<aside class="gb-pop" role="dialog" aria-label="Your Grokbot">
-    <div class="gb-ph">${botAv(ME)}<span class="gb-pt"><b>Ask your Grokbot</b><span><i class="su-live-dot"></i>Live on this page</span></span><button class="icon-btn" data-act="gbPop" data-v="min" aria-label="Minimize" title="Minimize">${ico("chevD")}</button></div>
-    <p class="gb-pp">It can do anything on this page. Ask in Slack or the CLI, the way you'd ask a teammate, and watch it make the change here.</p>
-    <div class="gb-where"><span>${CH.slack}Slack DM</span><span>${ico("code")}CLI</span></div>
-    <div class="gb-tries">${(GB_EX[step] || GB_EX.review).map((x) => `<button class="gb-try" data-act="gbTry" data-v="${esc(x)}">${ico("arrowR")}<span>${esc(x)}</span></button>`).join("")}</div>
-    <form class="gb-in" id="gbPopForm"><input id="gbPopIn" placeholder="Message your Grokbot…" autocomplete="off"><button class="btn primary sm" type="submit" aria-label="Send">${ico("arrowUp")}</button></form>
-  </aside>`;
-}
-document.addEventListener("submit", (e) => {
-  if (e.target.id !== "gbPopForm") return;
-  e.preventDefault();
-  const i = $("#gbPopIn"), q = i.value.trim();
-  if (!q) return;
-  i.value = ""; i.blur();
-  setupAsk(q);
-});
-function openSetupAsk() {
-  const ex = ["Put Daniel Okafor on Infra, Product and Research", "Star Sam for Systems design", "Turn off Wei's Grokbot", "Tag Noor with CUDA and Inference"];
-  openForm({ title: "Message your Grokbot", sub: "The same as asking in Slack or the CLI. You'll see it make the change here.", submit: "Send",
-    body: `<label class="fm-f"><input name="q" placeholder="${esc(ex[0])}" autocomplete="off"></label><div class="gb-ex">${ex.map((x) => `<button type="button" class="chip" data-act="suEx" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>`,
-    onSubmit: (v) => { const q = (v.q || "").trim(); if (!q) return false; setTimeout(() => setupAsk(q), 60); } });
-}
-
 function addPerson(name, email, role) {
   name = (name || "").trim().replace(/\s+/g, " ");
   if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
@@ -4177,6 +4150,7 @@ function parseHash() {
   return { name: "inbox" };
 }
 function render() {
+  if (SURFACE) return;
   ibThinkEnd();
   const act = document.activeElement;
   const keep = act && act.id && $("#panel").contains(act) ? { id: act.id, s: act.selectionStart, e: act.selectionEnd } : null;
@@ -4458,11 +4432,7 @@ const ACT = {
   setView: (el) => { state.view = el.dataset.v; render(); },
   flowEdit: () => openFlow(),
   goProcess: () => go("setup~process"),
-  suAsk: () => openSetupAsk(),
-  gbPop: (el) => { state.gbPop = el.dataset.v; try { localStorage.setItem("tats.gbpop", state.gbPop); } catch {} render(); if (state.gbPop === "open") setTimeout(() => $("#gbPopIn")?.focus(), 30); },
-  gbTry: (el) => setupAsk(el.dataset.v),
   goSetup: (el) => go(`setup~${el.dataset.id || "people"}`),
-  suEx: (el) => { const i = $('.fm input[name="q"]'); if (i) { i.value = el.dataset.v; i.focus(); } },
   fcAdd: (el) => fcAddNode(el.dataset.k),
   fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
   fcFit: () => fcFit(),
@@ -4952,3 +4922,52 @@ setTimeout(() => {
   touch(a);
 }, 14000);
 setInterval(() => { if (!menu && !palette && !modal && !ibAnim && state.route.name !== "triage" && !document.activeElement.closest("input, textarea, [contenteditable='true']")) render(); }, 30000);
+
+/* ---------------- The Grokbot outside tATS: a Slack DM and the CLI ---------------- */
+// tATS listens: a request from Slack or the CLI runs here with the Grokbot's cursor, and the answer goes back.
+if (GROK_CH && !SURFACE) GROK_CH.onmessage = async ({ data }) => {
+  if (!data || data.type !== "ask") return;
+  GROK_CH.postMessage({ type: "ack", id: data.id });
+  const r = await setupAsk(data.text);
+  let say = r.say;
+  if (!r.ok) { const g = grokReply(data.text); if (g && g.html) say = [plain(g.html), ...(g.list || []).map((x) => `• ${plain(x)}`)].join("\n"); render(); }
+  GROK_CH.postMessage({ type: "done", id: data.id, say: String(say || "").split("\n").map(plain).join("\n") });
+};
+function mountSurface(kind) {
+  const cli = kind === "cli", ex = ["put Daniel Okafor on Infra, Product and Research", "star Sam for Systems design", "turn off Wei's Grokbot", "add a references check before the offer in the process"];
+  document.title = cli ? "grokbot — Meridian" : "Grokbot · Slack";
+  [...document.body.children].forEach((c) => { if (!/^(STYLE|LINK|SCRIPT)$/.test(c.tagName)) c.remove(); });
+  document.body.className = `surface ${kind}`;
+  const t = () => fmtTime(Date.now());
+  const wrap = document.createElement("div");
+  wrap.innerHTML = cli
+    ? `<div class="cli"><div class="cli-bar"><i></i><i></i><i></i><span>grokbot — meridian</span></div><div class="cli-out" id="sOut"><div class="cli-l dim">Grokbot · signed in as ${esc(first(ME).toLowerCase())}@meridian.com · connected to tATS</div><div class="cli-l dim">Keep tATS open in another window to watch the changes happen.</div><div class="cli-l dim">Try: ${ex.map((x) => `<span class="cli-ex">${esc(x)}</span>`).join("")}</div></div><form class="cli-in" id="sForm"><span>›</span><input id="sIn" autocomplete="off" spellcheck="false" aria-label="Message your Grokbot"></form></div>`
+    : `<div class="slk"><aside class="slk-side"><b>${esc(ORG.name)}</b><span># hiring</span><span># interviews</span><span class="on">${botAv(ME)}Grokbot</span></aside><main class="slk-main"><header>${botAv(ME)}<b>Grokbot</b><em>APP</em></header>
+      <div class="slk-out" id="sOut"><div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p>Hi ${esc(first(ME))}. Tell me what to change in tATS and I'll do it while you watch there. For example: ${ex.map((x) => `<span class="slk-ex">${esc(x)}</span>`).join(" ")}</p></div></div></div>
+      <form class="slk-in" id="sForm"><input id="sIn" placeholder="Message Grokbot" autocomplete="off" aria-label="Message Grokbot"></form></main></div>`;
+  document.body.appendChild(wrap.firstElementChild);
+  const out = $("#sOut"), add = (html) => { out.insertAdjacentHTML("beforeend", html); out.scrollTop = out.scrollHeight; return out.lastElementChild; };
+  const mine = (x) => (cli ? `<div class="cli-l me">› ${esc(x)}</div>` : `<div class="slk-m">${personAv(ME)}<div><b>${esc(PEOPLE[ME].name)}</b><span class="slk-t">${t()}</span><p>${esc(x)}</p></div></div>`);
+  const bot = (x, cls = "") => (cli ? `<div class="cli-l ${cls || "ok"}">${cls === "dim" ? "…" : "✓"} ${esc(x)}</div>` : `<div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p class="${cls}">${esc(x)}</p></div></div>`);
+  out.addEventListener("click", (e) => { const x = e.target.closest(".cli-ex, .slk-ex"); if (x) { $("#sIn").value = x.textContent; $("#sIn").focus(); } });
+  $("#sForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const i = $("#sIn"), q = i.value.trim();
+    if (!q) return;
+    i.value = "";
+    add(mine(q));
+    const wait = add(bot("Working in tATS…", "dim")), id = `${Date.now()}${Math.random()}`;
+    let acked = false;
+    const on = ({ data }) => {
+      if (!data || data.id !== id) return;
+      if (data.type === "ack") acked = true;
+      if (data.type === "done") { wait.outerHTML = bot(data.say || "Done."); out.scrollTop = out.scrollHeight; GROK_CH.removeEventListener("message", on); }
+    };
+    if (!GROK_CH) { wait.outerHTML = bot("This browser can't reach tATS from here.", "dim"); return; }
+    GROK_CH.addEventListener("message", on);
+    GROK_CH.postMessage({ type: "ask", id, text: q });
+    setTimeout(() => { if (!acked) { wait.outerHTML = bot("Open tATS in another window and I'll make the change there while you watch.", "dim"); GROK_CH.removeEventListener("message", on); } }, 1500);
+  });
+  setTimeout(() => $("#sIn").focus(), 50);
+}
+if (SURFACE) mountSurface(SURFACE === "cli" ? "cli" : "slack");

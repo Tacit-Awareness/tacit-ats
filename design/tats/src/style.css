@@ -3489,7 +3489,6 @@ b[data-hc]:hover, .card .name[data-hc]:hover { text-decoration: underline; text-
 .rc-mh > span:last-child { flex-shrink: 0; }
 
 /* ================= v31: interviewer + Grokbot pairing ================= */
-.gb-ex { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px 18px; align-items: center; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .gb-pair { display: flex; align-items: center; }
 .gb-pair .av.xl { width: 36px; height: 36px; font-size: 13px; }
 .gb-link { width: 14px; height: 1px; background: var(--line-strong); }
@@ -5317,10 +5316,6 @@ i.pill-glass.press { transform-origin: center; }
 .fc-q { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50% !important; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; }
 
 /* v80 the Grokbot, live on Onboarding: a cursor with a name tag that comes in and makes the change */
-.su-live { display: inline-flex; align-items: center; gap: 8px; height: 30px; margin: 0 0 var(--s5); padding: 0 12px 0 6px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--paper); color: var(--muted); font-size: 13px; box-shadow: var(--elev); }
-.su-live:hover { color: var(--ink); background: var(--hover); }
-.su-live .bot .av { width: 20px; height: 20px; }
-.su-live-dot { width: 6px; height: 6px; border-radius: 50% !important; background: #30a46c; box-shadow: 0 0 0 3px color-mix(in srgb, #30a46c 22%, transparent); }
 .gb-cur { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; will-change: transform; }
 .gb-cur svg { display: block; width: 20px; height: 20px; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.3)); }
 .gb-cur svg path { fill: #1d1d20; stroke: #fff; stroke-width: 1.2; stroke-linejoin: round; }
@@ -5330,32 +5325,49 @@ i.pill-glass.press { transform-origin: center; }
 .gb-what { color: rgba(255, 255, 255, 0.72); }
 .gb-hit { animation: gb-hit 0.7s ease-out; }
 @keyframes gb-hit { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
-.gb-ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.gb-ex .chip { cursor: pointer; }
 
-/* v81 the Grokbot pop-up on Onboarding: says it can do this, where to ask, a couple of requests for this step */
-.gb-pop { position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 340px; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 12px 32px -12px rgba(118, 92, 255, 0.35), 0 8px 24px -14px rgba(255, 92, 170, 0.3), var(--elev-hi); animation: gb-in 0.2s var(--spring); }
-@keyframes gb-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
-.gb-ph { display: flex; align-items: center; gap: 10px; }
-.gb-ph .bot .av { width: 28px; height: 28px; }
-.gb-pt { flex: 1; display: grid; gap: 2px; }
-.gb-pt b { font-size: 14px; font-weight: 600; }
-.gb-pt span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
-.gb-pp { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-.gb-where { display: flex; gap: 8px; }
-.gb-where span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--surface); color: var(--ink); font-size: 12.5px; }
-.gb-where svg { width: 13px; height: 13px; }
-.gb-where .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.gb-tries { display: grid; gap: 4px; }
-.gb-try { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 10px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.35; transition: background 0.15s, border-color 0.15s; }
-.gb-try:hover { background: var(--hover); border-color: var(--line-strong); }
-.gb-try .ico { width: 12px; height: 12px; flex: none; color: var(--muted); }
-.gb-in { display: flex; gap: 6px; }
-.gb-in input { flex: 1; min-width: 0; height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
-.gb-in input:focus { outline: none; border-color: var(--accent); }
-.gb-in .btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
-.gb-pill { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev-hi); font-size: 13.5px; font-weight: 500; color: var(--ink); animation: gb-in 0.2s var(--spring); }
-.gb-pill .bot .av { width: 24px; height: 24px; }
-.gb-pill:hover { background: var(--hover); }
-.su-side .gb-pop { position: static; width: auto; margin-bottom: var(--s5); }
-.su-side .gb-pill { position: static; margin-bottom: var(--s5); }
+/* v82 the Grokbot lives in Slack and the CLI; Onboarding only shows it working */
+.su-surf { display: inline-flex; align-items: center; gap: 4px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+.su-surf:hover { border-bottom-color: var(--ink); }
+.su-surf svg { width: 13px; height: 13px; }
+.su-surf .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+body.surface { margin: 0; height: 100vh; overflow: hidden; }
+body.surface.cli { background: #0d0d0f; }
+.cli { display: flex; flex-direction: column; height: 100vh; font: 13.5px/1.6 "SF Mono", ui-monospace, Menlo, monospace; color: #e6e6e6; }
+.cli-bar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; background: #1a1a1d; border-bottom: 1px solid #26262a; color: #8b8b92; font-size: 12px; }
+.cli-bar i { width: 11px; height: 11px; border-radius: 50% !important; background: #3a3a3f; }
+.cli-bar span { flex: 1; text-align: center; margin-right: 50px; }
+.cli-out { flex: 1; overflow: auto; padding: 16px 20px; display: grid; align-content: start; gap: 4px; }
+.cli-l.dim { color: #7d7d85; }
+.cli-l.me { color: #fff; margin-top: 10px; }
+.cli-l.ok { color: #7ee2a8; }
+.cli-ex { display: inline-block; margin: 2px 6px 0 0; padding: 0 6px; border: 1px solid #2c2c31; color: #c9c9cf; cursor: pointer; }
+.cli-ex:hover { border-color: #55555c; color: #fff; }
+.cli-in { display: flex; align-items: center; gap: 10px; padding: 12px 20px 18px; border-top: 1px solid #1f1f23; }
+.cli-in span { color: #7ee2a8; }
+.cli-in input { flex: 1; background: none; border: 0; outline: none; color: #fff; font: inherit; caret-color: #7ee2a8; }
+body.surface.slack { background: #fff; }
+.slk { display: grid; grid-template-columns: 220px 1fr; height: 100vh; font-family: Inter, system-ui, sans-serif; color: #1d1c1d; }
+.slk-side { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; background: #3f0e40; color: #cfc3cf; font-size: 14px; }
+.slk-side b { color: #fff; padding: 4px 10px 12px; font-size: 16px; }
+.slk-side span { display: flex; align-items: center; gap: 8px; padding: 4px 10px; }
+.slk-side span.on { background: #1164a3; color: #fff; }
+.slk-side .bot .av { width: 18px; height: 18px; }
+.slk-main { display: flex; flex-direction: column; min-width: 0; }
+.slk-main header { display: flex; align-items: center; gap: 8px; height: 50px; padding: 0 20px; border-bottom: 1px solid #e8e8e8; font-size: 15px; }
+.slk-main header .bot .av { width: 22px; height: 22px; }
+.slk-main header em, .slk-m em { font-style: normal; font-size: 10px; font-weight: 600; padding: 1px 4px; background: #e8e8e8; color: #616061; }
+.slk-out { flex: 1; overflow: auto; padding: 16px 20px; display: grid; align-content: start; gap: 14px; }
+.slk-m { display: flex; gap: 10px; }
+.slk-m > .bot .av, .slk-m > .av { width: 36px; height: 36px; border-radius: 6px !important; flex: none; }
+.slk-m b { font-size: 15px; font-weight: 800; }
+.slk-t { margin-left: 8px; color: #616061; font-size: 12px; }
+.slk-m p { margin: 2px 0 0; font-size: 15px; line-height: 1.46; }
+.slk-m p.dim { color: #616061; font-style: italic; }
+.slk-ex { display: inline-block; margin: 4px 4px 0 0; padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px !important; background: #f8f8f8; font-size: 13px; cursor: pointer; }
+.slk-ex:hover { background: #eee; }
+.slk-in { padding: 0 20px 20px; }
+.slk-in input { width: 100%; height: 44px; padding: 0 14px; border: 1px solid #bbb; border-radius: 8px !important; font: inherit; font-size: 15px; outline: none; }
+.slk-in input:focus { border-color: #1264a3; box-shadow: 0 0 0 1px #1264a3; }
+body.surface { padding: 0 !important; display: block !important; }
+.cli-l, .slk-m p { white-space: pre-line; }
