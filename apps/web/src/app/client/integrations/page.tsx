@@ -17,17 +17,25 @@ export default async function ClientIntegrations({
 
   const { notice, error } = await searchParams;
   const admin = gate.ctx.accessLevel === "admin";
-  const [calendar, granola, bot] = await Promise.all([
+  const [calendar, granola, bot, botConnected] = await Promise.all([
     gate.ctx.db.from("calendar_connections").select("account_email").maybeSingle(),
     gate.ctx.db.from("granola_connections").select("account_email").maybeSingle(),
     // The company's bot: only an admin's token reads the row (never its secret).
     admin
       ? gate.ctx.db.from("agent_destinations").select("url, enabled, verified_at").eq("channel", "grok_bot_webhook").maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    // Everyone else reads the boolean only (20261031010000's definer; the vendored
+    // types pick it up on the next sync:tacit, so the name is cast for now).
+    admin
+      ? Promise.resolve({ data: null, error: null })
+      : (gate.ctx.db.rpc as unknown as (fn: string) => Promise<{ data: boolean | null; error: { message: string } | null }>)(
+          "bot_destination_connected",
+        ).then((r) => ({ data: r.data, error: r.error })),
   ]);
   if (calendar.error) throw new Error(calendar.error.message);
   if (granola.error) throw new Error(granola.error.message);
   if (bot.error) throw new Error(bot.error.message);
+  if (botConnected.error) throw new Error(botConnected.error.message);
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "https";
@@ -38,6 +46,7 @@ export default async function ClientIntegrations({
       granola={granola.data ? { accountEmail: granola.data.account_email } : null}
       calendarConfigured={googleCalendarConfig() !== null}
       bot={admin ? { set: bot.data ? { url: bot.data.url, enabled: bot.data.enabled, verifiedAt: bot.data.verified_at } : null } : null}
+      botConnected={admin ? undefined : !!botConnected.data}
       orgName={gate.ctx.org.name}
       botCallbackUrl={host ? `${proto}://${host}/api/agents/interview-thread` : null}
       notice={notice}

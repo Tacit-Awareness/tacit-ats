@@ -16,25 +16,20 @@ const quietButton = buttonVariants({ variant: "ghost", size: "sm", className: "t
 
 export type CompanyBot = { url: string; enabled: boolean; verifiedAt: string | null };
 
-// The company's own bot, for admins only (page.tsx reads the row, which only
-// an admin's token can). Tacit sends it each interview's moments: a hello
-// five minutes before, a check-in after, and a note when one is cancelled.
-// The secret appears here once, right after it is made.
-export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | null; orgName: string; callbackUrl: string | null }) {
+// The company's Grok bot: one-time setup, for admins. Everyone else just
+// sees it is connected. The secret appears here once, right after it is made.
+export function BotSection({ bot, connected, callbackUrl }: { bot: CompanyBot | null; connected?: boolean; callbackUrl: string | null }) {
   const [setState, set] = useActionState<SecretResult, FormData>(setBotAction, {});
   const [rotateState, rotate] = useActionState<SecretResult>(rotateBotSecretAction, {});
   const fresh = rotateState.secret ?? setState.secret;
   const keptOwnKey = setState.saved && !rotateState.secret;
   const error = rotateState.error ?? setState.error;
+  const live = bot ? bot.enabled && !!bot.verifiedAt : !!connected;
 
   return (
-    <Section flush id="bot" title="Your team's bot">
+    <Section flush id="bot" title="Grok Bot">
       <div className="grid gap-3 px-3.5 py-3">
-        <p className="m-0 max-w-[72ch] text-[13px] text-muted-foreground">
-          Tacit tells your Slack bot about every interview at {orgName}: a hello five minutes before it starts, a check-in
-          once it ends, and a note if it is cancelled. Your bot writes to the interviewer; Tacit never posts in your Slack
-          itself.
-        </p>
+        <p className="m-0 text-[13px] text-muted-foreground">One-time setup for your team&apos;s bot.</p>
         {error ? <Notice tone="error">{BOT_ERRORS[error]}</Notice> : null}
         {fresh ? (
           <Notice>
@@ -44,32 +39,27 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
                 <code className="font-mono text-[12px] break-all">{fresh}</code>
                 <CopyButton value={fresh} label="Copy the secret" />
               </span>
-              <span>Every request carries it as a Bearer token and signs with it (X-Tacit-Signature). Then press Verify.</span>
+              <span>Then press Verify.</span>
             </span>
           </Notice>
         ) : null}
-
         {keptOwnKey ? <Notice>Saved with your bot&apos;s own key. Now press Verify.</Notice> : null}
       </div>
       {bot ? (
         <Rows ruled className="border-y border-[color:var(--line)]">
           <Row
             title={<span className="font-mono text-[12.5px] break-all">{bot.url}</span>}
-            sub={
-              !bot.enabled
-                ? "Off: nothing is sent to it"
-                : bot.verifiedAt
-                  ? "Getting your interviews"
-                  : "Waiting to be verified: nothing is sent until it answers Tacit's challenge"
-            }
+            sub={!bot.enabled ? "Off: nothing is sent to it" : bot.verifiedAt ? "Getting your interviews" : "Waiting to be verified"}
             meta={
               <>
-                <Pill tone={bot.enabled && bot.verifiedAt ? "green" : "grey"}>
-                  {!bot.enabled ? "Off" : bot.verifiedAt ? "Verified" : "Not verified"}
+                <Pill tone={live ? "green" : "grey"}>
+                  {!bot.enabled ? "Off" : bot.verifiedAt ? "Connected" : "Not verified"}
                 </Pill>
-                <form action={verifyBotAction}>
-                  <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>Verify</button>
-                </form>
+                {!bot.verifiedAt ? (
+                  <form action={verifyBotAction}>
+                    <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>Verify</button>
+                  </form>
+                ) : null}
                 <form action={enableBotAction}>
                   <input type="hidden" name="enabled" value={bot.enabled ? "false" : "true"} />
                   <button type="submit" className={quietButton}>{bot.enabled ? "Turn off" : "Turn on"}</button>
@@ -84,29 +74,36 @@ export function BotSection({ bot, orgName, callbackUrl }: { bot: CompanyBot | nu
             }
           />
         </Rows>
+      ) : connected !== undefined ? (
+        <Rows ruled className="border-y border-[color:var(--line)]">
+          <Row
+            title="Your team's bot"
+            sub={live ? "Getting your interviews" : "Not set up"}
+            meta={<Pill tone={live ? "green" : "grey"}>{live ? "Connected" : "Not connected"}</Pill>}
+          />
+        </Rows>
       ) : null}
 
-      <form action={set} className="grid gap-3 px-3.5 py-3.5">
-        <div className="grid gap-1.5">
-          <Label htmlFor="bot-url">{bot ? "Change its address" : "Your bot's address"}</Label>
-          <Input id="bot-url" name="url" type="url" required maxLength={2000} placeholder="https://" autoComplete="off" className="max-w-[420px]" />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="bot-key">Your bot&apos;s key (optional)</Label>
-          <Input id="bot-key" name="key" type="password" maxLength={512} autoComplete="off" className="max-w-[420px]" />
-          <p className="m-0 max-w-[72ch] text-xs text-faint">
-            If your bot&apos;s platform gives its webhook a key (a Grok routine&apos;s &quot;Authorization: Bearer&quot; key), paste it here and
-            Tacit sends it with every event. Leave it empty and Tacit makes one for you to put into your bot.
-          </p>
-        </div>
-        <SubmitButton pendingLabel="Saving…" className="justify-self-start">
-          {bot ? "Change address" : "Save"}
-        </SubmitButton>
-        <p className="m-0 max-w-[72ch] text-xs text-faint">
-          Saving again replaces the address and the key, and needs verifying again.
-          {callbackUrl ? <> Your bot tells Tacit which Slack thread it opened at <code className="font-mono break-all">{callbackUrl}</code>, or in its answer.</> : null}
-        </p>
-      </form>
+      {bot !== null || connected === undefined ? (
+        <form action={set} className="grid gap-3 px-3.5 py-3.5">
+          <div className="grid gap-1.5">
+            <Label htmlFor="bot-url">Address:</Label>
+            <Input id="bot-url" name="url" type="url" required maxLength={2000} placeholder="https://" autoComplete="off" className="max-w-[420px]" />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="bot-key">Your bot&apos;s key:</Label>
+            <Input id="bot-key" name="key" type="password" maxLength={512} autoComplete="off" className="max-w-[420px]" />
+          </div>
+          <SubmitButton pendingLabel="Saving…" className="justify-self-start">
+            {bot ? "Change address" : "Enter"}
+          </SubmitButton>
+          {callbackUrl ? (
+            <p className="m-0 max-w-[72ch] text-xs text-faint">
+              Your bot tells Tacit which thread it opened at <code className="font-mono break-all">{callbackUrl}</code>, or in its answer.
+            </p>
+          ) : null}
+        </form>
+      ) : null}
     </Section>
   );
 }
