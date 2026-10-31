@@ -59,6 +59,28 @@ describe("the reply box", () => {
     expect(out).toContain("Nothing goes out until you read the draft");
   });
 
+  test("before anyone edits, the reply is a preview, and Review draft posts exactly what it shows", () => {
+    const out = html();
+    expect(out).toContain("Hi Nia, meet us");
+    expect(out).toContain("To nia@x.test");
+    expect(out).toMatch(/type="hidden" name="subject" value="Your application"/);
+    expect(out).toMatch(/type="hidden" name="body" value="Hi Nia, meet us"/);
+    expect(out).toContain("Review draft");
+    expect(out).not.toContain("<textarea");
+  });
+
+  test("the preview starts from the suggested starter", () => {
+    const out = renderToStaticMarkup(<ReplyBox reply={reply()} suggested="decline" />);
+    expect(out).toMatch(/type="hidden" name="body" value="Hi Nia, no"/);
+    expect(out).not.toContain("Hi Nia, meet us");
+  });
+
+  test("the preview is text: markup in a starter is never markup", () => {
+    const out = html({ starters: { subject: "s", bodies: { interview: "<img src=x onerror=alert(1)>", decline: "d", blank: "b" } } });
+    expect(out).not.toContain("<img");
+    expect(out).toContain("&lt;img");
+  });
+
   test("an email already sent is said before anyone replies again", () => {
     expect(html({ sent: { when: "today", subject: "Hello", by: "Lee Lead" } })).toContain("Lee Lead emailed them today: Hello");
   });
