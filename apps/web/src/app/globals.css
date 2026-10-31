@@ -77,7 +77,7 @@
   --scrim: oklch(var(--ink-a) / 0.3);
   --accent: #5e6ad2; /* indigo: the primary action, focus */
   --accent-ink: #ffffff; /* text on the accent */
-  --accent-soft: #eceefb;
+  --accent-soft: #eeeffb;
   --green: #2c8a4f; /* ok / done */
   --green-bright: #2c8a4f;
   --green-soft: #e7f5ec;
@@ -166,9 +166,9 @@
     --hover: oklch(var(--paper-a) / 0.04);
     --sel: oklch(var(--paper-a) / 0.07);
     --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
-    --accent: #7170ff;
+    --accent: #7c85e6;
     --accent-ink: #ffffff;
-    --accent-soft: rgba(113, 112, 255, 0.14);
+    --accent-soft: rgba(124, 133, 230, 0.16);
     --green: #6fcf97;
     --green-bright: #6fcf97;
     --green-soft: rgba(111, 207, 151, 0.12);
@@ -187,13 +187,13 @@
     --tone-2: #6c6f76;
     --tone-3: #d9b444;
     --tone-4: #e8914a;
-    --tone-5: #7170ff;
+    --tone-5: #7c85e6;
     --st-1: #7c7f86;
     --st-2: #7c7f86;
     --st-3: #e8c14a;
     --st-4: #f2a15a;
-    --st-5: #7c7ff0;
-    --done: #7c7ff0;
+    --st-5: #7c85e6;
+    --done: #7c85e6;
     --closed: #6c6f76;
     --ev-blue: rgba(96, 165, 250, 0.18);
     --ev-blue-ink: #a4cbf6;
@@ -236,9 +236,9 @@
   --hover: oklch(var(--paper-a) / 0.04);
   --sel: oklch(var(--paper-a) / 0.07);
   --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
-  --accent: #7170ff;
+  --accent: #7c85e6;
   --accent-ink: #ffffff;
-  --accent-soft: rgba(113, 112, 255, 0.14);
+  --accent-soft: rgba(124, 133, 230, 0.16);
   --green: #6fcf97;
   --green-bright: #6fcf97;
   --green-soft: rgba(111, 207, 151, 0.12);
@@ -257,13 +257,13 @@
   --tone-2: #6c6f76;
   --tone-3: #d9b444;
   --tone-4: #e8914a;
-  --tone-5: #7170ff;
+  --tone-5: #7c85e6;
   --st-1: #7c7f86;
   --st-2: #7c7f86;
   --st-3: #e8c14a;
   --st-4: #f2a15a;
-  --st-5: #7c7ff0;
-  --done: #7c7ff0;
+  --st-5: #7c85e6;
+  --done: #7c85e6;
   --closed: #6c6f76;
   --ev-blue: rgba(96, 165, 250, 0.18);
   --ev-blue-ink: #a4cbf6;
@@ -305,10 +305,11 @@
   --color-muted: var(--soft);
   --color-muted-foreground: var(--muted-text);
 
-  /* primary actions are ink on the panel, like the mockup's buttons; the
+  /* primary actions are the accent, design/tats's .btn.primary, so a company's
+     brand reaches them; a fill that isn't a button says ink itself. The
      active-state tint is the soft band */
-  --color-primary: var(--ink);
-  --color-primary-foreground: var(--surface);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-ink);
   --color-primary-soft: var(--soft-strong);
 
   --color-secondary: var(--soft);
@@ -725,7 +726,18 @@ body:has(.ui-root) {
   }
 }
 
+/* design/tats's enterPage: a page comes up from 0.4. The shell's children remount
+   when the route changes, and only then, so a new ?query in a list never flashes. */
+@keyframes page-in {
+  from {
+    opacity: 0.4;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  .shell-page > * {
+    animation: page-in 0.12s ease-out;
+  }
   dialog[open],
   .pop-dialog {
     animation: dlg-in 0.2s var(--spring);

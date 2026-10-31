@@ -392,7 +392,6 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
               <legend className="mb-1 p-0 text-[12.5px] text-muted-foreground">Candidate</legend>
               {app ? (
                 <div className="flex items-center gap-2.5 text-[13px]">
-                  <Avatar name={app.candidate} candidate />
                   <span className="min-w-0 flex-1 truncate">
                     {app.candidate} <span className="text-muted-foreground">· {app.jobTitle}</span>
                   </span>
@@ -407,7 +406,6 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
                     {apps.map((a) => (
                       <li key={a.applicationId}>
                         <button type="button" className={pickRow} onClick={() => { setApplicationId(a.applicationId); setStep(""); setFound(null); }}>
-                          <Avatar name={a.candidate} candidate />
                           <span className="min-w-0 flex-1 truncate">
                             {a.candidate} <span className="text-muted-foreground">· {a.jobTitle}</span>
                           </span>

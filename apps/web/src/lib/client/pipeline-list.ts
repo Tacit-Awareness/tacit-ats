@@ -158,7 +158,7 @@ export type PipelineRow = {
 export const toRow = (e: PipelineEntry, now: number): PipelineRow => ({
   applicationId: e.applicationId,
   href: `/client/candidates/${e.personId}`,
-  name: e.personName,
+  name: e.personName?.trim() || "Unnamed",
   status: statusOf(e, now),
   facts: factsOf(e).join(" · "),
   time: shortSpan(e.lastTouchAt, now),

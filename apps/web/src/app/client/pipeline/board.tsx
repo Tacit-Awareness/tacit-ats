@@ -157,13 +157,13 @@ function Column({
         onDrop();
       }}
       className={cn(
-        "flex min-h-[300px] min-w-[184px] flex-[1_1_0] flex-col gap-2 bg-[color:var(--band)] p-1 transition-[background-color,opacity]",
+        "flex min-h-[300px] min-w-[184px] flex-[1_1_0] flex-col gap-2 bg-[color:var(--band)] p-1 shadow-[inset_0_0_0_1px_var(--line)] transition-[background-color,opacity]",
         takes && "ring-1 ring-[color:var(--accent)] ring-inset",
         takes && over && "bg-[color:var(--accent-soft)]",
         takes === false && !source && "opacity-55",
       )}
     >
-      <h2 className="m-0 flex h-[30px] shrink-0 items-center gap-2 px-1.5 text-[14px] font-medium">
+      <h2 className="m-0 mb-0.5 flex h-[30px] shrink-0 items-center gap-2 border-b border-[color:var(--line)] bg-[color:var(--surface)] px-2 text-[14px] font-medium">
         {column.label}
         <span className="font-normal text-faint tabular-nums">{column.total}</span>
       </h2>
@@ -233,11 +233,13 @@ function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMov
     document.addEventListener("focusin", outside);
     document.addEventListener("scroll", outside, true);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onClose);
     return () => {
       document.removeEventListener("pointerdown", outside);
       document.removeEventListener("focusin", outside);
       document.removeEventListener("scroll", outside, true);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onClose);
     };
   }, [at, count, onClose]);
 

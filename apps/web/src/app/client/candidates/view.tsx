@@ -170,7 +170,6 @@ export function CrmView({
                       <RowCheck item={r.bulk} />
                     </span>
                     <span role="cell" className={cn(CELL, "gap-2.5")}>
-                      <Avatar name={r.name} size="lg" candidate />
                       <Link href={r.href} data-key-item className="min-w-0 truncate font-medium after:absolute after:inset-0">
                         {r.name}
                       </Link>
@@ -219,7 +218,7 @@ export function CrmView({
           </div>
         )}
         <BulkBar options={bulk} />
-        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line)] pr-3 pl-5 text-[13px] text-muted-foreground tabular-nums">
+        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line-strong)] pr-3 pl-5 text-[13px] text-muted-foreground tabular-nums">
           {note ? <span className="text-faint">{note}</span> : null}
           <span className="flex-1" />
           <span className="mr-2">{range}</span>

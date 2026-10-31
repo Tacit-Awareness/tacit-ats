@@ -115,7 +115,7 @@ function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verd
       {groups.length === 0 ? <Empty className="px-[18px] pt-3">No interviews yet.</Empty> : null}
       {groups.map((g) => (
         <section key={g.key} aria-label={g.label} className="grid">
-          <h2 className="m-0 flex items-center gap-2 px-[18px] pt-5 pb-1.5 text-[13px] font-medium">
+          <h2 className="m-0 mb-1 flex items-center gap-2 border-b border-[color:var(--line)] px-[18px] pt-5 pb-1.5 text-[13px] font-medium">
             <i className={cn("size-2 rounded-full", DOT[g.key])} />
             {g.label}
             <span className="font-normal text-faint tabular-nums">{g.rows.length}</span>
@@ -126,11 +126,8 @@ function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verd
                 href={r.href}
                 data-key-item
                 aria-current={r.selected ? "page" : undefined}
-                className="grid min-w-0 grid-cols-[32px_minmax(0,1fr)] items-center gap-x-3 gap-y-[3px] py-3 pr-3 pl-[18px]"
+                className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-y-[3px] py-3 pr-3 pl-[18px]"
               >
-                <span className="row-span-2">
-                  <Avatar name={r.candidate} size="row" candidate />
-                </span>
                 <b className="truncate text-[13.5px] font-medium group-data-[reviewed]:font-normal group-data-[reviewed]:text-muted-foreground">{r.candidate}</b>
                 <span className="truncate text-[12.5px] text-faint" title={r.whenTitle}>
                   {r.line}
@@ -332,6 +329,7 @@ export function InterviewsView({
   return (
     <ReviewProvider past={past} saved={reviewed} selected={selected}>
       <ListReader
+        interviewList
         listLabel="Interviews"
         readerLabel="Interview"
         open={open}

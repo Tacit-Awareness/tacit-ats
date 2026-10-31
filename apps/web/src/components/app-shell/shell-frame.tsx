@@ -7,7 +7,7 @@ import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
-import { ShellTour } from "@/components/app-shell/shell-tour";
+import { START_EVENT, ShellTour } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
 import { modalOpen } from "@/lib/keys";
 import { cssPx, cssRect, setUiScale } from "@/lib/ui-scale";
@@ -247,6 +247,21 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   const drag = useRef<{ x: number; w: number; from: number; now: SidebarState; snapUntil: number } | null>(null);
   const animating = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => setDrawer(false), [pathname]);
+  // The drawer is a phone's: left open while the window widens, it would hold the
+  // sidebar full on a collapsed desktop. And the tutorial walks the page behind it.
+  useEffect(() => {
+    const shut = () => setDrawer(false);
+    const desktop = matchMedia("(min-width: 768px)");
+    const onWidth = () => {
+      if (desktop.matches) shut();
+    };
+    desktop.addEventListener("change", onWidth);
+    window.addEventListener(START_EVENT, shut);
+    return () => {
+      desktop.removeEventListener("change", onWidth);
+      window.removeEventListener(START_EVENT, shut);
+    };
+  }, []);
 
   // The rail is a desktop state; a phone always opens the full drawer.
   const rail = sb.collapsed && !drawer;
@@ -476,7 +491,9 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />
       {/* Before ShellKeys: the tour's capture listener is added first, so it takes its keys before G and `?`. */}
-      <ShellTour />
+      <Suspense fallback={null}>
+        <ShellTour />
+      </Suspense>
       <ShellKeys go={GO} />
     </div>
   );

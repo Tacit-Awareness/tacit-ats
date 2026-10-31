@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page";
+import { ListReader, Notice, PageBar, textLink } from "@/components/page";
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
 import { cn } from "@/lib/utils";
@@ -55,17 +55,12 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
               data-key-item
               aria-current={r.active ? "true" : undefined}
               className={cn(
-                "relative grid grid-cols-[36px_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 p-3 transition-colors",
-                r.active
-                  ? "bg-[color:var(--sel)] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:bg-[color:var(--accent)]"
-                  : "hover:bg-[color:var(--hover)]",
+                "grid grid-cols-[minmax(0,1fr)] gap-y-0.5 px-4 py-3 transition-colors",
+                r.active ? "bg-[color:var(--sel)] shadow-[inset_2px_0_0_var(--ink)]" : "hover:bg-[color:var(--hover)]",
               )}
             >
-              <span className="row-span-2">
-                <Avatar name={r.name} size="ticket" candidate />
-              </span>
               <span className="flex min-w-0 items-center gap-2">
-                <b className="flex-1 truncate text-[14px] font-medium">{r.name}</b>
+                <b className="flex-1 truncate text-[14.5px] font-medium">{r.name}</b>
                 <span className="flex-none text-xs text-faint">{r.when}</span>
               </span>
               <span className="truncate text-[13px] text-muted-foreground">{r.line}</span>
@@ -86,7 +81,7 @@ function Paper({ ticket }: { ticket: Ticket }) {
       <header className="mb-[18px] border-b border-[color:var(--n150)] pb-3.5">
         <h1 className="m-0 text-[22px] leading-tight font-semibold tracking-[-0.015em] break-words">{ticket.name}</h1>
         <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[12px] text-[color:var(--n700)]">
-          {ticket.email ? <span className="select-all">{ticket.email}</span> : null}
+          {ticket.email ? <span className="max-w-full min-w-0 select-all [overflow-wrap:anywhere]">{ticket.email}</span> : null}
           {ticket.phone ? <span>{ticket.phone}</span> : null}
         </p>
       </header>

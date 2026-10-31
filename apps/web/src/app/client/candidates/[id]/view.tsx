@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
-import { Avatar, Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
+import { Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
 import { FEED_MAX } from "@/lib/client/candidate";
 import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, OwnerChoice } from "@/lib/client/candidate-edits";
@@ -251,7 +251,6 @@ export function CandidateView({ candidate, activity, owners, past, editing, noti
           {error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null}
           <div className="grid gap-5">
             <div className="flex items-center gap-3">
-              <Avatar name={name} size="ticket" candidate />
               <div className="min-w-0">
                 <h1 className="m-0 text-[22px] leading-[1.25] font-semibold tracking-[-0.012em] text-balance">{name}</h1>
                 {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SPOT_PAD, TOUR, onScreen, placeTour } from "./tour";
+import { SPOT_PAD, TOUR, onScreen, onStepPage, placeTour, tourTargets } from "./tour";
 
 const view = { width: 1280, height: 800 };
 const card = { width: 320, height: 170 };
@@ -52,6 +52,29 @@ describe("placing the card", () => {
 
   it("centres it with no spotlight when there is no element", () => {
     expect(placeTour(null, view, card)).toEqual({ spot: null, card: { left: 480, top: 315 } });
+  });
+});
+
+describe("the step's page", () => {
+  it("is the path, and Home's tabs are not the Overview", () => {
+    expect(onStepPage("/client", "/client", null)).toBe(true);
+    expect(onStepPage("/client", "/client", "tickets")).toBe(false);
+    expect(onStepPage("/client", "/client/inbox", null)).toBe(false);
+    expect(onStepPage("/client/inbox", "/client/inbox", "tickets")).toBe(true);
+  });
+});
+
+describe("what a step can spotlight", () => {
+  const home = TOUR[0].targets;
+  const jobs = TOUR.find((s) => s.title === "Job Postings")!.targets;
+
+  it("is all of it on a desktop", () => {
+    expect(tourTargets(jobs, false)).toEqual(jobs);
+  });
+
+  it("is never a sidebar link on a phone", () => {
+    expect(tourTargets(home, true)).toEqual([]);
+    expect(tourTargets(jobs, true)).toEqual(['[data-tour="add-role"]']);
   });
 });
 

@@ -57,7 +57,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
   };
 
   return (
-    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[12vh] pb-4" onMouseDown={onClose}>
+    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[calc(12*var(--vh))] pb-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"

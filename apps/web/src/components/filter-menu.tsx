@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { fitShift } from "@/lib/menu-fit";
+import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // design/tats's filter chip: the current value and a chevron, opening a menu
 // of links (the URL is the filter state). Client only to open and close it:
-// a click outside, Escape or picking an option closes it.
+// a click outside, Escape or picking an option closes it. It hangs from the
+// chip's right edge, and slides along for a chip near the window's left.
 
 export type FilterOption = { href: string; label: string; active: boolean };
 
 export function FilterMenu({ label, value, on, options }: { label: string; value: string; on: boolean; options: FilterOption[] }) {
   const [open, setOpen] = React.useState(false);
   const root = React.useRef<HTMLDivElement>(null);
+  const menu = React.useRef<HTMLDivElement>(null);
   const id = React.useId();
 
   React.useEffect(() => {
@@ -29,6 +33,13 @@ export function FilterMenu({ label, value, on, options }: { label: string; value
       document.removeEventListener("pointerdown", away);
       document.removeEventListener("keydown", esc);
     };
+  }, [open]);
+
+  React.useLayoutEffect(() => {
+    const el = menu.current;
+    if (!el) return;
+    const box = cssRect(el.getBoundingClientRect());
+    el.style.right = `${-fitShift(box.x, box.x + box.width, cssPx(innerWidth))}px`;
   }, [open]);
 
   return (
@@ -51,6 +62,7 @@ export function FilterMenu({ label, value, on, options }: { label: string; value
       </button>
       {open ? (
         <div
+          ref={menu}
           id={id}
           role="menu"
           aria-label={label}

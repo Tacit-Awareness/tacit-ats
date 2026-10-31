@@ -144,7 +144,7 @@ function Card({ label, def, value, unit, ctx, target, foot, children }: {
   children?: React.ReactNode;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-2 border border-[color:var(--line)] bg-card px-5 pt-4 pb-4">
+    <section className="flex min-w-0 flex-col gap-2 border border-[color:var(--line)] bg-card px-5 pt-4 pb-4 shadow-[var(--shadow)]">
       <span
         title={def}
         className="w-fit cursor-help text-[13.5px] text-muted-foreground underline decoration-[color:var(--line-strong)] decoration-dotted underline-offset-4"
@@ -388,7 +388,7 @@ export function HomeView(p: HomeViewProps) {
             ))}
           </div>
           <div className="grid">
-            <div className="grid grid-cols-[minmax(0,1.3fr)_72px_minmax(0,1.6fr)_64px] gap-3 border-b border-[color:var(--line)] px-2 pb-1 text-[12.5px] text-faint">
+            <div className="-mx-4 grid grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] pr-4 pb-1 pl-6 text-[12.5px] text-faint">
               <span>Stage</span>
               <span>Candidates</span>
               <span>Waiting</span>
@@ -415,14 +415,13 @@ export function HomeView(p: HomeViewProps) {
                   <span className="text-[13px] text-muted-foreground tabular-nums">{s.longest ?? ""}</span>
                 </>
               );
-              const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.3fr)_72px_minmax(0,1.6fr)_64px] items-center gap-3 px-2 text-[13.5px]";
+              const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] items-center gap-3 px-2 text-[13.5px]";
               return s.n ? (
                 <details key={s.key} className="group">
                   <summary className={cn(cls, "cursor-pointer list-none hover:bg-[color:var(--hover)] group-open:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden")}>{row}</summary>
                   <div className="mb-2 ml-4 grid border-l border-[color:var(--line)] pl-3">
                     {s.people.map((x) => (
-                      <Link key={x.id} href={x.href} className="grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
-                        <Avatar name={x.name} />
+                      <Link key={x.id} href={x.href} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
                         <b className="font-medium">{x.name}</b>
                         <span className="truncate text-muted-foreground">{x.line}</span>
                         <em className="text-muted-foreground tabular-nums not-italic">{x.wait}</em>

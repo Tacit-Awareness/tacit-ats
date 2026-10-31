@@ -1,6 +1,6 @@
 import Link from "next/link";
 import * as React from "react";
-import { Avatar, Empty, Notice, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
+import { Empty, Notice, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -160,7 +160,6 @@ export function ReferralsView({
                     className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[14px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
                   >
                     <span role="cell" className={cn(CELL, "gap-2.5")}>
-                      <Avatar name={r.name} size="lg" candidate />
                       <b className="truncate font-medium">{r.name}</b>
                     </span>
                     <span role="cell" className={CELL} title={r.referredBy ?? undefined}>
@@ -183,7 +182,7 @@ export function ReferralsView({
             </div>
           </div>
         )}
-        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line)] pr-3 pl-[18px] text-[13px] text-muted-foreground tabular-nums">
+        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line-strong)] pr-3 pl-[18px] text-[13px] text-muted-foreground tabular-nums">
           {note ? <span className="text-faint">{note}</span> : null}
           <span className="flex-1" />
           <span className="mr-2">{range}</span>
