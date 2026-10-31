@@ -50,7 +50,7 @@ function HelpSection({ section }: { section: KeyHelpSection }) {
 }
 
 /** A button that opens the sheet, so it is never reachable by `?` alone. */
-export function KeysButton({ className }: { className?: string }) {
+export function KeysButton({ className, children }: { className?: string; children?: React.ReactNode }) {
   return (
     <button
       type="button"
@@ -60,9 +60,12 @@ export function KeysButton({ className }: { className?: string }) {
       title="Keyboard shortcuts (?)"
       className={className}
     >
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-[15px]" aria-hidden>
-        <path d="M2 4.5h12v7H2ZM4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.5h6" />
-      </svg>
+      <span className="grid size-5 shrink-0 place-items-center">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-[15px]" aria-hidden>
+          <path d="M2 4.5h12v7H2ZM4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.5h6" />
+        </svg>
+      </span>
+      {children}
     </button>
   );
 }

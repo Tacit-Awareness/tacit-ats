@@ -7,8 +7,8 @@ import { TOUR, onScreen, placeTour, type Box } from "@/lib/tour";
 import { cn } from "@/lib/utils";
 
 // design/tats's tutorial, the React half (lib/tour.ts is the pure half): a
-// walk through every page, one spotlight at a time. The Tutorial button in
-// the sidebar's footer starts it; each step goes to its page, waits for what
+// walk through every page, one spotlight at a time. Tutorial in the account
+// menu starts it; each step goes to its page, waits for what
 // it spotlights and puts the card beside it. Clicks outside the card are
 // blocked; → or Enter is Next, ← is Back, Esc ends it. Nothing is saved.
 
@@ -26,10 +26,17 @@ function find(targets: string[]): HTMLElement | null {
   return null;
 }
 
-/** A button that starts the tutorial, from anywhere in the shell. */
-export function TourButton({ className, children }: { className?: string; children: React.ReactNode }) {
+/** A button that starts the tutorial, from anywhere in the shell. `onClick` runs first, so a menu can close itself. */
+export function TourButton({ onClick, children, ...props }: React.ComponentProps<"button">) {
   return (
-    <button type="button" onClick={() => window.dispatchEvent(new Event(START_EVENT))} aria-label="Tutorial" title="Tutorial" className={className}>
+    <button
+      {...props}
+      type="button"
+      onClick={(e) => {
+        onClick?.(e);
+        window.dispatchEvent(new Event(START_EVENT));
+      }}
+    >
       {children}
     </button>
   );

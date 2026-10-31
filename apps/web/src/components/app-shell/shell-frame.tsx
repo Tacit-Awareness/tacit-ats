@@ -3,28 +3,29 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
-import { ShellTour, TourButton } from "@/components/app-shell/shell-tour";
-import { Avatar, initialsOf } from "@/components/page";
+import { ShellTour } from "@/components/app-shell/shell-tour";
+import { initialsOf } from "@/components/page";
 import { modalOpen } from "@/lib/keys";
 import { cn } from "@/lib/utils";
-import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, SIDEBAR_SNAP, clampSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
+import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, clampSidebar, dragSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
 import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
-import { THEME_COOKIE, nextTheme, parseTheme } from "@/lib/theme";
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking), with Integrations, the member and the footer at the bottom.
+// sections (Top of Funnel, Routing & Tracking), with Integrations, Documentation, the keys and your name at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
-// Drag the edge to resize, `[` collapses it to an icon rail, ⌘K opens the
-// command menu. No counts: the sidebar is for getting around, not a report.
+// Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
+// edge to open it again), ⌘K opens the command menu. No counts: the sidebar is for getting around, not a report.
 // The one signal is design/tats's mark, a faint red tint on Inbox or Applicant
 // Tickets when something arrived since you last opened it (shell-memory.tsx).
 // Saved views you pin sit under Pipeline.
 // Client only for what the server cannot know: which link is active, the
-// drawer on a phone, the menu, the width and the theme toggle.
+// drawer on a phone, the menu and the width. The rail and the folds are CSS
+// (globals.css's .sb rules), so they can ease: rows stay mounted either way.
 
 const ICONS = {
   home: "M2.5 7.2 8 2.8l5.5 4.4V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5Z",
@@ -38,8 +39,6 @@ const ICONS = {
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
   menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
   chart: "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5",
-  tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
-  signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
   inbox: "M2.5 9h3l1 2h3l1-2h3M4 3h8l1.5 6v4h-11V9Z",
   ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
@@ -107,10 +106,9 @@ function typing(target: EventTarget | null) {
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 }
 
-const itemCls = (active: boolean, rail: boolean, fresh = false) =>
+const itemCls = (active: boolean, fresh = false) =>
   cn(
-    "flex h-[34px] items-center gap-2.5 text-[14.5px] whitespace-nowrap transition-colors duration-100",
-    rail ? "justify-center px-0" : "px-2.5",
+    "sb-item flex w-full items-center gap-2.5 px-2.5 text-left text-[14.5px] whitespace-nowrap",
     active ? "nav-on font-medium" : fresh ? "nav-new font-[450]" : "font-[450] hover:bg-[color:var(--hover)]",
   );
 
@@ -121,13 +119,15 @@ function NavItem({ link, active, rail, fresh }: { link: NavLink; active: boolean
       href={link.href}
       aria-current={active ? "page" : undefined}
       title={fresh ?? (rail ? link.label : undefined)}
+      // The label leaves the layout on the rail, and the accessibility tree with it.
+      aria-label={rail ? link.label : undefined}
       aria-description={fresh ?? undefined}
-      className={itemCls(active, rail, !!fresh)}
+      className={itemCls(active, !!fresh)}
     >
       <span className="grid size-5 shrink-0 place-items-center">
         <Icon name={link.icon} />
       </span>
-      <span className={cn("truncate", rail && "sr-only")}>{link.label}</span>
+      <span className="sb-label">{link.label}</span>
     </Link>
   );
 }
@@ -154,34 +154,33 @@ function PinnedView({ view, active, rail }: { view: SavedView; active: boolean; 
       href={viewHref(view)}
       aria-current={active ? "page" : undefined}
       title={rail ? view.name : undefined}
-      className={cn(itemCls(active, rail), !rail && "pl-7")}
+      aria-label={rail ? view.name : undefined}
+      className={cn(itemCls(active), "sb-sub")}
     >
       <span className="grid size-5 shrink-0 place-items-center">
         <Icon name="layers" className="size-[13px]" />
       </span>
-      <span className={cn("truncate", rail && "sr-only")}>{view.name}</span>
+      <span className="sb-label">{view.name}</span>
     </Link>
   );
 }
 
 /** A collapsible section heading: the funnel's stages. */
-function Section({ label, open, onToggle, rail, children }: { label: string; open: boolean; onToggle: () => void; rail: boolean; children: React.ReactNode }) {
+function Section({ label, open, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <nav className="grid gap-0.5" aria-label={label}>
-      {rail ? null : (
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          className="mb-1.5 flex h-[30px] items-center gap-1.5 px-2.5 text-left text-[13.5px] font-[450] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
-        >
-          {label}
-          <svg viewBox="0 0 8 8" className={cn("size-2 fill-current transition-transform duration-150", !open && "-rotate-90")} aria-hidden>
-            <path d="M1 2.2h6L4 6Z" />
-          </svg>
-        </button>
-      )}
-      {open || rail ? children : null}
+    <nav className={cn("sb-group", !open && "shut")} aria-label={label}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="sb-sec flex items-center gap-1.5 px-2.5 text-left text-[13.5px] font-[450] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+      >
+        {label}
+        <svg viewBox="0 0 8 8" className={cn("sb-tri size-2 fill-current", !open && "-rotate-90")} aria-hidden>
+          <path d="M1 2.2h6L4 6Z" />
+        </svg>
+      </button>
+      {children}
     </nav>
   );
 }
@@ -197,23 +196,6 @@ function IconButton({ label, onClick, children, className }: { label: string; on
     >
       {children}
     </button>
-  );
-}
-
-function ThemeToggle() {
-  const flip = () => {
-    const root = document.documentElement;
-    const next = nextTheme(parseTheme(root.dataset.theme), matchMedia("(prefers-color-scheme: dark)").matches);
-    root.dataset.theme = next;
-    document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-  };
-  return (
-    <IconButton label="Switch between light and dark" onClick={flip}>
-      <svg viewBox="0 0 16 16" className="size-[15px]" fill="none" stroke="currentColor" strokeWidth={1.3} aria-hidden>
-        <circle cx="8" cy="8" r="5.5" />
-        <path d="M8 2.5v11A5.5 5.5 0 0 0 8 2.5Z" fill="currentColor" />
-      </svg>
-    </IconButton>
   );
 }
 
@@ -255,11 +237,14 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   const [menu, setMenu] = useState(false);
   const [sb, setSb] = useState(initial);
   const [shut, setShut] = useState<Set<string>>(() => new Set());
+  const side = useRef<HTMLElement>(null);
   const views = useViews();
   const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : null);
-  // The drag's start and its live width: the release saves `now`, not the
-  // width from the last render, which may not have caught up.
-  const drag = useRef<{ x: number; w: number; now: number } | null>(null);
+  // The drag's start and where it has got to: the release saves `now`, not the
+  // state from the last render, which may not have caught up. `snapUntil` is how
+  // long the edge eases after a snap before it follows the pointer again.
+  const drag = useRef<{ x: number; w: number; from: number; now: SidebarState; snapUntil: number } | null>(null);
+  const animating = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => setDrawer(false), [pathname]);
 
   // The rail is a desktop state; a phone always opens the full drawer.
@@ -268,7 +253,19 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     setSb(next);
     document.cookie = `${SIDEBAR_COOKIE}=${formatSidebar(next)}; path=/; max-age=31536000; samesite=lax`;
   };
-  const toggle = () => save({ ...sb, collapsed: !sb.collapsed });
+  // Lets the CSS play one change (@starting-style needs it), then steps aside.
+  // An attribute, not a class: React would drop a class when `rail` changes.
+  const animate = () => {
+    const el = side.current;
+    if (!el) return;
+    el.dataset.anim = "";
+    clearTimeout(animating.current);
+    animating.current = setTimeout(() => delete el.dataset.anim, 400);
+  };
+  const toggle = () => {
+    animate();
+    save({ ...sb, collapsed: !sb.collapsed });
+  };
 
   // ⌘K opens the menu, `[` collapses the sidebar. A page that claims ⌘K for
   // itself (the docs' search) handles it first and calls preventDefault.
@@ -290,33 +287,35 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   }, []);
 
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (sb.collapsed) return;
-    drag.current = { x: e.clientX, w: sb.width, now: sb.width };
+    drag.current = { x: e.clientX, w: side.current?.getBoundingClientRect().width ?? sb.width, from: sb.width, now: sb, snapUntil: 0 };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
       // a pointer the browser no longer tracks: the drag still follows moves over the edge
     }
-    document.body.style.cursor = "col-resize";
+    document.body.classList.add("sb-dragging");
   };
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    const w = d.w + e.clientX - d.x;
-    if (w < SIDEBAR_SNAP) {
-      drag.current = null;
-      document.body.style.cursor = "";
-      return save({ width: d.w, collapsed: true });
+    const next = dragSidebar(d.w + e.clientX - d.x, d.from);
+    if (next.collapsed !== d.now.collapsed) {
+      // A snap eases: the drag's no-transition comes off for its length.
+      document.body.classList.remove("sb-dragging");
+      d.snapUntil = performance.now() + 300;
+      animate();
+    } else if (performance.now() > d.snapUntil) {
+      document.body.classList.add("sb-dragging");
     }
-    d.now = clampSidebar(w);
-    setSb({ width: d.now, collapsed: false });
+    d.now = next;
+    setSb(next);
   };
   const onUp = () => {
     const d = drag.current;
     if (!d) return;
     drag.current = null;
-    document.body.style.cursor = "";
-    save({ width: d.now, collapsed: false });
+    document.body.classList.remove("sb-dragging");
+    save(d.now);
   };
   const onResizeKey = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -325,13 +324,15 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     }
   };
 
-  const shutToggle = (k: string) =>
+  const shutToggle = (k: string) => {
+    animate();
     setShut((s) => {
       const n = new Set(s);
       if (n.has(k)) n.delete(k);
       else n.add(k);
       return n;
     });
+  };
 
   const commands: CommandItem[] = [
     { group: "Go to", label: HOME.label, href: HOME.href },
@@ -368,54 +369,51 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
       {drawer ? <div className="fixed inset-0 z-40 bg-[color:var(--scrim)] md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
 
       <aside
+        ref={side}
         // Any link: a pinned view can be the page you are on with another query, which the pathname effect never sees.
         onClick={(e) => {
           if ((e.target as Element).closest("a")) setDrawer(false);
         }}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col gap-6 overflow-y-auto bg-frame py-2.5 pr-2 pl-2.5 transition-transform duration-300 [scrollbar-width:none]",
-          "md:static md:z-auto md:translate-x-0 md:transition-none",
-          rail ? "md:w-[var(--rail)] md:pr-1.5" : "md:w-[var(--sbw)]",
+          "sb fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col overflow-y-auto bg-frame py-2.5 pr-2 pl-2.5 transition-transform duration-300 [scrollbar-width:none]",
+          "md:static md:z-auto md:translate-x-0",
+          rail ? "sb-rail md:w-[var(--rail)] md:pr-1.5" : "md:w-[var(--sbw)]",
           drawer ? "translate-x-0 shadow-[var(--pop-shadow)]" : "-translate-x-full",
         )}
         aria-label="Workspace"
       >
-        <div className={cn("flex h-10 items-center gap-1", rail && "h-auto flex-col gap-1.5")}>
+        <div className="sb-ws">
           <button
             type="button"
             onClick={() => setMenu(true)}
             title={rail ? org : undefined}
-            className={cn(
-              "flex h-[34px] min-w-0 items-center gap-[9px] text-[14px] font-medium transition-colors hover:bg-[color:var(--hover)]",
-              rail ? "justify-center p-1" : "flex-1 px-2",
-            )}
+            aria-label={rail ? org : undefined}
+            className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 text-[14px] font-medium transition-colors hover:bg-[color:var(--hover)]"
           >
             <OrgLogo org={org} logoUrl={orgLogoUrl} />
-            <span className={cn("truncate", rail && "sr-only")}>{org}</span>
+            <span className="sb-label">{org}</span>
           </button>
-          {rail ? null : (
-            <IconButton label="Search (⌘K)" onClick={() => setMenu(true)}>
-              <Icon name="search" />
-            </IconButton>
-          )}
-          <IconButton label={`${sb.collapsed ? "Expand" : "Collapse"} sidebar ([)`} onClick={toggle} className="max-md:hidden">
+          <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="sb-search">
+            <Icon name="search" />
+          </IconButton>
+          <IconButton label={`${sb.collapsed ? "Expand" : "Collapse"} sidebar ([)`} onClick={toggle} className="sb-toggle max-md:hidden">
             <Icon name="sidebar" />
           </IconButton>
         </div>
 
-        <nav className="grid gap-0.5" aria-label="Home">
+        <nav className="sb-group" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
           <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} />
           <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </nav>
 
-        <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")} rail={rail}>
+        <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")}>
           <NavItem link={JOBS} active={isActive(JOBS)} rail={rail} />
           <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} fresh={marks.tickets ? "New applicants since you last looked" : null} />
           <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
         </Section>
 
-        <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")} rail={rail}>
+        <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")}>
           <Suspense fallback={<NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />}>
             <PipelineLinks rail={rail} pathname={pathname} />
           </Suspense>
@@ -425,54 +423,17 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
           <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
         </Section>
 
-        <div className="mt-auto grid gap-2">
-          <nav className="grid gap-0.5" aria-label="Settings">
+        <div className="sb-foot">
+          <nav className="sb-group" aria-label="Settings">
             {SETTINGS.map((link) => (
               <NavItem key={link.href} link={link} active={isActive(link)} rail={rail} />
             ))}
+            <NavItem link={DOCS} active={isActive(DOCS)} rail={rail} />
+            <KeysButton className={cn(itemCls(false), "max-md:hidden")}>
+              <span className="sb-label">Keyboard shortcuts</span>
+            </KeysButton>
           </nav>
-
-          <div className={cn("flex items-center gap-2.5 px-2 pt-2", rail && "justify-center px-0")} title={rail ? user.name || user.email : undefined}>
-            <Avatar name={user.name || user.email} size="md" />
-            <span className={cn("grid min-w-0", rail && "sr-only")}>
-              <span className="truncate text-[13.5px] font-medium">{user.name || user.email}</span>
-              <span className="truncate text-[12px] text-muted-foreground">{user.level}</span>
-            </span>
-          </div>
-
-          <div className={cn("flex items-center gap-1.5 pl-1", rail && "flex-col pl-0")}>
-            <Link
-              href={DOCS.href}
-              aria-current={isActive(DOCS) ? "page" : undefined}
-              title={rail ? DOCS.label : undefined}
-              className={cn(
-                "flex h-8 items-center gap-2 rounded-full text-[13px] transition-colors hover:bg-[color:var(--hover)] hover:text-foreground",
-                isActive(DOCS) ? "nav-on font-medium text-foreground" : "text-muted-foreground",
-                rail ? "w-8 justify-center" : "px-2",
-              )}
-            >
-              <Icon name="help" />
-              <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
-            </Link>
-            <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
-              <TourButton className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
-                <Icon name="tour" />
-              </TourButton>
-              <KeysButton className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
-              <ThemeToggle />
-              {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
-              <form action="/client/signout" method="post">
-                <button
-                  type="submit"
-                  aria-label="Sign out"
-                  title="Sign out"
-                  className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
-                >
-                  <Icon name="signout" />
-                </button>
-              </form>
-            </span>
-          </div>
+          <AccountMenu user={user} rail={rail} pathname={pathname} />
         </div>
       </aside>
 
@@ -483,17 +444,19 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         aria-label="Resize the sidebar"
         aria-valuenow={sb.width}
         tabIndex={sb.collapsed ? -1 : 0}
-        title="Drag to resize. Double-click to reset."
+        title={sb.collapsed ? "Drag to open. Double-click to open." : "Drag to resize. Double-click to reset."}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
-        onDoubleClick={() => save({ width: SIDEBAR_DEFAULT, collapsed: false })}
+        onDoubleClick={() => {
+          animate();
+          save({ width: sb.collapsed ? sb.width : SIDEBAR_DEFAULT, collapsed: false });
+        }}
         onKeyDown={onResizeKey}
         className={cn(
-          "relative z-10 -mx-1 hidden w-2 shrink-0 outline-none md:block",
+          "relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize outline-none md:block",
           "after:absolute after:inset-y-3.5 after:left-[3px] after:w-0.5 after:rounded-full after:transition-colors hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
-          sb.collapsed ? "pointer-events-none" : "cursor-col-resize",
         )}
       />
 

@@ -390,9 +390,12 @@
   padding: 0;
 }
 
-/* the active sidebar item: a plain soft fill, as in design/tats */
-.nav-on {
-  background: var(--soft-strong);
+/* where you are: the current page is a solid ink block with paper text, the
+   same treatment as a selected pill. The tokens swap, so dark inverts it. */
+.nav-on,
+.nav-on:hover {
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* design/tats's sidebar mark: something arrived since you last opened the page. */
@@ -402,6 +405,275 @@
 
 .nav-new:hover {
   background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+/* the sidebar's rhythm follows the window's height. Three tiers: tight between
+   items, a step under each section label, the widest step between sections.
+   Each grows with the window between a floor and a ceiling, so the sidebar
+   fills the height; below the floor it scrolls and nothing overlaps. */
+.sb {
+  --sb-item-h: clamp(28px, 3.9vh, 38px); /* each row */
+  --sb-gap: clamp(0px, 0.3vh, 4px); /* between items */
+  --sb-sec-h: clamp(24px, 3.3vh, 30px); /* a section label */
+  --sb-sec-gap: clamp(2px, 0.8vh, 8px); /* label to its first item */
+  --sb-group-gap: clamp(12px, 3.1vh, 40px); /* between sections */
+  --sb-head-gap: clamp(14px, 3.1vh, 40px); /* workspace to the first section */
+  --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --sb-dur: 0.26s;
+  overflow-x: clip; /* the edge does the cutting: nothing spills past it while it moves */
+}
+
+.sb > * {
+  flex-shrink: 0;
+}
+
+.sb-ws {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  height: 40px;
+  margin-bottom: var(--sb-head-gap);
+}
+
+.sb-org {
+  margin-top: 3px;
+}
+
+.sb-search {
+  margin-top: 4px;
+}
+
+.sb-group {
+  display: grid;
+  min-width: 0;
+}
+
+.sb-group + .sb-group {
+  margin-top: var(--sb-group-gap);
+}
+
+.sb-group > .sb-item + .sb-item {
+  margin-top: var(--sb-gap);
+}
+
+.sb-sec {
+  height: var(--sb-sec-h);
+  margin-bottom: var(--sb-sec-gap);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sb-item {
+  height: var(--sb-item-h);
+  min-width: 0;
+  overflow: clip;
+}
+
+.sb-sub {
+  padding-left: 28px;
+}
+
+/* each label truncates to "…" as the edge reaches it; the icons hold their place */
+.sb-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-item > :not(.sb-label) {
+  flex-shrink: 0;
+}
+
+.sb-group.shut .sb-item {
+  display: none;
+  height: 0;
+  margin-top: 0;
+}
+
+.sb-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sb-sec-gap);
+  margin-top: auto;
+  padding-top: var(--sb-group-gap);
+}
+
+/* design/tats's account: the name alone, as a quiet pill */
+.sb-acct {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  height: 32px;
+  margin-left: 2px;
+  padding: 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.sb-acct:hover,
+.sb-acct[aria-expanded="true"] {
+  background: var(--hover);
+}
+
+.sb-acct-glyph {
+  display: none;
+}
+
+.sb-dragging,
+.sb-dragging * {
+  cursor: col-resize !important;
+  user-select: none;
+}
+
+/* the rail is a desktop state; a phone always opens the full drawer */
+@media (min-width: 768px) {
+  .sb-ws {
+    padding-right: 36px;
+  }
+
+  /* out of the row, so it can slide under the logo instead of jumping there */
+  .sb-toggle {
+    position: absolute;
+    top: 4px;
+    right: 0;
+  }
+
+  .sb-rail .sb-ws {
+    height: 76px;
+    padding-right: 0;
+  }
+
+  .sb-rail .sb-toggle {
+    top: 42px;
+    right: 8px;
+  }
+
+  .sb-rail .sb-label,
+  .sb-rail .sb-search,
+  .sb-rail .sb-chev {
+    display: none;
+  }
+
+  .sb-rail .sb-sec {
+    display: none;
+    height: 0;
+    margin-bottom: 0;
+  }
+
+  .sb-rail .sb-sub {
+    padding-left: 10px;
+  }
+
+  .sb-rail .sb-group.shut .sb-item {
+    display: flex;
+    height: var(--sb-item-h);
+  }
+
+  .sb-rail .sb-group.shut .sb-item + .sb-item {
+    margin-top: var(--sb-gap);
+  }
+
+  .sb-rail .sb-acct {
+    gap: 0;
+    max-width: 32px;
+    margin-left: 4px;
+    padding: 0 8px;
+  }
+
+  .sb-rail .sb-acct-glyph {
+    display: block;
+  }
+}
+
+/* the sidebar moves instead of jumping. allow-discrete keeps a label in the
+   layout until the edge reaches the rail, then lets display: none land; going
+   back it returns at once and the edge uncovers it. A section folds the same
+   way, clipped by its own height. No fades, no overshoot. data-anim is on the
+   sidebar only while a toggle plays, so @starting-style never fires on an
+   ordinary render. */
+@media (prefers-reduced-motion: no-preference) {
+  .sb-item {
+    transition:
+      height var(--sb-dur) var(--sb-ease),
+      margin var(--sb-dur) var(--sb-ease),
+      padding var(--sb-dur) var(--sb-ease),
+      background-color 0.1s,
+      display var(--sb-dur) allow-discrete;
+  }
+
+  .sb-sec {
+    transition:
+      height var(--sb-dur) var(--sb-ease),
+      margin var(--sb-dur) var(--sb-ease),
+      background-color 0.1s,
+      color 0.1s,
+      display var(--sb-dur) allow-discrete;
+  }
+
+  .sb-tri {
+    transition: rotate var(--sb-dur) var(--sb-ease);
+  }
+
+  .sb-label,
+  .sb-search,
+  .sb-chev {
+    transition: display var(--sb-dur) allow-discrete;
+  }
+
+  @media (min-width: 768px) {
+    .sb {
+      transition:
+        width var(--sb-dur) var(--sb-ease),
+        padding var(--sb-dur) var(--sb-ease);
+    }
+
+    .sb-dragging .sb {
+      transition: none;
+    }
+
+    .sb-ws {
+      transition:
+        height var(--sb-dur) var(--sb-ease),
+        padding var(--sb-dur) var(--sb-ease);
+    }
+
+    .sb-toggle {
+      transition:
+        top var(--sb-dur) var(--sb-ease),
+        right var(--sb-dur) var(--sb-ease),
+        background-color 0.1s,
+        color 0.1s;
+    }
+
+    .sb-acct {
+      transition:
+        max-width var(--sb-dur) var(--sb-ease),
+        margin var(--sb-dur) var(--sb-ease),
+        padding var(--sb-dur) var(--sb-ease),
+        background-color 0.1s;
+    }
+  }
+
+  /* coming back: start where the leaving ended */
+  @starting-style {
+    .sb[data-anim] .sb-sec {
+      height: 0;
+      margin-bottom: 0;
+    }
+
+    .sb[data-anim] .sb-group:not(.shut) .sb-item {
+      height: 0;
+      margin-top: 0;
+    }
+  }
 }
 
 /* people take the brand's hue and keep their lightness, so they still tell
