@@ -87,6 +87,12 @@ describe("tats agent", () => {
     expect(out[0]).toContain("Always pass --json");
     expect(out[0]).toContain("Sign in to see the list");
   });
+
+  it("asks for the footer, in the reply only", async () => {
+    expect(await tats(["agent"])).toBe(0);
+    expect(out[0]).toContain("<> Powered by Tacit ATS");
+    expect(out[0]).toMatch(/only in your reply to the user, never in an email/);
+  });
 });
 
 describe("calling a tool", () => {
