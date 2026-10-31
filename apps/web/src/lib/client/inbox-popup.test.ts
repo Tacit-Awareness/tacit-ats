@@ -1,17 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { closeHref, inertOutside, rowSelector, writeInFlight, type PopupNode } from "./inbox-popup";
-
-describe("closeHref", () => {
-  test("is the plain Inbox with no notice", () => {
-    expect(closeHref(null, null)).toBe("/client/inbox");
-    expect(closeHref(null, "u1")).toBe("/client/inbox");
-  });
-
-  test("keeps a notice and its Undo", () => {
-    expect(closeHref("dismissed", "u1")).toBe("/client/inbox?notice=dismissed&undo=u1");
-    expect(closeHref("sent", null)).toBe("/client/inbox?notice=sent");
-  });
-});
+import { inertOutside, rowSelector, writeInFlight, type PopupNode } from "./inbox-popup";
 
 const node = (tagName: string, children: PopupNode[] = [], inert = false): PopupNode => {
   const n: PopupNode = { tagName, inert, parentElement: null, children };
@@ -20,6 +8,16 @@ const node = (tagName: string, children: PopupNode[] = [], inert = false): Popup
 };
 
 describe("inertOutside", () => {
+  test("leaves the toasts live, so an Undo works over the pop-up", () => {
+    const popup = node("DIV");
+    const toasts: PopupNode = { ...node("DIV"), dataset: { toasts: "" } };
+    const aside = node("ASIDE");
+    const root = node("DIV", [popup, toasts, aside]);
+    node("BODY", [root]);
+    inertOutside(popup);
+    expect([toasts.inert, aside.inert]).toEqual([false, true]);
+  });
+
   const page = () => {
     const popup = node("DIV", [node("A")]);
     const card = node("DIV", [node("A")]);
