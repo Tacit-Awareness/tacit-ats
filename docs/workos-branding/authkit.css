@@ -1,0 +1,31 @@
+/* AuthKit custom CSS: paste into WorkOS > Branding > Custom CSS.
+   Settings and reasons are in docs/workos-branding/README.md. Values are
+   apps/web/src/app/globals.css's light and dark tokens, spelled out because
+   AuthKit cannot read them. */
+
+/* The card: --paper on --frame, as a card sits in the ATS. */
+.ak-Card {
+  background: light-dark(#fafaf8, #18181b);
+  border: 1px solid light-dark(#e1e1dc, rgba(255, 255, 255, 0.07));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.ak-Heading {
+  letter-spacing: -0.02em;
+}
+
+/* Under the heading, on the sign-in page only. Not translated. */
+[data-hak-page='sign-in'] .ak-Header::after {
+  content: 'Your company’s hiring workspace';
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+  color: light-dark(#66686f, #9b9da4);
+}
+
+/* Nobody is created on sign-in, so a stranger's sign-up only ends at the
+   refusal screen. Invited people arrive from their email, not this link. This
+   hides the link; /sign-up itself still answers. */
+[data-hak-page='sign-in'] [data-hak-footer] {
+  display: none;
+}

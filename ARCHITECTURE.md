@@ -57,7 +57,7 @@ flowchart TD
 
 ## Identity and sign-in
 
-**Web.** `proxy.ts` covers `/client/**` only. A member signs in with WorkOS AuthKit (`wos-session`). Supabase trusts WorkOS's user-management issuer as third-party auth, and the JWT template carries `role: authenticated` and `org_id`, so `lib/client/session.ts`'s `resolveClient()` builds a per-request client on that token and asks the database who it is (`current_actor_id()`). Invitations accepted at WorkOS land on `/client/callback` without our PKCE cookie; the callback answers with a "your account is ready, continue" link instead of an error.
+**Web.** `proxy.ts` covers `/client/**` only. A member signs in on our own `/sign-in` screen, backed by WorkOS AuthKit, whose hosted page still takes anything that screen does not cover (`wos-session`). Supabase trusts WorkOS's user-management issuer as third-party auth, and the JWT template carries `role: authenticated` and `org_id`, so `lib/client/session.ts`'s `resolveClient()` builds a per-request client on that token and asks the database who it is (`current_actor_id()`). Invitations accepted at WorkOS land on `/client/callback` without our PKCE cookie; the callback answers with a "your account is ready, continue" link instead of an error.
 
 **Connector.** An MCP client signs in through AuthKit's OAuth server, whose tokens Supabase does not trust. So each request is exchanged:
 
