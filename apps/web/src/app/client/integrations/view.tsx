@@ -4,7 +4,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
 import { disconnectGranolaAction } from "./actions";
-import type { CompanyBot } from "./bot"; // BotSection too, when it comes back below.
+import { BotSection, type CompanyBot } from "./bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
 } from "./messages";
@@ -19,6 +19,9 @@ export function IntegrationsView({
   calendar,
   granola,
   calendarConfigured,
+  bot,
+  orgName,
+  botCallbackUrl,
   notice,
   error,
 }: {
@@ -88,8 +91,7 @@ export function IntegrationsView({
           </div>
         </Rows>
       </Section>
-      {/* Hidden until the team's bot is ready to roll out. */}
-      {/* {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} /> : null} */}
+      {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} /> : null}
     </Page>
   );
 }
