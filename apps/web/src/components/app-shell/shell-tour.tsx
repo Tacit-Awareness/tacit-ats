@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TOUR, onScreen, placeTour, type Box } from "@/lib/tour";
+import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // design/tats's tutorial, the React half (lib/tour.ts is the pure half): a
@@ -16,12 +17,12 @@ const START_EVENT = "tats:tour";
 /** How long a step waits for its page and element before centring the card. */
 const WAIT_MS = 3000;
 
-const viewport = () => ({ width: innerWidth, height: innerHeight });
+const viewport = () => ({ width: cssPx(innerWidth), height: cssPx(innerHeight) });
 
 function find(targets: string[]): HTMLElement | null {
   for (const sel of targets) {
     const el = document.querySelector<HTMLElement>(sel);
-    if (el && onScreen(el.getBoundingClientRect(), viewport())) return el;
+    if (el && onScreen(cssRect(el.getBoundingClientRect()), viewport())) return el;
   }
   return null;
 }
@@ -62,7 +63,7 @@ export function ShellTour() {
 
   const place = useCallback(() => {
     const c = card.current;
-    const box = el.current && el.current.isConnected ? el.current.getBoundingClientRect() : null;
+    const box = el.current && el.current.isConnected ? cssRect(el.current.getBoundingClientRect()) : null;
     setPlaced(placeTour(box && onScreen(box, viewport()) ? box : null, viewport(), { width: c?.offsetWidth || 320, height: c?.offsetHeight || 170 }));
   }, []);
 

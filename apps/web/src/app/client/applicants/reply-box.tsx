@@ -85,7 +85,7 @@ function DraftReview({ reply, draft, sent, change }: { reply: Reply; draft: Show
     <section aria-label="Draft reply" className={shell}>
       {sent}
       <div className={main}>
-        <div className={cn(message, "max-h-[45vh] overflow-y-auto")}>
+        <div className={cn(message, "max-h-[calc(45*var(--vh))] overflow-y-auto")}>
           <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
             {reply.sender ? (
               <>
@@ -246,7 +246,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
               readOnly={pending}
               onChange={(e) => (mine === null ? setBodies({ ...bodies, [kind]: e.target.value }) : setMine(e.target.value))}
               spellCheck
-              className={cn(field, "block max-h-[32vh] min-h-[140px] resize-y py-2.5 leading-[1.55]")}
+              className={cn(field, "block max-h-[calc(32*var(--vh))] min-h-[140px] resize-y py-2.5 leading-[1.55]")}
             />
           </div>
         ) : (

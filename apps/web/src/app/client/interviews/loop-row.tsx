@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import { cssPx } from "@/lib/ui-scale";
 
 /**
  * The loop's row of rounds, scrolling sideways inside itself. With more rounds
@@ -16,7 +17,7 @@ export function LoopRow({ current, children }: { current: string | null; childre
     if (!el || !card) return;
     const box = el.getBoundingClientRect();
     const at = card.getBoundingClientRect();
-    el.scrollLeft += at.left - box.left - (box.width - at.width) / 2;
+    el.scrollLeft += cssPx(at.left - box.left - (box.width - at.width) / 2);
   }, [current]);
   return (
     <ol

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { CANDIDATE_ERRORS, CANDIDATE_NOTICES } from "../candidates/[id]/messages";
 import { moveCardAction, type BoardMoveResult } from "./actions";
 import { neighbourOf, shiftCard, type BoardCard, type BoardColumn } from "./board-state";
+import { cssPx, cssRect } from "@/lib/ui-scale";
 
 // The board's columns and cards, and what moves one: a drag, the menu on the
 // card, or a key. All three are the same move (moveCardAction, the stage the
@@ -200,8 +201,8 @@ function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMov
     const gap = 8;
     const height = el.offsetHeight;
     const below = at.rect.bottom + 4;
-    el.style.top = `${below + height + gap > window.innerHeight ? Math.max(gap, at.rect.top - height - 4) : below}px`;
-    el.style.left = `${Math.max(gap, Math.min(at.rect.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - gap))}px`;
+    el.style.top = `${below + height + gap > cssPx(window.innerHeight) ? Math.max(gap, at.rect.top - height - 4) : below}px`;
+    el.style.left = `${Math.max(gap, Math.min(at.rect.right - MENU_WIDTH, cssPx(window.innerWidth) - MENU_WIDTH - gap))}px`;
     el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
   }, [at]);
 
@@ -330,7 +331,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
 
   const openMenu = (card: BoardCard) => {
     const button = cardEl(card.applicationId)?.querySelector("button");
-    if (button) setMenu({ card, rect: button.getBoundingClientRect() });
+    if (button) setMenu({ card, rect: cssRect(button.getBoundingClientRect()) });
   };
 
   const closeMenu = useCallback(() => setMenu(null), []);

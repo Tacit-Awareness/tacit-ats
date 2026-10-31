@@ -30,6 +30,7 @@ import {
 import { searchOrder } from "@/lib/client/schedule-search";
 import { cn } from "@/lib/utils";
 import { ScheduleDialog, type Flow } from "./booking";
+import { cssPx } from "@/lib/ui-scale";
 
 // The Calendar's markup, props only (page.tsx does the read): design/tats's
 // calendar page, edge to edge under its bar with no card: the search in the
@@ -242,14 +243,14 @@ function TimeGrid({
     if (down.pointerType !== "touch") down.preventDefault();
     const span = { first, last };
     const column = down.currentTarget;
-    const from = minutesAt(down.clientY - column.getBoundingClientRect().top - HOUR_PX / 8, HOUR_PX, span);
+    const from = minutesAt(cssPx(down.clientY - column.getBoundingClientRect().top) - HOUR_PX / 8, HOUR_PX, span);
     let to = from + 60;
     const shape = () => ({ start: Math.min(from, to), end: Math.max(to, from + 30) });
     setGhost({ day, ...shape(), label: "New interview" });
     follow(
       down,
       (m) => {
-        to = minutesAt(m.clientY - column.getBoundingClientRect().top, HOUR_PX, span) + SNAP_MINUTES;
+        to = minutesAt(cssPx(m.clientY - column.getBoundingClientRect().top), HOUR_PX, span) + SNAP_MINUTES;
         setGhost({ day, ...shape(), label: "New interview" });
       },
       (moved) => {
@@ -265,13 +266,13 @@ function TimeGrid({
     if (down.button !== 0) return;
     const span = { first, last };
     const length = Math.round((Date.parse(e.endsAt) - Date.parse(e.startsAt)) / 60_000);
-    const grabbed = down.clientY - down.currentTarget.getBoundingClientRect().top;
+    const grabbed = cssPx(down.clientY - down.currentTarget.getBoundingClientRect().top);
     let at: { day: Ymd; start: number } | null = null;
     follow(
       down,
       (m, col) => {
         if (!col?.dataset.day) return;
-        at = { day: col.dataset.day, start: minutesAt(m.clientY - col.getBoundingClientRect().top - grabbed, HOUR_PX, span) };
+        at = { day: col.dataset.day, start: minutesAt(cssPx(m.clientY - col.getBoundingClientRect().top) - grabbed, HOUR_PX, span) };
         setGhost({ ...at, end: at.start + length, label: e.candidate });
       },
       (moved) => {

@@ -731,7 +731,7 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
-      className="relative m-auto max-h-[calc(100dvh-32px)] w-[min(460px,calc(100vw-32px))] overflow-hidden border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)] open:flex open:flex-col"
+      className="relative m-auto max-h-[calc(100*var(--vh)-32px)] w-[min(460px,calc(100vw-32px))] overflow-hidden border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)] open:flex open:flex-col"
     >
       <button
         type="button"
