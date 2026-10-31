@@ -60,13 +60,20 @@ describe("proxy", () => {
       expect((await (await load())(req("/client"))).status).toBe(404);
     });
 
-    test("no client session is redirected to WorkOS", async () => {
+    test("no client session is redirected to our sign-in screen", async () => {
       configure();
       authkit.mockResolvedValue({ session: { user: null }, headers: new Headers(), authorizationUrl: "https://auth.workos.test/authorize" });
       const res = await (await load())(req("/client"));
       expect(res.status).toBe(307);
-      expect(res.headers.get("location")).toBe("https://auth.workos.test/authorize");
+      expect(res.headers.get("location")).toBe("https://internal.test/sign-in");
       expect(authkit).toHaveBeenCalledWith(expect.anything(), { redirectUri: "https://internal.test/client/callback" });
+    });
+
+    test("signing in comes back to the page that asked", async () => {
+      configure();
+      authkit.mockResolvedValue({ session: { user: null }, headers: new Headers() });
+      const res = await (await load())(req("/client/inbox?i=app-1"));
+      expect(res.headers.get("location")).toBe("https://internal.test/sign-in?next=%2Fclient%2Finbox%3Fi%3Dapp-1");
     });
 
     test("the callback is reachable signed out, so sign-in can finish", async () => {
