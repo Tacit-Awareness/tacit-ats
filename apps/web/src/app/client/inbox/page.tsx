@@ -16,11 +16,12 @@ import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice } from "./mess
 import { UndoNotice } from "./set-aside";
 import { InboxView } from "./view";
 
-// The Inbox (design/tats's #inbox): what is stuck and waiting on someone, by
-// kind. lib/client/inbox.ts reads on the member's own token, lib/client/
+// The Inbox (design/tats's #inbox): what is stuck and waiting on someone, one
+// digest card. lib/client/inbox.ts reads on the member's own token, lib/client/
 // inbox-issues.ts computes the queue, view.tsx draws it; this file words the
-// reader's card. `?i=` picks the issue, `?tab=done` the Done tab, where `?i=` is
-// a dismissal's id. An interviewer gets the pointer home.
+// reader's card. `?i=` opens the issue in the pop-up, and only then is it read
+// in full; `?tab=done` is the Done tab, where `?i=` is a dismissal's id. An
+// interviewer gets the pointer home.
 
 function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
   const decidable = fix.type === "decide";
@@ -178,7 +179,6 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
             : null
         }
         flash={flash}
-        open={open !== null && open.key === one(sp.i)}
         truncated={truncated}
         draftsCapped={draftsCapped}
       />

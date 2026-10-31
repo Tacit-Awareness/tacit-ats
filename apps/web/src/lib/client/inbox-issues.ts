@@ -296,8 +296,8 @@ export function issueLine(i: Issue): string {
   return [i.who, candidate, i.why].filter(Boolean).join(" · ");
 }
 
-/** Who the page opens: the one asked for, else the first. */
-export const selectedIssue = (issues: Issue[], key: string | null | undefined): Issue | null => issues.find((i) => i.key === key) ?? issues[0] ?? null;
+/** Who the pop-up opens: the one asked for. Nobody asked, or one that has gone, is the card alone: the first in line doesn't throw up a pop-up. */
+export const selectedIssue = (issues: Issue[], key: string | null | undefined): Issue | null => issues.find((i) => i.key === key) ?? null;
 
 /** Who to open once this one is dealt with: the one below it, else the one above. */
 export function nextIssue(issues: Issue[], key: string): Issue | null {
