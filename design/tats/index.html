@@ -5210,6 +5210,139 @@ i.pill-glass.press { transform-origin: center; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) i.pill-glass { background: rgba(255, 255, 255, 0.10) !important; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06) !important; } }
 @media (prefers-reduced-motion: reduce) { i.pill-glass { transition: opacity 0.12s ease; } }
 
+/* v78 Interview process: a flowchart canvas (Onboarding, and over Interviews), and the routing graph drawn from it */
+.fc { position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--line); user-select: none; }
+.fc-vp { position: absolute; inset: 0; cursor: grab; background-image: radial-gradient(circle, var(--line-strong) 1px, transparent 1.2px); touch-action: none; }
+.fc-vp:active { cursor: grabbing; }
+.fc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.fc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.fc-e .hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.fc-e .ln { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.fc-e .ar { fill: var(--muted); }
+.fc-e text { font-size: 12px; fill: var(--muted); text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.fc-e:hover .ln { stroke: var(--ink); }
+.fc-e.sel .ln { stroke: var(--accent); stroke-width: 2; }
+.fc-e.sel .ar { fill: var(--accent); }
+.fc-e.sel text { fill: var(--accent); }
+.fc-tmp { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.fc-n { position: absolute; display: flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid var(--line-strong); box-shadow: var(--elev); cursor: default; transition: box-shadow 0.15s, border-color 0.15s; }
+.fc-n:hover { box-shadow: var(--elev-hi); }
+.fc-n.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), var(--elev-hi); }
+.fc-n .ico { width: 15px; height: 15px; color: var(--muted); flex: none; }
+.fc-n b { font-weight: 600; font-size: 14px; min-width: 0; }
+.fc-n.stage { flex-direction: column; align-items: stretch; justify-content: center; gap: 8px; padding: 0 14px; }
+.fc-nh { display: flex; align-items: baseline; gap: 8px; }
+.fc-nh b { flex: 1; }
+.fc-nh span { color: var(--faint); font-size: 12px; }
+.fc-nf { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; }
+.fc-nf .trunc { flex: 1; min-width: 0; }
+.fc-dot { width: 6px; height: 6px; border-radius: 50% !important; flex: none; display: inline-block; }
+.fc-avs { display: inline-flex; }
+.fc-avs .av { width: 18px; height: 18px; font-size: 7.5px; margin-left: -4px; box-shadow: 0 0 0 1.5px var(--paper); }
+.fc-n.start, .fc-n.end { padding: 0 14px; border-radius: 999px !important; justify-content: center; }
+.fc-n.end { background: var(--ink); border-color: var(--ink); }
+.fc-n.end b, .fc-n.end .ico { color: var(--paper); }
+.fc-n.route { padding: 0 14px; border-style: dashed; justify-content: center; background: var(--surface); }
+.fc-n.note { align-items: flex-start; padding: 12px 14px; background: #fff7d6; border-color: #eedc9a; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.fc-n.note p { margin: 0; font-size: 13px; line-height: 1.45; color: #5b4a12; }
+:root[data-theme="dark"] .fc-n.note { background: #3a3422; border-color: #5a4f2c; }
+:root[data-theme="dark"] .fc-n.note p { color: #e8dcb0; }
+.fc-port { position: absolute; right: -6px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50% !important; background: var(--paper); border: 1.5px solid var(--muted); cursor: crosshair; opacity: 0; transition: opacity 0.12s, transform 0.12s var(--spring); }
+.fc-n:hover .fc-port, .fc-n.sel .fc-port { opacity: 1; }
+.fc-port:hover { transform: scale(1.3); border-color: var(--accent); background: var(--accent); }
+.fc-tools { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev-hi); white-space: nowrap; }
+.fc-tb { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px !important; color: var(--ink); font-size: 13px; font-weight: 500; transition: background 0.15s; }
+.fc-tb.ic { width: 32px; padding: 0; justify-content: center; }
+.fc-tb:hover:not([disabled]) { background: var(--hover); }
+.fc-tb[disabled] { opacity: 0.35; }
+.fc-tb .ico { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.fc-tb .bot .av { width: 18px; height: 18px; }
+.fc-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+.fc-z { min-width: 40px; text-align: center; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.fc-insp { position: absolute; right: 12px; top: 12px; width: 272px; max-height: calc(100% - 92px); overflow: auto; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--elev-hi); user-select: text; }
+.fc-ih { font-size: 14px; font-weight: 600; }
+.fc-sub, .fc-sum, .fc-hint { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 0; }
+.fc-hint { font-size: 12.5px; }
+.fc-tips { margin: 0; padding: 0 0 0 16px; display: grid; gap: 6px; color: var(--muted); font-size: 12.5px; }
+.fc-f { display: grid; gap: 6px; }
+.fc-f > span:first-child { color: var(--muted); font-size: 12px; font-weight: 500; }
+.fc-f input, .fc-f textarea { width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
+.fc-f textarea { height: auto; padding: 8px 10px; resize: vertical; }
+.fc-f input:focus, .fc-f textarea:focus { outline: none; border-color: var(--accent); }
+.fc-pills { flex-wrap: wrap; justify-self: start; }
+.fc-pills > button { height: 26px !important; padding: 0 10px !important; font-size: 12.5px !important; }
+.fc-people { display: flex; flex-wrap: wrap; gap: 4px; }
+.fc-pp { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px 0 4px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--paper); font-size: 12px; color: var(--muted); }
+.fc-pp .av { width: 18px; height: 18px; font-size: 7.5px; }
+.fc-pp.on { border-color: var(--ink); color: var(--ink); background: var(--hover); }
+.fc-out { display: grid; grid-template-columns: 14px minmax(0, 1fr) 84px; align-items: center; gap: 6px; font-size: 13px; }
+.fc-out .ico { width: 12px; height: 12px; color: var(--faint); }
+.fc-out input { height: 28px; font-size: 12.5px; }
+.fc-del { justify-self: start; color: var(--muted); }
+.fc-chat { position: absolute; left: 12px; top: 12px; bottom: 76px; width: 300px; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--elev-hi); user-select: text; }
+.fc-chh { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.fc-chh .fc-cht { flex: 1; display: grid; gap: 2px; }
+.fc-chh b { font-size: 14px; font-weight: 600; }
+.fc-cht span { color: var(--muted); font-size: 12px; }
+.fc-chh .bot .av { width: 24px; height: 24px; }
+.fc-msgs { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+.fc-m { max-width: 92%; padding: 8px 12px; font-size: 13px; line-height: 1.5; }
+.fc-m.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); }
+.fc-m.me { align-self: flex-end; background: var(--ink); color: var(--paper); }
+.fc-sugs { display: grid; gap: 4px; padding: 0 12px 8px; }
+.fc-sug { text-align: left; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px !important; background: var(--paper); color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+.fc-sug:hover { color: var(--ink); background: var(--hover); }
+.fc-in { display: flex; gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
+.fc-in input { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
+.fc-in input:focus { outline: none; border-color: var(--accent); }
+.fc-in .btn { width: 34px; height: 34px; padding: 0; justify-content: center; }
+.fl-sheet .fc { flex: 1; border: 0; }
+.su-wide .su { grid-template-columns: minmax(0, 1fr) !important; max-width: none !important; }
+.su-wide .su-side { display: none; }
+.su-flow .fc { height: max(520px, calc(100vh - 380px)); margin-top: var(--s4); }
+/* Interviews: the routing graph from the process */
+.ft-wrap .pth-c { display: flex; align-items: center; gap: var(--s3); }
+.ft { position: relative; overflow-x: auto; padding: var(--s4) var(--s1) var(--s2); cursor: pointer; }
+.ft:hover .ft-n:not(.off) { border-color: var(--line-strong); }
+.ft-in { position: relative; margin: 0 auto; }
+.ft-e { position: absolute; left: 0; top: 0; overflow: visible; }
+.ft-e path { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.ft-e .ar { fill: var(--line-strong); stroke: none; }
+.ft-e .done path { stroke: var(--ink); } .ft-e .done .ar { fill: var(--ink); }
+.ft-e .up path { stroke: var(--accent); stroke-width: 2; } .ft-e .up .ar { fill: var(--accent); }
+.ft-e .off path { stroke: var(--line); stroke-dasharray: 3 4; } .ft-e .off .ar { fill: var(--line); }
+.ft-n { position: absolute; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 12px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--elev); font-size: 13px; }
+.ft-n b { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+.ft-n b .ico { width: 13px; height: 13px; color: var(--muted); }
+.ft-s { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; min-width: 0; }
+.ft-s .av { width: 18px; height: 18px; font-size: 7.5px; flex: none; }
+.ft-s .pt-v { margin-left: auto; }
+.ft-n.route, .ft-n.end { flex-direction: row; align-items: center; justify-content: center; border-radius: 999px !important; color: var(--muted); }
+.ft-n.route { border-style: dashed; background: var(--surface); font-size: 12.5px; }
+.ft-n.route .ico, .ft-n.end .ico { width: 13px; height: 13px; }
+.ft-n.end b { font-size: 13px; }
+.ft-n.done { border-color: var(--line-strong); }
+.ft-n.view { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.ft-n.up { border-color: var(--accent); border-top-width: 3px; }
+.ft-n.todo { opacity: 0.7; }
+.ft-n.off { opacity: 0.4; box-shadow: none; background: var(--surface); }
+.ft-n.end.done { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.ft-n.end.done .ico { color: var(--paper); }
+.ft-flag { position: absolute; top: -10px; left: 10px; padding: 1px 8px; background: var(--accent); color: #fff; font-style: normal; font-size: 11px; font-weight: 500; border-radius: 999px !important; }
+.ft-n.view .ft-flag { background: var(--paper); color: var(--accent); border: 1px solid var(--accent); }
+.ft-n.end .ft-flag { left: 50%; transform: translateX(-50%); white-space: nowrap; }
+.pth.ft-wrap { flex-direction: column; gap: var(--s2); padding: var(--s4) var(--s6) var(--s3); overflow: visible; }
+.ft-wrap .pth-c { flex: none; display: flex; gap: var(--s3); padding: 0; background: none; box-shadow: none; }
+.ft-wrap .pth-c p { margin: 0; font-size: 13.5px; color: var(--ink); }
+.ft-wrap .pth-c .pt-tag { margin: 0; }
+.ft-n.pre { flex-direction: row; align-items: center; justify-content: center; gap: 6px; border-radius: 999px !important; border-color: var(--line-strong); }
+.ft-n.pre .ico { width: 13px; height: 13px; color: var(--ink); }
+.ft-n.pre b { font-size: 13px; }
+.ft-in { margin: 0; }
+.fc-m b { display: inline; font-weight: 600; }
+.fc-pill { position: absolute; right: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev); color: var(--muted); font-size: 12.5px; cursor: help; }
+.fc-q { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50% !important; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; }
+
 </style>
 
 <div class="app" id="app">
@@ -6362,9 +6495,9 @@ function setPal(v) { document.documentElement.classList.toggle("pal-prev", v ===
 try { const qp = new URLSearchParams(location.search).get("pal"); setPal(qp || localStorage.getItem("tats.pal") || "cur"); } catch {}
 /* ---------------- Team setup: add people and their Grokbots, put them on teams, say what they interview for ---------------- */
 // One portal for first-run onboarding and for every change after. The Grokbots route interviews from it.
-const SETUP_STEPS = [["people", "People"], ["teams", "Teams"], ["skills", "Interview skills"], ["review", "Review"]];
+const SETUP_STEPS = [["people", "People"], ["teams", "Teams"], ["skills", "Interview skills"], ["process", "Interview process"], ["review", "Review"]];
 const staff = () => Object.keys(PEOPLE).filter((id) => PEOPLE[id].team);
-const setupDone = () => ({ people: staff().length > 0 && staff().every((id) => PEOPLE[id].bot === "on" || PEOPLE[id].bot === "invited"), teams: staff().every((id) => teamsOf(id).length), skills: staff().every((id) => Object.keys(PEOPLE[id].runs || {}).length), review: !!state.setupSaved });
+const setupDone = () => ({ people: staff().length > 0 && staff().every((id) => PEOPLE[id].bot === "on" || PEOPLE[id].bot === "invited"), teams: staff().every((id) => teamsOf(id).length), skills: staff().every((id) => Object.keys(PEOPLE[id].runs || {}).length), process: state.flow.nodes.some((n) => n.type === "interview") && state.flowSeen, review: !!state.setupSaved });
 const ivCoverage = () => IV_TYPES.map((t) => ({ t, who: staff().filter((id) => t in (PEOPLE[id].runs || {})), lead: staff().filter((id) => (PEOPLE[id].runs || {})[t] === 1) }));
 function setupPage(step) {
   step = SETUP_STEPS.some((x) => x[0] === step) ? step : "people";
@@ -6389,11 +6522,12 @@ function setupPage(step) {
     <div class="su-list">${ids.map((id) => { const p = PEOPLE[id], runs = p.runs || {}; return `<div class="su-sk" data-tid="sus-${id}"><div class="su-sk-h">${personAv(id)}<span class="su-who"><b>${esc(p.name)}</b><span>${teamsOf(id).map((k) => TEAMS[k].name).join(" · ")}</span></span></div>
         <div class="su-sk-b"><div class="su-sk-l">Skills</div><div class="su-tags">${(p.focus || []).map((t) => tagChip(id, t)).join("")}<button class="su-tag add" data-act="suTagAdd" data-id="${id}">${ico("plus")}Skill</button></div>
           <div class="su-sk-l">Interviews</div><div class="su-tags">${IV_TYPES.map((t) => { const st = t in runs ? (runs[t] ? "prio" : "on") : ""; return `<button class="su-iv ${st}" data-act="suRun" data-id="${id}" data-v="${esc(t)}" title="${st === "prio" ? "Prioritized: they get this interview first" : st ? "Runs this. Click again to prioritize" : "Click if they run this"}">${st === "prio" ? "★ " : ""}${esc(t)}</button>`; }).join("")}</div></div></div>`; }).join("")}</div></div>`;
+  if (step === "process") { state.flowSeen = true; body = `<div class="su-card su-flow"><div class="su-ch"><div><h3>Design your interview process</h3><p>Draw the steps from applying to an offer, or describe them to your Grokbot and it draws them. The Grokbots use this to know who interviews next.</p></div></div>${flowCanvas()}</div>`; }
   if (step === "review") { const cov = ivCoverage(), gaps = cov.filter((c) => !c.who.length); body = `<div class="su-card"><div class="su-ch"><div><h3>Ready for tATS</h3><p>Here's who the Grokbots will ask for each kind of interview.</p></div></div>
     <div class="su-sum"><div><b>${ids.length}</b><span>interviewers</span></div><div><b>${ids.filter((id) => PEOPLE[id].bot === "on").length}</b><span>Grokbots on</span></div><div><b>${Object.keys(TEAMS).length}</b><span>teams</span></div><div><b>${ids.filter((id) => teamsOf(id).length > 1).length}</b><span>multidisciplinary</span></div></div>
     <div class="su-cov">${cov.map((c) => `<div class="su-cov-r ${c.who.length ? "" : "gap"}"><span class="su-cov-t">${esc(c.t)}</span><span class="su-cov-p">${c.who.length ? c.who.sort((x, y) => (PEOPLE[y].runs[c.t] || 0) - (PEOPLE[x].runs[c.t] || 0)).map((id) => `<span class="su-cov-a ${PEOPLE[id].runs[c.t] ? "prio" : ""}" title="${esc(PEOPLE[id].name)}${PEOPLE[id].runs[c.t] ? ", prioritized" : ""}">${personAv(id)}${PEOPLE[id].runs[c.t] ? "<i>★</i>" : ""}</span>`).join("") : `<span class="su-gap">No one runs this yet</span>`}</span></div>`).join("")}</div>
     ${gaps.length ? `<p class="su-note">${ico("alert")}${gaps.length} interview type${gaps.length === 1 ? " has" : "s have"} no interviewer. Candidates who need ${gaps.length === 1 ? "it" : "them"} wait in Inbox until someone's added.</p>` : ""}</div>`; }
-  return `<div class="scroll su-page" id="scroller"><div class="su">
+  return `<div class="scroll su-page ${step === "process" ? "su-wide" : ""}" id="scroller"><div class="su">
     <div class="su-main">
       <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
       <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
@@ -6406,11 +6540,423 @@ function setupPage(step) {
     </div>
     <aside class="su-side">
       <section class="su-check"><div class="su-check-h"><b>Setup checklist</b><span>${ndone}/${SETUP_STEPS.length}</span></div><i class="su-prog"><i style="width:${(ndone / SETUP_STEPS.length) * 100}%"></i></i>
-        ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
+        ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "process" ? `${fcSummary().steps} steps, ${fcSummary().ivs} interviews` : k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
       <button class="su-help" data-act="goChat">${ico("help")}<span><b>Need a hand?</b><span>Ask your Grokbot, or book a 15-minute setup call</span></span></button>
     </aside>
   </div></div>`;
 }
+/* ---------------- Interview process: a flowchart you draw, or your Grokbot draws for you ---------------- */
+// The process the Grokbots route by. Steps (stage), a split by team (route), Applied (start), the Offer (end), and sticky notes.
+// Drag to move, drag from a step's dot to connect, double-click to add, Delete removes, ⌘Z undoes. Saved in this browser.
+const FLOW_KEY = "tats.flow.v2";
+const FN = { stage: [176, 76], route: [144, 48], start: [124, 44], end: [124, 44], note: [176, 92] };
+function flowDefault() {
+  const n = (id, kind, x, y, label, o = {}) => ({ id, kind, x, y, label, ...o });
+  const cy = (k) => 150 - FN[k][1] / 2;
+  return {
+    nodes: [
+      n("applied", "start", 0, cy("start"), "Applied"),
+      n("review", "stage", 164, cy("stage"), "Application review", { type: "review", team: "you" }),
+      n("tb", "stage", 380, cy("stage"), "Testbench", { type: "testbench", mins: 180 }),
+      n("route", "route", 596, cy("route"), "Split by team"),
+      n("t-infra", "stage", 800, cy("stage") - 112, "Team interview", { type: "interview", team: "infra", mins: 60 }),
+      n("t-research", "stage", 800, cy("stage"), "Team interview", { type: "interview", team: "research", mins: 60 }),
+      n("t-product", "stage", 800, cy("stage") + 112, "Team interview", { type: "interview", team: "product", mins: 60 }),
+      n("cross", "stage", 1016, cy("stage"), "Cross-team interview", { type: "interview", team: "partner", mins: 60 }),
+      n("final", "stage", 1232, cy("stage"), "Final with the CTO", { type: "interview", who: ["daniel"], mins: 45 }),
+      n("offer", "end", 1448, cy("end"), "Offer"),
+      n("note1", "note", 380, 250, "Skip the Testbench for referrals from the team?"),
+    ],
+    edges: [["applied", "review"], ["review", "tb"], ["tb", "route"], ["route", "t-infra", "Infra"], ["route", "t-research", "Research"], ["route", "t-product", "Product"],
+      ["t-infra", "cross"], ["t-research", "cross"], ["t-product", "cross"], ["cross", "final"], ["final", "offer"]]
+      .map(([from, to, label = ""], i) => ({ id: `e${i}`, from, to, label })),
+  };
+}
+try { state.flow = JSON.parse(localStorage.getItem(FLOW_KEY) || "null"); } catch {}
+if (!state.flow || !Array.isArray(state.flow.nodes) || !Array.isArray(state.flow.edges)) state.flow = flowDefault();
+state.fcView ||= { x: 40, y: 80, z: 1 };
+state.fcMsgs ||= [{ by: "bot", html: "Tell me how you interview, in order, and I'll draw it. Something like “Recruiter screen, Testbench, team interview by team, final with the CTO”." }];
+const fN = (id) => state.flow.nodes.find((n) => n.id === id);
+const fSize = (n) => FN[n.kind] || FN.stage;
+const fcUid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+const fcHist = [], fcFut = [];
+function fcSave() { try { localStorage.setItem(FLOW_KEY, JSON.stringify(state.flow)); } catch {} state.fcDirty = true; }
+function fcCommit(fn) { fcHist.push(JSON.stringify(state.flow)); if (fcHist.length > 80) fcHist.shift(); fcFut.length = 0; fn(); fcSave(); fcPaint(); }
+function fcUndo() { if (!fcHist.length) return; fcFut.push(JSON.stringify(state.flow)); state.flow = JSON.parse(fcHist.pop()); state.fcSel = null; fcSave(); fcPaint(); }
+function fcRedo() { if (!fcFut.length) return; fcHist.push(JSON.stringify(state.flow)); state.flow = JSON.parse(fcFut.pop()); state.fcSel = null; fcSave(); fcPaint(); }
+const fcSelObj = () => { const s = state.fcSel; return !s ? null : s.t === "e" ? state.flow.edges.find((e) => e.id === s.id) : fN(s.id); };
+const fmtMins = (m) => (!m ? "" : m >= 60 ? `${m % 60 ? (m / 60).toFixed(1) : m / 60}h` : `${m}m`);
+// Who runs a step, said the way a person would.
+function stageWho(n, own) {
+  if (n.type === "testbench") return { tag: "The candidate", avs: "" };
+  if (n.team === "you") return { tag: "You", avs: personAv(ME) };
+  if (n.who && n.who.length) return { tag: n.who.map((id) => first(id)).join(", "), avs: n.who.slice(0, 3).map((id) => personAv(id)).join("") };
+  const tk = n.team === "own" ? own : n.team === "partner" && own ? PARTNER[own] : n.team;
+  if (TEAMS[tk]) return { tag: TEAMS[tk].name, dot: TEAMS[tk].color, avs: TEAMS[tk].members.slice(0, 3).map((id) => personAv(id)).join("") };
+  return { tag: n.team === "partner" ? "Another team" : n.team === "own" ? "Their team" : "Anyone", avs: "" };
+}
+const fcPort = `<i class="fc-port" title="Drag to connect"></i>`;
+function fcNode(n, st = {}) {
+  const [w, h] = fSize(n), sel = state.fcSel && state.fcSel.id === n.id;
+  const at = `class="fc-n ${n.kind} ${sel ? "sel" : ""} ${st.k || ""}" data-fn="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${w}px;height:${h}px"`;
+  if (n.kind === "note") return `<div ${at}><p>${esc(n.label)}</p></div>`;
+  if (n.kind === "start" || n.kind === "end") return `<div ${at}>${ico(n.kind === "start" ? "inbox" : "flag")}<b class="trunc">${esc(n.label)}</b>${n.kind === "start" ? fcPort : ""}</div>`;
+  if (n.kind === "route") return `<div ${at}>${ico("route")}<b class="trunc">${esc(n.label)}</b>${fcPort}</div>`;
+  const w2 = stageWho(n);
+  return `<div ${at}><div class="fc-nh"><b class="trunc">${esc(n.label)}</b>${n.mins ? `<span>${fmtMins(n.mins)}</span>` : ""}</div>
+    <div class="fc-nf">${w2.dot ? `<i class="fc-dot" style="background:${w2.dot}"></i>` : ""}<span class="trunc">${esc(w2.tag)}</span><span class="fc-avs">${w2.avs}</span></div>${fcPort}</div>`;
+}
+function fcCurve(sx, sy, tx, ty) { const dx = Math.max(36, Math.abs(tx - sx) / 2); return `M${sx} ${sy}C${sx + dx} ${sy} ${tx - dx} ${ty} ${tx} ${ty}`; }
+const fcArrow = (tx, ty) => `<path class="ar" d="M${tx - 7} ${ty - 4}L${tx} ${ty}L${tx - 7} ${ty + 4}Z"/>`;
+function fcEdges() {
+  return `<svg class="fc-edges" width="1" height="1" aria-hidden="true">${state.flow.edges.map((e) => {
+    const a = fN(e.from), b = fN(e.to);
+    if (!a || !b) return "";
+    const [aw, ah] = fSize(a), [, bh] = fSize(b), sx = a.x + aw, sy = a.y + ah / 2, tx = b.x, ty = b.y + bh / 2, d = fcCurve(sx, sy, tx, ty);
+    const sel = state.fcSel && state.fcSel.id === e.id;
+    return `<g class="fc-e ${sel ? "sel" : ""}" data-fe="${e.id}"><path class="hit" d="${d}"/><path class="ln" d="${d}"/>${fcArrow(tx, ty)}${e.label ? `<text x="${(sx + tx) / 2}" y="${(sy + ty) / 2 - 6}">${esc(e.label)}</text>` : ""}</g>`;
+  }).join("")}${state.fcLink ? (() => { const a = fN(state.fcLink.from), [aw, ah] = fSize(a); return `<path class="fc-tmp" d="${fcCurve(a.x + aw, a.y + ah / 2, state.fcLink.x, state.fcLink.y)}"/>`; })() : ""}</svg>`;
+}
+const fcWorldHtml = () => `${fcEdges()}${state.flow.nodes.map((n) => fcNode(n)).join("")}`;
+const fcVp = (v) => `background-position:${v.x}px ${v.y}px;background-size:${20 * v.z}px ${20 * v.z}px`;
+const fcTr = (v) => `transform:translate(${v.x}px,${v.y}px) scale(${v.z})`;
+function fcSummary() {
+  const st = state.flow.nodes.filter((n) => n.kind === "stage"), iv = st.filter((n) => n.type === "interview");
+  return { steps: st.length, ivs: iv.length, mins: iv.reduce((m, n) => m + (n.mins || 60), 0) };
+}
+function fcInspector() {
+  const s = state.fcSel, o = fcSelObj();
+  const pills = (k, opts, cur) => `<div class="pills fc-pills">${opts.map(([v, l]) => `<button class="${String(cur) === String(v) ? "on" : ""}" data-act="fcSet" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div>`;
+  if (!o) {
+    const sm = fcSummary();
+    return `<div class="fc-pill" title="Double-click the canvas to add a step. Drag from the dot on a step to connect it. Click a step to say who runs it. Delete removes, ⌘Z undoes. Scroll to pan, ⌘ + scroll to zoom.">${sm.steps} steps · ${sm.ivs} interview${sm.ivs === 1 ? "" : "s"} · about ${fmtMins(sm.mins)} per candidate<span class="fc-q">?</span></div>`;
+  }
+  if (s.t === "e") return `<aside class="fc-insp"><b class="fc-ih">Connection</b><span class="fc-sub">${esc(fN(o.from)?.label || "")} → ${esc(fN(o.to)?.label || "")}</span>
+    <label class="fc-f"><span>Label</span><input data-fcf="label" value="${esc(o.label)}" placeholder="Pass, Yes, Infra…" autocomplete="off"></label>
+    <button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove connection</button></aside>`;
+  if (o.kind === "note") return `<aside class="fc-insp"><b class="fc-ih">Note</b><label class="fc-f"><textarea data-fcf="label" rows="4">${esc(o.label)}</textarea></label><button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove note</button></aside>`;
+  const outs = state.flow.edges.filter((e) => e.from === o.id);
+  return `<aside class="fc-insp"><b class="fc-ih">${o.kind === "route" ? "Split" : o.kind === "start" ? "Start" : o.kind === "end" ? "End" : "Step"}</b>
+    <label class="fc-f"><span>Name</span><input data-fcf="label" value="${esc(o.label)}" autocomplete="off"></label>
+    ${o.kind === "stage" ? `<div class="fc-f"><span>Kind</span>${pills("type", [["review", "Review"], ["testbench", "Testbench"], ["interview", "Interview"]], o.type || "interview")}</div>
+    ${o.type === "testbench" ? "" : `<div class="fc-f"><span>Who runs it</span>${pills("team", [["you", "You"], ["own", "Their team"], ["partner", "Another team"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])], o.who && o.who.length ? "" : o.team || "own")}
+      <div class="fc-people">${staff().map((id) => `<button class="fc-pp ${(o.who || []).includes(id) ? "on" : ""}" data-act="fcWho" data-id="${id}" title="${esc(PEOPLE[id].name)}">${personAv(id)}<span>${esc(first(id))}</span></button>`).join("")}</div>
+      <span class="fc-hint">${o.who && o.who.length ? "Only these people run it." : "The Grokbot picks someone from the team with room this week. Pick people to pin it to them."}</span></div>`}
+    <div class="fc-f"><span>Length</span>${pills("mins", [[30, "30m"], [45, "45m"], [60, "1h"], [90, "1.5h"], [180, "3h"]], o.mins || "")}</div>` : ""}
+    ${o.kind === "route" ? `<p class="fc-hint">Candidates go down the branch for the team that owns their role. Name each branch below.</p>` : ""}
+    ${outs.length ? `<div class="fc-f"><span>Then</span>${outs.map((e) => `<label class="fc-out">${ico("arrowR")}<span class="trunc">${esc(fN(e.to)?.label || "")}</span><input data-fcf="edge:${e.id}" value="${esc(e.label)}" placeholder="Label" autocomplete="off"></label>`).join("")}</div>` : ""}
+    ${o.kind === "start" || o.kind === "end" ? "" : `<button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove ${o.kind === "route" ? "split" : "step"}</button>`}</aside>`;
+}
+function fcChatHtml() {
+  const sugs = ["Recruiter screen, Testbench, team interview by team, cross-team, final with the CTO", "Add a references check before the offer", "Remove the cross-team interview"];
+  return `<aside class="fc-chat"><div class="fc-chh">${botAv(ME)}<span class="fc-cht"><b>Your Grokbot</b><span>Describe it and it draws it</span></span><button class="icon-btn" data-act="fcChat" aria-label="Hide" title="Hide">${ico("x")}</button></div>
+    <div class="fc-msgs">${state.fcMsgs.map((m) => `<div class="fc-m ${m.by}">${m.html}</div>`).join("")}</div>
+    <div class="fc-sugs">${sugs.map((t) => `<button class="fc-sug" data-act="fcAsk" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+    <form class="fc-in" id="fcAskForm"><input id="fcAskIn" placeholder="Describe your interview process…" autocomplete="off"><button class="btn primary sm" type="submit">${ico("arrowUp")}</button></form></aside>`;
+}
+function flowInner(chat = true) {
+  const v = state.fcView;
+  return `<div class="fc-vp" style="${fcVp(v)}"><div class="fc-world" style="${fcTr(v)}">${fcWorldHtml()}</div></div>
+    ${chat ? fcChatHtml() : ""}${fcInspector()}
+    <div class="fc-tools">
+      ${chat ? "" : `<button class="fc-tb" data-act="fcChat">${botAv(ME)}Ask Grokbot</button><i class="fc-sep"></i>`}
+      <button class="fc-tb" data-act="fcAdd" data-k="stage" title="Add a step">${ico("plus")}Step</button>
+      <button class="fc-tb" data-act="fcAdd" data-k="route" title="Add a split">${ico("route")}Split</button>
+      <button class="fc-tb" data-act="fcAdd" data-k="note" title="Add a note">${ico("compose")}Note</button><i class="fc-sep"></i>
+      <button class="fc-tb ic" data-act="fcZoom" data-v="-1" aria-label="Zoom out">${ico("minus")}</button><span class="fc-z">${Math.round(v.z * 100)}%</span><button class="fc-tb ic" data-act="fcZoom" data-v="1" aria-label="Zoom in">${ico("plus")}</button>
+      <button class="fc-tb" data-act="fcFit" title="Fit to screen">Fit</button><i class="fc-sep"></i>
+      <button class="fc-tb ic" data-act="fcUndo" aria-label="Undo (⌘Z)" title="Undo (⌘Z)" ${fcHist.length ? "" : "disabled"}><svg class="ico" viewBox="0 0 16 16"><path d="M5.5 4 2.5 7l3 3M2.5 7h7a4 4 0 0 1 0 8H8"/></svg></button>
+      <button class="fc-tb ic" data-act="fcRedo" aria-label="Redo (⇧⌘Z)" title="Redo (⇧⌘Z)" ${fcFut.length ? "" : "disabled"}><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4l3 3-3 3M13.5 7h-7a4 4 0 0 0 0 8H8"/></svg></button>
+      <button class="fc-tb" data-act="fcReset" title="Start over from the default process">Reset</button>
+    </div>`;
+}
+const flowCanvas = (chat = true) => `<div class="fc" data-mode="edit" data-chat="${chat ? 1 : 0}">${flowInner(chat)}</div>`;
+// Repaint every open editor without a full render, so typing and dragging stay smooth.
+function fcPaint() { $$('.fc[data-mode="edit"]').forEach((el) => patch(el, flowInner(el.dataset.chat !== "0"))); }
+function fcPaintWorld() {
+  const v = state.fcView;
+  $$('.fc[data-mode="edit"]').forEach((el) => { const vp = $(".fc-vp", el), w = $(".fc-world", el); vp.style.cssText = fcVp(v); w.style.cssText = fcTr(v); w.innerHTML = fcWorldHtml(); const z = $(".fc-z", el); if (z) z.textContent = `${Math.round(v.z * 100)}%`; });
+}
+function fcFit() {
+  const vp = $('#layer .fc[data-mode="edit"] .fc-vp') || $('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  const ns = state.flow.nodes, r = vp.getBoundingClientRect();
+  if (!ns.length || !r.width) return;
+  const x0 = Math.min(...ns.map((n) => n.x)), y0 = Math.min(...ns.map((n) => n.y)), x1 = Math.max(...ns.map((n) => n.x + fSize(n)[0])), y1 = Math.max(...ns.map((n) => n.y + fSize(n)[1]));
+  const chat = vp.closest(".fc").dataset.chat === "0" ? 0 : 316, room = r.width - chat - 48;
+  const z = Math.max(0.42, Math.min(1.1, room / (x1 - x0), (r.height - 140) / (y1 - y0)));
+  state.fcView = { x: chat + 24 + (room - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - 64 - (y1 - y0) * z) / 2 - y0 * z, z };
+  fcPaintWorld();
+}
+function fcAddNode(kind, at) {
+  const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp ? vp.getBoundingClientRect() : { width: 800, height: 500 };
+  const c = at || { x: (r.width / 2 - v.x) / v.z, y: (r.height / 2 - v.y) / v.z }, [w, h] = FN[kind];
+  const n = { id: fcUid("n"), kind, x: Math.round(c.x - w / 2), y: Math.round(c.y - h / 2), label: kind === "note" ? "A note for the team" : kind === "route" ? "Split by team" : "New interview" };
+  if (kind === "stage") Object.assign(n, { type: "interview", team: "own", mins: 60 });
+  fcCommit(() => { state.flow.nodes.push(n); state.fcSel = { t: "n", id: n.id }; });
+  setTimeout(() => { const i = $('.fc-insp [data-fcf="label"]'); if (i) { i.focus(); i.select(); } });
+}
+// Take a step out and join what came before it to what came after, so the process stays connected.
+function fcRemoveNode(id, join) {
+  const ins = state.flow.edges.filter((e) => e.to === id), outs = state.flow.edges.filter((e) => e.from === id);
+  state.flow.edges = state.flow.edges.filter((e) => e.from !== id && e.to !== id);
+  state.flow.nodes = state.flow.nodes.filter((n) => n.id !== id);
+  if (join) ins.forEach((i) => outs.forEach((o) => { if (!state.flow.edges.some((e) => e.from === i.from && e.to === o.to)) state.flow.edges.push({ id: fcUid("e"), from: i.from, to: o.to, label: o.label || i.label }); }));
+}
+function fcDelete() {
+  const s = state.fcSel, o = fcSelObj();
+  if (!o || o.kind === "start" || o.kind === "end") return;
+  fcCommit(() => { if (s.t === "e") state.flow.edges = state.flow.edges.filter((e) => e.id !== s.id); else fcRemoveNode(s.id, false); state.fcSel = null; });
+}
+// Pointer: drag a step, drag from its dot to connect, drag the canvas to pan. Scroll pans, ⌘/Ctrl + scroll zooms.
+let fcDrag = null;
+document.addEventListener("pointerdown", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp || e.button > 1) return;
+  const v = state.fcView, r = vp.getBoundingClientRect(), W = (ev) => ({ x: (ev.clientX - r.left - v.x) / v.z, y: (ev.clientY - r.top - v.y) / v.z });
+  const port = e.target.closest(".fc-port"), nodeEl = e.target.closest("[data-fn]"), edgeEl = e.target.closest("[data-fe]");
+  e.preventDefault();
+  if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) document.activeElement.blur();
+  if (port) { fcDrag = { k: "link", W }; state.fcLink = { from: port.closest("[data-fn]").dataset.fn, ...W(e) }; }
+  else if (nodeEl) { const n = fN(nodeEl.dataset.fn), p = W(e); state.fcSel = { t: "n", id: n.id }; fcDrag = { k: "move", n, dx: p.x - n.x, dy: p.y - n.y, W, snap: JSON.stringify(state.flow) }; fcPaint(); }
+  else if (edgeEl) { state.fcSel = { t: "e", id: edgeEl.dataset.fe }; fcPaint(); return; }
+  else fcDrag = { k: "pan", sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y };
+  fcDrag.moved = false;
+});
+document.addEventListener("pointermove", (e) => {
+  if (!fcDrag) return;
+  const d = fcDrag, v = state.fcView;
+  if (d.k === "move") { const p = d.W(e); d.n.x = Math.round((p.x - d.dx) / 4) * 4; d.n.y = Math.round((p.y - d.dy) / 4) * 4; }
+  else if (d.k === "link") Object.assign(state.fcLink, d.W(e));
+  else { v.x = d.vx + e.clientX - d.sx; v.y = d.vy + e.clientY - d.sy; }
+  d.moved = true;
+  fcPaintWorld();
+});
+document.addEventListener("pointerup", (e) => {
+  const d = fcDrag;
+  if (!d) return;
+  fcDrag = null;
+  if (d.k === "move" && d.moved) { fcHist.push(d.snap); fcFut.length = 0; fcSave(); fcPaint(); }
+  if (d.k === "link") {
+    const from = state.fcLink.from, t = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-fn]"), to = t && fN(t.dataset.fn), a = fN(from);
+    state.fcLink = null;
+    if (to && to.id !== from && !["start", "note"].includes(to.kind) && !state.flow.edges.some((x) => x.from === from && x.to === to.id))
+      fcCommit(() => { const label = a.kind === "route" && TEAMS[to.team] ? TEAMS[to.team].name : ""; const id = fcUid("e"); state.flow.edges.push({ id, from, to: to.id, label }); state.fcSel = { t: "e", id }; });
+    else fcPaint();
+  }
+  if (d.k === "pan" && !d.moved) { state.fcSel = null; fcPaint(); }
+});
+document.addEventListener("dblclick", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  const nodeEl = e.target.closest("[data-fn]");
+  if (nodeEl) { const i = $('.fc-insp [data-fcf="label"]'); if (i) { i.focus(); i.select(); } return; }
+  const v = state.fcView, r = vp.getBoundingClientRect();
+  fcAddNode("stage", { x: (e.clientX - r.left - v.x) / v.z, y: (e.clientY - r.top - v.y) / v.z });
+});
+document.addEventListener("wheel", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  e.preventDefault();
+  const v = state.fcView;
+  if (e.ctrlKey || e.metaKey) { const r = vp.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, z = Math.max(0.3, Math.min(2, v.z * Math.exp(-e.deltaY * 0.01))); v.x = px - ((px - v.x) * z) / v.z; v.y = py - ((py - v.y) * z) / v.z; v.z = z; }
+  else { v.x -= e.deltaX; v.y -= e.deltaY; }
+  fcPaintWorld();
+}, { passive: false });
+document.addEventListener("keydown", (e) => {
+  if (tour || !$('.fc[data-mode="edit"]')) return;
+  if (e.target.closest && e.target.closest("input, textarea, [contenteditable='true']")) return;
+  const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+  if (mod && k === "z") { stop(); return e.shiftKey ? fcRedo() : fcUndo(); }
+  if ((e.key === "Delete" || e.key === "Backspace") && state.fcSel) { stop(); return fcDelete(); }
+  if (e.key === "Escape" && state.fcSel) { stop(); state.fcSel = null; fcPaint(); }
+}, true);
+document.addEventListener("focusin", (e) => { if (e.target.dataset && e.target.dataset.fcf) { fcHist.push(JSON.stringify(state.flow)); fcFut.length = 0; } });
+document.addEventListener("input", (e) => {
+  const f = e.target.dataset && e.target.dataset.fcf;
+  if (!f) return;
+  if (f.startsWith("edge:")) { const ed = state.flow.edges.find((x) => x.id === f.slice(5)); if (ed) ed.label = e.target.value; }
+  else { const o = fcSelObj(); if (o) o.label = e.target.value; }
+  fcSave(); fcPaintWorld();
+});
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "fcAskForm") return;
+  e.preventDefault();
+  const i = $("#fcAskIn", e.target), t = i.value.trim();
+  if (!t) return;
+  i.value = "";
+  fcAsk(t);
+});
+// The Grokbot reads a description and draws it: steps in the order you said them, a split by team when you mention one, the offer at the end.
+// "Add X before Y", "Add X after Y" and "Remove X" change the process you already have.
+const FC_KW = [
+  [/recruiter|phone screen|intro call|screening call/, { label: "Recruiter screen", type: "review", team: "you", mins: 30 }],
+  [/application review|review (?:the )?application|resume review/, { label: "Application review", type: "review", team: "you" }],
+  [/testbench|take[- ]?home|work sample|assessment/, { label: "Testbench", type: "testbench", mins: 180 }],
+  [/by team|split|route|team interview|technical interview/, { route: true }],
+  [/pair(?:ing)?|coding interview/, { label: "Pairing interview", type: "interview", team: "own", mins: 60 }],
+  [/system design/, { label: "System design", type: "interview", team: "own", mins: 60 }],
+  [/cross[- ]team|another team/, { label: "Cross-team interview", type: "interview", team: "partner", mins: 60 }],
+  [/onsite|on-site/, { label: "Onsite", type: "interview", team: "own", mins: 180 }],
+  [/values|culture/, { label: "Values interview", type: "interview", team: "partner", mins: 45 }],
+  [/cto|founder|final/, { label: "Final with the CTO", type: "interview", who: ["daniel"], mins: 45 }],
+  [/reference/, { label: "References", type: "review", team: "you" }],
+];
+const capFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function flowFromText(raw) {
+  const t = raw.toLowerCase().trim().replace(/[.!]+$/, "");
+  const find = (q) => { q = q.replace(/^(the|a|an)\s+/, "").replace(/\s+(step|round)$/, ""); return state.flow.nodes.find((n) => n.kind !== "note" && n.label.toLowerCase().includes(q)) || state.flow.nodes.find((n) => n.kind !== "note" && q.split(" ").some((w) => w.length > 3 && n.label.toLowerCase().includes(w))); };
+  let m = t.match(/^(?:remove|drop|delete|skip|cut|take out)\s+(.+)$/);
+  if (m) { const n = find(m[1]); if (!n || n.kind === "start" || n.kind === "end") return { say: `I couldn't find “${esc(m[1])}” in the process.` }; return { edit: () => fcRemoveNode(n.id, true), say: `Took out <b>${esc(n.label)}</b> and joined up the steps around it.` }; }
+  m = t.match(/^add\s+(?:a |an )?(.+?)(?:\s+(before|after)\s+(.+))?$/);
+  if (m) {
+    const spec = (FC_KW.find(([re]) => re.test(m[1])) || [])[1], label = spec && spec.label ? spec.label : capFirst(m[1].replace(/\s+(step|round)$/, "").replace(/ check$/, " check"));
+    const anchor = m[3] ? find(m[3]) : state.flow.nodes.find((n) => n.kind === "end");
+    if (!anchor) return { say: `I couldn't find “${esc(m[3])}” to put it next to.` };
+    const before = m[2] !== "after";
+    return { say: `Added <b>${esc(label)}</b> ${before ? "before" : "after"} ${esc(anchor.label)}.`, edit: () => {
+      const n = { id: fcUid("n"), kind: "stage", type: "interview", team: "own", mins: 60, ...(spec && !spec.route ? spec : {}), label };
+      const [aw, ah] = fSize(anchor), shift = FN.stage[0] + 40, ax = before ? anchor.x : anchor.x + aw;
+      state.flow.nodes.forEach((x) => { if (x.kind !== "note" && x.x >= ax) x.x += shift; });
+      n.x = before ? ax : ax + 40; n.y = anchor.y + ah / 2 - FN.stage[1] / 2;
+      state.flow.nodes.push(n);
+      const es = state.flow.edges.filter((e) => (before ? e.to === anchor.id : e.from === anchor.id));
+      es.forEach((e) => { if (before) e.to = n.id; else e.from = n.id; });
+      state.flow.edges.push(before ? { id: fcUid("e"), from: n.id, to: anchor.id, label: "" } : { id: fcUid("e"), from: anchor.id, to: n.id, label: "" });
+    } };
+  }
+  // A whole process, in the order things are mentioned.
+  const hits = FC_KW.map(([re, spec]) => { const x = t.search(re); return x < 0 ? null : { x, spec }; }).filter(Boolean).sort((p, q) => p.x - q.x).map((h) => h.spec);
+  if (!hits.length) return { say: "Tell me the steps in order, like “recruiter screen, Testbench, team interview by team, final with the CTO”." };
+  const two = /(two|2)\s+(team|technical)\s+interviews/.test(t);
+  const nodes = [], edges = [], cy = 150, colW = 216, at = (k) => cy - FN[k][1] / 2;
+  const E = (from, to, label = "") => edges.push({ id: fcUid("e"), from, to, label });
+  let x = 0, prev = ["applied"];
+  nodes.push({ id: "applied", kind: "start", x, y: at("start"), label: "Applied" });
+  x += 164;
+  const link = (id, label) => { prev.forEach((p) => E(p, id, p === "applied" ? "" : label)); prev = [id]; };
+  hits.forEach((s) => {
+    if (s.route) {
+      const rid = fcUid("r");
+      nodes.push({ id: rid, kind: "route", x, y: at("route"), label: "Split by team" }); link(rid, ""); x += 204;
+      const ks = Object.keys(TEAMS), outs = [];
+      ks.forEach((k, i) => {
+        let last = null;
+        for (let r = 0; r < (two ? 2 : 1); r++) {
+          const id = fcUid("t"), y = at("stage") + (i - (ks.length - 1) / 2) * 112;
+          nodes.push({ id, kind: "stage", x: x + r * colW, y, label: two ? `Team interview ${r + 1}` : "Team interview", type: "interview", team: k, mins: 60 });
+          if (last) E(last, id); else E(rid, id, TEAMS[k].name);
+          last = id;
+        }
+        outs.push(last);
+      });
+      prev = outs; x += colW * (two ? 2 : 1);
+      return;
+    }
+    const id = fcUid("n");
+    nodes.push({ id, kind: "stage", x, y: at("stage"), ...s });
+    link(id, ""); x += colW;
+  });
+  nodes.push({ id: "offer", kind: "end", x, y: at("end"), label: "Offer" });
+  prev.forEach((p) => E(p, "offer"));
+  const names = hits.map((s) => (s.route ? "a team interview, split by team" : s.label));
+  return { flow: { nodes, edges }, say: `Drew it: ${names.map((n) => `<b>${esc(n)}</b>`).join(" → ")} → <b>Offer</b>. Drag anything to change it, or tell me what to change.` };
+}
+function fcAsk(text) {
+  state.fcMsgs.push({ by: "me", html: esc(text) });
+  const r = flowFromText(text);
+  if (r.flow) fcCommit(() => { state.flow = r.flow; state.fcSel = null; });
+  else if (r.edit) fcCommit(() => { r.edit(); state.fcSel = null; });
+  state.fcMsgs.push({ by: "bot", html: r.say });
+  fcPaint();
+  if (r.flow || r.edit) { fcFit(); motion((g) => g.fromTo('.fc[data-mode="edit"] .fc-n', { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.18, stagger: 0.03, ease: SPRING, clearProps: "opacity,transform" })); }
+  const ms = $(".fc-msgs"); if (ms) ms.scrollTop = ms.scrollHeight;
+}
+// The editor over the page, from the Interviews graph.
+function openFlow() {
+  closeLayer();
+  state.fcSel = null;
+  const el = document.createElement("div");
+  el.className = "overlay fs";
+  el.innerHTML = `<div class="fs-sheet fl-sheet" role="dialog" aria-label="Interview process">
+    <header class="fs-h"><div class="fs-t"><b>Interview process</b><span>How candidates move from applying to an offer. The Grokbots route by this.</span></div><span class="grow"></span>
+      <a class="btn sm ghost" href="#setup~process" data-close>Open in Onboarding</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
+    ${flowCanvas(false)}</div>`;
+  $("#layer").appendChild(el);
+  modal = { send: () => {} };
+  el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeLayer(); });
+  setTimeout(fcFit);
+}
+// The candidate's way through the process: at a split, the branch for their team.
+function flowPath(a) {
+  const own = a.team || ROLES[a.role].team, out = [], seen = new Set();
+  let cur = state.flow.nodes.find((n) => n.kind === "start");
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id); out.push(cur);
+    if (cur.kind === "end") break;
+    const outs = state.flow.edges.filter((e) => e.from === cur.id).map((e) => fN(e.to)).filter((n) => n && n.kind !== "note");
+    cur = outs.find((n) => n.team === own) || outs.find((n) => !TEAMS[n.team]) || outs[0];
+  }
+  return out;
+}
+// The loop on Interviews, drawn from the process: where they've been, the branch for their team (the others faded),
+// who's up next and what's left before the offer. Click it to edit the process.
+// Scale the routing graph to the reader's width (never up, never below 75%; past that it scrolls).
+function ftFit() { $$(".ft").forEach((ft) => { const inn = $(".ft-in", ft), w = +inn.style.width.replace("px", ""), h = +inn.style.height.replace("px", ""), z = Math.max(0.75, Math.min(1, (ft.clientWidth - 8) / w)); inn.style.transform = `scale(${z})`; inn.style.transformOrigin = "0 0"; inn.style.marginBottom = `${h * z - h}px`; inn.style.marginRight = `${w * z - w}px`; }); }
+function processTree(x) {
+  const a = x.a, rs = loopOf(a), own = a.team || ROLES[a.role].team, met = rs.filter((r) => r.st === "done" && r.iv);
+  const view = rs.find((r) => r.key === x.key), rounds = rs.filter((r) => r.team !== "offer"), offer = rs.at(-1);
+  const names = [...new Set(met.map((r) => first(r.iv)))];
+  const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
+  const path = flowPath(a), ivs = path.filter((n) => n.kind === "stage" && n.type === "interview");
+  const p0 = Math.max(1, path.findIndex((n) => n.kind === "route" || n === ivs[0]));
+  const st = {};
+  let up = false;
+  ivs.forEach((n, i) => { const r = rounds[i]; st[n.id] = r && r.st === "done" ? { k: r === view ? "view" : "done", r } : !up && isOpen(a) ? ((up = true), { k: "up", r }) : { k: "todo", r }; });
+  path.forEach((n) => { if (!st[n.id]) st[n.id] = n.kind === "end" ? { k: offer.st === "done" ? "done" : offer.st === "closed" ? "closed" : !up && isOpen(a) ? "up" : "todo" } : { k: "done" }; });
+  const left = ivs.filter((n) => ["up", "todo"].includes(st[n.id].k)).length;
+  const tag = a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : left ? `${left} round${left === 1 ? "" : "s"} left before the offer` : "Next: the offer";
+  const teamOf = (n) => (n.team === "own" ? own : n.team === "partner" ? PARTNER[own] : n.team);
+  const whoNext = (n, r) => (r && r.iv) || (n.who && n.who[0]) || (TEAMS[teamOf(n)] ? pickInterviewer(teamOf(n), a.role).best : null);
+  // Columns: what came before the interviews as one step, then the rest of the path; at a split, every branch stacked.
+  const pre = path.slice(1, p0), cols = [[{ id: "pre", kind: "pre", label: "Applied", sub: pre.map((n) => (n.type === "testbench" && a.tb && a.tb.state === "done" ? `Testbench ${tbScore(a)}` : n.label)).join(" · ") }]];
+  path.slice(p0).forEach((n, i, arr) => {
+    const prevN = arr[i - 1];
+    if (prevN && prevN.kind === "route") cols.push(state.flow.edges.filter((e) => e.from === prevN.id).map((e) => fN(e.to)).filter((t) => t && t.kind !== "note").sort((p, q) => p.y - q.y));
+    else cols.push([n]);
+  });
+  const onPath = new Set(path.map((n) => n.id).concat("pre"));
+  const SZ = { pre: [100, 34], stage: [160, 60], route: [96, 32], end: [84, 34], start: [84, 34] }, GAP = 30, VG = 10;
+  const H = Math.max(...cols.map((c) => c.reduce((h, n) => h + SZ[n.kind][1], 0) + (c.length - 1) * VG)), pos = {};
+  let cx = 0;
+  cols.forEach((c) => {
+    const w = Math.max(...c.map((n) => SZ[n.kind][0])), tot = c.reduce((h, n) => h + SZ[n.kind][1], 0) + (c.length - 1) * VG;
+    let y = (H - tot) / 2;
+    c.forEach((n) => { const [nw, nh] = SZ[n.kind]; pos[n.id] = { x: cx + (w - nw) / 2, y, w: nw, h: nh }; y += nh + VG; });
+    cx += w + GAP;
+  });
+  const W = cx - GAP, kOf = (n) => (onPath.has(n.id) ? (n.id === "pre" ? "done" : st[n.id].k) : "off");
+  const links = [];
+  cols.forEach((c, i) => { if (!i) return; cols[i - 1].forEach((p) => c.forEach((n) => { if (p.id === "pre" || state.flow.edges.some((e) => e.from === p.id && e.to === n.id)) links.push([p, n]); })); });
+  const edge = ([p, n]) => { const P = pos[p.id], N = pos[n.id], sx = P.x + P.w, sy = P.y + P.h / 2, tx = N.x, ty = N.y + N.h / 2, k = kOf(n), cls = k === "off" || kOf(p) === "off" ? "off" : k === "up" ? "up" : ["done", "view"].includes(k) ? "done" : "todo";
+    return [cls, `<g class="${cls}"><path d="${fcCurve(sx, sy, tx, ty)}"/>${fcArrow(tx, ty)}</g>`]; };
+  const node = (n) => {
+    const P = pos[n.id], k = kOf(n), s = st[n.id] || {}, box = `class="ft-n ${n.kind} ${k}" style="left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${P.h}px"`;
+    if (n.kind === "pre") return `<div ${box} title="${esc(n.sub || "Application review")}">${ico("check")}<b>Applied</b></div>`;
+    if (n.kind === "route") return `<div ${box}>${ico("route")}<span class="trunc">${esc(n.label.replace(/^Split /, "").replace(/^by /, "By "))}</span></div>`;
+    if (n.kind === "end") return `<div ${box}>${ico(k === "done" ? "check" : k === "closed" ? "x" : "flag")}<b>${esc(n.label)}</b>${k === "up" ? `<em class="ft-flag">Up next</em>` : ""}</div>`;
+    const r = s.r, tk = teamOf(n), who = k === "up" ? whoNext(n, r) : null;
+    const foot = ["done", "view"].includes(k) && r ? `${personAv(r.iv)}<span class="trunc">${esc(first(r.iv))}</span><span class="pt-v ${r.v}">${VERDICT_NAME[r.v]}</span>`
+      : k === "up" ? `${who ? `${personAv(who)}<span class="trunc">${esc(first(who))} next</span>` : `<span>Grokbot is asking</span>`}`
+      : `${TEAMS[tk] ? `<i class="fc-dot" style="background:${TEAMS[tk].color}"></i><span>${esc(TEAMS[tk].name)}</span>` : n.who && n.who.length ? `<span>${esc(n.who.map((id) => first(id)).join(", "))}</span>` : ""}`;
+    return `<div ${box}>${k === "view" ? `<em class="ft-flag">This interview</em>` : k === "up" ? `<em class="ft-flag">Up next</em>` : ""}<b class="trunc">${esc(n.label === "Team interview" && TEAMS[tk] ? `${TEAMS[tk].name} interview` : n.label)}</b><span class="ft-s">${foot}</span></div>`;
+  };
+  const es = links.map(edge).sort((p, q) => ["off", "todo", "done", "up"].indexOf(p[0]) - ["off", "todo", "done", "up"].indexOf(q[0])).map((e) => e[1]).join("");
+  return `<section class="pth ft-wrap"><div class="pth-c"><p>${esc(line)}</p><span class="pt-tag">${tag}</span><span class="grow"></span><button class="btn sm ghost" data-act="flowEdit">${ico("compose")}Edit the process</button></div>
+    <div class="ft" data-act="flowEdit" role="button" tabindex="0" title="Open the interview process to edit it"><div class="ft-in" style="width:${W}px;height:${H}px"><svg class="ft-e" width="${W}" height="${H}" aria-hidden="true">${es}</svg>${cols.flat().map(node).join("")}</div></div></section>`;
+}
+
 function addPerson(name, email, role) {
   name = (name || "").trim().replace(/\s+/g, " ");
   if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
@@ -7781,9 +8327,12 @@ function renderSide() {
       ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
       ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
-      ${item("#setup", ico("sliders"), "Team setup", r.name === "setup")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
       ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
+    </nav>
+    <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
+      ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
+      ${item("#setup~process", ico("route"), "Interview process", r.name === "setup" && r.id === "process")}
     </nav>
     <button class="sb-acct" data-act="acct" aria-haspopup="menu" title="Account, theme and sign out"><span class="trunc">${PEOPLE[ME].name}</span><svg class="chev" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
     <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
@@ -8076,6 +8625,7 @@ function openFull(id) {
       <a class="btn sm ghost" href="#t~${id}" data-close>${ico("arrowUR")}Open as a page</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
     <div class="fs-body">${rec ? processTree(rec) : ""}${ticketPage(id)}</div></div>`;
   $("#layer").appendChild(el);
+  ftFit();
   modal = { send: () => {}, fs: true };
   el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeLayer(); });
 }
@@ -8755,35 +9305,6 @@ function loopOf(a) {
   return out;
 }
 const loopName = (t) => (t === "final" ? "Final" : t === "offer" ? "Offer" : TEAMS[t].name);
-// The loop as a path, left to right: where they've been, the one you're reading, who's next, and what's left before the offer.
-function processTree(x) {
-  const a = x.a, rs = loopOf(a), met = rs.filter((r) => r.st === "done" && r.iv);
-  const view = rs.find((r) => r.key === x.key);
-  const names = [...new Set(met.map((r) => first(r.iv)))];
-  const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
-  const nextI = rs.findIndex((r) => r.st === "next");
-  // Who the Grokbot would ask for a step that isn't booked yet.
-  const whoNext = (r) => r.iv || (r.team !== "offer" && TEAMS[r.team] ? pickInterviewer(r.team, a.role).best : null);
-  const left = rs.filter((r) => r.st === "next" && r.team !== "offer").length;
-  const tag = a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : left ? `${left} round${left === 1 ? "" : "s"} left before the offer` : "Next: the offer";
-  const step = (r, i) => {
-    const kind = r === view ? "view" : r.st === "done" ? "done" : i === nextI ? "up" : r.st === "closed" ? "closed" : "todo";
-    const iv = r.st === "done" ? r.iv : whoNext(r);
-    const label = r.team === "offer" ? "Offer" : `Round ${r.n} · ${loopName(r.team)}`;
-    const flag = kind === "view" ? "This interview" : kind === "up" ? "Up next" : kind === "closed" ? "Closed" : "";
-    const body = r.team === "offer"
-      ? `<span class="pth-p">${r.st === "done" ? `${ico("check")}<b>Offer out</b>` : `<span class="pth-sub">${kind === "up" ? "Your call after the last read" : "After the last round"}</span>`}</span>`
-      : iv ? `<span class="pth-p">${personAv(iv)}<span><b>${esc(PEOPLE[iv].name)}</b>${r.st === "done" ? `<span class="pt-v ${r.v}">${VERDICT_NAME[r.v]} · ${MO[new Date(r.at).getMonth()]} ${new Date(r.at).getDate()}</span>` : `<span class="pth-sub">${kind === "up" ? "Grokbot will ask" : "Not booked"}</span>`}</span></span>`
-      : `<span class="pth-p"><span class="pth-sub">Not booked</span></span>`;
-    const tagName = r.key && r !== view ? "a" : "div";
-    return `<${tagName} class="pth-s ${kind}" ${tagName === "a" ? `href="#interviews~${r.key}"` : ""}><span class="pth-h"><span class="pt-num">${r.team === "offer" ? ico(r.st === "closed" ? "x" : "check") : r.n}</span><b>${esc(label)}</b>${flag ? `<em>${flag}</em>` : ""}</span>${body}</${tagName}>`;
-  };
-  const arrow = (i) => `<i class="pth-ar ${i < nextI || nextI < 0 ? "done" : i === nextI ? "up" : "todo"}" aria-hidden="true"></i>`;
-  return `<section class="pth">
-    <div class="pth-c"><p>${esc(line)}</p><span class="pt-tag">${tag}</span></div>
-    <div class="pth-row">${rs.map((r, i) => `${i ? arrow(i) : ""}${step(r, i)}`).join("")}</div>
-  </section>`;
-}
 // Elbow lines from the candidate to each round, and from each round to who ran it. The current path is drawn last, in the accent.
 function drawTrees() {
   $$(".pt").forEach((pt) => {
@@ -9121,10 +9642,11 @@ function render() {
   const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
-  drawTrees(); setTimeout(drawTrees, 420);
+  drawTrees(); setTimeout(drawTrees, 420); ftFit();
   $$(".cmp-inner").forEach((el) => { el.style.zoom = (el.parentElement.clientWidth - 2) / 1180; });
   if (r.name === "interviews" && r.id) $(".ivr.sel")?.scrollIntoView({ block: "nearest" });
   animateIvOpen();
+  if (r.name === "setup" && r.id === "process" && (newPage || newSel || state.fcNeedFit)) { state.fcNeedFit = false; setTimeout(fcFit); }
   if (r.name === "inbox" && (newPage || state.ibThink)) { state.ibThink = false; ibThink(); }
   if (state.keepScroll) { if ($("#scroller")) $("#scroller").scrollTop = scroll; if ($("#mlist")) $("#mlist").scrollTop = ml; }
   state.keepScroll = true;
@@ -9206,7 +9728,7 @@ function setTheme(t) {
 function openAcct(anchor) {
   closeLayer();
   const me = PEOPLE[ME], kb = (k) => `<span class="acct-kb">${k}</span>`;
-  const items = [["setup", "sliders", "Team setup", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
+  const items = [["setup", "sliders", "Onboarding", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
   const el = document.createElement("div");
   el.className = "menu acct";
   el.setAttribute("role", "menu");
@@ -9232,6 +9754,7 @@ function openAcct(anchor) {
   });
 }
 function closeLayer() {
+  if (state.fcDirty && $("#layer .fc")) { state.fcDirty = false; setTimeout(render); }
   const r = menu && menu.restore;
   if (pop && pop.ghost) pop.ghost.remove();
   menu = null; palette = null; modal = null; pop = null;
@@ -9375,6 +9898,18 @@ const ACT = {
   triOpen: (el) => { state.tri = { sel: el.dataset.id }; go("triage"); },
   toggleGroup: (el) => { if (el.dataset.closed) state.closedOpen = !state.closedOpen; else { const s = (state.shut ||= new Set()); s.has(el.dataset.k) ? s.delete(el.dataset.k) : s.add(el.dataset.k); } render(); },
   setView: (el) => { state.view = el.dataset.v; render(); },
+  flowEdit: () => openFlow(),
+  fcAdd: (el) => fcAddNode(el.dataset.k),
+  fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
+  fcFit: () => fcFit(),
+  fcUndo: () => fcUndo(),
+  fcRedo: () => fcRedo(),
+  fcReset: () => { fcCommit(() => { state.flow = flowDefault(); state.fcSel = null; }); fcFit(); },
+  fcSet: (el) => { const o = fcSelObj(), k = el.dataset.k, v = el.dataset.v; if (!o) return; fcCommit(() => { if (k === "mins") o.mins = +v; else if (k === "team") { o.team = v; o.who = []; } else o[k] = v; }); },
+  fcWho: (el) => { const o = fcSelObj(); if (!o) return; fcCommit(() => { const w = new Set(o.who || []); w.has(el.dataset.id) ? w.delete(el.dataset.id) : w.add(el.dataset.id); o.who = [...w]; }); },
+  fcDel: () => fcDelete(),
+  fcChat: (el) => { const fc = el.closest(".fc"); fc.dataset.chat = fc.dataset.chat === "0" ? "1" : "0"; fcPaint(); setTimeout(() => $("#fcAskIn", fc)?.focus()); },
+  fcAsk: (el) => fcAsk(el.dataset.v),
   plMode: (el) => { state.plMode = el.dataset.v; render(); },
   plStage: (el) => { state.plStage = state.plStage === el.dataset.v ? null : el.dataset.v; render(); },
   plMore: (el) => { state.plAll.add(el.dataset.k); render(); },
