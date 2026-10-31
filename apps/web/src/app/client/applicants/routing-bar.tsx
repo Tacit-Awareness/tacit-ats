@@ -11,10 +11,10 @@ import { routeApplicantAction } from "./actions";
 // The control panel's top row (design/tats's `.cp-top`): the next step as large
 // pills, the team, and the button that moves them. Pressing a pill only picks
 // the move, as in the prototype, and picks the reply's starter with it; the
-// button at the end of the row says the move and posts it. The keys stay what
-// they were: I interviews, S moves to screening, D declines, each pressing that
-// button at once (the same server action, the same posted fields); D with no
-// reason picked focuses the reason instead, since a decline needs one.
+// button at the end of the row says the move and posts it. The keys pick too:
+// I interviews, S screening, D declines, then that button takes focus, so Enter
+// posts it and no single key moves anyone. D with no reason picked focuses the
+// reason instead, since a decline needs one.
 // design/tats's T (Testbench) is left out: nothing sends one. The team is
 // read-only: a route takes no team, the job already has one.
 
@@ -28,13 +28,14 @@ const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
 ];
 
 /** The keys, inside the form so a key does nothing while a route is in flight. */
-function RoutingKeys({ press, decline }: { press: (route: MoveKey) => void; decline: () => void }) {
+function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
   const { pending } = useFormStatus();
-  useKeys({ i: () => press("interview"), s: () => press("screening"), d: decline }, !pending);
+  useKeys({ i: () => pick("interview"), s: () => pick("screening"), d: () => pick("decline") }, !pending);
   useKeyHelp("Applicant Tickets", [
-    { keys: "I", label: "Interview" },
-    { keys: "S", label: "Move to screening" },
-    { keys: "D", label: "Decline (pick a reason first)" },
+    { keys: "I", label: "Pick Interview" },
+    { keys: "S", label: "Pick Screening" },
+    { keys: "D", label: "Pick Decline, then its reason" },
+    { keys: "Enter", label: "Post the picked move" },
   ]);
   return null;
 }
@@ -71,7 +72,7 @@ function MovePill({ move, picked, onPick }: { move: (typeof MOVES)[number]; pick
   );
 }
 
-/** The submit for one move, disabled while a route is in flight. Only the picked one shows; a key presses its own. */
+/** The submit for one move, disabled while a route is in flight. Only the picked one shows. */
 function Route({
   value,
   shown,
@@ -121,7 +122,6 @@ export function RoutingBar({
   /** No reply can go out, so this is the panel's one action. */
   lead: boolean;
 }) {
-  const form = useRef<HTMLFormElement>(null);
   const reason = useRef<HTMLSelectElement>(null);
   const buttons = useRef<Record<string, HTMLButtonElement | null>>({});
   // The reason only shows once Decline is picked, so focusing it waits for that render.
@@ -135,17 +135,20 @@ export function RoutingBar({
     onMove("decline");
     setAskedForReason((n) => n + 1);
   };
-  const press = (route: MoveKey) => {
-    onMove(route);
-    const b = buttons.current[route];
-    if (b) form.current?.requestSubmit(b);
-  };
-  const decline = () => (noReason() ? askForReason() : press("decline"));
   const pick = (m: MoveKey) => (m === "decline" && noReason() ? askForReason() : onMove(m));
+  // A key's pick hands focus to its button, so Enter posts it. Waits for the render that shows the button.
+  const [keyed, setKeyed] = useState<{ move: MoveKey } | null>(null);
+  useEffect(() => {
+    if (keyed) buttons.current[keyed.move]?.focus();
+  }, [keyed]);
+  const keyPick = (m: MoveKey) => {
+    pick(m);
+    if (m !== "decline" || !noReason()) setKeyed({ move: m });
+  };
 
   return (
-    <form ref={form} action={routeApplicantAction} className="flex flex-wrap items-center gap-x-6 gap-y-3">
-      <RoutingKeys press={press} decline={decline} />
+    <form action={routeApplicantAction} className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <RoutingKeys pick={keyPick} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
       <div className="flex max-w-full min-w-0 items-center gap-3">
