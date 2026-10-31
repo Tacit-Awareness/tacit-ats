@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { TourButton } from "@/components/app-shell/shell-tour";
 import { menuKey, stepIndex } from "@/lib/keys";
 import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
+import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // design/tats's account menu: your name alone as a quiet button at the bottom
@@ -55,10 +56,11 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
 
   const close = () => setAt(null);
   const show = () => {
-    const r = button.current?.getBoundingClientRect();
-    if (!r) return;
+    const box = button.current?.getBoundingClientRect();
+    if (!box) return;
+    const r = cssRect(box);
     setTheme(themeChoice(document.documentElement.dataset.theme));
-    setAt({ left: Math.max(8, r.left), bottom: Math.max(8, innerHeight - r.top + 6) });
+    setAt({ left: Math.max(8, r.left), bottom: Math.max(8, cssPx(innerHeight) - r.top + 6) });
   };
 
   // It sits on the button: when the button moves or the page changes, it goes.
@@ -124,7 +126,7 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
               role="menu"
               aria-label="Account"
               style={at}
-              className="fixed z-[60] max-h-[calc(100dvh-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
+              className="fixed z-[60] max-h-[calc(100*var(--vh)-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
             >
               <div className="grid gap-1 px-4 pt-4 pb-3">
                 <div className="flex min-w-0 items-center gap-2">

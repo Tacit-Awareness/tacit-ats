@@ -5,6 +5,7 @@ import { BrandStyle } from "@/components/brand-style";
 import { LEVELS } from "@/lib/client/levels";
 import { resolveClient } from "@/lib/client/session";
 import { SIDEBAR_COOKIE, parseSidebar } from "@/lib/sidebar";
+import { UI_SCALE_SCRIPT } from "@/lib/ui-scale";
 
 // The tab reads "<Company> · tATS"; a refused sign-in has no company to name.
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,6 +35,8 @@ export default async function ClientLayout({ children }: { children: React.React
 
   return (
     <>
+      {/* Before paint, so the first frame is already the right size. */}
+      <script dangerouslySetInnerHTML={{ __html: UI_SCALE_SCRIPT }} />
       <BrandStyle accent={org.brandAccent} />
       <ShellFrame
         actorId={actorId}

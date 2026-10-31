@@ -10,6 +10,7 @@ import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-me
 import { ShellTour } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
 import { modalOpen } from "@/lib/keys";
+import { cssPx, cssRect, setUiScale } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, clampSidebar, dragSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
 import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
@@ -286,8 +287,15 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    setUiScale();
+    window.addEventListener("resize", setUiScale);
+    return () => window.removeEventListener("resize", setUiScale);
+  }, []);
+
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    drag.current = { x: e.clientX, w: side.current?.getBoundingClientRect().width ?? sb.width, from: sb.width, now: sb, snapUntil: 0 };
+    const box = side.current?.getBoundingClientRect();
+    drag.current = { x: cssPx(e.clientX), w: box ? cssRect(box).width : sb.width, from: sb.width, now: sb, snapUntil: 0 };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -298,7 +306,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    const next = dragSidebar(d.w + e.clientX - d.x, d.from);
+    const next = dragSidebar(d.w + cssPx(e.clientX) - d.x, d.from);
     if (next.collapsed !== d.now.collapsed) {
       // A snap eases: the drag's no-transition comes off for its length.
       document.body.classList.remove("sb-dragging");
@@ -354,7 +362,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   ];
 
   return (
-    <div className="flex h-dvh w-full" style={{ "--sbw": `${sb.width}px`, "--rail": `${SIDEBAR_RAIL}px` } as React.CSSProperties}>
+    <div className="ui-root flex" style={{ "--sbw": `${sb.width}px`, "--rail": `${SIDEBAR_RAIL}px` } as React.CSSProperties}>
       {/* phone: a slim bar with the menu button; the sidebar becomes a drawer */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 border-b border-[color:var(--line)] bg-frame px-3 md:hidden">
         <IconButton label="Open the sidebar" onClick={() => setDrawer(true)}>

@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       data-theme={theme ?? undefined}
       className={`h-full ${inter.variable} ${geistMono.variable} ${departure.variable}`}
     >

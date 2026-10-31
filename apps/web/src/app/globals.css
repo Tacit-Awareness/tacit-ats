@@ -28,6 +28,8 @@
 :root {
   --brand-h: 271;
   --tint: 1;
+  --ui-scale: 1; /* lib/ui-scale.ts sets it from the window */
+  --vh: calc(1vh / var(--ui-scale)); /* a viewport height that stays true under the zoom */
   /* backgrounds: 1%, 5%, 10%, and the two line steps between 10 and 20 */
   --n0: oklch(0.995 calc(0.0015 * var(--tint)) var(--brand-h));
   --n25: oklch(0.985 calc(0.0025 * var(--tint)) var(--brand-h)); /* 1% */
@@ -375,6 +377,18 @@
 
 /* a list-and-reader page (page.tsx ListReader) fills the panel edge to edge:
    the shell's page wrapper drops its padding and width cap around it */
+/* one scale for the signed-in shell (lib/ui-scale.ts). The public pages have no .ui-root, so they never zoom. */
+body:has(.ui-root) {
+  zoom: var(--ui-scale);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-root {
+  width: calc(100vw / var(--ui-scale));
+  height: calc(100dvh / var(--ui-scale));
+}
+
 .shell-page:has(> .list-reader),
 .shell-page:has(> .home-sub) {
   display: flex;
@@ -413,12 +427,12 @@
    Each grows with the window between a floor and a ceiling, so the sidebar
    fills the height; below the floor it scrolls and nothing overlaps. */
 .sb {
-  --sb-item-h: clamp(28px, 3.9vh, 38px); /* each row */
-  --sb-gap: clamp(0px, 0.3vh, 4px); /* between items */
-  --sb-sec-h: clamp(24px, 3.3vh, 30px); /* a section label */
-  --sb-sec-gap: clamp(2px, 0.8vh, 8px); /* label to its first item */
-  --sb-group-gap: clamp(12px, 3.1vh, 40px); /* between sections */
-  --sb-head-gap: clamp(14px, 3.1vh, 40px); /* workspace to the first section */
+  --sb-item-h: clamp(28px, calc(3.9 * var(--vh)), 38px); /* each row */
+  --sb-gap: clamp(0px, calc(0.3 * var(--vh)), 4px); /* between items */
+  --sb-sec-h: clamp(24px, calc(3.3 * var(--vh)), 30px); /* a section label */
+  --sb-sec-gap: clamp(2px, calc(0.8 * var(--vh)), 8px); /* label to its first item */
+  --sb-group-gap: clamp(12px, calc(3.1 * var(--vh)), 40px); /* between sections */
+  --sb-head-gap: clamp(14px, calc(3.1 * var(--vh)), 40px); /* workspace to the first section */
   --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --sb-dur: 0.26s;
   overflow-x: clip; /* the edge does the cutting: nothing spills past it while it moves */
