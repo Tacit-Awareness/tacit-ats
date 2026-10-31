@@ -191,9 +191,9 @@ describe("addCandidate", () => {
     const fake = new FakeSupabase([
       { data: true }, { data: true }, { data: "audit-1" },
       // A new person (no email to look up), the application, its event, the funnel's org check,
-      // and the submission's (a client org's own job is never sent on to anyone).
+      // and the submission's (a client org's own job is never sent on to anyone), then finish_write.
       { data: null }, { data: { id: "app-1" } }, { data: null }, { data: null },
-      { data: null }, { data: { org_id: "org-acme" } },
+      { data: null }, { data: { org_id: "org-acme" } }, { data: null },
     ]);
     const r = await addCandidate(fake.asDb(), ctx(), { jobId: "role-1", name: "Ada", source: "agency", sourceDetail: "  Hunt & Co  " });
     expect(r).toMatchObject({ outcome: "added", applicationId: "app-1" });
