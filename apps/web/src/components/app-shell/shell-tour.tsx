@@ -125,18 +125,18 @@ export function ShellTour() {
   if (i === null) return null;
   const step = TOUR[i];
   const last = i === TOUR.length - 1;
-  const ease = "duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none";
+  const ease = "duration-200 ease-[var(--spring)] motion-reduce:transition-none";
 
   return (
     <div className="fixed inset-0 z-[300]">
-      <div className={cn("absolute inset-0", placed?.spot ? "" : "bg-[rgba(18,18,22,0.55)]")} aria-hidden />
+      <div className={cn("absolute inset-0", placed?.spot ? "" : "bg-[oklch(0.1_0.004_var(--brand-h)/0.55)]")} aria-hidden />
       {placed?.spot ? (
         <div
           aria-hidden
-          className={cn("pointer-events-none absolute rounded-[12px] transition-[left,top,width,height]", ease)}
+          className={cn("pointer-events-none absolute transition-[left,top,width,height]", ease)}
           style={{
             ...placed.spot,
-            boxShadow: "0 0 0 9999px rgba(18, 18, 22, 0.55), 0 0 0 2px #fff, 0 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)",
+            boxShadow: "0 0 0 9999px oklch(0.1 0.004 var(--brand-h) / 0.55), 0 0 0 2px var(--n0), 0 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)",
           }}
         />
       ) : null}
@@ -146,7 +146,7 @@ export function ShellTour() {
         aria-modal="true"
         aria-labelledby="tour-title"
         aria-live="polite"
-        className={cn("absolute w-[320px] max-w-[calc(100vw-32px)] rounded-[14px] bg-raised p-5 text-foreground shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
+        className={cn("absolute w-[320px] max-w-[calc(100vw-32px)] bg-raised p-5 text-foreground shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
         style={placed?.card}
       >
         <div className="text-[12.5px] font-medium text-[color:var(--accent)]">

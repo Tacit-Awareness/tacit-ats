@@ -48,9 +48,9 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
               data-key-item
               aria-current={r.active ? "true" : undefined}
               className={cn(
-                "relative grid grid-cols-[36px_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 rounded-[10px] p-3 transition-colors",
+                "relative grid grid-cols-[36px_minmax(0,1fr)] items-center gap-x-3 gap-y-0.5 p-3 transition-colors",
                 r.active
-                  ? "bg-[color:var(--sel)] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:rounded-sm before:bg-[color:var(--accent)]"
+                  ? "bg-[color:var(--sel)] before:absolute before:top-2.5 before:bottom-2.5 before:left-0 before:w-0.5 before:bg-[color:var(--accent)]"
                   : "hover:bg-[color:var(--hover)]",
               )}
             >
@@ -73,12 +73,12 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
 /** The application as one white page (design/tats's `.pg`), the same in both themes, like a document. */
 function Paper({ ticket }: { ticket: Ticket }) {
   const source = ticket.post ? `Job board · ${ticket.post}` : "Job board";
-  const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[#5e6ad2]";
+  const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[color:var(--n800)]";
   return (
-    <article className="relative mx-auto w-[640px] max-w-full rounded-[3px] bg-white px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[#1f2023] shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_-12px_rgba(0,0,0,0.16)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
-      <header className="mb-[18px] border-b border-[#e6e6e8] pb-3.5">
+    <article className="relative mx-auto w-[640px] max-w-full bg-[color:var(--n0)] px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[color:var(--n900)] [color-scheme:light] shadow-[0_1px_3px_oklch(var(--ink-a)/0.08),0_8px_24px_-12px_oklch(var(--ink-a)/0.16)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
+      <header className="mb-[18px] border-b border-[color:var(--n150)] pb-3.5">
         <h1 className="m-0 text-[22px] leading-tight font-semibold tracking-[-0.015em] break-words">{ticket.name}</h1>
-        <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[12px] text-[#6b6e75]">
+        <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[12px] text-[color:var(--n700)]">
           {ticket.email ? <span className="select-all">{ticket.email}</span> : null}
           {ticket.phone ? <span>{ticket.phone}</span> : null}
         </p>
@@ -88,7 +88,7 @@ function Paper({ ticket }: { ticket: Ticket }) {
           [
             [
               "Job",
-              <Link key="job" href={ticket.jobHref} className="text-[#1f2023] underline decoration-[#c9cad1] underline-offset-2 hover:decoration-[#5e6ad2]">
+              <Link key="job" href={ticket.jobHref} className="text-[color:var(--n900)] underline decoration-[color:var(--n300)] underline-offset-2 hover:decoration-[color:var(--n900)]">
                 {ticket.jobTitle}
               </Link>,
             ],
@@ -102,12 +102,12 @@ function Paper({ ticket }: { ticket: Ticket }) {
           </div>
         ))}
       </dl>
-      {ticket.answers.length === 0 ? <p className="m-0 mt-5 text-[#8f9198]">No other answers.</p> : null}
+      {ticket.answers.length === 0 ? <p className="m-0 mt-5 text-[color:var(--n700)]">No other answers.</p> : null}
       {ticket.answers.map((a) => (
         <section key={a.questionId}>
           <h2 className={h2}>{a.label}</h2>
           {a.href ? (
-            <a href={a.href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-[#5e6ad2] hover:underline">
+            <a href={a.href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-[color:var(--n900)] underline decoration-[color:var(--n300)] underline-offset-2 hover:decoration-[color:var(--n900)]">
               {a.value}
             </a>
           ) : (

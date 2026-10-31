@@ -6,7 +6,7 @@ import { parsePostText } from "@/lib/public/post-text";
 // (view.tsx) and the editor's Preview (../../editor.tsx), so "Preview as
 // applicant" draws what the post itself draws. Props only.
 
-export const answerBox = "block h-9 rounded-lg border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[13px] leading-[34px] text-faint";
+export const answerBox = "block h-9 border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[13px] leading-[34px] text-faint";
 export const sheetHeading = "m-0 mt-7 mb-2.5 flex gap-0.5 text-[14.5px] font-medium first:mt-0";
 
 /** The red asterisk design/tats puts after a required field. */
@@ -23,7 +23,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
     return (
       <span className="flex gap-2">
         {["Yes", "No"].map((v) => (
-          <i key={v} className="inline-grid h-8 place-items-center rounded-lg border border-[color:var(--line-strong)] px-[18px] text-[13px] text-muted-foreground not-italic">
+          <i key={v} className="inline-grid h-8 place-items-center border border-[color:var(--line-strong)] px-[18px] text-[13px] text-muted-foreground not-italic">
             {v}
           </i>
         ))}
@@ -34,7 +34,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
     return (
       <span className="flex flex-wrap gap-1.5">
         {(q.options ?? []).map((o) => (
-          <i key={o} className="rounded-md border border-[color:var(--line)] px-2 py-0.5 text-[12.5px] text-muted-foreground not-italic">
+          <i key={o} className="border border-[color:var(--line)] px-2 py-0.5 text-[12.5px] text-muted-foreground not-italic">
             {o}
           </i>
         ))}
@@ -46,7 +46,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
 
 export function ResumeBox() {
   return (
-    <div className="flex flex-col items-center gap-1 rounded-[10px] border-[1.5px] border-dashed border-[color:var(--line-strong)] p-6 text-[13.5px] text-muted-foreground">
+    <div className="flex flex-col items-center gap-1 border-[1.5px] border-dashed border-[color:var(--line-strong)] p-6 text-[13.5px] text-muted-foreground">
       <svg viewBox="0 0 16 16" className="mb-1 size-[18px] fill-none stroke-current text-faint [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
         <path d="M4 1.75h5.5L12.5 4.75v9.5h-8.5z M9.25 1.75v3.25h3.25" />
       </svg>
@@ -62,7 +62,7 @@ export function ApplicationEnd() {
       <p className="mt-6 mb-0 text-[13.5px] text-muted-foreground">
         Voluntary self-identification <span className="ml-1.5 text-faint">Optional, never shown to your team</span>
       </p>
-      <span className="mt-5 inline-grid h-10 place-items-center rounded-[10px] bg-foreground px-[18px] text-[14px] font-medium text-background opacity-85">
+      <span className="mt-5 inline-grid h-10 place-items-center rounded-full bg-foreground px-[18px] text-[14px] font-medium text-background opacity-85">
         Submit application
       </span>
     </>
@@ -144,7 +144,7 @@ export function PostBody({ text }: { text: string | null }) {
             <ul className="m-0 list-none p-0">
               {b.lines.map((l, n) => (
                 <li key={n} className="flex items-start gap-2.5 py-[3px] [overflow-wrap:anywhere]">
-                  <span className="mt-[9px] size-[5px] flex-none rounded-[1px] bg-[color:var(--faint)]" />
+                  <span className="mt-[9px] size-[5px] flex-none bg-[color:var(--faint)]" />
                   {l}
                 </li>
               ))}
@@ -160,7 +160,7 @@ export function PostBody({ text }: { text: string | null }) {
 export function StatusChip({ accepting, label }: { accepting: boolean; label: string }) {
   return (
     <span
-      className="inline-flex h-7 items-center gap-[7px] rounded-lg border border-[color:var(--line)] px-2.5 text-[13px] whitespace-nowrap"
+      className="inline-flex h-7 items-center gap-[7px] rounded-full border border-[color:var(--line)] px-2.5 text-[13px] whitespace-nowrap"
       title={accepting ? "Shown on the careers page" : "Not on the careers page"}
     >
       <i className={cn("inline-block size-2 flex-none rounded-full", accepting ? "bg-[color:var(--green)]" : "bg-[color:var(--faint)]")} />

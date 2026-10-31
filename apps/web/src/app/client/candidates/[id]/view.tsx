@@ -81,7 +81,7 @@ function BlockHead({ children, count }: { children: React.ReactNode; count?: num
 /** design/tats's `.prop`: an 84px faint label and the value, 30px high. */
 function Prop({ k, children }: { k: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="grid min-h-[30px] grid-cols-[84px_minmax(0,1fr)] items-center gap-2 rounded-md px-2 text-[13.5px]">
+    <div className="grid min-h-[30px] grid-cols-[84px_minmax(0,1fr)] items-center gap-2 px-2 text-[13.5px]">
       <span className="text-[12.5px] text-faint">{k}</span>
       <span className="flex min-w-0 items-center gap-2">{children}</span>
     </div>
@@ -274,7 +274,7 @@ export function CandidateView({ candidate, activity, owners, past, editing, noti
                 ))}
                 {past.length ? (
                   <Chip>
-                    <i aria-hidden className="size-1.5 rounded-full bg-[#8f9198]" />
+                    <i aria-hidden className="size-1.5 rounded-full bg-[color:var(--closed)]" />
                     Applied before
                   </Chip>
                 ) : null}

@@ -18,7 +18,7 @@ import { DismissButton } from "./set-aside";
 // design/tats's "Ask Grokbot" needs the bot.
 
 const Key = () => (
-  <Kbd decorative className="border-transparent bg-white/20 text-current">
+  <Kbd decorative className="border-transparent bg-current/20 text-current">
     F
   </Kbd>
 );

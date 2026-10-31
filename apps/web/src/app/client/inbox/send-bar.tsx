@@ -71,7 +71,7 @@ function SendDialog({ draftId, draft, instance, next, close }: { draftId: string
           form.current?.requestSubmit();
         }
       }}
-      className="m-auto w-[min(560px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(560px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <form ref={form} action={sendDraftAction} className="p-4">
         <Settled busy={busy} done={close} />
@@ -83,7 +83,7 @@ function SendDialog({ draftId, draft, instance, next, close }: { draftId: string
           Send this to {draft.to}?
         </h2>
         <p className="m-0 mt-1 text-[13px] text-muted-foreground">It goes out exactly as written, and can&apos;t be called back.</p>
-        <div className="mt-3 grid max-h-[50vh] gap-2 overflow-y-auto rounded-lg bg-[color:var(--soft)] px-3 py-2">
+        <div className="mt-3 grid max-h-[50vh] gap-2 overflow-y-auto bg-[color:var(--soft)] px-3 py-2">
           <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
             {draft.from ? (
               <>
@@ -132,7 +132,7 @@ export function SendBar({
       <button type="button" disabled={!fix.canSend} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts={fix.canSend ? "F" : undefined} className={cn(button, primary, !fix.canSend && "cursor-not-allowed")}>
         {fix.label}
         {fix.canSend ? (
-          <Kbd decorative className="border-transparent bg-white/20 text-current">
+          <Kbd decorative className="border-transparent bg-current/20 text-current">
             F
           </Kbd>
         ) : null}

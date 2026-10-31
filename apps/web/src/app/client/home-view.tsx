@@ -105,7 +105,7 @@ function Bars({ bars, tone }: { bars: Bar[]; tone?: (b: Bar) => string | undefin
         <span key={`${b.label}-${i}`} title={b.title} className="group grid min-w-0 grid-rows-[minmax(0,1fr)_auto] gap-1">
           <i
             className={cn(
-              "w-full self-end rounded-t-[3px] rounded-b-[1px] transition-colors group-hover:bg-muted-foreground",
+              "w-full self-end transition-colors group-hover:bg-muted-foreground",
               tone?.(b) ?? "bg-[color:var(--soft-strong)]",
             )}
             style={{ height: b.n ? `${Math.max(6, (b.n / max) * 100)}%` : 0 }}
@@ -128,7 +128,7 @@ function Card({ label, def, value, unit, ctx, target, foot, children }: {
   children?: React.ReactNode;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-2 rounded-[12px] border border-[color:var(--line)] bg-card px-5 pt-4 pb-4">
+    <section className="flex min-w-0 flex-col gap-2 border border-[color:var(--line)] bg-card px-5 pt-4 pb-4">
       <span
         title={def}
         className="w-fit cursor-help text-[13.5px] text-muted-foreground underline decoration-[color:var(--line-strong)] decoration-dotted underline-offset-4"
@@ -184,12 +184,12 @@ function FeedbackSplit({ onTime, late, outstanding, hours }: { onTime: number; l
   return (
     <div className="mt-2 grid gap-2">
       <div className="flex h-2.5 gap-0.5" role="img" aria-label={parts.map((x) => `${x.n} ${x.label.toLowerCase()}`).join(", ")}>
-        {parts.map((x) => (x.n ? <i key={x.label} className={cn("block h-full min-w-[4px] rounded-[3px]", x.fill)} style={{ flex: x.n }} /> : null))}
+        {parts.map((x) => (x.n ? <i key={x.label} className={cn("block h-full min-w-[4px]", x.fill)} style={{ flex: x.n }} /> : null))}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">
         {parts.map((x) => (
           <span key={x.label} className="inline-flex items-center gap-1.5">
-            <i className={cn("block size-2.5 rounded-[3px]", x.fill)} />
+            <i className={cn("block size-2.5", x.fill)} />
             {x.label} <b className="font-medium text-foreground tabular-nums">{x.n}</b>
           </span>
         ))}
@@ -206,8 +206,8 @@ function HBar({ lead, name, share, value, aside }: { lead?: React.ReactNode; nam
       <span className="truncate" title={name}>
         {name}
       </span>
-      <span className="h-2 overflow-hidden rounded bg-[color:var(--soft)]">
-        <i className="block h-full rounded bg-muted-foreground" style={{ width: share > 0 ? `${Math.max(2, share * 100)}%` : 0 }} />
+      <span className="h-2 overflow-hidden bg-[color:var(--soft)]">
+        <i className="block h-full bg-muted-foreground" style={{ width: share > 0 ? `${Math.max(2, share * 100)}%` : 0 }} />
       </span>
       <em className="text-right tabular-nums not-italic">{value}</em>
       {aside ?? <span />}
@@ -339,8 +339,8 @@ export function HomeView(p: HomeViewProps) {
           ) : (
             <div className="-mx-3 grid">
               {p.bottlenecks.map((b) => (
-                <Link key={b.key} href={b.href} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] p-3 hover:bg-[color:var(--hover)]">
-                  <span className={cn("grid size-8 place-items-center rounded-lg bg-[color:var(--soft)]", b.over ? "text-[color:var(--red)]" : "text-muted-foreground")}>
+                <Link key={b.key} href={b.href} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 p-3 hover:bg-[color:var(--hover)]">
+                  <span className={cn("grid size-8 place-items-center bg-[color:var(--soft)]", b.over ? "text-[color:var(--red)]" : "text-muted-foreground")}>
                     <Icon name={b.icon} />
                   </span>
                   <span className="grid min-w-0 gap-0.5">
@@ -366,7 +366,7 @@ export function HomeView(p: HomeViewProps) {
           <div className="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
             {SEGMENT_KEYS.map((k, i) => (
               <span key={k} className="inline-flex items-center gap-1.5">
-                <i className={cn("block size-2.5 rounded-[3px]", SEGMENT_FILL[i])} />
+                <i className={cn("block size-2.5", SEGMENT_FILL[i])} />
                 {k}
               </span>
             ))}
@@ -390,7 +390,7 @@ export function HomeView(p: HomeViewProps) {
                     {s.n ? (
                       <span className="flex h-2.5 gap-0.5" style={{ width: `${(s.n / maxStage) * 70}%` }}>
                         {s.segments.map((n, i) =>
-                          n ? <i key={i} className={cn("block h-full min-w-[3px] rounded-[2px]", SEGMENT_FILL[i])} style={{ flex: n }} title={`${n} waiting ${SEGMENT_KEYS[i].toLowerCase()}`} /> : null,
+                          n ? <i key={i} className={cn("block h-full min-w-[3px]", SEGMENT_FILL[i])} style={{ flex: n }} title={`${n} waiting ${SEGMENT_KEYS[i].toLowerCase()}`} /> : null,
                         )}
                       </span>
                     ) : null}
@@ -399,13 +399,13 @@ export function HomeView(p: HomeViewProps) {
                   <span className="text-[13px] text-muted-foreground tabular-nums">{s.longest ?? ""}</span>
                 </>
               );
-              const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.3fr)_72px_minmax(0,1.6fr)_64px] items-center gap-3 rounded-lg px-2 text-[13.5px]";
+              const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.3fr)_72px_minmax(0,1.6fr)_64px] items-center gap-3 px-2 text-[13.5px]";
               return s.n ? (
                 <details key={s.key} className="group">
                   <summary className={cn(cls, "cursor-pointer list-none hover:bg-[color:var(--hover)] group-open:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden")}>{row}</summary>
                   <div className="mb-2 ml-4 grid border-l border-[color:var(--line)] pl-3">
                     {s.people.map((x) => (
-                      <Link key={x.id} href={x.href} className="grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
+                      <Link key={x.id} href={x.href} className="grid grid-cols-[22px_auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
                         <Avatar name={x.name} />
                         <b className="font-medium">{x.name}</b>
                         <span className="truncate text-muted-foreground">{x.line}</span>
@@ -476,7 +476,7 @@ export function HomeView(p: HomeViewProps) {
             ) : (
               <div className="-mx-2 grid">
                 {p.outstanding.rows.map((o) => (
-                  <Link key={o.id} href={o.href} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 text-[13.5px] hover:bg-[color:var(--hover)]">
+                  <Link key={o.id} href={o.href} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 px-2 py-2 text-[13.5px] hover:bg-[color:var(--hover)]">
                     <Avatar name={o.interviewer} size="md" />
                     <span className="grid min-w-0">
                       <b className="truncate font-medium">{o.interviewer}</b>

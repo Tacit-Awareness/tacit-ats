@@ -31,7 +31,7 @@ export type TargetChipProps = {
   canEdit: boolean;
 };
 
-const chip = "inline-flex h-[26px] items-center gap-1.5 rounded-[13px] border px-2.5 text-[12.5px] whitespace-nowrap";
+const chip = "inline-flex h-[26px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] whitespace-nowrap";
 const set = "border-transparent bg-[color:var(--soft)] text-muted-foreground";
 
 function Words({ label, shown, off, offNote }: Pick<TargetChipProps, "label" | "shown" | "off" | "offNote">) {
@@ -79,7 +79,7 @@ export function TargetDialog({ metric, card, label, sub, kind, field, shown, clo
       onMouseDown={(e) => {
         if (e.target === dialog.current && !pending) dialog.current?.close();
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-[420px] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[calc(100%-32px)] max-w-[420px] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       {/*
         Not <form action>: React resets that when the action settles, and the

@@ -29,7 +29,7 @@ const LAYERS = "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3";
 const TACK = "M9.8 2.5 13.5 6.2 11.6 7.1 9.6 9.1l.4 3-1 1L3.9 8l1-1 3 .4 2-2ZM6.4 10.6 2.5 14.5";
 
 const selectClass =
-  "h-8 w-full rounded-md border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-8 w-full border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function Glyph({ d, className }: { d: string; className?: string }) {
   return (
@@ -41,8 +41,8 @@ function Glyph({ d, className }: { d: string; className?: string }) {
 
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="overflow-hidden rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)]">
-      <h2 className="m-0 border-b border-[color:var(--line)] px-[18px] pt-3.5 pb-2.5 text-[14px] font-semibold">{title}</h2>
+    <section aria-label={title} className="overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <h2 className="m-0 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-[18px] pt-3.5 pb-2.5 text-[14px] font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -52,7 +52,7 @@ function Band({ title, children }: { title: string; children: React.ReactNode })
 function Row({ href, icon, name, desc, count, children }: { href: string; icon: string; name: string; desc: string; count?: string; children?: React.ReactNode }) {
   return (
     <div className="group relative grid min-h-14 grid-cols-[28px_minmax(0,1fr)_auto_32px_32px] items-center gap-x-3 border-b border-[color:var(--line)] py-1.5 pr-3 pl-[18px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)] max-sm:grid-cols-[28px_minmax(0,1fr)_32px_32px]">
-      <span className="grid size-7 place-items-center rounded-lg bg-[color:var(--soft)] text-muted-foreground">
+      <span className="grid size-7 place-items-center bg-[color:var(--soft)] text-muted-foreground">
         <Glyph d={icon} />
       </span>
       <Link href={href} title={desc} className="truncate text-[14px] font-medium outline-none after:absolute after:inset-0 focus-visible:underline">
@@ -69,7 +69,7 @@ function Row({ href, icon, name, desc, count, children }: { href: string; icon: 
   );
 }
 
-const ghost = "relative z-10 grid size-[30px] place-items-center rounded-md text-faint transition-[opacity,background-color,color] hover:bg-[color:var(--soft-strong)] hover:text-foreground [@media(hover:none)]:opacity-100 group-hover:opacity-100 focus-visible:opacity-100";
+const ghost = "relative z-10 grid size-[30px] place-items-center rounded-full text-faint transition-[opacity,background-color,color] hover:bg-[color:var(--soft-strong)] hover:text-foreground [@media(hover:none)]:opacity-100 group-hover:opacity-100 focus-visible:opacity-100";
 
 function NewView({ onClose, departments, tags }: { onClose: () => void } & Pick<ViewsRead, "departments" | "tags">) {
   const { add } = useViews();
@@ -113,7 +113,7 @@ function NewView({ onClose, departments, tags }: { onClose: () => void } & Pick<
       onMouseDown={(e) => {
         if (e.target === dialog.current) onClose();
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-[460px] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[calc(100%-32px)] max-w-[460px] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <form onSubmit={submit} className="grid gap-3.5 p-5">
         <div>
@@ -215,7 +215,7 @@ export function ViewsView({ rows, departments, tags, capped }: ViewsRead) {
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[color:var(--line)] bg-[color:var(--paper)] px-2.5 text-[12.5px] transition-colors hover:border-[color:var(--line-strong)]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-2.5 text-[12.5px] transition-colors hover:border-[color:var(--line-strong)]"
           >
             <Glyph d="M8 3.5v9M3.5 8h9" className="size-[13px]" />
             New view

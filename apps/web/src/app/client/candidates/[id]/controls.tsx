@@ -74,7 +74,7 @@ export function JobControls({ e }: { e: JobEditing }) {
   const closed = closeReasonKind(e.stage) !== null;
   const id = (k: string) => `${e.applicationId}-${k}`;
   return (
-    <div className="mx-2 mb-2 grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--pane)] p-3">
+    <div className="mx-2 mb-2 grid gap-3 border border-[color:var(--line)] bg-[color:var(--pane)] p-3">
       <div className="flex flex-wrap items-center gap-2">
         {next ? (
           <form action={moveCandidateAction}>

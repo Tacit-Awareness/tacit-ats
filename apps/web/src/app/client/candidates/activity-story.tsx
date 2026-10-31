@@ -74,7 +74,7 @@ export function ActivityStory({ entries, now }: { entries: clientTools.ActivityE
               />
             ) : null}
             <StoryMark mark={mark} />
-            <div className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-2.5 rounded-lg px-2 pt-2 pb-[9px]">
+            <div className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-2.5 px-2 pt-2 pb-[9px]">
               <span className="pt-px">{e.actor ? <Avatar name={e.actor} size="xs" /> : null}</span>
               <span className="grid min-w-0 gap-0.5">
                 <span className={cn("text-[13.5px]", mark === "fail" ? "text-negative" : mark === "next" ? "text-[color:var(--accent)]" : "text-foreground")}>

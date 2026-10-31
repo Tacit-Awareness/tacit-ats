@@ -50,7 +50,7 @@ function Box({ checked, label, onToggle }: { checked: boolean | "mixed"; label: 
       <span
         aria-hidden
         className={cn(
-          "grid size-4 place-items-center rounded-[4px] border border-[color:var(--line-strong)] text-white transition-colors group-hover:border-[color:var(--faint)]",
+          "grid size-4 place-items-center border border-[color:var(--line-strong)] text-[color:var(--accent-ink)] transition-colors group-hover:border-[color:var(--faint)]",
           checked && "border-[color:var(--accent)] bg-[color:var(--accent)] group-hover:border-[color:var(--accent)]",
         )}
       >
@@ -131,7 +131,7 @@ function Report({ action, summary, onClose }: { action: BulkAction; summary: Bul
       {summary.problems.length ? (
         <div className="grid gap-1.5">
           <h3 className="m-0 text-[12.5px] font-medium text-muted-foreground">{plural(summary.problems.length, "row")} not changed</h3>
-          <ul className="m-0 grid max-h-[320px] list-none gap-1 overflow-y-auto rounded-lg border border-[color:var(--line)] p-2">
+          <ul className="m-0 grid max-h-[320px] list-none gap-1 overflow-y-auto border border-[color:var(--line)] p-2">
             {summary.problems.map((p) => (
               <li key={p.id} className="grid gap-0.5 text-[13px]">
                 <b className="truncate font-medium">{p.label}</b>
@@ -215,7 +215,7 @@ function BulkDialog({ action, items, options, onClose }: { action: BulkAction; i
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
-      className="m-auto w-[min(480px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(480px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <div className="grid gap-0.5 border-b border-[color:var(--line)] px-4 py-3">
         <h2 className="m-0 text-[14px] font-semibold">{summary ? "What happened" : title}</h2>
@@ -294,7 +294,7 @@ export function BulkBar({ options }: { options: BulkOptions }) {
         <div
           role="toolbar"
           aria-label="Bulk actions"
-          className="sticky bottom-[18px] z-[2] mx-auto my-2 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-0.5 rounded-[10px] border border-[color:var(--line-strong)] bg-raised py-1 pr-1 pl-3 text-[13.5px] shadow-[var(--pop-shadow)]"
+          className="sticky bottom-[18px] z-[2] mx-auto my-2 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-0.5 border border-[color:var(--line-strong)] bg-raised py-1 pr-1 pl-3 text-[13.5px] shadow-[var(--pop-shadow)]"
         >
           <span role="status" className="mr-1.5 font-medium tabular-nums">
             {picked.size.toLocaleString("en-US")} selected

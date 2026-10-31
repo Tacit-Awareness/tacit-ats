@@ -41,7 +41,7 @@ function Reader({ item }: { item: DoneReaderProps }) {
           ) : null}
         </div>
       ) : null}
-      <section className="mt-5 flex items-center gap-3 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
+      <section className="mt-5 flex items-center gap-3 border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
         <span aria-hidden className="grid size-[26px] flex-none place-items-center rounded-full bg-[color:var(--green-soft)] text-[color:var(--green)]">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
             <path d="m3.5 8.5 3 3 6-7" />

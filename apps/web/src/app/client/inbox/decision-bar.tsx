@@ -22,7 +22,7 @@ import { DismissButton } from "./set-aside";
 
 const danger = "border-[color:var(--red)] bg-[color:var(--red)] text-white hover:brightness-106 disabled:opacity-60";
 const field =
-  "w-full rounded-lg border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
+  "w-full border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
 
 /** An offer's terms, as text. For the approver: readIssue fetches them for the issue open, and they go nowhere else. */
 export function OfferTerms({ lines }: { lines: TermLine[] }) {
@@ -160,7 +160,7 @@ function ConfirmDialog({
           form.current?.requestSubmit();
         }
       }}
-      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(440px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <form ref={form} action={decideIssueAction} className="p-4">
         <Settled busy={busy} done={close} />
@@ -174,7 +174,7 @@ function ConfirmDialog({
         </h2>
         <p className="m-0 mt-1 text-[13px] break-words text-muted-foreground">{copy.body}</p>
         {terms ? (
-          <div className="mt-3 rounded-lg bg-[color:var(--soft)] px-3 py-2">
+          <div className="mt-3 bg-[color:var(--soft)] px-3 py-2">
             <OfferTerms lines={terms} />
           </div>
         ) : null}
@@ -187,7 +187,7 @@ function ConfirmDialog({
 
 function KeyCap({ action }: { action: DecisionAction }) {
   return (
-    <Kbd decorative className={action.primary ? "border-transparent bg-white/20 text-current" : undefined}>
+    <Kbd decorative className={action.primary ? "border-transparent bg-current/20 text-current" : undefined}>
       {action.key.toUpperCase()}
     </Kbd>
   );

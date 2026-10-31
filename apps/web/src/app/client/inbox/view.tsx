@@ -72,7 +72,7 @@ export function Row({ r }: { r: IssueRow }) {
       data-key-item
       aria-current={r.active ? "true" : undefined}
       className={cn(
-        "grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-[10px] px-3 py-2.5 transition-colors",
+        "grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-3 py-2.5 transition-colors",
         r.active ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]",
       )}
     >
@@ -171,7 +171,7 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
       ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
         <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
       ) : null}
-      <section className="mt-5 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
+      <section className="mt-5 border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
         <div className="flex items-center gap-3">
           <KindIcon kind={issue.kind} className="size-[26px]" />
           <div className="grid min-w-0 gap-px">

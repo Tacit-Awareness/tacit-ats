@@ -44,7 +44,7 @@ const STALLED_COPY: Record<string, string> = {
 };
 
 const selectClass =
-  "h-8 w-full rounded-md border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "h-8 w-full border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 /** "today", "3d ago", "5w ago". `now` comes from the server render so the
  * first paint and hydration agree. */
@@ -92,7 +92,7 @@ function CardView({
         onDragStart(card.applicationId);
       }}
       className={cn(
-        "rounded-lg border bg-card p-3 text-sm shadow-[0_1px_2px_rgba(32,32,30,0.04)]",
+        "border bg-card p-3 text-sm shadow-[var(--shadow)]",
         stalled ? "border-negative/40" : "border-[color:var(--card-border)]",
         editable && !open && "cursor-grab active:cursor-grabbing",
       )}
@@ -127,12 +127,12 @@ function CardView({
         (links.role ? (
           <Link
             href={`${links.role}/${roleId}`}
-            className="mt-1.5 inline-block rounded-md bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="mt-1.5 inline-block bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
           >
             {card.roleTitle}
           </Link>
         ) : (
-          <span className="mt-1.5 inline-block rounded-md bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="mt-1.5 inline-block bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground">
             {card.roleTitle}
           </span>
         ))}
@@ -307,7 +307,7 @@ export function PipelineBoard({
                         drop(stage);
                       }}
                       className={cn(
-                        "space-y-2 rounded-lg border border-dashed p-2 transition-colors",
+                        "space-y-2 border border-dashed p-2 transition-colors",
                         col.targets.length === 1 ? "min-h-32" : "min-h-12",
                         isOver ? "border-primary bg-primary-soft" : "border-[color:var(--line)] bg-[color:var(--soft)]",
                       )}

@@ -7,8 +7,12 @@ import { cn } from "@/lib/utils";
 // since 2026-10-29: a header with the title, a muted line and the actions on
 // the right; a KPI strip in pixel numbers; cards with a small section heading
 // and count; compact list rows; pills that only take colour when it means
-// something (green ok/done, red broken or overdue, indigo for the action). Server components, no state: every page composes these instead
-// of restating the classes, so the pages cannot drift apart.
+// something (green ok/done, red broken or overdue, indigo for the action).
+// Structure is square, anything you press is a pill. Lines come in two weights:
+// `--line-strong` for structure (page bars, sub-bars, list | reader splits, table
+// heads), `--line` inside a box; strips and heads are shaded one step down from
+// the panel (`--surface` on `--paper`). Server components, no state: every page
+// composes these instead of restating the classes, so the pages cannot drift apart.
 
 /**
  * The page column: the mockup's 1180px measure, 16px between blocks. With a
@@ -75,7 +79,7 @@ export function PageBar({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="flex min-h-14 flex-wrap items-center gap-x-2 gap-y-2 border-b border-[color:var(--line)] py-2 pr-4 pl-4 md:pl-6">
+    <header className="flex min-h-14 flex-wrap items-center gap-x-2 gap-y-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] py-2 pr-4 pl-4 md:pl-6">
       <h1 className={cn("m-0 flex min-w-0 items-center gap-2 font-medium", icon || crumbs?.length ? "text-[14px]" : "text-[15px] tracking-[-0.008em]")}>
         {icon ? <span className="text-muted-foreground [&>svg]:size-[15px]">{icon}</span> : null}
         {crumbs?.map((c) => (
@@ -100,7 +104,7 @@ export function PageBar({
 
 /** The strip under a `PageBar`: view tabs on the left, a search or switches on the right, ruled underneath. */
 export function SubBar({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("flex min-h-[50px] flex-wrap items-center justify-between gap-2 border-b border-[color:var(--line)] px-4 py-2 md:px-6", className)} {...props} />;
+  return <div className={cn("flex min-h-[50px] flex-wrap items-center justify-between gap-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 py-2 md:px-6", className)} {...props} />;
 }
 
 /**
@@ -126,7 +130,7 @@ export function SearchBox({
   return (
     <form action={action} method="get" role="search" className="w-full sm:w-[220px]">
       {Object.entries(keep ?? {}).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
-      <label className="flex h-7 items-center gap-2 rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] pr-1.5 pl-2.5 text-faint focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
+      <label className="flex h-7 items-center gap-2 border border-[color:var(--line)] bg-[color:var(--paper)] pr-1.5 pl-2.5 text-faint focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" className="size-[13px] shrink-0" aria-hidden>
           <path d="M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3" />
         </svg>
@@ -202,7 +206,7 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
         // outside the clipped box. So the strip stays ruled when it wraps onto
         // a second row in a narrow column, and a short last row leaves card,
         // not a grey hole.
-        "grid overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-card [grid-template-columns:repeat(auto-fit,minmax(118px,1fr))]",
+        "grid overflow-hidden border border-[color:var(--line)] bg-card [grid-template-columns:repeat(auto-fit,minmax(118px,1fr))]",
         className,
       )}
     >
@@ -281,8 +285,8 @@ export function Section({
   return (
     <section
       className={cn(
-        "grid min-w-0 content-start rounded-[12px] border border-[color:var(--line)] bg-card text-[13px]",
-        flush ? "grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden rounded-[10px]" : "gap-2.5 px-4 py-3.5",
+        "grid min-w-0 content-start border border-[color:var(--line)] bg-card text-[13px] shadow-[var(--shadow)]",
+        flush ? "grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden" : "gap-2.5 px-4 py-3.5",
         className,
       )}
       {...props}
@@ -293,7 +297,7 @@ export function Section({
           count={count}
           aside={aside}
           icon={icon}
-          className={flush ? "min-h-10 border-b border-[color:var(--line)] px-3.5 [&>h2]:font-medium" : undefined}
+          className={flush ? "min-h-10 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3.5 [&>h2]:font-medium" : undefined}
         />
       )}
       {children}
@@ -351,8 +355,8 @@ export function ListReader({
       <section
         aria-label={listLabel}
         className={cn(
-          "min-h-0 overflow-y-auto px-2 pt-2 pb-6 md:border-r",
-          narrowList ? "bg-[color:var(--paper)] md:border-[color:var(--line-strong)]" : "md:border-[color:var(--line)]",
+          "min-h-0 overflow-y-auto px-2 pt-2 pb-6 md:border-r md:border-[color:var(--line-strong)]",
+          narrowList && "bg-[color:var(--paper)]",
           open && "max-md:hidden",
         )}
       >
@@ -405,8 +409,8 @@ export function Row({
   children?: React.ReactNode;
 }) {
   const cls = cn(
-    "flex min-w-0 items-center gap-[11px] rounded-lg px-2 py-2 text-left group-data-[tight]/rows:py-1.5",
-    "group-data-[ruled]/rows:min-h-14 group-data-[ruled]/rows:rounded-none group-data-[ruled]/rows:px-3.5 max-sm:group-data-[ruled]/rows:flex-wrap",
+    "flex min-w-0 items-center gap-[11px] px-2 py-2 text-left group-data-[tight]/rows:py-1.5",
+    "group-data-[ruled]/rows:min-h-14 group-data-[ruled]/rows:px-3.5 max-sm:group-data-[ruled]/rows:flex-wrap",
     href && "transition-colors hover:bg-accent",
     className,
   );
@@ -509,9 +513,9 @@ export function avatarColor(name: string | null | undefined): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length]!;
 }
 
-/** The round initials avatar: a solid person colour, white initials. */
 /**
- * Initials on a solid colour per name. `candidate` is design/tats's `.av.cand`:
+ * The round initials avatar: initials on a solid colour per name, in the
+ * brand's hue (`.av-tone` in globals.css). `candidate` is design/tats's `.av.cand`:
  * applicants are one plain grey, so colour stays for the team. `xs` is 20px
  * (card owners, activity), `lg` 24px (table rows), `md` 28px, `row` 32px
  * (list rows), `ticket` 36px, `xl` 44px.
@@ -520,10 +524,10 @@ export function Avatar({ name, size = "sm", candidate = false }: { name: string 
   return (
     <span
       aria-hidden
-      style={candidate ? undefined : { background: avatarColor(name) }}
+      style={candidate ? undefined : ({ "--c": avatarColor(name) } as React.CSSProperties)}
       className={cn(
         "grid flex-none place-items-center rounded-full font-semibold",
-        candidate ? "bg-[color:var(--soft-strong)] text-muted-foreground" : "text-white",
+        candidate ? "bg-[color:var(--soft-strong)] text-muted-foreground" : "av-tone text-[color:var(--n25)]",
         size === "xl"
           ? "size-11 text-[15px]"
           : size === "ticket"
@@ -552,7 +556,7 @@ export function Glyph({ name, size = "sm" }: { name: string | null | undefined; 
       aria-hidden
       className={cn(
         "inline-grid flex-none place-items-center bg-raised font-pixel text-foreground/80 shadow-[inset_0_0_0_1px_var(--line-strong)]",
-        size === "lg" ? "size-9 rounded-[9px] text-[13px]" : size === "md" ? "size-[30px] rounded-lg text-xs" : "size-[22px] rounded-md text-[9.5px]",
+        size === "lg" ? "size-9 text-[13px]" : size === "md" ? "size-[30px] text-xs" : "size-[22px] text-[9.5px]",
       )}
     >
       {text}
@@ -592,7 +596,7 @@ export function AppTile({ children, className }: { children: React.ReactNode; cl
   return (
     <span
       className={cn(
-        "grid size-[30px] flex-none place-items-center rounded-[7px] border border-[color:var(--line)] bg-[color:var(--paper)]",
+        "grid size-[30px] flex-none place-items-center border border-[color:var(--line)] bg-[color:var(--paper)]",
         className,
       )}
     >
@@ -603,47 +607,30 @@ export function AppTile({ children, className }: { children: React.ReactNode; cl
 
 export type Tab = { href: string; label: React.ReactNode; count?: React.ReactNode; active: boolean };
 
-/** Filter tabs (design/tats's `.tab`): pill links, the active one on the soft band, counts faint. */
-export function Tabs({ tabs, label, className, strip = false }: { tabs: Tab[]; label: string; className?: string; strip?: boolean }) {
-  if (strip) return <StripTabs tabs={tabs} label={label} className={className} />;
-  return (
-    <nav aria-label={label} className={cn("flex min-w-0 flex-wrap gap-1.5", className)}>
-      {tabs.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          aria-current={t.active ? "page" : undefined}
-          className={cn(
-            "inline-flex h-[30px] items-center gap-2 rounded-full border px-3 text-[13px] whitespace-nowrap transition-colors",
-            t.active
-              ? "border-transparent bg-[color:var(--soft-strong)] font-medium text-foreground"
-              : "border-[color:var(--line)] font-[450] text-foreground hover:bg-[color:var(--hover)]",
-          )}
-        >
-          {t.label}
-          {t.count !== undefined && <span className="text-[12px] font-normal text-faint tabular-nums">{t.count}</span>}
-        </Link>
-      ))}
-    </nav>
-  );
-}
+/** design/tats's option group: one grey pill track. It scrolls sideways on a phone rather than wrapping, which a pill cannot do. */
+export const pillTrack =
+  "inline-flex w-fit max-w-full min-w-0 items-center gap-0.5 self-center overflow-x-auto rounded-full bg-[color:var(--soft-strong)] p-[3px] [scrollbar-width:none]";
 
-/** design/tats's view tabs (`.crm-tabs`, `.hm-nav`): 32px, no border, muted, the active one on the selection tint. For a `SubBar`. */
-function StripTabs({ tabs, label, className }: { tabs: Tab[]; label: string; className?: string }) {
+/** An option on a `pillTrack`: the picked one a dark pill (light in dark mode), the rest muted text. */
+export const pillOption = (picked: boolean) =>
+  cn(
+    "inline-flex h-[30px] flex-none items-center gap-1.5 rounded-full px-3.5 text-[13.5px] font-medium whitespace-nowrap transition-colors ease-[var(--spring)]",
+    picked ? "bg-[color:var(--pick)] text-[color:var(--pick-ink)]" : "text-muted-foreground hover:text-foreground",
+  );
+
+/**
+ * Filter tabs, and with `strip` the view tabs of a `SubBar` (design/tats's
+ * `.tabs`, `.crm-tabs`, `.hm-nav`): since v69 the two look the same, links on a
+ * `pillTrack`, so `strip` only says where it sits. Counts take the option's own
+ * colour, so they read on the dark pill.
+ */
+export function Tabs({ tabs, label, className }: { tabs: Tab[]; label: string; className?: string; strip?: boolean }) {
   return (
-    <nav aria-label={label} className={cn("flex min-w-0 flex-wrap gap-0.5", className)}>
+    <nav aria-label={label} className={cn(pillTrack, className)}>
       {tabs.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          aria-current={t.active ? "page" : undefined}
-          className={cn(
-            "inline-flex h-8 items-center gap-2 rounded-lg px-3 text-[13.5px] whitespace-nowrap transition-colors",
-            t.active ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
-          )}
-        >
+        <Link key={t.href} href={t.href} aria-current={t.active ? "page" : undefined} className={pillOption(t.active)}>
           {t.label}
-          {t.count !== undefined && <span className="text-[12.5px] font-normal text-faint tabular-nums">{t.count}</span>}
+          {t.count !== undefined && <span className="text-[12.5px] font-normal tabular-nums opacity-70">{t.count}</span>}
         </Link>
       ))}
     </nav>
@@ -658,17 +645,9 @@ export function Toolbar({ className, ...props }: React.ComponentProps<"div">) {
 /** A two-way segmented switch made of links (the URL is the view state). */
 export function Segmented({ items, label }: { items: { href: string; label: string; active: boolean }[]; label: string }) {
   return (
-    <nav aria-label={label} className="flex h-[30px] overflow-hidden rounded-lg border border-[color:var(--line)] bg-frame p-0.5 text-[12.5px]">
+    <nav aria-label={label} className={pillTrack}>
       {items.map((it) => (
-        <Link
-          key={it.href}
-          href={it.href}
-          aria-current={it.active ? "page" : undefined}
-          className={cn(
-            "grid place-items-center rounded-md px-2.5 transition-colors",
-            it.active ? "bg-raised font-medium text-foreground shadow-[var(--shadow)]" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
+        <Link key={it.href} href={it.href} aria-current={it.active ? "page" : undefined} className={pillOption(it.active)}>
           {it.label}
         </Link>
       ))}
@@ -726,7 +705,7 @@ export function Notice({ tone = "info", className, ...props }: React.ComponentPr
     <p
       role={tone === "error" ? "alert" : "status"}
       className={cn(
-        "m-0 rounded-[10px] border px-3.5 py-2.5 text-[13px]",
+        "m-0 border px-3.5 py-2.5 text-[13px]",
         tone === "error"
           ? "border-[color:color-mix(in_srgb,var(--red)_35%,var(--line))] bg-negative-soft text-negative"
           : "border-[color:var(--line)] bg-card text-foreground/80",

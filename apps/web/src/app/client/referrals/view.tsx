@@ -56,7 +56,7 @@ function Arrow({ href, label, dir }: { href: string | null; label: string; dir: 
       <path d={d} />
     </svg>
   );
-  const cls = "grid size-7 place-items-center rounded-md";
+  const cls = "grid size-7 place-items-center rounded-full";
   return href ? (
     <Link href={href} aria-label={label} className={cn(cls, "text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground")}>
       {icon}
@@ -129,13 +129,13 @@ export function ReferralsView({
       }
     >
       {notice ? <Notice>{notice}</Notice> : null}
-      <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>
         ) : (
           <div className="overflow-x-auto">
             <div role="table" aria-label={tabLabel} className="grid min-w-[780px]">
-              <div role="row" className={cn(GRID, "h-[46px] border-b border-[color:var(--line)] text-[13.5px] text-muted-foreground")}>
+              <div role="row" className={cn(GRID, "h-[46px] border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[13.5px] text-muted-foreground")}>
                 {HEADERS.map((h) => (
                   <span role="columnheader" key={h.label} className={cn(CELL, "gap-2")}>
                     {ico(h.icon)}
@@ -160,7 +160,7 @@ export function ReferralsView({
                       <span className="truncate">{r.referredBy ?? <span className="text-faint">Not recorded</span>}</span>
                     </span>
                     <span role="cell" className={CELL}>
-                      <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
+                      <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
                     </span>
                     <span role="cell" className={CELL}>
                       <Pill tone={where.tone} className={where.className}>

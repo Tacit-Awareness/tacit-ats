@@ -30,7 +30,7 @@ function RoutingKeys({ press, decline }: { press: (route: "interview" | "screeni
 
 /** design/tats's `.cx-seg.sm` pill: 28px, radius 16, a strong hairline. */
 export const pill =
-  "inline-flex h-7 items-center gap-2 rounded-2xl border border-[color:var(--line-strong)] px-3 text-[13.5px] font-[450] whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+  "inline-flex h-7 items-center gap-2 rounded-full border border-[color:var(--line-strong)] px-3 text-[13.5px] font-[450] whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
 
 export const pillPrimary = "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106";
 
@@ -48,7 +48,7 @@ function Route({ value, keyName, primary = false, refFn, children }: { value: st
       className={cn(pill, primary && pillPrimary)}
     >
       {children}
-      <Kbd decorative className={primary ? "border-transparent bg-white/20 text-current" : undefined}>
+      <Kbd decorative className={primary ? "border-transparent bg-current/20 text-current" : undefined}>
         {keyName}
       </Kbd>
     </button>

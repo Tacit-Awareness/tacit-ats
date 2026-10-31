@@ -52,7 +52,7 @@ function LoadBar({ n, cap, max, away }: { n: number; cap: number | null; max: nu
       <span className="flex items-center gap-2" title={m.title}>
         <span aria-hidden className="inline-flex gap-0.5">
           {Array.from({ length: m.pips }, (_, i) => (
-            <i key={i} className={cn("h-3 w-[7px] rounded-[2px]", i < m.lit ? "bg-foreground opacity-70" : "bg-[color:var(--soft-strong)]")} />
+            <i key={i} className={cn("h-3 w-[7px]", i < m.lit ? "bg-foreground opacity-70" : "bg-[color:var(--soft-strong)]")} />
           ))}
         </span>
         <span className={cn("whitespace-nowrap tabular-nums", m.over ? "text-negative" : n === 0 && "text-faint")}>{m.label}</span>
@@ -68,7 +68,7 @@ function Likes({ preference }: { preference: StoredProfile["preference"] }) {
   return (
     <span
       className={cn(
-        "inline-flex h-[22px] items-center rounded-[11px] px-2 text-xs whitespace-nowrap",
+        "inline-flex h-[22px] items-center rounded-full px-2 text-xs whitespace-nowrap",
         preference === "loves" ? "bg-positive-soft text-positive" : "bg-[color:var(--soft)]",
         preference === "either" && "text-muted-foreground",
         preference === "avoids" && "text-faint",
@@ -197,8 +197,8 @@ export function InterviewersView({
   return (
     <Page bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
       {notices}
-      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--paper)]">
-        <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line)] px-3.5 text-[13.5px] font-medium">
+      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+        <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3.5 text-[13.5px] font-medium">
           Interviewers
           {empty ? null : <Count>{total}</Count>}
         </h2>
@@ -207,7 +207,7 @@ export function InterviewersView({
         ) : (
           <div className="overflow-x-auto">
             <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[1042px]" : "min-w-[860px]")}>
-              <div role="row" className={cn(grid, "h-[34px] border-b border-[color:var(--line)] text-xs whitespace-nowrap text-faint")}>
+              <div role="row" className={cn(grid, "h-[34px] border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-xs whitespace-nowrap text-faint")}>
                 <span role="columnheader">Interviewer</span>
                 <span role="columnheader" title="Whether they like interviewing, as they said">
                   Interviews

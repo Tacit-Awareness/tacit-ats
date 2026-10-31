@@ -68,11 +68,11 @@ function Card({
       }}
       onDragEnd={onDragEnd}
       className={cn(
-        "group relative rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
+        "group relative border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
         dragged && "opacity-40",
       )}
     >
-      <Link href={card.href} draggable={false} data-key-item className="grid gap-1 rounded-lg p-3">
+      <Link href={card.href} draggable={false} data-key-item className="grid gap-1 p-3">
         <span className={cn("truncate text-[14px] leading-[1.3] font-medium", movable && "pr-5")}>{card.name}</span>
         <span className="truncate text-[12.5px] text-muted-foreground">{card.line}</span>
         <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px]">
@@ -100,7 +100,7 @@ function Card({
           disabled={locked}
           onClick={() => onMenu(card)}
           className={cn(
-            "absolute top-2 right-2 grid size-6 place-items-center rounded-md text-muted-foreground transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground [@media(hover:none)]:opacity-100",
+            "absolute top-2 right-2 grid size-6 place-items-center rounded-full text-muted-foreground transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground [@media(hover:none)]:opacity-100",
             menuOpen ? "opacity-100" : "opacity-0",
           )}
         >
@@ -156,7 +156,7 @@ function Column({
         onDrop();
       }}
       className={cn(
-        "flex min-h-[300px] min-w-[184px] flex-[1_1_0] flex-col gap-2 rounded-lg bg-[color:var(--band)] p-1 transition-[background-color,opacity]",
+        "flex min-h-[300px] min-w-[184px] flex-[1_1_0] flex-col gap-2 bg-[color:var(--band)] p-1 transition-[background-color,opacity]",
         takes && "ring-1 ring-[color:var(--accent)] ring-inset",
         takes && over && "bg-[color:var(--accent-soft)]",
         takes === false && !source && "opacity-55",
@@ -170,7 +170,7 @@ function Column({
       {column.more ? (
         <Link
           href={column.more.href}
-          className="grid h-[30px] place-items-center rounded-md text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+          className="grid h-[30px] place-items-center rounded-full text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
         >
           {column.more.label}
         </Link>
@@ -181,7 +181,7 @@ function Column({
 
 const MENU_WIDTH = 220;
 const MENU_ITEM =
-  "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
+  "flex h-8 w-full items-center gap-2 px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
 
 /**
  * The stage menu, design/tats's `statusMenu`: "<stage> · move to", J/K or the
@@ -246,7 +246,7 @@ function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMov
       role="menu"
       aria-label={`Move ${at.card.name}`}
       style={{ width: MENU_WIDTH }}
-      className="fixed z-50 grid gap-px rounded-lg border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+      className="fixed z-50 grid gap-px border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
     >
       <p className="m-0 truncate px-2 py-1 text-[12px] text-faint">{at.card.stageLabel} · move to</p>
       {moves.map((m, i) => (
@@ -269,13 +269,13 @@ function Toast({ notice, onDismiss }: { notice: Notice | null; onDismiss: () => 
   return (
     <div role="status" className="fixed right-5 bottom-[60px] z-[70] max-sm:right-4 max-sm:left-4">
       {notice ? (
-        <div className="flex max-w-[420px] items-center gap-2.5 rounded-lg border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)]">
+        <div className="flex max-w-[420px] items-center gap-2.5 border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)]">
           <span className={cn("min-w-0 flex-1", notice.error && "text-negative")}>{notice.text}</span>
           {notice.error ? (
             <button
               type="button"
               onClick={onDismiss}
-              className="rounded-[5px] px-1.5 py-0.5 text-[12.5px] font-medium text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+              className="rounded-full px-1.5 py-0.5 text-[12.5px] font-medium text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
             >
               Dismiss
             </button>

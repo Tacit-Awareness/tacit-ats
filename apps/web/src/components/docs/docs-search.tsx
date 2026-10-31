@@ -63,17 +63,17 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
             e.currentTarget.blur();
           }
         }}
-        className="h-[30px] w-full rounded-lg border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--accent)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--accent)_18%,transparent)]"
+        className="h-[30px] w-full border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--accent)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--accent)_18%,transparent)]"
       />
       {query.trim() ? (
-        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 rounded-lg border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
+        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
           {results.length ? (
             results.map((p) => (
               <Link
                 key={p.slug}
                 href={`${basePath}/${p.slug}`}
                 onClick={() => setQuery("")}
-                className="block rounded-md px-2 py-1.5 hover:bg-accent"
+                className="block px-2 py-1.5 hover:bg-accent"
               >
                 <span className="block text-[13px] font-medium">{p.title}</span>
                 <span className="block text-xs leading-snug text-muted-foreground">{p.description}</span>

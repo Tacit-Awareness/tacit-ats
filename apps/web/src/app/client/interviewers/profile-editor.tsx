@@ -86,7 +86,7 @@ function ProfileDialog({ actorId, name, self, profile, onClose }: { actorId: str
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
-      className="m-auto w-[min(440px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(440px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <div className="grid gap-0.5 border-b border-[color:var(--line)] px-4 py-3">
         <h2 className="m-0 text-[14px] font-semibold">{title}</h2>

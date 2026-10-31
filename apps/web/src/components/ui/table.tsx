@@ -14,7 +14,7 @@ export function TableHeader({ className, ...props }: React.ComponentProps<"thead
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b [&_tr]:border-border", className)}
+      className={cn("bg-[color:var(--surface)] [&_tr]:border-b [&_tr]:border-[color:var(--line-strong)]", className)}
       {...props}
     />
   );

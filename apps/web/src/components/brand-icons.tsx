@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 // (tacit-internal apps/internal components/brand-icons.tsx and onboarding.tsx's GoogleG).
 
 export function GranolaIcon({ className }: { className?: string }) {
-  return <Image src="/granola.png" alt="" width={88} height={88} className={cn("rounded-[10px]", className)} />;
+  return <Image src="/granola.png" alt="" width={88} height={88} className={className} />;
 }
 
 /** Google's "G", for Google Calendar. */

@@ -14,7 +14,7 @@ const read = (el: HTMLElement, multiline: boolean) => {
   return multiline ? text.replace(/\n$/, "") : text.replace(/\s*\n\s*/g, " ");
 };
 
-const placed = "cursor-text rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] outline-none transition-[background-color,box-shadow] hover:bg-[color:var(--hover)] focus:bg-card focus:shadow-[0_0_0_1.5px_var(--accent)] empty:before:text-faint empty:before:content-[attr(data-ph)]";
+const placed = "cursor-text px-1.5 py-0.5 -mx-1.5 -my-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] outline-none transition-[background-color,box-shadow] hover:bg-[color:var(--hover)] focus:bg-card focus:shadow-[0_0_0_1.5px_var(--accent)] empty:before:text-faint empty:before:content-[attr(data-ph)]";
 
 export function Editable({
   value,
