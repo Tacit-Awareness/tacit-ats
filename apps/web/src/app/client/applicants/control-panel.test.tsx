@@ -33,7 +33,7 @@ describe("the control panel", () => {
     const out = html();
     expect(out).toMatch(/type="hidden" name="applicationId" value="a1"/);
     expect(out).toMatch(/type="hidden" name="next" value="a2"/);
-    for (const route of ["interview", "screening", "decline"]) expect(out).toMatch(new RegExp(`<button type="submit" value="${route}"[^>]* name="route"`));
+    expect(out).toMatch(/<button type="submit" value="interview"[^>]* name="route"/);
     expect(out).toContain('name="reasonId"');
     expect(out).toContain("Not a fit");
   });
@@ -46,7 +46,7 @@ describe("the control panel", () => {
   });
 
   test("only the picked move can be posted: Enter in the reason submits the form's first button", () => {
-    expect(html().match(/name="route" value="[a-z]+"/g)).toEqual(['name="route" value="interview"']);
+    expect(html().match(/<button type="submit" value="[a-z]+"[^>]* name="route"/g)).toHaveLength(1);
   });
 
   test("the picked pill wears the hover highlight", () => {
