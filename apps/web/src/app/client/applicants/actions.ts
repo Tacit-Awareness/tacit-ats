@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { isRoute, routeApplicant } from "@/lib/client/applicants";
 import { draftReply, sendDraft } from "@/lib/client/email";
 import { webMailer } from "@/lib/client/mailer";
@@ -26,33 +27,35 @@ function id(form: FormData, key: string): string | null {
 }
 
 // Only codes and ids go in the URL, never a name or a message.
-const back = (params: { a?: string | null; notice?: ApplicantNotice; error?: ApplicantError }): never => {
+const back = (form: FormData, params: { a?: string | null; notice?: ApplicantNotice; error?: ApplicantError }): never => {
   const qs = new URLSearchParams();
   if (params.a) qs.set("a", params.a);
   if (params.notice) qs.set("notice", params.notice);
   if (params.error) qs.set("error", params.error);
-  return redirect(`/client/applicants?${qs}`);
+  // A flag and never a path: the form names no place to go.
+  return redirect(hrefAt(form.get("home") === "1" ? homeSubBase("tickets") : "/client/applicants", qs));
 };
 
 export async function routeApplicantAction(form: FormData): Promise<void> {
   const { db, actorId } = await requireClient();
   const applicationId = id(form, "applicationId");
   const route = form.get("route");
-  if (!applicationId || !isRoute(route)) return back({ error: "not_found" });
+  if (!applicationId || !isRoute(route)) return back(form, { error: "not_found" });
 
   let outcome: Awaited<ReturnType<typeof routeApplicant>>;
   try {
     outcome = await routeApplicant(db, actorId, { applicationId, route, reasonId: id(form, "reasonId") });
   } catch (err) {
     console.error("[client-applicants] routing failed:", err instanceof Error ? err.message : err);
-    return back({ a: applicationId, error: "failed" });
+    return back(form, { a: applicationId, error: "failed" });
   }
-  if (!outcome.ok) return back({ a: applicationId, error: outcome.error });
+  if (!outcome.ok) return back(form, { a: applicationId, error: outcome.error });
 
   revalidatePath("/client/applicants");
+  revalidatePath("/client");
   revalidatePath("/client/pipeline");
   // On to the next ticket: the one below it in the list, as the page sent it.
-  return back({ a: id(form, "next"), notice: outcome.route });
+  return back(form, { a: id(form, "next"), notice: outcome.route });
 }
 
 /** "Review draft": writes a draft and sends nothing. The page then shows what was stored. */
@@ -74,7 +77,8 @@ export async function draftReplyAction(_: ReplyState, form: FormData): Promise<R
   if (!outcome.ok) return { error: outcome.error };
 
   revalidatePath("/client/applicants");
-  return back({ a: applicationId });
+  revalidatePath("/client");
+  return back(form, { a: applicationId });
 }
 
 /** Send, on the draft the page showed: that stored draft, exactly as stored. */
@@ -82,20 +86,21 @@ export async function sendReplyAction(form: FormData): Promise<void> {
   const member = await requireClient();
   const applicationId = id(form, "applicationId");
   const draftId = id(form, "draftId");
-  if (!applicationId || !draftId) return back({ error: "send_gone" });
+  if (!applicationId || !draftId) return back(form, { error: "send_gone" });
 
   let outcome: Awaited<ReturnType<typeof sendDraft>>;
   try {
     outcome = await sendDraft(member.db, toolCtx(member), webMailer(), draftId);
   } catch (err) {
     console.error("[client-applicants] send failed:", err instanceof Error ? err.message : err);
-    return back({ a: applicationId, error: "send_failed" });
+    return back(form, { a: applicationId, error: "send_failed" });
   }
   revalidatePath("/client/applicants");
-  if (!outcome.ok) return back({ a: applicationId, error: outcome.error });
+  revalidatePath("/client");
+  if (!outcome.ok) return back(form, { a: applicationId, error: outcome.error });
 
   revalidatePath("/client/inbox");
   revalidatePath("/client/pipeline");
   // Stays on the ticket: a reply routes nobody.
-  return back({ a: applicationId, notice: "sent" });
+  return back(form, { a: applicationId, notice: "sent" });
 }

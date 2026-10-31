@@ -109,6 +109,8 @@ The feedback card appears for admins and whoever manages a job, and covers every
 
 Admins can set a target on any card except candidates in process, using **Set a target** at the foot of the card. The whole team sees it. A card past its target shows a red dot, and bottlenecks over target come first. A target belongs to the company, so it stays the same number whichever period or department you are looking at.
 
+The tabs under the bar open Applicant Tickets, Interviews and Referrals inside Home, so Overview stays one click away. Each is also its own page in the sidebar.
+
 Interviewers get a simpler Home: the people they interview, the jobs they can see and the team.
 
 ## Inbox

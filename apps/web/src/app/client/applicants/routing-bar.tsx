@@ -18,7 +18,7 @@ import { routeApplicantAction } from "./actions";
 // design/tats's T (Testbench) is left out: nothing sends one. The team is
 // read-only: a route takes no team, the job already has one.
 
-export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[] };
+export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[]; /** Drawn in Home's tab, so the post comes back there. */ home?: boolean };
 export type MoveKey = "interview" | "screening" | "decline";
 
 const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
@@ -151,6 +151,7 @@ export function RoutingBar({
       <RoutingKeys pick={keyPick} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
+      {routing.home ? <input type="hidden" name="home" value="1" /> : null}
       <div className="flex max-w-full min-w-0 items-center gap-3">
         <span id="next-step" className={cn(label, "flex-none")}>
           Next step

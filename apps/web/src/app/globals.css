@@ -375,7 +375,8 @@
 
 /* a list-and-reader page (page.tsx ListReader) fills the panel edge to edge:
    the shell's page wrapper drops its padding and width cap around it */
-.shell-page:has(> .list-reader) {
+.shell-page:has(> .list-reader),
+.shell-page:has(> .home-sub) {
   display: flex;
   flex: 1;
   min-height: 0;

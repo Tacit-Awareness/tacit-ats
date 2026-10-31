@@ -5,15 +5,17 @@
 // Nothing else is dropped, and nothing here is ever markup: the text goes out as
 // React text, so a tag inside a candidate's words shows as those characters.
 
+import { hrefAt } from "./home-tabs";
+
 /** Only an interviewer's own notes, once the interview has started; core refuses the rest anyway. */
 export const granolaReadable = (item: { mine: boolean; status: string; startsAt: string }, now: number) =>
   item.mine && item.status !== "cancelled" && Date.parse(item.startsAt) <= now;
 
-export function granolaHref(interviewId: string, opts: { note?: string; transcript?: boolean } = {}) {
+export function granolaHref(interviewId: string, opts: { note?: string; transcript?: boolean } = {}, base = "/client/interviews") {
   const params = new URLSearchParams({ i: interviewId });
   if (opts.note) params.set("note", opts.note);
   if (opts.transcript) params.set("transcript", "1");
-  return `/client/interviews?${params}`;
+  return hrefAt(base, params);
 }
 
 export type GranolaSection = { label: string | null; text: string };

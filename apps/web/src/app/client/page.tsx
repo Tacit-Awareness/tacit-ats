@@ -3,11 +3,15 @@ import { Avatar, Empty, Glyph, Page, PageHeader, Row, Rows, Section, Split, Stat
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { readHome } from "@/lib/client/home";
+import { parseHomeSub } from "@/lib/client/home-tabs";
 import { parsePeriod } from "@/lib/client/home-metrics";
 import { LEVELS, levelName } from "@/lib/client/levels";
 import { resolveClient, type ClientContext } from "@/lib/client/session";
 import { overviewProps } from "./home-props";
-import { HomeView } from "./home-view";
+import { ApplicantsContent } from "./applicants/tickets";
+import { HomeTab, HomeView } from "./home-view";
+import { InterviewsContent } from "./interviews/interviews-page";
+import { ReferralsContent } from "./referrals/referrals-page";
 import { Refusal } from "./refusal";
 
 // The client area's home. For admins and the hiring team, design/tats's
@@ -15,7 +19,7 @@ import { Refusal } from "./refusal";
 // reads, lib/client/home-metrics.ts counts, home-props.ts words it,
 // home-view.tsx draws), with the period (?days=7|30|90), the department
 // (?department=, none for an org without departments) and the job (?job=)
-// in the URL. An admin sets each card's target from the card; the hiring team
+// in the URL. `?sub=` draws a tab's page under Home's bar (lib/client/home-tabs.ts). An admin sets each card's target from the card; the hiring team
 // sees them. An interviewer keeps the page they had: the people they
 // interview, the jobs, the team. Every number is read with the member's own
 // token, so it counts only what their access allows and nothing is filtered
@@ -29,6 +33,14 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
 
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+  const sub = parseHomeSub(one(sp.sub));
+  if (sub) {
+    return (
+      <HomeTab sub={sub}>
+        {sub === "tickets" ? <ApplicantsContent sp={sp} home /> : sub === "interviews" ? <InterviewsContent sp={sp} home /> : <ReferralsContent sp={sp} home />}
+      </HomeTab>
+    );
+  }
   const days = parsePeriod(one(sp.days));
   const now = new Date();
   const read = await readHome(

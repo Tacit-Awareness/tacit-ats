@@ -281,11 +281,11 @@ function Feedback({ reader }: { reader: Reader }) {
 }
 
 /** One `.rc` card: the head, the loop, the feedback, the member's Granola notes. */
-function InterviewReader({ reader, granola }: { reader: Reader; granola: React.ReactNode }) {
+function InterviewReader({ reader, granola, base }: { reader: Reader; granola: React.ReactNode; base: string }) {
   return (
     <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
-        <Link href="/client/interviews" className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
+        <Link href={base} className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
           ← Interviews
         </Link>
         <div className="grid min-w-0 flex-1">
@@ -309,6 +309,8 @@ export function InterviewsView({
   granola,
   open,
   readerError,
+  base = "/client/interviews",
+  home = false,
 }: {
   groups: ListGroup[];
   counts: { verdict: Verdict; n: number }[];
@@ -320,6 +322,10 @@ export function InterviewsView({
   /** An interview was picked (`?i=`): on a phone the reader replaces the list. */
   open: boolean;
   readerError: string | null;
+  /** Where its links go: its own route, or Home's tab. */
+  base?: string;
+  /** Inside Home's tab, whose bar says where you are. */
+  home?: boolean;
 }) {
   const past = groups.filter((g) => g.key !== "upcoming").flatMap((g) => g.rows.map((r) => r.interviewId));
   const selected = groups.flatMap((g) => g.rows).find((r) => r.selected)?.interviewId ?? null;
@@ -329,7 +335,15 @@ export function InterviewsView({
         listLabel="Interviews"
         readerLabel="Interview"
         open={open}
-        bar={<PageBar title="Interviews" count={<ReviewCount />} />}
+        bar={
+          home ? (
+            <div className="border-b border-[color:var(--line-strong)] px-4 py-1.5 text-[13px] md:px-6">
+              <ReviewCount />
+            </div>
+          ) : (
+            <PageBar title="Interviews" count={<ReviewCount />} />
+          )
+        }
         list={
           <>
             <InterviewList groups={groups} counts={counts} />
@@ -338,7 +352,7 @@ export function InterviewsView({
         }
         reader={
           reader ? (
-            <InterviewReader reader={reader} granola={granola} />
+            <InterviewReader reader={reader} granola={granola} base={base} />
           ) : (
             <Empty className="p-2">{readerError ?? "Pick an interview to read its loop and feedback."}</Empty>
           )

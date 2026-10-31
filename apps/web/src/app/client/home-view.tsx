@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Avatar, Empty, Page, PageBar, Section, SubBar, Tabs, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
+import { homeSubBase, type HomeSub } from "@/lib/client/home-tabs";
 import { TargetChip, type TargetChipProps } from "./home-target";
 
 // Home's markup (design/tats's Recruiting Overview), props only: page.tsx
@@ -86,12 +87,27 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
 }
 
 /** The tabs under the bar: Home's own and the pages its numbers lead to. */
-const NAV = [
-  { href: "/client", label: "Overview" },
-  { href: "/client/applicants", label: "Applicant Tickets" },
-  { href: "/client/interviews", label: "Interviews" },
-  { href: "/client/referrals", label: "Referrals" },
+const NAV: { sub: HomeSub | null; href: string; label: string }[] = [
+  { sub: null, href: "/client", label: "Overview" },
+  { sub: "tickets", href: homeSubBase("tickets"), label: "Applicant Tickets" },
+  { sub: "interviews", href: homeSubBase("interviews"), label: "Interviews" },
+  { sub: "referrals", href: homeSubBase("referrals"), label: "Referrals" },
 ];
+
+const HomeTabs = ({ on }: { on: HomeSub | null }) => <Tabs strip label="Overview pages" tabs={NAV.map(({ sub, ...n }) => ({ ...n, active: sub === on }))} />;
+
+/** A tab's page under Home's bar and tabs (design/tats's `.hm-sub`): the page brings its own actions, the bar says where you are. */
+export function HomeTab({ sub, children }: { sub: HomeSub; children: React.ReactNode }) {
+  return (
+    <div className="home-sub flex min-h-0 min-w-0 flex-1 flex-col">
+      <PageBar title="Recruiting Overview" icon={<Icon name="home" />} />
+      <SubBar>
+        <HomeTabs on={sub} />
+      </SubBar>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+    </div>
+  );
+}
 
 const SEGMENT_KEYS = ["Under a day", "1 to 3 days", "Over 3 days"];
 const SEGMENT_FILL = ["bg-[color:var(--soft-strong)]", "bg-[color-mix(in_srgb,var(--ink)_45%,var(--paper))]", "bg-[color:var(--ink)]"];
@@ -232,7 +248,7 @@ export function HomeView(p: HomeViewProps) {
             ))}
           </PageBar>
           <SubBar>
-            <Tabs strip label="Overview pages" tabs={NAV.map((n, i) => ({ ...n, active: i === 0 }))} />
+            <HomeTabs on={null} />
           </SubBar>
         </>
       }
