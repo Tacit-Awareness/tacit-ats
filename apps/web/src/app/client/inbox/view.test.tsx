@@ -9,11 +9,11 @@ import { describe, expect, test, vi } from "vitest";
 // lib/client/inbox-popup.test.ts for the helpers and a look at the page for the rest.
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/client/inbox", useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
-vi.mock("./actions", () => ({ dismissIssueAction: vi.fn(), restoreIssueAction: vi.fn(), fixIssueAction: vi.fn(), decideIssueAction: vi.fn() }));
+vi.mock("./actions", () => ({ dismissIssueAction: vi.fn(), restoreIssueAction: vi.fn(), fixIssueAction: vi.fn(), decideIssueAction: vi.fn(), markDigestReadAction: vi.fn(), markAllDigestReadAction: vi.fn() }));
 
 import { ignoreKey, modalOpen } from "@/lib/keys";
 import { DoneView } from "./done-view";
-import { InboxView, type IssueReaderProps } from "./view";
+import { InboxView, type DigestProps, type IssueReaderProps } from "./view";
 
 const FRAME = 'class="grid grid-cols-[minmax(0,1fr)] content-start';
 const row = { key: "k", kind: "late" as const, href: "/client/inbox?i=k", what: "Nobody has been in touch", who: null, line: "Sam", age: "9d ago", active: true };
@@ -38,14 +38,15 @@ const view = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => ren
 const opened = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => view({ rows: [row, other], issue, ...over });
 
 describe("the digest card", () => {
-  test("says how many need you, then a row each: what's wrong, who, how long", () => {
+  test("says what's worth your time, then a row each: what's wrong, who, how long", () => {
     const html = view();
-    expect(html).toContain("2 things need you");
+    expect(html).toContain("Welcome back");
+    expect(html).toContain("2 worth your time, from 2 updates");
     expect(html).toContain("Needs you");
     expect(html).toContain("Waiting on feedback");
     expect(html).toContain("Dana · Lee");
     expect(html).toContain("2d ago");
-    expect(view({ rows: [row] })).toContain("1 thing needs you");
+    expect(view({ rows: [row] })).toContain("1 worth your time, from 1 update");
   });
 
   test("a row opens by URL, leaving the card's scroll alone", () => {
@@ -187,9 +188,72 @@ describe("all caught up", () => {
   test("says nothing when nothing did", () => {
     const html = empty({ truncated: false, draftsCapped: false });
     expect(html).toContain("You&#x27;re all caught up");
-    expect(html).toContain("Nothing needs you");
+    expect(html).toContain("Nothing new in the last 1 day.");
     expect(html).not.toContain("Showing your newest");
     expect(html).not.toContain("may not be listed");
+  });
+});
+
+describe("what happened lately", () => {
+  const info = {
+    id: "e1",
+    mark: { key: "evt-00000000-0000-4000-8000-000000000001", reason: "decided" as const, at: "2026-10-31T10:00:00.123456+00:00" },
+    what: "Sam moves to an offer.",
+    who: "Ada Admin",
+    meta: "Ada Admin · Staff Engineer",
+    at: "2026-10-31T10:00:00.123456+00:00",
+    interviewAt: null,
+    href: "/client/pipeline?open=a1",
+    page: "/client/candidates/p1",
+    age: "today",
+  };
+  const digest: DigestProps = { range: 3, asOf: "2026-10-31T12:00:00.000Z", now: 0, total: 9, shown: 3, unread: 7, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] };
+
+  test("sits under Needs you, with the range and its own row", () => {
+    const html = view({ digest });
+    expect(html).toContain("3 worth your time, from 9 updates");
+    expect(html.indexOf("Needs you")).toBeLessThan(html.indexOf("Decisions made"));
+    expect(html).toContain('href="/client/pipeline?open=a1"');
+    expect(html).toContain('href="/client/candidates/p1"');
+    expect(html).toContain('aria-label="Mark read: Sam moves to an offer."');
+    expect(html).toContain('value="2026-10-31T10:00:00.123456+00:00"');
+  });
+
+  test("the range is three links, the one picked marked, and Open and Done stay", () => {
+    const html = view({ digest });
+    expect(html).toMatch(/<nav aria-label="How far back"/);
+    expect(html).toMatch(/aria-current="page"[^>]*href="\/client\/inbox\?range=3"/);
+    expect(html).toContain('href="/client/inbox?range=7"');
+    expect(html).toContain('href="/client/inbox?tab=done"');
+  });
+
+  test("Mark all as read posts the range and when the page was read, and goes once nothing's unread", () => {
+    const html = view({ digest });
+    expect(html).toContain("Mark all as read");
+    expect(html).toContain('name="asOf" value="2026-10-31T12:00:00.000Z"');
+    expect(view({ digest: { ...digest, unread: 0, groups: [] } })).not.toContain("Mark all as read");
+  });
+
+  test("with no rows of its own it says so only when Needs you is empty too", () => {
+    const quiet = { ...digest, total: 0, shown: 0, unread: 0, groups: [] };
+    expect(view({ rows: [], digest: quiet })).toContain("Nothing new in the last 3 days.");
+    expect(view({ digest: quiet })).not.toContain("You&#x27;re all caught up");
+    expect(view({ rows: [], digest })).not.toContain("You&#x27;re all caught up");
+  });
+
+  test("a candidate's name renders as text", () => {
+    const html = view({ digest: { ...digest, groups: [{ key: "decided", label: "Decisions made", rows: [{ ...info, what: "<script>alert(1)</script> moves to an offer." }] }] } });
+    expect(html).not.toContain("<script>alert");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  test("a booking words its day in the browser, and the server names none", () => {
+    const html = view({ digest: { ...digest, now: Date.parse("2026-11-01T00:00:00Z"), groups: [{ key: "booked", label: "Booked", rows: [{ ...info, interviewAt: "2026-11-03T09:00:00Z" }] }] } });
+    expect(html).toContain("Interview coming up");
+  });
+
+  test("a cut-off read says so", () => {
+    expect(view({ digest: { ...digest, capped: true } })).toContain("only the newest updates are listed");
   });
 });
 

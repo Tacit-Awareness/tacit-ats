@@ -19,6 +19,9 @@ export const INBOX_NOTICES = {
   restored: "Back in your Inbox.",
   restore_gone: "That was already back in your Inbox.",
   sent: "Sent.",
+  read: "Marked read.",
+  all_read: "All caught up.",
+  all_read_needs: "Marked read. Needs you stays until it's handled.",
 } as const;
 
 export const INBOX_ERRORS = {
@@ -33,6 +36,8 @@ export const INBOX_ERRORS = {
   dismiss_refused: "You can't set that aside. Nothing was changed.",
   dismiss_failed: "That didn't work. Nothing was set aside: try again.",
   restore_failed: "That didn't work, so it's still under Done: try again.",
+  read_refused: "You can't mark that read. Nothing was changed.",
+  read_failed: "That didn't work. Nothing was marked read: try again.",
   ...SEND_ERRORS,
 } as const;
 

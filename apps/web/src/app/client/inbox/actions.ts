@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { sendDraft } from "@/lib/client/email";
 import { clearOverdueAction, decideInboxApplication, decideInboxApproval, dismissIssue, noteResolved, restoreIssue, touchApplication } from "@/lib/client/inbox";
 import { approvalNotice, parseDecision } from "@/lib/client/inbox-decisions";
-import { isIssueKey, parseInstance } from "@/lib/client/inbox-done";
+import { DEFAULT_RANGE, parseMark, parseRange, seenBy, type DigestRange } from "@/lib/client/inbox-digest";
+import { isInstant, isIssueKey, parseInstance } from "@/lib/client/inbox-done";
+import { markRead, readDigest } from "@/lib/client/inbox-feed";
 import { webMailer } from "@/lib/client/mailer";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
@@ -18,15 +20,16 @@ import type { InboxError, InboxNotice } from "./messages";
 // offer or rejected. Send here is clientTools' sendEmail, on the draft the
 // dialog showed. A fix that changed something also leaves a `resolved` row for
 // the Done tab. E and Undo are the member's own inbox_dismissals row, which
-// nothing else reads. Posted fields are request data, so they are re-read. A
+// nothing else reads, and a digest row's read mark is one too. Posted fields are request data, so they are re-read. A
 // reason, a note, an offer's terms and an email's words never go in the URL or
 // the log.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Only codes and ids go in the URL, never a name or a message.
-const back = (params: { tab?: "done"; i?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): never => {
+const back = (params: { tab?: "done"; range?: DigestRange; i?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): never => {
   const qs = new URLSearchParams();
+  if (params.range && params.range !== DEFAULT_RANGE) qs.set("range", String(params.range));
   if (params.tab) qs.set("tab", params.tab);
   if (params.i) qs.set("i", params.i);
   if (params.notice) qs.set("notice", params.notice);
@@ -109,20 +112,60 @@ export async function dismissIssueAction(form: FormData): Promise<void> {
   if (!instance) return back({ error: "not_found" });
   // From a row on the card: stay on the card, with no pop-up to open.
   const onCard = form.get("from") === "row";
+  const range = onCard ? parseRange(form.get("range")) : undefined;
 
   let outcome: Awaited<ReturnType<typeof dismissIssue>>;
   try {
     outcome = await dismissIssue(db, instance);
   } catch (err) {
     console.error("[client-inbox] dismiss failed:", err instanceof Error ? err.message : err);
-    return back({ i: onCard ? null : instance.key, error: "dismiss_failed" });
+    return back({ range, i: onCard ? null : instance.key, error: "dismiss_failed" });
   }
-  if (!outcome.ok) return back({ i: onCard ? null : instance.key, error: "dismiss_refused" });
+  if (!outcome.ok) return back({ range, i: onCard ? null : instance.key, error: "dismiss_refused" });
 
   revalidatePath("/client/inbox");
   // With nothing below it, what takes its place on this application.
   const i = onCard ? null : (nextKey(form) ?? instance.key);
-  return outcome.changed ? back({ i, notice: "dismissed", undo: outcome.id }) : back({ i, notice: "unchanged" });
+  return outcome.changed ? back({ range, i, notice: "dismissed", undo: outcome.id }) : back({ range, i, notice: "unchanged" });
+}
+
+/** The check on a digest row: this member's read mark, never an issue. */
+export async function markDigestReadAction(form: FormData): Promise<void> {
+  const { db } = await requireClient();
+  const range = parseRange(form.get("range"));
+  const mark = parseMark(form);
+  if (!mark) return back({ range, error: "read_refused" });
+
+  let outcome: Awaited<ReturnType<typeof markRead>>;
+  try {
+    outcome = await markRead(db, [mark]);
+  } catch (err) {
+    console.error("[client-inbox] mark read failed:", err instanceof Error ? err.message : err);
+    return back({ range, error: "read_failed" });
+  }
+  if (!outcome.ok) return back({ range, error: "read_refused" });
+  revalidatePath("/client/inbox");
+  return back({ range, notice: "read" });
+}
+
+/** Mark all as read: read again on the member's token, so a form can't name rows, and only what the page had shown (`asOf`). Needs you stays. */
+export async function markAllDigestReadAction(form: FormData): Promise<void> {
+  const { db } = await requireClient();
+  const range = parseRange(form.get("range"));
+  const asOf = form.get("asOf");
+  if (!isInstant(asOf)) return back({ range, error: "read_refused" });
+
+  let outcome: Awaited<ReturnType<typeof markRead>>;
+  try {
+    const { unread } = await readDigest(db, range, new Date(), 0);
+    outcome = await markRead(db, seenBy(unread, asOf));
+  } catch (err) {
+    console.error("[client-inbox] mark all read failed:", err instanceof Error ? err.message : err);
+    return back({ range, error: "read_failed" });
+  }
+  if (!outcome.ok) return back({ range, error: "read_refused" });
+  revalidatePath("/client/inbox");
+  return back({ range, notice: form.get("needs") === "1" ? "all_read_needs" : "all_read" });
 }
 
 /** Undo, and Move back to Inbox. By the row's id: the policy finds only the member's own, so anyone else's is simply not there. */

@@ -4,8 +4,10 @@ import { FlashToast } from "@/components/flash-toast";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readSender } from "@/lib/client/email";
 import { readDone, readDoneStory, readInbox, readIssue } from "@/lib/client/inbox";
+import { inboxHref, parseRange } from "@/lib/client/inbox-digest";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
+import { readDigest } from "@/lib/client/inbox-feed";
 import { candidateHref, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
 import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
@@ -19,10 +21,11 @@ import { InboxView } from "./view";
 
 // The Inbox (design/tats's #inbox): what is stuck and waiting on someone, one
 // digest card. lib/client/inbox.ts reads on the member's own token, lib/client/
-// inbox-issues.ts computes the queue, view.tsx draws it; this file words the
-// reader's card. `?i=` opens the issue in the pop-up, and only then is it read
-// in full; `?tab=done` is the Done tab, where `?i=` is a dismissal's id. An
-// interviewer gets the pointer home.
+// inbox-issues.ts computes the queue, lib/client/inbox-feed.ts what happened
+// lately, view.tsx draws them; this file words the reader's card. `?range=` is
+// how far back the digest goes (Needs you doesn't depend on it). `?i=` opens the
+// issue in the pop-up, and only then is it read in full; `?tab=done` is the Done
+// tab, where `?i=` is a dismissal's id. An interviewer gets the pointer home.
 
 function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
   const decidable = fix.type === "decide";
@@ -136,6 +139,8 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
     );
   }
 
+  const range = parseRange(one(sp.range));
+  const digest = await readDigest(db, range, now, issues.length);
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
   const mailer = webMailer();
@@ -151,7 +156,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
         rows={issues.map((i) => ({
           key: i.key,
           kind: i.kind,
-          href: `/client/inbox?i=${i.key}`,
+          href: inboxHref(range, i.key),
           what: i.what,
           who: i.who,
           line: issueLine(i),
@@ -183,8 +188,19 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
             : null
         }
         flash={flash}
+        home={inboxHref(range)}
         truncated={truncated}
         draftsCapped={draftsCapped}
+        digest={{
+          range,
+          asOf: now.toISOString(),
+          now: nowMs,
+          total: digest.total,
+          shown: digest.shown,
+          unread: digest.unread.length,
+          capped: digest.capped,
+          groups: digest.groups.map((g) => ({ ...g, rows: g.rows.map((r) => ({ ...r, age: ago(r.at, nowMs) })) })),
+        }}
       />
     </>
   );
