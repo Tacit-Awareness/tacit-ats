@@ -128,8 +128,9 @@ export function OnboardingFrame({
   const at = SETUP_STEPS.findIndex((s) => s.key === step);
   return (
     <Page bar={<PageBar title="Onboarding" />}>
-      <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_288px]">
-        <aside className="min-w-0 lg:order-last lg:sticky lg:top-6">
+      {/* The flowchart wants the width: design/tats's `.su-wide`. */}
+      <div className={cn("grid min-w-0 items-start gap-5", step !== "process" && "lg:grid-cols-[minmax(0,1fr)_288px]")}>
+        <aside className={cn("min-w-0 lg:order-last lg:sticky lg:top-6", step === "process" && "lg:hidden")}>
           <SetupChecklist step={step} checklist={checklist} />
         </aside>
         <div className="grid min-w-0 gap-4" data-tour="onboarding">

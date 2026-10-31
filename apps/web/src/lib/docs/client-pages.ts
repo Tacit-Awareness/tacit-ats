@@ -318,9 +318,19 @@ These moved to Onboarding, and the Interviewers page links there. **Team**, in t
 
 **Interview skills** lists the kinds of interview your company runs. Nothing is filled in for you, so start with **Add an interview type**. Rename or archive a type from its row. Adding an archived type's name brings it back, with who ran it. Under each person, an admin adds their skills, up to 20, and taps the interview types they run. The star says to ask them first. Everyone changes their own skills from the **Interviewers** page. If someone else saved a person's profile a moment ago, your change isn't saved, and the page shows what it says now.
 
+### Interview process
+
+**Interview process** is one flowchart for your company, from applying to an offer, with a branch for each team. Admins draw it; your hiring team can read it. Below 900 pixels wide, or with a keyboard or screen reader, use the **List**, which shows the same process as text, along with the way through for each team.
+
+On the **Canvas**, double-click to add a step, drag a step to move it, and drag from the dot on its right to connect it to what comes next. **Split** sends candidates down a branch by the team their job is in. A team inside another takes the nearest branch it finds, and **Everyone else** catches the rest. Click anything to name it or say who runs it. \`Delete\` removes what is selected and \`⌘Z\` undoes. Scroll to pan, and hold \`⌘\` and scroll to zoom.
+
+**Save** keeps your drawing, problems and all, and changes no job. Each job keeps its own plan, and that plan is what scheduling uses. **Apply to jobs** is the one thing that changes them: it shows what each open job's plan would become, warns about a step renamed or removed, and lets you untick any job. Only interviews go on a plan, not reviews or Testbenches. Interviews already on a job keep the step name they have, so one on a renamed step shows as off-plan. Who runs a step and how long it takes are for people to read: nothing is booked from them. A job you cannot change is listed as skipped, and a confidential job you are not on is left alone.
+
+### People
+
 **People** lists your team with each person's access and title. Anyone can set their own title; an admin can set anyone's. Interviewers set theirs on the **Interviewers** page, with the rest of their profile. An external recruiter sees the team on the **Interviewers** page too.
 
-Teams, Interview skills, Interview process and Review are coming next, and their pages say so. The checklist already counts what your company has in them.`,
+Review is coming next, and its page says so. The checklist already counts what your company has set up.`,
   },
   {
     slug: "app-integrations",

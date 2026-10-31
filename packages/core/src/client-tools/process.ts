@@ -3,6 +3,7 @@ import type { Db, Json } from "@tacit/db";
 import { withAudit } from "./audit.js";
 import { requireSetupAdmin, requireSetupReader } from "./company-setup.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
+import { setInterviewPlan, type PlanChange } from "./plans.js";
 
 /**
  * How a company interviews, as one flowchart (interview_processes, tacit-internal
@@ -12,7 +13,9 @@ import { ClientToolError, type ClientToolCtx } from "./context.js";
  *
  * The graph is the app's to understand. This file checks only what the table's
  * trigger does: an object holding a nodes array and an edges array, and its size.
- * What a node means, whether the edges connect and what becomes of it comes later.
+ * What a node means and whether the edges connect is the web app's
+ * (lib/client/process-graph.ts), which also works out each job's steps: Apply is
+ * handed them.
  *
  * A save replaces the whole graph, so it carries the `updated_at` the page read: a
  * save made since is reported and not overwritten. The audit row is the node and
@@ -121,6 +124,98 @@ export async function setProcess(
       before: before ? countsOf(before) : null,
       after: countsOf(graph),
       changed: true,
+    };
+  });
+}
+
+/** One job, and the steps its department's way through gives it. */
+export type ProcessJobPlan = { jobId: string; steps: string[] };
+
+/**
+ * Why a job was left as it was. `refused` is setInterviewPlan's forbidden: a job
+ * the member sees and may not change, a confidential one they are only partly on.
+ * `not_found` is one their token no longer reads, which a confidential job is to
+ * an admin who is not on it.
+ */
+export type ApplySkipReason = "refused" | "not_found" | "invalid" | "rate_limited" | "failed";
+
+export type JobApplied =
+  | ({ jobId: string; outcome: "updated" | "unchanged" } & Pick<PlanChange, "steps" | "removed" | "keptOnInterviews">)
+  | { jobId: string; outcome: "skipped"; reason: ApplySkipReason };
+
+export type ApplyProcessResult =
+  /** Someone saved the process since `expectedUpdatedAt`: nothing was written. */
+  | { outcome: "stale" }
+  | { outcome: "applied" | "previewed"; jobs: JobApplied[]; updated: number; unchanged: number; skipped: number };
+
+const SKIPPED_FOR: Partial<Record<ClientToolError["code"], ApplySkipReason>> = {
+  forbidden: "refused",
+  not_found: "not_found",
+  invalid: "invalid",
+  rate_limited: "rate_limited",
+};
+
+async function applyToJob(db: Db, ctx: ClientToolCtx, plan: ProcessJobPlan, dryRun: boolean): Promise<JobApplied> {
+  try {
+    const { outcome, steps, removed, keptOnInterviews } = await setInterviewPlan(db, ctx, { ...plan, dryRun });
+    return { jobId: plan.jobId, outcome, steps, removed, keptOnInterviews };
+  } catch (err) {
+    if (err instanceof ClientToolError) return { jobId: plan.jobId, outcome: "skipped", reason: SKIPPED_FOR[err.code] ?? "failed" };
+    console.error("[client-tools] applying the process to a job failed:", err instanceof Error ? err.message : err);
+    return { jobId: plan.jobId, outcome: "skipped", reason: "failed" };
+  }
+}
+
+async function applyEach(db: Db, ctx: ClientToolCtx, plans: ProcessJobPlan[], dryRun: boolean): Promise<JobApplied[]> {
+  const jobs: JobApplied[] = [];
+  let limited = false;
+  for (const plan of plans) {
+    // Past the hourly limit every other job would only be refused too.
+    const job: JobApplied = limited ? { jobId: plan.jobId, outcome: "skipped", reason: "rate_limited" } : await applyToJob(db, ctx, plan, dryRun);
+    limited ||= job.outcome === "skipped" && job.reason === "rate_limited";
+    jobs.push(job);
+  }
+  return jobs;
+}
+
+const tally = (jobs: JobApplied[]) => ({
+  updated: jobs.filter((j) => j.outcome === "updated").length,
+  unchanged: jobs.filter((j) => j.outcome === "unchanged").length,
+  skipped: jobs.filter((j) => j.outcome === "skipped").length,
+});
+
+/**
+ * The only way the process reaches a live job, and only ever asked for: each
+ * job's plan is set by setInterviewPlan on the admin's own token, so its permission
+ * check, its audit row and its keeping of interviews on a removed step are that
+ * tool's. A job it refuses is skipped, not an error: the rest still go. `dryRun`
+ * says what would happen with nothing written.
+ *
+ * Nothing is atomic: each job is its own write. The audit row here is the counts,
+ * never the graph; each job's own `role.interview_plan` row is as ever.
+ */
+export async function applyProcessToJobs(
+  db: Db,
+  ctx: ClientToolCtx,
+  input: { plans: ProcessJobPlan[]; expectedUpdatedAt: string; dryRun?: boolean },
+): Promise<ApplyProcessResult> {
+  requireSetupAdmin(ctx, "apply the interview process to jobs");
+  const { data: row, error } = await db.from("interview_processes").select("updated_at").maybeSingle();
+  if (error) throw new Error(error.message);
+  if (row?.updated_at !== input.expectedUpdatedAt) return { outcome: "stale" };
+
+  if (input.dryRun || !input.plans.length) {
+    const jobs = await applyEach(db, ctx, input.plans, true);
+    return { outcome: "previewed", jobs, ...tally(jobs) };
+  }
+  return withAudit<ApplyProcessResult>(db, ctx, { action: "interview_process.apply", entity: "interview_process" }, async () => {
+    const jobs = await applyEach(db, ctx, input.plans, false);
+    const counts = tally(jobs);
+    return {
+      result: { outcome: "applied", jobs, ...counts },
+      entityId: ctx.orgId,
+      after: { jobs: jobs.length, ...counts },
+      changed: counts.updated > 0,
     };
   });
 }

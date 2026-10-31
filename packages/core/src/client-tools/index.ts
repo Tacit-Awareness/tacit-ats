@@ -34,8 +34,8 @@ export {
   renameInterviewType, unassignInterviewType,
 } from "./interview-types.js";
 export type { AddTypeResult, AssignResult, InterviewType, TypeInterviewer } from "./interview-types.js";
-export { PROCESS_GRAPH_MAX_BYTES, getProcess, setProcess } from "./process.js";
-export type { InterviewProcess, ProcessGraph, SetProcessResult } from "./process.js";
+export { PROCESS_GRAPH_MAX_BYTES, applyProcessToJobs, getProcess, setProcess } from "./process.js";
+export type { ApplyProcessResult, ApplySkipReason, InterviewProcess, JobApplied, ProcessGraph, ProcessJobPlan, SetProcessResult } from "./process.js";
 export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./connector.js";
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";
