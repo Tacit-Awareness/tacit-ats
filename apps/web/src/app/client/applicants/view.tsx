@@ -3,20 +3,23 @@ import { Avatar, ListReader, Notice, PageBar, textLink } from "@/components/page
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
 import { cn } from "@/lib/utils";
-import { ReplyBox, type Reply } from "./reply-box";
-import { RoutingBar, type Routing } from "./routing-bar";
+import { ControlPanel } from "./control-panel";
+import type { Reply } from "./reply-box";
+import type { Routing } from "./routing-bar";
 
 // Applicant Tickets' markup, props only (page.tsx does the reads): the queue
-// grouped by job on the left (a fixed 340px list), the open application as
-// one white page on the right, and design/tats's composer under it as the reply
-// box (reply-box.tsx) over the routing bar (routing-bar.tsx). J/K walk the tickets (components/keys.tsx). Everything
-// an applicant typed is rendered as text; React escapes it, and only an
-// http(s) URL becomes a link (applicant-queue.ts's safeHref).
+// grouped by team on the left (a fixed 340px list), the open application as
+// one white page on the right, and design/tats's control panel under it
+// (control-panel.tsx). J/K walk the tickets (components/keys.tsx). Everything an
+// applicant typed is rendered as text; React escapes it, and only an http(s)
+// URL becomes a link (applicant-queue.ts's safeHref).
 
 export type TicketRow = { applicationId: string; href: string; name: string; line: string; when: string; active: boolean };
-export type TicketGroup = { jobId: string; jobTitle: string; rows: TicketRow[] };
+/** `title` is a team's path, or a job's title in an org with no departments. */
+export type TicketGroup = { key: string; title: string; rows: TicketRow[] };
 
 export type Ticket = {
+  applicationId: string;
   name: string;
   email: string | null;
   phone: string | null;
@@ -24,6 +27,8 @@ export type Ticket = {
   jobHref: string;
   applied: string;
   post: string | null;
+  /** The job's team, or null when the list isn't by team. */
+  team: string | null;
   answers: ReaderAnswer[];
   /** Null when the member may not move people in this job. */
   routing: Routing | null;
@@ -36,9 +41,11 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
     <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid content-start gap-0.5" data-tour="tickets">
       {groups.length === 0 ? <p className="m-0 px-3 pt-1 text-[13px] text-faint">No new applicants.</p> : null}
       {groups.map((g, i) => (
-        <section key={g.jobId} aria-label={g.jobTitle} className="grid gap-0.5">
+        <section key={g.key} aria-label={g.title} className="grid gap-0.5">
           <h2 className={cn("m-0 flex min-w-0 items-center gap-2 px-3 pb-1 text-[12.5px] font-normal text-muted-foreground", i === 0 ? "pt-1" : "pt-3")}>
-            <b className="truncate font-medium text-foreground">{g.jobTitle}</b>
+            <b title={g.title} className="truncate font-medium text-foreground">
+              {g.title}
+            </b>
             <span className="text-faint tabular-nums">{g.rows.length}</span>
           </h2>
           {g.rows.map((r) => (
@@ -148,20 +155,14 @@ export function ApplicantsView({
       reader={
         ticket ? (
           <div className="flex min-h-full flex-col bg-[color:var(--soft)]">
-            <div className="grid flex-1 content-start gap-3 p-3 md:px-6 md:pt-5 md:pb-10">
+            <div className="grid flex-1 grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:px-6 md:pt-5 md:pb-10">
               <Link href="/client/applicants" className={cn(textLink, "md:hidden")}>
                 ← All applicants
               </Link>
               {flash ? <div className="mx-auto w-[640px] max-w-full">{flash}</div> : null}
               <Paper ticket={ticket} />
             </div>
-            {ticket.reply || ticket.routing ? (
-              <div className="sticky bottom-0 z-10">
-                {/* A new draft is a new box, so a change or a refusal never outlives it. */}
-                {ticket.reply ? <ReplyBox key={`${ticket.reply.applicationId}:${ticket.reply.draft?.draftId ?? ""}`} reply={ticket.reply} /> : null}
-                {ticket.routing ? <RoutingBar key={ticket.routing.applicationId} routing={ticket.routing} /> : null}
-              </div>
-            ) : null}
+            {ticket.reply || ticket.routing ? <ControlPanel key={ticket.applicationId} routing={ticket.routing} reply={ticket.reply} team={ticket.team} /> : null}
           </div>
         ) : (
           <div className="mx-auto grid max-w-[760px] content-start gap-4">

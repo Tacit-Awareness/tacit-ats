@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { groupByJob, inOrder, neighbour, readerAnswers, safeHref, selected, type QueueEntry } from "./applicant-queue";
+import type { DepartmentsRead } from "./department-tree";
+import { groupByJob, groupByTeam, inOrder, neighbour, readerAnswers, safeHref, selected, type QueueEntry } from "./applicant-queue";
 
 const entry = (id: string, jobId: string, appliedAt: string, over: Partial<QueueEntry> = {}): QueueEntry => ({
   applicationId: id,
@@ -22,14 +23,86 @@ describe("groupByJob", () => {
       entry("b", "design", "2026-10-28T00:00:00Z"),
       entry("c", "eng", "2026-10-25T00:00:00Z"),
     ]);
-    expect(groups.map((g) => [g.jobId, g.entries.map((e) => e.applicationId)])).toEqual([
+    expect(groups.map((g) => [g.key, g.entries.map((e) => e.applicationId)])).toEqual([
       ["design", ["b"]],
       ["eng", ["c", "a"]],
     ]);
   });
 
   test("a job without a title still gets a heading", () => {
-    expect(groupByJob([entry("a", "eng", "2026-10-20T00:00:00Z", { jobTitle: null })])[0]!.jobTitle).toBe("Untitled job");
+    expect(groupByJob([entry("a", "eng", "2026-10-20T00:00:00Z", { jobTitle: null })])[0]!.title).toBe("Untitled job");
+  });
+});
+
+describe("groupByTeam", () => {
+  const read: DepartmentsRead = {
+    departments: [
+      { id: "plat", name: "Platform", parentId: "eng", archived: false },
+      { id: "eng", name: "Engineering", parentId: null, archived: false },
+      { id: "design", name: "Design", parentId: null, archived: false },
+      { id: "old", name: "Old team", parentId: null, archived: true },
+      { id: "empty", name: "Sales", parentId: null, archived: false },
+    ],
+    jobs: [
+      { jobId: "j-plat", departmentId: "plat" },
+      { jobId: "j-eng", departmentId: "eng" },
+      { jobId: "j-design", departmentId: "design" },
+      { jobId: "j-old", departmentId: "old" },
+      { jobId: "j-none", departmentId: null },
+      { jobId: "j-unreadable", departmentId: "someone-elses" },
+    ],
+  };
+  const shape = (groups: ReturnType<typeof groupByTeam>) => groups.map((g) => [g.title, g.entries.map((e) => e.applicationId)]);
+
+  test("each department under its full path, in path order, with empty ones left out and Other last", () => {
+    const groups = groupByTeam(
+      [
+        entry("none", "j-none", "2026-10-29T00:00:00Z"),
+        entry("plat", "j-plat", "2026-10-28T00:00:00Z"),
+        entry("eng", "j-eng", "2026-10-27T00:00:00Z"),
+        entry("design", "j-design", "2026-10-26T00:00:00Z"),
+      ],
+      read,
+    );
+    expect(shape(groups)).toEqual([
+      ["Design", ["design"]],
+      ["Engineering", ["eng"]],
+      ["Engineering › Platform", ["plat"]],
+      ["Other", ["none"]],
+    ]);
+    expect(groups.every((g) => g.isTeam)).toBe(true);
+  });
+
+  test("a team is newest first, whichever job each applicant came through", () => {
+    const groups = groupByTeam(
+      [entry("a", "j-design", "2026-10-20T00:00:00Z"), entry("b", "j-design", "2026-10-28T00:00:00Z"), entry("c", "j-design", "2026-10-25T00:00:00Z")],
+      read,
+    );
+    expect(shape(groups)).toEqual([["Design", ["b", "c", "a"]]]);
+  });
+
+  test("a job keeps an archived department, as on Job Postings", () => {
+    expect(shape(groupByTeam([entry("a", "j-old", "2026-10-20T00:00:00Z")], read))).toEqual([["Old team", ["a"]]]);
+  });
+
+  test("a job in no department, one the member cannot read, or one the read never reached is Other", () => {
+    const groups = groupByTeam([entry("a", "j-none", "2026-10-22T00:00:00Z"), entry("b", "j-unreadable", "2026-10-21T00:00:00Z"), entry("c", "j-unknown", "2026-10-20T00:00:00Z")], read);
+    expect(shape(groups)).toEqual([["Other", ["a", "b", "c"]]]);
+  });
+
+  test("with no departments at all the list stays by job", () => {
+    const groups = groupByTeam([entry("a", "eng", "2026-10-20T00:00:00Z"), entry("b", "design", "2026-10-28T00:00:00Z")], { departments: [], jobs: [] });
+    expect(shape(groups)).toEqual([
+      ["Job design", ["b"]],
+      ["Job eng", ["a"]],
+    ]);
+    expect(groups.some((g) => g.isTeam)).toBe(false);
+  });
+
+  test("the reading order follows the groups, so J, K and the next ticket walk the list as shown", () => {
+    const groups = groupByTeam([entry("a", "j-none", "2026-10-29T00:00:00Z"), entry("b", "j-plat", "2026-10-20T00:00:00Z")], read);
+    expect(inOrder(groups).map((e) => e.applicationId)).toEqual(["b", "a"]);
+    expect(neighbour(inOrder(groups), "b")!.applicationId).toBe("a");
   });
 });
 

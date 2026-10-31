@@ -2,8 +2,9 @@ import Link from "next/link";
 import { clientTools } from "@tacit-ats/core";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
-import { groupByJob, inOrder, neighbour, readerAnswers, selected } from "@/lib/client/applicant-queue";
+import { groupByTeam, inOrder, neighbour, readerAnswers, selected } from "@/lib/client/applicant-queue";
 import { readApplicantQueue, readRouting } from "@/lib/client/applicants";
+import { readDepartments } from "@/lib/client/departments";
 import { readReply } from "@/lib/client/email";
 import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
@@ -16,10 +17,11 @@ import { ApplicantsView, type Ticket } from "./view";
 
 // Applicant Tickets (design/tats's #triage): new job-board applicants, read
 // like email. The list is core's listApplicationsInbox on the member's own
-// token (lib/client/applicants.ts), grouped by job, newest first; `?a=` picks
-// the one the reader shows. The routing bar under it appears only when
-// can_on_role says the member may move people in that job, and the reply box
-// only when can_edit_person says they may email this candidate.
+// token (lib/client/applicants.ts), grouped by team (by job in an org with no
+// departments), newest first; `?a=` picks the one the reader shows. The control
+// panel under it offers the next step only when can_on_role says the member may
+// move people in that job, and the reply only when can_edit_person says they
+// may email this candidate.
 
 export default async function ClientApplicants({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const gate = await resolveClient();
@@ -48,7 +50,8 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
   const error = one(sp.error);
 
   const now = Date.now();
-  const groups = groupByJob(await readApplicantQueue(db, { actorId, orgId: org.id, accessLevel }));
+  const [queue, structure] = await Promise.all([readApplicantQueue(db, { actorId, orgId: org.id, accessLevel }), readDepartments(db)]);
+  const groups = groupByTeam(queue, structure);
   const order = inOrder(groups);
   const open = selected(order, one(sp.a));
   const mailer = webMailer();
@@ -59,7 +62,9 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
   let ticket: Ticket | null = null;
   if (open) {
     const { phone, answers } = readerAnswers(open.answers);
+    const group = groups.find((g) => g.entries.includes(open));
     ticket = {
+      applicationId: open.applicationId,
       name: open.name ?? "Unnamed applicant",
       email: open.email,
       phone,
@@ -67,6 +72,7 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
       jobHref: `/client/jobs/${open.jobId}`,
       applied: ago(open.appliedAt, now),
       post: open.post,
+      team: group?.isTeam ? group.title : null,
       answers,
       routing: routing?.canEdit
         ? { applicationId: open.applicationId, next: neighbour(order, open.applicationId)?.applicationId ?? null, reasons: routing.reasons }
@@ -95,13 +101,14 @@ export default async function ClientApplicants({ searchParams }: { searchParams:
       <ApplicantsView
         total={order.length}
         groups={groups.map((g) => ({
-          jobId: g.jobId,
-          jobTitle: g.jobTitle,
+          key: g.key,
+          title: g.title,
           rows: g.entries.map((e) => ({
             applicationId: e.applicationId,
             href: `/client/applicants?a=${e.applicationId}`,
             name: e.name ?? "Unnamed applicant",
-            line: e.post ?? e.email ?? "Job board",
+            // Under a team the row has to name the job; under a job it says where they applied.
+            line: g.isTeam ? (e.jobTitle ?? "Untitled job") : (e.post ?? e.email ?? "Job board"),
             when: ago(e.appliedAt, now),
             active: e.applicationId === open?.applicationId,
           })),

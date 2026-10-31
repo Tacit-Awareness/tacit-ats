@@ -1,29 +1,41 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import { pillOption, pillTrack } from "@/components/page";
 import type { RejectReason } from "@/lib/client/applicants";
 import { cn } from "@/lib/utils";
 import { routeApplicantAction } from "./actions";
 
-// The routing bar under an application, with design/tats's keys on its
-// buttons: I interviews, S moves to screening, D declines. A key presses the
-// button (the same server action, the same posted fields); D with no reason
-// picked focuses the reason instead, since a decline needs one. design/tats's
-// T (Testbench) is left out: nothing sends one. Its ⌘↵ and its one button for
-// reply and route are the reply box's (reply-box.tsx), which has its own Send.
+// The control panel's top row (design/tats's `.cp-top`): the next step as large
+// pills, the team, and the button that moves them. Pressing a pill only picks
+// the move, as in the prototype, and picks the reply's starter with it; the
+// button at the end of the row says the move and posts it. The keys pick too:
+// I interviews, S screening, D declines, then that button takes focus, so Enter
+// posts it and no single key moves anyone. D with no reason picked focuses the
+// reason instead, since a decline needs one.
+// design/tats's T (Testbench) is left out: nothing sends one. The team is
+// read-only: a route takes no team, the job already has one.
 
 export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[] };
+export type MoveKey = "interview" | "screening" | "decline";
+
+const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
+  { key: "interview", keyName: "I", pick: "Interview", act: "Move to interviewing" },
+  { key: "screening", keyName: "S", pick: "Screening", act: "Move to screening" },
+  { key: "decline", keyName: "D", pick: "Decline", act: "Decline" },
+];
 
 /** The keys, inside the form so a key does nothing while a route is in flight. */
-function RoutingKeys({ press, decline }: { press: (route: "interview" | "screening") => void; decline: () => void }) {
+function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
   const { pending } = useFormStatus();
-  useKeys({ i: () => press("interview"), s: () => press("screening"), d: decline }, !pending);
+  useKeys({ i: () => pick("interview"), s: () => pick("screening"), d: () => pick("decline") }, !pending);
   useKeyHelp("Applicant Tickets", [
-    { keys: "I", label: "Interview" },
-    { keys: "S", label: "Move to screening" },
-    { keys: "D", label: "Decline (pick a reason first)" },
+    { keys: "I", label: "Pick Interview" },
+    { keys: "S", label: "Pick Screening" },
+    { keys: "D", label: "Pick Decline, then its reason" },
+    { keys: "Enter", label: "Post the picked move" },
   ]);
   return null;
 }
@@ -34,55 +46,123 @@ export const pill =
 
 export const pillPrimary = "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106";
 
-/** The buttons, disabled while a route is in flight. */
-function Route({ value, keyName, primary = false, refFn, children }: { value: string; keyName: string; primary?: boolean; refFn: (b: HTMLButtonElement | null) => void; children: ReactNode }) {
-  const { pending } = useFormStatus();
+const label = "text-[13px] font-medium text-muted-foreground";
+/** design/tats's `.cp .chip`: the panel's 36px. */
+const control = "h-9 text-[14px]";
+
+/** A next step on the pill track (`.cp .cx-seg > *`). The picked one keeps the hover highlight, as the README asks. */
+function MovePill({ move, picked, onPick }: { move: (typeof MOVES)[number]; picked: boolean; onPick: () => void }) {
   return (
     <button
-      ref={refFn}
-      type="submit"
-      name="route"
-      value={value}
-      disabled={pending}
-      aria-keyshortcuts={keyName}
-      className={cn(pill, primary && pillPrimary)}
+      type="button"
+      aria-pressed={picked}
+      aria-keyshortcuts={move.keyName}
+      onClick={onPick}
+      className={cn(
+        pillOption(false),
+        "h-9 px-3.5 text-[14px] hover:bg-foreground/[0.12] md:px-[18px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--accent)]",
+        picked && "bg-foreground/[0.12] text-foreground",
+      )}
     >
-      {children}
-      <Kbd decorative className={primary ? "border-transparent bg-current/20 text-current" : undefined}>
-        {keyName}
+      {move.pick}
+      <Kbd decorative className="border-transparent bg-current/10 text-current max-md:hidden">
+        {move.keyName}
       </Kbd>
     </button>
   );
 }
 
-export function RoutingBar({ routing }: { routing: Routing }) {
-  const form = useRef<HTMLFormElement>(null);
+/** The submit for one move, disabled while a route is in flight. Only the picked one shows. */
+function Route({
+  value,
+  shown,
+  primary,
+  refFn,
+  onClick,
+  children,
+}: {
+  value: MoveKey;
+  shown: boolean;
+  primary: boolean;
+  refFn: (b: HTMLButtonElement | null) => void;
+  onClick?: (e: MouseEvent) => void;
+  children: ReactNode;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button ref={refFn} type="submit" name="route" value={value} disabled={pending} onClick={onClick} className={cn(pill, control, "px-4", primary && pillPrimary, !shown && "hidden")}>
+      {children}
+    </button>
+  );
+}
+
+/** The job's team: a fact here, not a choice. */
+export function TeamField({ team }: { team: string }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className={label}>Team</span>
+      <span title={team} className={cn("inline-flex max-w-[260px] min-w-0 items-center rounded-full border border-[color:var(--line)] bg-[color:var(--raised)] px-3.5", control)}>
+        <span className="truncate">{team}</span>
+      </span>
+    </div>
+  );
+}
+
+export function RoutingBar({
+  routing,
+  team,
+  move,
+  onMove,
+  lead,
+}: {
+  routing: Routing;
+  team: string | null;
+  move: MoveKey;
+  onMove: (move: MoveKey) => void;
+  /** No reply can go out, so this is the panel's one action. */
+  lead: boolean;
+}) {
   const reason = useRef<HTMLSelectElement>(null);
   const buttons = useRef<Record<string, HTMLButtonElement | null>>({});
-  const press = (route: string) => {
-    const b = buttons.current[route];
-    if (b) form.current?.requestSubmit(b);
-  };
-  const decline = () => (reason.current?.value ? press("decline") : reason.current?.focus());
+  // The reason only shows once Decline is picked, so focusing it waits for that render.
+  const [askedForReason, setAskedForReason] = useState(0);
+  useEffect(() => {
+    if (askedForReason) reason.current?.focus();
+  }, [askedForReason]);
 
-  // design/tats's `.composer2` footer: full width under the page, ruled on top, on paper.
+  const noReason = () => !reason.current?.value;
+  const askForReason = () => {
+    onMove("decline");
+    setAskedForReason((n) => n + 1);
+  };
+  const pick = (m: MoveKey) => (m === "decline" && noReason() ? askForReason() : onMove(m));
+  // A key's pick hands focus to its button, so Enter posts it. Waits for the render that shows the button.
+  const [keyed, setKeyed] = useState<{ move: MoveKey } | null>(null);
+  useEffect(() => {
+    if (keyed) buttons.current[keyed.move]?.focus();
+  }, [keyed]);
+  const keyPick = (m: MoveKey) => {
+    pick(m);
+    if (m !== "decline" || !noReason()) setKeyed({ move: m });
+  };
+
   return (
-    <form
-      data-tour="route"
-      ref={form}
-      action={routeApplicantAction}
-      className="flex flex-wrap items-center gap-1.5 border-t border-[color:var(--line)] bg-[color:var(--paper)] px-[18px] py-3"
-    >
-      <RoutingKeys press={press} decline={decline} />
+    <form action={routeApplicantAction} className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <RoutingKeys pick={keyPick} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
-      <Route value="interview" keyName="I" primary refFn={(b) => void (buttons.current.interview = b)}>
-        Interview
-      </Route>
-      <Route value="screening" keyName="S" refFn={(b) => void (buttons.current.screening = b)}>
-        Move to screening
-      </Route>
-      <span className="ml-auto flex min-w-0 items-center gap-1.5">
+      <div className="flex max-w-full min-w-0 items-center gap-3">
+        <span id="next-step" className={cn(label, "flex-none")}>
+          Next step
+        </span>
+        <div role="group" aria-labelledby="next-step" className={pillTrack}>
+          {MOVES.map((m) => (
+            <MovePill key={m.key} move={m} picked={m.key === move} onPick={() => pick(m.key)} />
+          ))}
+        </div>
+      </div>
+      {/* Always in the form, showing or not, as it always was. */}
+      <span className={cn("max-w-full min-w-0", move !== "decline" && "hidden")}>
         <label htmlFor="reasonId" className="sr-only">
           Rejection reason
         </label>
@@ -91,7 +171,7 @@ export function RoutingBar({ routing }: { routing: Routing }) {
           id="reasonId"
           name="reasonId"
           defaultValue=""
-          className={cn(pill, "w-[190px] bg-transparent pr-2 text-muted-foreground outline-none focus-visible:border-[color:var(--accent)]")}
+          className={cn(pill, control, "w-[200px] max-w-full bg-transparent pr-2 text-muted-foreground outline-none focus-visible:border-[color:var(--accent)]")}
         >
           <option value="">Rejection reason…</option>
           {routing.reasons.map((r) => (
@@ -100,9 +180,29 @@ export function RoutingBar({ routing }: { routing: Routing }) {
             </option>
           ))}
         </select>
-        <Route value="decline" keyName="D" refFn={(b) => void (buttons.current.decline = b)}>
-          Decline
-        </Route>
+      </span>
+      {team ? <TeamField team={team} /> : null}
+      <span className="md:ml-auto">
+        {MOVES.map((m) => (
+          <Route
+            key={m.key}
+            value={m.key}
+            shown={m.key === move}
+            primary={lead}
+            refFn={(b) => void (buttons.current[m.key] = b)}
+            onClick={
+              m.key === "decline"
+                ? (e) => {
+                    if (!noReason()) return;
+                    e.preventDefault();
+                    reason.current?.focus();
+                  }
+                : undefined
+            }
+          >
+            {m.act}
+          </Route>
+        ))}
       </span>
     </form>
   );

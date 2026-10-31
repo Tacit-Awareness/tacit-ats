@@ -1,8 +1,11 @@
+import { departmentOptions, type DepartmentsRead } from "./department-tree";
+
 // Applicant Tickets' arrangement of the queue (design/tats's #triage): the
-// job-board applicants core's listApplicationsInbox returns, grouped by job,
-// and each application's answers split into contact and the rest. Pure: the
-// page reads, this arranges. Every answer is candidate text, so nothing here
-// turns one into markup; a link is only ever an http(s) URL.
+// job-board applicants core's listApplicationsInbox returns, grouped by team
+// (the data model's teams are departments), and each application's answers
+// split into contact and the rest. Pure: the page reads, this arranges. Every
+// answer is candidate text, so nothing here turns one into markup; a link is
+// only ever an http(s) URL.
 
 /** One applicant in the queue, as the list and reader need it. */
 export type QueueEntry = {
@@ -18,18 +21,44 @@ export type QueueEntry = {
   answers: { questionId: string; type: string; label: string; value: string }[];
 };
 
-export type QueueGroup = { jobId: string; jobTitle: string; entries: QueueEntry[] };
+/** `isTeam` says whether `title` names a team, or a job when the org has no departments. */
+export type QueueGroup = { key: string; title: string; isTeam: boolean; entries: QueueEntry[] };
+
+const newestFirst = (entries: QueueEntry[]) => [...entries].sort((a, b) => Date.parse(b.appliedAt) - Date.parse(a.appliedAt));
 
 /** Newest first; jobs in the order of their newest applicant. */
 export function groupByJob(entries: QueueEntry[]): QueueGroup[] {
-  const sorted = [...entries].sort((a, b) => Date.parse(b.appliedAt) - Date.parse(a.appliedAt));
   const groups = new Map<string, QueueGroup>();
-  for (const e of sorted) {
-    const g = groups.get(e.jobId) ?? { jobId: e.jobId, jobTitle: e.jobTitle ?? "Untitled job", entries: [] };
+  for (const e of newestFirst(entries)) {
+    const g = groups.get(e.jobId) ?? { key: e.jobId, title: e.jobTitle ?? "Untitled job", isTeam: false, entries: [] };
     g.entries.push(e);
     groups.set(e.jobId, g);
   }
   return [...groups.values()];
+}
+
+/**
+ * The queue by team, the way Job Postings bands jobs: each department under
+ * its full path, in path order, a job counting in the department it was filed
+ * under, even an archived one, and never rolled up into a parent. Jobs in none
+ * (or in one the member cannot read) come last under "Other". An org with no
+ * departments, or a member who reads none, keeps the list by job: one "Other"
+ * holding everyone would say nothing.
+ */
+export function groupByTeam(entries: QueueEntry[], read: DepartmentsRead): QueueGroup[] {
+  if (!read.departments.length) return groupByJob(entries);
+  // Archived ones too: departmentOptions leaves those out, and only the filter wants that.
+  const teams = departmentOptions(read.departments.map((d) => ({ ...d, archived: false })));
+  const known = new Set(teams.map((t) => t.id));
+  const departmentOf = new Map(read.jobs.map((j) => [j.jobId, j.departmentId]));
+  const teamOf = (e: QueueEntry) => {
+    const id = departmentOf.get(e.jobId);
+    return id && known.has(id) ? id : null;
+  };
+  const sorted = newestFirst(entries);
+  const groups: QueueGroup[] = teams.map((t) => ({ key: t.id, title: t.path, isTeam: true, entries: sorted.filter((e) => teamOf(e) === t.id) }));
+  groups.push({ key: "other", title: "Other", isTeam: true, entries: sorted.filter((e) => teamOf(e) === null) });
+  return groups.filter((g) => g.entries.length > 0);
 }
 
 /** The list in reading order, as the groups show it. */
