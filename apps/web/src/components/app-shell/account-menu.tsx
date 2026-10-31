@@ -142,8 +142,11 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                 </TourButton>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-[color:var(--line)] py-1.5 pr-2 pl-4 text-[13.5px]">
-                <span>Theme</span>
-                <div role="group" aria-label="Theme" className="inline-flex rounded-full bg-[color:var(--soft-strong)] p-0.5">
+                <span className="inline-flex items-center gap-2.5">
+                  <Glyph name="dark" className="text-muted-foreground" />
+                  Theme
+                </span>
+                <div role="group" aria-label="Theme" className="inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}

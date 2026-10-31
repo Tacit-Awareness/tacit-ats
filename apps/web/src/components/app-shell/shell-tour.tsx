@@ -1,9 +1,9 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TOUR, onScreen, placeTour, type Box } from "@/lib/tour";
+import { TOUR, onScreen, onStepPage, placeTour, tourTargets, type Box } from "@/lib/tour";
 import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // it spotlights and puts the card beside it. Clicks outside the card are
 // blocked; → or Enter is Next, ← is Back, Esc ends it. Nothing is saved.
 
-const START_EVENT = "tats:tour";
+export const START_EVENT = "tats:tour";
 /** How long a step waits for its page and element before centring the card. */
 const WAIT_MS = 3000;
 
@@ -48,6 +48,7 @@ type Placed = { spot: Box | null; card: { left: number; top: number } };
 export function ShellTour() {
   const router = useRouter();
   const pathname = usePathname();
+  const sub = useSearchParams().get("sub");
   const [i, setI] = useState<number | null>(null);
   const [placed, setPlaced] = useState<Placed | null>(null);
   const card = useRef<HTMLDivElement>(null);
@@ -94,15 +95,16 @@ export function ShellTour() {
   useEffect(() => {
     if (i === null) return;
     const step = TOUR[i];
-    if (step.href && pathname !== step.href) {
+    if (step.href && !onStepPage(step.href, pathname, sub)) {
       router.push(step.href);
       return;
     }
+    const targets = tourTargets(step.targets, matchMedia("(max-width: 767px)").matches);
     const since = Date.now();
     let frame = 0;
     const look = () => {
-      const found = find(step.targets);
-      if (found || Date.now() - since > WAIT_MS) {
+      const found = find(targets);
+      if (found || !targets.length || Date.now() - since > WAIT_MS) {
         el.current = found;
         found?.scrollIntoView({ block: "nearest" });
         place();
@@ -112,7 +114,7 @@ export function ShellTour() {
     };
     look();
     return () => cancelAnimationFrame(frame);
-  }, [i, pathname, router, place]);
+  }, [i, pathname, sub, router, place]);
 
   // Focus Next once the card is placed, so the keys work from the first step.
   useLayoutEffect(() => {

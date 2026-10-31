@@ -170,6 +170,13 @@ describe("rowGroups", () => {
   });
 });
 
+describe("a row with no name", () => {
+  it("says Unnamed, as Applicant Tickets do", () => {
+    expect(toRow(entry({ personName: "   " }), NOW).name).toBe("Unnamed");
+    expect(toRow(entry({ personName: "" }), NOW).name).toBe("Unnamed");
+  });
+});
+
 describe("a row", () => {
   it("links to the candidate and carries the status, facts and time", () => {
     const e = entry({ column: "new", sourceDetail: "Ana Ruiz", source: "referral", ownerName: "Sam", stalled: ["no_touch"], lastTouchAt: daysAgo(9), headline: "Engineer at Acme" });

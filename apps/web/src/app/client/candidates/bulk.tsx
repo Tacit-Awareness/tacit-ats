@@ -50,7 +50,7 @@ function Box({ checked, label, onToggle }: { checked: boolean | "mixed"; label: 
       <span
         aria-hidden
         className={cn(
-          "grid size-4 place-items-center border border-[color:var(--line-strong)] text-[color:var(--accent-ink)] transition-colors group-hover:border-[color:var(--faint)]",
+          "grid size-4 place-items-center rounded-[4px] border border-[color:var(--line-strong)] text-[color:var(--accent-ink)] transition-colors group-hover:border-[color:var(--faint)]",
           checked && "border-[color:var(--accent)] bg-[color:var(--accent)] group-hover:border-[color:var(--accent)]",
         )}
       >

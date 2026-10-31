@@ -83,6 +83,15 @@ export const TOUR: TourStep[] = [
   },
 ];
 
+/**
+ * Whether the step's page is the one showing. Home's tabs share its path, so
+ * `?sub=` on Home is another page: the Overview's cards aren't on it.
+ */
+export const onStepPage = (href: string, pathname: string, sub: string | null) => pathname === href && !(href === "/client" && sub);
+
+/** What a step can spotlight: on a phone the sidebar is a closed drawer, so never one of its links. */
+export const tourTargets = (targets: string[], phone: boolean) => (phone ? targets.filter((t) => !t.startsWith("aside ")) : targets);
+
 export type Box = { left: number; top: number; width: number; height: number };
 
 /** How far the spotlight reaches past its element, the card's gap from it and from the window's edge. */

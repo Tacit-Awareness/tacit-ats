@@ -336,6 +336,7 @@ export function ListReader({
   readerLabel,
   bar,
   narrowList = false,
+  interviewList = false,
   flushReader = false,
 }: {
   list: React.ReactNode;
@@ -347,11 +348,18 @@ export function ListReader({
   bar?: React.ReactNode;
   /** design/tats's fixed 340px list (Applicant Tickets) instead of 42%. */
   narrowList?: boolean;
+  /** design/tats's `.ivw-list`: 360px, 280px in a window up to 1280px. */
+  interviewList?: boolean;
   /** The reader with no padding of its own, for a reader that draws its own surface edge to edge. */
   flushReader?: boolean;
 }) {
   const panes = (
-    <div className={cn("grid min-h-0 flex-1", narrowList ? "md:grid-cols-[340px_minmax(0,1fr)]" : "md:grid-cols-[minmax(320px,42%)_minmax(0,1fr)]")}>
+    <div
+      className={cn(
+        "grid min-h-0 flex-1",
+        narrowList ? "md:grid-cols-[340px_minmax(0,1fr)]" : interviewList ? "md:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]" : "md:grid-cols-[minmax(320px,42%)_minmax(0,1fr)]",
+      )}
+    >
       <section
         aria-label={listLabel}
         className={cn(
@@ -516,18 +524,19 @@ export function avatarColor(name: string | null | undefined): string {
 /**
  * The round initials avatar: initials on a solid colour per name, in the
  * brand's hue (`.av-tone` in globals.css). `candidate` is design/tats's `.av.cand`:
- * applicants are one plain grey, so colour stays for the team. `xs` is 20px
+ * an applicant has no picture, so it draws nothing, and rows hold no room for
+ * one; colour stays for the team. `xs` is 20px
  * (card owners, activity), `lg` 24px (table rows), `md` 28px, `row` 32px
  * (list rows), `ticket` 36px, `xl` 44px.
  */
 export function Avatar({ name, size = "sm", candidate = false }: { name: string | null | undefined; size?: "xs" | "sm" | "lg" | "md" | "row" | "ticket" | "xl"; candidate?: boolean }) {
+  if (candidate) return null;
   return (
     <span
       aria-hidden
-      style={candidate ? undefined : ({ "--c": avatarColor(name) } as React.CSSProperties)}
+      style={{ "--c": avatarColor(name) } as React.CSSProperties}
       className={cn(
-        "grid flex-none place-items-center rounded-full font-semibold",
-        candidate ? "bg-[color:var(--soft-strong)] text-muted-foreground" : "av-tone text-[color:var(--n25)]",
+        "av-tone grid flex-none place-items-center rounded-full font-semibold text-[color:var(--n25)]",
         size === "xl"
           ? "size-11 text-[15px]"
           : size === "ticket"

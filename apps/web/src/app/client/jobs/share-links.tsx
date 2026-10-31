@@ -33,12 +33,12 @@ export function ShareLinks({ url }: { url: string }) {
         <svg viewBox="0 0 10 10" className="ml-1 size-2.5" aria-hidden><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open ? (
-        <span className="absolute right-0 top-8 z-20 flex w-36 flex-col rounded-lg border border-border bg-popover p-1 shadow-md">
+        <span className="absolute right-0 top-8 z-20 flex w-36 flex-col border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]">
           {SHARE.map(([channel, label]) => (
             <button
               key={channel}
               type="button"
-              className={cn("flex items-center justify-between rounded-md px-2 py-1.5 text-left text-[12.5px] text-foreground hover:bg-accent")}
+              className={cn("flex items-center justify-between px-2 py-1.5 text-left text-[12.5px] text-foreground hover:bg-accent")}
               onClick={() => {
                 void navigator.clipboard.writeText(link(channel)).then(() => {
                   setCopied(channel);

@@ -12,15 +12,19 @@ export type PopupNode = {
   children: Iterable<PopupNode>;
 };
 
-/** Left alone: nothing to reach, and Next's announcer has to go on reading route changes. */
-const SKIP = new Set(["SCRIPT", "STYLE", "LINK", "TEMPLATE", "NEXT-ROUTE-ANNOUNCER"]);
+/**
+ * Left alone: nothing to reach, Next's announcer has to go on reading route
+ * changes, and a <dialog> is closed until it opens over everything, which inert
+ * on the dialog itself would leave dead to the mouse (the `?` sheet is always mounted).
+ */
+const SKIP = new Set(["SCRIPT", "STYLE", "LINK", "TEMPLATE", "NEXT-ROUTE-ANNOUNCER", "DIALOG"]);
 
 /**
  * Everything outside `root` goes inert, sibling by sibling up to the body, and
- * the answer puts it back. What was already inert stays so. A confirmation or
- * the `?` sheet still works from inside an inert parent, because a modal
- * <dialog> escapes its ancestors' inertness, and what mounts afterwards (the
- * command menu) isn't touched.
+ * the answer puts it back. What was already inert stays so. A confirmation
+ * still works from inside an inert parent, because a modal <dialog> escapes its
+ * ancestors' inertness, though not its own, so a <dialog> beside the way up is
+ * skipped. What mounts afterwards (the command menu) isn't touched.
  */
 export function inertOutside(root: PopupNode): () => void {
   const set: PopupNode[] = [];

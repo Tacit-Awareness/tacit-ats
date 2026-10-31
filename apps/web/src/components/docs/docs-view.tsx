@@ -41,7 +41,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
 
   return (
     <div className="mx-auto grid w-full max-w-[1180px] gap-7 lg:grid-cols-[230px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_190px]">
-      <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+      <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100*var(--vh)-6rem)] lg:self-start lg:overflow-y-auto">
         <p className="m-0 text-[13.5px] font-semibold">{site.title}</p>
         <p className="m-0 mt-1 text-xs leading-snug text-faint">{site.intro}</p>
         <div className="mt-4">

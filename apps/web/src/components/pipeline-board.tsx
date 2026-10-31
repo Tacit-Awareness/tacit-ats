@@ -309,7 +309,7 @@ export function PipelineBoard({
                       className={cn(
                         "space-y-2 border border-dashed p-2 transition-colors",
                         col.targets.length === 1 ? "min-h-32" : "min-h-12",
-                        isOver ? "border-primary bg-primary-soft" : "border-[color:var(--line)] bg-[color:var(--soft)]",
+                        isOver ? "border-foreground bg-primary-soft" : "border-[color:var(--line)] bg-[color:var(--soft)]",
                       )}
                     >
                       {col.targets.length > 1 && (

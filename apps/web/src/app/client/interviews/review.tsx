@@ -119,7 +119,7 @@ export function ReviewRow({ id, candidate, selected, children }: { id: string; c
       data-review-id={id}
       data-key-row
       data-reviewed={on ? "" : undefined}
-      className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center pr-[18px] transition-colors", selected ? "bg-[color:var(--sel)]" : "hover:bg-[color:var(--hover)]")}
+      className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center pr-[18px] transition-colors", selected ? "bg-[color:var(--sel)] shadow-[inset_2px_0_0_var(--ink)]" : "hover:bg-[color:var(--hover)]")}
     >
       {children}
       {reviewable ? (

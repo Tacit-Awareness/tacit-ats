@@ -98,7 +98,6 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
                   {candidates.data.map((c) => (
                     <Row
                       key={c.person_id}
-                      icon={<Avatar name={c.display_name} />}
                       title={c.display_name}
                       sub={[c.current_title, c.current_company].filter(Boolean).join(" at ") || undefined}
                     />

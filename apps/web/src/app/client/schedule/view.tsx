@@ -507,7 +507,6 @@ function ListOf({ rows, timeZone, now, empty, open }: { rows: CalendarEvent[]; t
                     <StatusPill past={Date.parse(e.endsAt) <= now} />
                   </span>
                   <span role="cell" className="flex min-w-0 items-center gap-2">
-                    <Avatar name={e.candidate} size="lg" candidate />
                     <span className="truncate">{e.candidate}</span>
                   </span>
                   <span role="cell" className="flex min-w-0 items-center gap-2" title={[e.step, e.job, e.department].filter(Boolean).join(" · ")}>

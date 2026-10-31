@@ -41,6 +41,15 @@ describe("inertOutside", () => {
     expect([p.popup.inert, p.main.inert, p.root.inert, p.body.inert]).toEqual([false, false, false, false]);
   });
 
+  test("a <dialog> stays reachable: the `?` sheet is always mounted, and inert on it would outlast its opening", () => {
+    const sheet = node("DIALOG");
+    const popup = node("DIV");
+    const main = node("MAIN", [popup, sheet]);
+    node("BODY", [main, node("ASIDE")]);
+    inertOutside(popup);
+    expect(sheet.inert).toBe(false);
+  });
+
   test("Next's announcer and scripts stay as they are", () => {
     const p = page();
     inertOutside(p.popup);

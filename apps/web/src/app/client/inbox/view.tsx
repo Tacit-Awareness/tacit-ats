@@ -125,7 +125,7 @@ function DigestRow({ r }: { r: IssueRow }) {
     >
       <KindIcon kind={r.kind} />
       <span className="grid min-w-0 gap-1">
-        <span className="text-[14.5px] leading-snug font-medium break-words">{r.what}</span>
+        <span className="text-[15.5px] leading-[1.45] break-words">{r.what}</span>
         <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
           {r.who ? <Avatar name={r.who} size="xs" /> : null}
           <span className="min-w-0 break-words">{r.line}</span>
@@ -151,7 +151,10 @@ function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; 
   return (
     <KeyList title="Inbox" next="Next issue" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start">
       <section aria-labelledby="inbox-needs-you" className="grid grid-cols-[minmax(0,1fr)]">
-        <h2 id="inbox-needs-you" className="m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[13.5px] font-medium sm:-mx-6 sm:px-6">
+        <h2 id="inbox-needs-you" className="m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[14px] font-medium sm:-mx-6 sm:px-6">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden>
+            <path d="M8 2.5 14 13H2ZM8 6.5v3M8 11.3h.01" />
+          </svg>
           Needs you
           <span className="font-normal text-faint tabular-nums">{rows.length}</span>
         </h2>
@@ -166,13 +169,11 @@ function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; 
 
 function CaughtUp({ truncated, draftsCapped }: { truncated: boolean; draftsCapped: boolean }) {
   return (
-    <div className="grid justify-items-center gap-2 border-t border-[color:var(--line)] py-12 text-center">
-      <span aria-hidden className="grid size-11 place-items-center rounded-full bg-[color:var(--green-soft)] text-[color:var(--green)]">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-5">
-          <path d="m3.5 8.5 3 3 6-7" />
-        </svg>
-      </span>
-      <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
+    <div className="grid justify-items-center gap-1.5 border-t border-[color:var(--line)] py-12 text-center">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-[22px] text-[color:var(--green)]" aria-hidden>
+        <path d="m3.5 8.5 3 3 6-7" />
+      </svg>
+      <h2 className="m-0 text-[15px] font-medium">You&apos;re all caught up</h2>
       <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
       <div className="mt-1 flex items-center gap-3">
