@@ -1,6 +1,6 @@
 // Where a public job post's reader came from (design/tats's LinkedIn and Hacker
-// News channels, tacit-internal's 20261030180000_job_post_views_channels): one
-// of submit_job_application's four categories, worked out where they land and
+// News channels, widened by tacit-internal's 20261030240000_wider_channels):
+// one of submit_job_application's nine categories, worked out where they land and
 // nothing else kept. The Referer is read once, on the server, and thrown away:
 // no address, path or tag is stored, logged or sent anywhere.
 //
@@ -13,7 +13,7 @@
 // Pure, so the board's client component can build its links with it. A wrong
 // value is no channel and never stops an application.
 
-export const CHANNELS = ["linkedin", "hackernews", "direct", "other"] as const;
+export const CHANNELS = ["linkedin", "hackernews", "indeed", "wellfound", "x", "blind", "google", "direct", "other"] as const;
 export type Channel = (typeof CHANNELS)[number];
 
 /** The URL parameter a channel rides in once it has been worked out. */
@@ -28,12 +28,19 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 /** A tag on a shared link, as a team writes one: `?utm_source=linkedin`, `?ref=hn`. */
 const TAG_PARAMS = ["utm_source", "ref", "source"];
-const LINKEDIN_TAGS = new Set(["linkedin", "linkedin.com", "lnkd", "lnkd.in", "li"]);
-const HN_TAGS = new Set(["hn", "hackernews", "hacker_news", "hacker-news", "hacker news", "ycombinator", "news.ycombinator.com"]);
+const TAG_SETS: ReadonlyArray<[Channel, ReadonlySet<string>]> = [
+  ["linkedin", new Set(["linkedin", "linkedin.com", "lnkd", "lnkd.in", "li"])],
+  ["hackernews", new Set(["hn", "hackernews", "hacker_news", "hacker-news", "hacker news", "ycombinator", "news.ycombinator.com"])],
+  ["indeed", new Set(["indeed", "indeed.com"])],
+  ["wellfound", new Set(["wellfound", "wellfound.com", "angellist", "angel.co", "angel", "talent"])],
+  ["x", new Set(["x", "x.com", "twitter", "twitter.com", "t.co", "tweet"])],
+  ["blind", new Set(["blind", "teamblind", "teamblind.com"])],
+  ["google", new Set(["google", "google.com", "google_jobs", "googlejobs"])],
+];
 
 function tagChannel(tag: string): Channel {
-  if (LINKEDIN_TAGS.has(tag)) return "linkedin";
-  return HN_TAGS.has(tag) ? "hackernews" : "other";
+  for (const [channel, tags] of TAG_SETS) if (tags.has(tag)) return channel;
+  return "other";
 }
 
 const onHost = (host: string, domain: string) => host === domain || host.endsWith(`.${domain}`);
@@ -52,6 +59,11 @@ function referrerChannel(referrer: string | null, ownHost: string | null): Chann
   // LinkedIn's Android app names itself; its short links are lnkd.in.
   if (onHost(host, "linkedin.com") || onHost(host, "lnkd.in") || host === "com.linkedin.android") return "linkedin";
   if (host === "news.ycombinator.com" || host === "hn.algolia.com") return "hackernews";
+  if (onHost(host, "indeed.com")) return "indeed";
+  if (onHost(host, "wellfound.com") || onHost(host, "angel.co")) return "wellfound";
+  if (onHost(host, "x.com") || onHost(host, "twitter.com") || onHost(host, "t.co")) return "x";
+  if (onHost(host, "teamblind.com")) return "blind";
+  if (onHost(host, "google.com") || onHost(host, "googlejobs.com")) return "google";
   return "other";
 }
 

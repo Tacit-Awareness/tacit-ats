@@ -225,9 +225,9 @@ describe("the chart's series", () => {
 
   test("the export is a row a day under a header of channels", () => {
     const rows = dailyRows({ apps: [app(-1, "referral"), app(-2), app(-3, "careers", "eng", "hackernews")], views: [viewed(0, 12)], viewsFrom: viewed(5, 0).day }, "week", NOW);
-    expect(rows[0]).toEqual(["Date (UTC)", "Page views", "Applications", "Referred", "Sent by Tacit", "LinkedIn", "Hacker News", "Direct", "Other sites", "Careers page, not recorded", "Sourced", "Agency", "Event", "Other"]);
+    expect(rows[0]).toEqual(["Date (UTC)", "Page views", "Applications", "Referred", "Sent by Tacit", "LinkedIn", "Hacker News", "Indeed", "Wellfound", "X", "Blind", "Google", "Direct", "Other sites", "Careers page, not recorded", "Sourced", "Agency", "Event", "Other"]);
     expect(rows).toHaveLength(8);
-    expect(rows[7]).toEqual(["2026-10-30", "12", "3", "1", "0", "0", "1", "0", "0", "1", "0", "0", "0", "0"]);
+    expect(rows[7]).toEqual(["2026-10-30", "12", "3", "1", "0", "0", "1", "0", "0", "0", "0", "0", "0", "0", "1", "0", "0", "0", "0"]);
   });
 });
 
