@@ -618,7 +618,7 @@ export type Tab = { href: string; label: React.ReactNode; count?: React.ReactNod
 
 /** design/tats's option group: one grey pill track. It scrolls sideways on a phone rather than wrapping, which a pill cannot do. */
 export const pillTrack =
-  "inline-flex w-fit max-w-full min-w-0 items-center gap-0.5 self-center overflow-x-auto rounded-full bg-[color:var(--soft-strong)] p-[3px] [scrollbar-width:none]";
+  "pill-track inline-flex w-fit max-w-full min-w-0 items-center gap-0.5 self-center overflow-x-auto rounded-full bg-[color:var(--soft-strong)] p-[3px] [scrollbar-width:none]";
 
 /** An option on a `pillTrack`: the picked one a dark pill (light in dark mode), the rest muted text. */
 export const pillOption = (picked: boolean) =>

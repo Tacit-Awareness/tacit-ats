@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listPendingInvites } from "@tacit-ats/core";
+import { FlashToast } from "@/components/flash-toast";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { awayLabel } from "@/lib/client/interviewer-profile";
 import { readInterviewers, readOwnProfile } from "@/lib/client/interviewers";
@@ -30,7 +31,7 @@ export default async function ClientInterviewers({
   const { notice, error } = await searchParams;
   const notices = (
     <>
-      {isTeamNotice(notice) ? <Notice>{TEAM_NOTICES[notice]}</Notice> : null}
+      {isTeamNotice(notice) ? <FlashToast text={TEAM_NOTICES[notice]} /> : null}
       {isTeamError(error) ? <Notice tone="error">{TEAM_ERRORS[error]}</Notice> : null}
     </>
   );

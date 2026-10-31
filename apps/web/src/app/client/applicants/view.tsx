@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FlashToast } from "@/components/flash-toast";
 import { ListReader, Notice, PageBar, textLink } from "@/components/page";
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
@@ -142,7 +143,7 @@ export function ApplicantsView({
   /** Inside Home's tab, whose bar says where you are. */
   home?: boolean;
 }) {
-  const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
+  const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <FlashToast text={notice} /> : null;
   return (
     <ListReader
       listLabel="New applicants"

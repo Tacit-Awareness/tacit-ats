@@ -137,7 +137,9 @@ Click an issue, or press \`Enter\` on it, to open it in a pop-up with the candid
 
 Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer, and rejecting someone here sends no email.
 
-Dismissing changes only your own queue. **Done** lists what you dismissed or fixed from here, and **Move back to Inbox** brings back an issue that still stands.`,
+Dismissing changes only your own queue. **Done** lists what you dismissed or fixed from here, and **Move back to Inbox** brings back an issue that still stands.
+
+Hover a row, or tab to it, for its two buttons: the arrow opens its page without the pop-up, and the check dismisses it where you are (\`E\` does too, on the row you are on). On a touch screen they are always there. In the pop-up, **Open as a page** goes to the candidate or job itself. Confirmations and **Undo** appear for a few seconds at the bottom right of the window; \`Z\` undoes a dismiss while its message is up.`,
   },
   {
     slug: "app-postings",
@@ -219,9 +221,9 @@ Interviewers see a short card: the resume, their own notes and their own intervi
 
 **Pipeline** shows every open job's live candidates. It opens on **Stuck**, the people who have stalled; **Everyone** shows the rest. The bar across the top gives each stage its headcount and how many are stuck, and clicking a stage filters to it. A saved view, a name search or a link to a stage opens in Everyone.
 
-Each person is one row, grouped by stage: what is happening, the facts, and how long since anything happened, red once they have stalled. \`J\` and \`K\` walk the rows and \`Enter\` opens the candidate page.
+Each person is one row, grouped by stage: what is happening, the facts, and how long since anything happened, red once they have stalled. \`J\` and \`K\` walk the rows and \`Enter\` opens the person in a pop-up over the list: the same as their candidate page, with **Open as a page** for the page itself, \`J\` and \`K\` to walk on and \`Esc\` to close. Changing a stage, owner or next action in there takes you to their page, where it says how it went.
 
-Pick one job and its board appears. The stages work themselves out from each candidate's stage and interviews:
+Pick one job and its board appears. **List** and **Board** at the top switch between them, or press \`B\`; with no job picked Board is off, since a board only reads for one job. The stages work themselves out from each candidate's stage and interviews:
 
 | Column | Who is in it |
 | --- | --- |
@@ -232,7 +234,7 @@ Pick one job and its board appears. The stages work themselves out from each can
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
 
-Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name, and open a row or card for the candidate page.
+Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page.
 
 On a job's board, where you can edit that job, move a card by dragging it, with its **Move** button, or from the keyboard:
 
@@ -242,6 +244,7 @@ On a job's board, where you can edit that job, move a card by dragging it, with 
 | \`S\` | Open the stage menu |
 | \`A\` | Move to the next stage |
 | \`F\` or \`/\` | Filter by name |
+| \`B\` | List or board |
 
 A move changes the stage and nothing else: it does not cancel an interview. Marking someone hired and rejecting them are always deliberate, so neither happens by dropping a card. Since Scheduling, Interview booked and Your call depend on a candidate's interviews, a card goes to whichever one its interviews say.
 
@@ -334,6 +337,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`G\` then \`I\` | Interviews |
 | \`[\` | Collapse or expand the sidebar |
 | \`?\` | The list of keys |
+| \`⇧⌘Q\` | Sign out, where the browser lets the page have it. On a Mac this is also the system's Log Out, so **Sign out** in the menu under your name is the sure way |
 
 ## On each page
 
@@ -341,7 +345,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant T
 
 ## Tutorial
 
-**Tutorial**, in the menu under your name at the bottom of the sidebar, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews and Referrals, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, at the bottom of the sidebar and in the menu under your name, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews and Referrals, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 

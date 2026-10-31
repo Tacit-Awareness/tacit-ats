@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
+import { FlashToast } from "@/components/flash-toast";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readSender } from "@/lib/client/email";
 import { readDone, readDoneStory, readInbox, readIssue } from "@/lib/client/inbox";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
-import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
-import { closeHref } from "@/lib/client/inbox-popup";
+import { candidateHref, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
 import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
@@ -14,7 +14,7 @@ import { toolCtx } from "@/lib/client/tool-ctx";
 import { Refusal } from "../refusal";
 import { DoneView } from "./done-view";
 import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice } from "./messages";
-import { UndoNotice } from "./set-aside";
+import { UndoToast } from "./set-aside";
 import { InboxView } from "./view";
 
 // The Inbox (design/tats's #inbox): what is stuck and waiting on someone, one
@@ -84,15 +84,9 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const notice = one(sp.notice);
   const error = one(sp.error);
   const undo = one(sp.undo);
-  const flash = isInboxError(error) ? (
-    <Notice tone="error">{INBOX_ERRORS[error]}</Notice>
-  ) : isInboxNotice(notice) ? (
-    notice === "dismissed" && UUID.test(undo) ? (
-      <UndoNotice id={undo}>{INBOX_NOTICES[notice]}</UndoNotice>
-    ) : (
-      <Notice>{INBOX_NOTICES[notice]}</Notice>
-    )
-  ) : null;
+  // A refusal stays beside what failed; anything else is a toast, Undo included.
+  const flash = isInboxError(error) ? <Notice tone="error">{INBOX_ERRORS[error]}</Notice> : null;
+  const toast = !flash && isInboxNotice(notice) ? <FlashToast text={INBOX_NOTICES[notice]} action={notice === "dismissed" && UUID.test(undo) ? <UndoToast id={undo} /> : undefined} /> : null;
 
   const now = new Date();
   const nowMs = now.getTime();
@@ -105,37 +99,40 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
     const story = pick?.candidate ? await readDoneStory(db, member, pick.candidate.id) : null;
     const how = (x: DoneItem) => `${x.how === "resolved" ? "Resolved" : "Dismissed"} ${ago(x.dismissedAt, nowMs)}`;
     return (
-      <DoneView
-        rows={items.map((x) => ({
-          key: x.id,
-          kind: x.kind,
-          href: `/client/inbox?tab=done&i=${x.id}`,
-          what: x.what,
-          who: null,
-          line: x.line,
-          age: how(x),
-          active: x.id === pick?.id,
-        }))}
-        item={
-          pick
-            ? {
-                id: pick.id,
-                what: pick.what,
-                subject: pick.line,
-                how: how(pick),
-                since: doneNote(pick),
-                canMoveBack: pick.canMoveBack,
-                candidateHref: doneCandidateHref(pick, story),
-                story,
-                now: nowMs,
-              }
-            : null
-        }
-        flash={flash}
-        open={pick !== null && pick.id === one(sp.i)}
-        openCount={issues.length}
-        capped={capped}
-      />
+      <>
+        {toast}
+        <DoneView
+          rows={items.map((x) => ({
+            key: x.id,
+            kind: x.kind,
+            href: `/client/inbox?tab=done&i=${x.id}`,
+            what: x.what,
+            who: null,
+            line: x.line,
+            age: how(x),
+            active: x.id === pick?.id,
+          }))}
+          item={
+            pick
+              ? {
+                  id: pick.id,
+                  what: pick.what,
+                  subject: pick.line,
+                  how: how(pick),
+                  since: doneNote(pick),
+                  canMoveBack: pick.canMoveBack,
+                  candidateHref: doneCandidateHref(pick, story),
+                  story,
+                  now: nowMs,
+                }
+              : null
+          }
+          flash={flash}
+          open={pick !== null && pick.id === one(sp.i)}
+          openCount={issues.length}
+          capped={capped}
+        />
+      </>
     );
   }
 
@@ -149,6 +146,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   return (
     <>
       <MarkSeen mark="inbox" ids={issues.map((i) => i.key)} />
+      {toast}
       <InboxView
         rows={issues.map((i) => ({
           key: i.key,
@@ -159,6 +157,10 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
           line: issueLine(i),
           age: ago(waitingSince(i), nowMs),
           active: i.key === open?.key,
+          instance: { key: i.key, reason: i.reason, at: i.at },
+          // An approver may not be on the job, and a row can't ask without a read per row.
+          page: i.candidate && i.reason !== "approval" ? candidateHref(i) : null,
+          next: nextIssue(issues, i.key)?.key ?? null,
         }))}
         issue={
           open && fix
@@ -174,13 +176,13 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,
                 next: nextIssue(issues, open.key)?.key ?? null,
                 secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
+                page: (detail?.canOpen ?? true) ? candidateHref(open) : null,
                 story: open.candidate ? (detail?.story ?? null) : null,
                 now: nowMs,
               }
             : null
         }
         flash={flash}
-        home={closeHref(isInboxNotice(notice) ? notice : null, UUID.test(undo) ? undo : null)}
         truncated={truncated}
         draftsCapped={draftsCapped}
       />

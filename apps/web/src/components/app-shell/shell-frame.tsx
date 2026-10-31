@@ -6,9 +6,11 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { PillGlass } from "@/components/app-shell/pill-glass";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
-import { START_EVENT, ShellTour } from "@/components/app-shell/shell-tour";
+import { START_EVENT, ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
+import { Toaster } from "@/components/toasts";
 import { modalOpen } from "@/lib/keys";
 import { cssPx, cssRect, setUiScale } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
@@ -17,7 +19,7 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking), with Integrations, Documentation, the keys and your name at the bottom.
+// sections (Top of Funnel, Routing & Tracking), with Integrations, Documentation, Tutorial, the keys and your name at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
 // edge to open it again), ⌘K opens the command menu. No counts: the sidebar is for getting around, not a report.
@@ -45,6 +47,7 @@ const ICONS = {
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
   cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
   layers: "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3",
+  tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -452,6 +455,12 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
               <NavItem key={link.href} link={link} active={isActive(link)} rail={rail} />
             ))}
             <NavItem link={DOCS} active={isActive(DOCS)} rail={rail} />
+            <TourButton title={rail ? "Tutorial" : undefined} aria-label={rail ? "Tutorial" : undefined} className={itemCls(false)}>
+              <span className="grid size-5 shrink-0 place-items-center">
+                <Icon name="tour" />
+              </span>
+              <span className="sb-label">Tutorial</span>
+            </TourButton>
             <KeysButton className={cn(itemCls(false), "max-md:hidden")}>
               <span className="sb-label">Keyboard shortcuts</span>
             </KeysButton>
@@ -495,6 +504,8 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         <ShellTour />
       </Suspense>
       <ShellKeys go={GO} />
+      <PillGlass />
+      <Toaster />
     </div>
   );
 }

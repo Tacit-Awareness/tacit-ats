@@ -319,7 +319,8 @@ export type IssueFix =
   | { type: "send"; label: string; draftId: string; canSend: boolean }
   | { type: "decide"; applicationId: string; /** Where A goes: booking a round isn't in the web app, so it is their page. */ nextRoundHref: string };
 
-const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
+/** The page of its own an issue is about: the candidate, or the job when it has none. */
+export const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
 
 export function issueFix(i: Issue, canEdit: boolean, canSend = false): IssueFix {
   if (i.draft) return { type: "send", label: "Send here", draftId: i.draft.draftId, canSend };

@@ -191,6 +191,21 @@ describe("dismissIssueAction", () => {
     expect(inbox.dismissIssue).not.toHaveBeenCalled();
   });
 
+  test("from a row it stays on the card, with the notice and its Undo", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
+    const url = await dismiss({ ...FIELDS, from: "row", next: OTHER });
+    expect(url.searchParams.get("i")).toBeNull();
+    expect(url.searchParams.get("notice")).toBe("dismissed");
+    expect(url.searchParams.get("undo")).toBe(ROW);
+  });
+
+  test("from a row, a refusal says so on the card too", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: false });
+    const url = await dismiss({ ...FIELDS, from: "row" });
+    expect(url.searchParams.get("i")).toBeNull();
+    expect(url.searchParams.get("error")).toBe("dismiss_refused");
+  });
+
   test("only key, reason and date reach the write: no org, actor or how", async () => {
     inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
     await dismiss({ ...FIELDS, org_id: "x", actor_id: "y", how: "resolved" });

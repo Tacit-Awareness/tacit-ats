@@ -3,7 +3,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TourButton } from "@/components/app-shell/shell-tour";
-import { menuKey, stepIndex } from "@/lib/keys";
+import { Kbd } from "@/components/keys";
+import { SIGN_OUT_KEYS, menuKey, stepIndex } from "@/lib/keys";
 import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
 import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
@@ -146,7 +147,7 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                   <Glyph name="dark" className="text-muted-foreground" />
                   Theme
                 </span>
-                <div role="group" aria-label="Theme" className="inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
+                <div role="group" aria-label="Theme" className="pill-track inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}
@@ -172,9 +173,14 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
               <div className="border-t border-[color:var(--line)] p-1">
                 {/* A plain form POST, so it can't be triggered by a GET. */}
                 <form action="/client/signout" method="post">
-                  <button type="submit" role="menuitem" className={optionCls}>
+                  <button type="submit" role="menuitem" aria-keyshortcuts="Shift+Meta+Q" className={optionCls}>
                     <Glyph name="signout" className="text-muted-foreground" />
-                    Sign out
+                    <span className="flex-1">Sign out</span>
+                    {SIGN_OUT_KEYS.split(" ").map((k) => (
+                      <Kbd key={k} decorative>
+                        {k}
+                      </Kbd>
+                    ))}
                   </button>
                 </form>
               </div>

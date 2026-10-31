@@ -10,19 +10,36 @@ import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
 import { IssuePopup } from "./popup";
 import { SendBar, type SendProps } from "./send-bar";
+import { RowDismiss, RowKeys } from "./set-aside";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
 // #inbox as a digest, one centred card (`.ibx`): a heading with how many need
 // the member, the Open and Done pills, and Needs you, a row each saying what is
-// wrong, who it is about and its age. A row opens that issue in a pop-up
-// (popup.tsx) holding the reader: the same heading, the one fix (fix-bar.tsx,
+// wrong, who it is about and its age, and beside the row's link its own two
+// buttons, the page and Dismiss (design/tats's `.ibx-acts`). A row opens that
+// issue in a pop-up (popup.tsx) holding the reader: the same heading, the one fix (fix-bar.tsx,
 // key F), Send here on an unsent draft (send-bar.tsx, key F, after a dialog) or
 // the decision (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E),
 // the card saying what is waiting, an offer's terms for the approver reading it,
 // then the candidate's story. done-view.tsx is Done. Everything a member or a
 // candidate wrote renders as text.
 
-export type IssueRow = { key: string; kind: IssueKind; href: string; what: string; who: string | null; line: string; age: string; active: boolean };
+export type IssueRow = {
+  key: string;
+  kind: IssueKind;
+  href: string;
+  what: string;
+  who: string | null;
+  line: string;
+  age: string;
+  active: boolean;
+  /** What Dismiss names. Done's rows have nothing to dismiss. */
+  instance?: IssueInstance;
+  /** The page this is about. Null when a row can't tell the member can open it. */
+  page?: string | null;
+  /** The row below, for focus once this one has gone. */
+  next?: string | null;
+};
 
 export type IssueReaderProps = {
   kind: IssueKind;
@@ -40,6 +57,8 @@ export type IssueReaderProps = {
   terms: TermLine[] | null;
   next: string | null;
   secondary: { label: string; href: string } | null;
+  /** "Open as a page". Null when there's nothing the member can open (an approver not on the job). */
+  page: string | null;
   /** Null for an issue with no candidate (a job's approval), or one the member can't read (an approver not on the job). */
   story: clientTools.ActivityEntry[] | null;
   now: number;
@@ -111,28 +130,51 @@ export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: 
   return <PageBar title="Inbox" lead={<InboxTabs tab={tab} openCount={openCount} className="ml-1" />} />;
 }
 
-/** A line of the digest (`.ibx-r`). `scroll={false}`: opening and closing leave the card where it was. */
+/** The page and Dismiss: on a hover or with focus in the row, in the age's place; always on a touch screen, beside it. */
+const ROW_ACTIONS =
+  "flex flex-none items-center gap-0.5 self-start pt-2 pr-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:absolute [@media(hover:hover)]:top-0 [@media(hover:hover)]:right-0 [@media(hover:none)]:opacity-100";
+const ROW_ACTION = "grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground disabled:opacity-60";
+
+/**
+ * A line of the digest (`.ibx-r`). `scroll={false}`: opening and closing leave
+ * the card where it was. The buttons sit beside the link, never in it: a control
+ * inside a link is invalid, and a click on one would open the row as well.
+ */
 function DigestRow({ r }: { r: IssueRow }) {
   return (
-    <Link
-      href={r.href}
-      scroll={false}
-      data-key-item
-      data-issue-row={r.key}
-      aria-current={r.active ? "true" : undefined}
-      aria-haspopup="dialog"
-      className="-mx-3 grid grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-3 transition-colors hover:bg-[color:var(--hover)]"
-    >
-      <KindIcon kind={r.kind} />
-      <span className="grid min-w-0 gap-1">
-        <span className="text-[15.5px] leading-[1.45] break-words">{r.what}</span>
-        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
-          {r.who ? <Avatar name={r.who} size="xs" /> : null}
-          <span className="min-w-0 break-words">{r.line}</span>
+    <div data-key-row className="group relative -mx-3 flex min-w-0 items-stretch transition-colors hover:bg-[color:var(--hover)]">
+      <Link
+        href={r.href}
+        scroll={false}
+        data-key-item
+        data-issue-row={r.key}
+        aria-current={r.active ? "true" : undefined}
+        aria-haspopup="dialog"
+        className="grid min-w-0 flex-1 grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-3"
+      >
+        <KindIcon kind={r.kind} />
+        <span className="grid min-w-0 gap-1">
+          <span className="text-[15.5px] leading-[1.45] break-words">{r.what}</span>
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+            {r.who ? <Avatar name={r.who} size="xs" /> : null}
+            <span className="min-w-0 break-words">{r.line}</span>
+          </span>
         </span>
-      </span>
-      <span className="pt-0.5 text-[12.5px] whitespace-nowrap text-faint tabular-nums">{r.age}</span>
-    </Link>
+        <span className="pt-0.5 text-[12.5px] whitespace-nowrap text-faint tabular-nums [@media(hover:hover)]:group-focus-within:invisible [@media(hover:hover)]:group-hover:invisible">{r.age}</span>
+      </Link>
+      {r.instance ? (
+        <span className={ROW_ACTIONS}>
+          {r.page ? (
+            <Link href={r.page} title="Open as a page" aria-label={`Open as a page: ${r.what}`} className={ROW_ACTION}>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+                <path d="M5 11l6-6M6 5h5v5" />
+              </svg>
+            </Link>
+          ) : null}
+          <RowDismiss instance={r.instance} what={r.what} next={r.next ?? null} className={ROW_ACTION} />
+        </span>
+      ) : null}
+    </div>
   );
 }
 
@@ -150,6 +192,7 @@ function CapNotes({ truncated, draftsCapped }: { truncated: boolean; draftsCappe
 function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; popup: boolean; truncated: boolean; draftsCapped: boolean }) {
   return (
     <KeyList title="Inbox" next="Next issue" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start">
+      {popup ? null : <RowKeys />}
       <section aria-labelledby="inbox-needs-you" className="grid grid-cols-[minmax(0,1fr)]">
         <h2 id="inbox-needs-you" className="m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[14px] font-medium sm:-mx-6 sm:px-6">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden>
@@ -253,7 +296,7 @@ export function InboxView({
   /** The issue `?i=` opened, read in full. Null is the card alone. */
   issue: IssueReaderProps | null;
   flash: React.ReactNode;
-  /** Where closing the pop-up lands (`closeHref`). */
+  /** Where closing the pop-up lands. */
   home?: string;
   truncated: boolean;
   draftsCapped: boolean;
@@ -282,7 +325,7 @@ export function InboxView({
         </section>
       </div>
       {issue ? (
-        <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home}>
+        <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home} pageHref={issue.page}>
           <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 pb-10 md:px-6">
             {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
             <Reader issue={issue} />

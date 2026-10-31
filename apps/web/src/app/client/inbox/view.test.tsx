@@ -30,6 +30,7 @@ const issue: IssueReaderProps = {
   terms: null,
   next: null,
   secondary: null,
+  page: "/client/candidates/p",
   story: null,
   now: 0,
 };
@@ -65,6 +66,39 @@ describe("the digest card", () => {
   });
 });
 
+describe("a row's buttons", () => {
+  const live = { ...row, active: false, instance: { key: "k", reason: "quiet" as const, at: "2026-10-20T10:00:00Z" }, page: "/client/candidates/p", next: null };
+  const html = () => view({ rows: [live] });
+  const link = () => html().match(/<a [^>]*data-issue-row[\s\S]*?<\/a>/)![0];
+
+  test("Dismiss posts the row's instance, marked as from the card", () => {
+    expect(html()).toContain('name="issueKey" value="k"');
+    expect(html()).toContain('name="issueReason" value="quiet"');
+    expect(html()).toContain('name="from" value="row"');
+  });
+
+  test("the row's link holds neither button", () => {
+    expect(link()).not.toContain("<button");
+    expect(link()).not.toContain("<form");
+    expect(link().match(/<a /g)).toHaveLength(1);
+  });
+
+  test("open goes to the page, not the pop-up", () => {
+    expect(html()).toContain('aria-label="Open as a page: Nobody has been in touch"');
+    expect(html()).toContain('href="/client/candidates/p"');
+  });
+
+  test("a row that can't say the member may open it has only Dismiss", () => {
+    const only = view({ rows: [{ ...live, page: null }] });
+    expect(only).not.toContain("Open as a page");
+    expect(only).toContain("Dismiss:");
+  });
+
+  test("a row with nothing to dismiss, as on Done, has neither", () => {
+    expect(view()).not.toContain('name="from"');
+  });
+});
+
 describe("the pop-up", () => {
   test("is a labelled modal over the card, and ✕ goes back to the plain Inbox", () => {
     const html = opened();
@@ -73,6 +107,12 @@ describe("the pop-up", () => {
     expect(html).toContain(`id="${id}"`);
     expect(html).toContain('aria-label="Close"');
     expect(html).toMatch(/aria-label="Close"[^>]*href="\/client\/inbox"/);
+  });
+
+  test("has Open as a page when there's one to open", () => {
+    expect(opened()).toContain('aria-label="Open as a page"');
+    expect(opened()).toContain('href="/client/candidates/p"');
+    expect(opened({ issue: { ...issue, page: null } })).not.toContain('aria-label="Open as a page"');
   });
 
   test("holds the reader, and the column holds to the sheet, so the notice's Undo is on screen", () => {

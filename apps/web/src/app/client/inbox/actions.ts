@@ -107,19 +107,21 @@ export async function dismissIssueAction(form: FormData): Promise<void> {
   const { db } = await requireClient();
   const instance = parseInstance(form);
   if (!instance) return back({ error: "not_found" });
+  // From a row on the card: stay on the card, with no pop-up to open.
+  const onCard = form.get("from") === "row";
 
   let outcome: Awaited<ReturnType<typeof dismissIssue>>;
   try {
     outcome = await dismissIssue(db, instance);
   } catch (err) {
     console.error("[client-inbox] dismiss failed:", err instanceof Error ? err.message : err);
-    return back({ i: instance.key, error: "dismiss_failed" });
+    return back({ i: onCard ? null : instance.key, error: "dismiss_failed" });
   }
-  if (!outcome.ok) return back({ i: instance.key, error: "dismiss_refused" });
+  if (!outcome.ok) return back({ i: onCard ? null : instance.key, error: "dismiss_refused" });
 
   revalidatePath("/client/inbox");
-  // With nothing below it, what takes its place on this application: a phone shows the Undo in the reader.
-  const i = nextKey(form) ?? instance.key;
+  // With nothing below it, what takes its place on this application.
+  const i = onCard ? null : (nextKey(form) ?? instance.key);
   return outcome.changed ? back({ i, notice: "dismissed", undo: outcome.id }) : back({ i, notice: "unchanged" });
 }
 

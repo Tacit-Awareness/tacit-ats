@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
-import { Empty, Notice, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
+import { FlashToast } from "@/components/flash-toast";
+import { Empty, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -135,7 +136,7 @@ export function ReferralsView({
         </>
       }
     >
-      {notice ? <Notice>{notice}</Notice> : null}
+      {notice ? <FlashToast text={notice} /> : null}
       <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>

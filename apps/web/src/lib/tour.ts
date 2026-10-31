@@ -37,7 +37,7 @@ export const TOUR: TourStep[] = [
     href: "/client/inbox",
     targets: ['[data-tour="inbox-keys"]', '[data-tour="inbox"]'],
     title: "Inbox",
-    body: "Only what's stuck or waiting on you, on one card. Open an issue: F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
+    body: "Only what's stuck or waiting on you, on one card. Open an issue, or use a row's own buttons: F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
   },
   {
     href: "/client/candidates",
@@ -61,7 +61,7 @@ export const TOUR: TourStep[] = [
     href: "/client/pipeline",
     targets: ['[data-tour="board"]'],
     title: "Pipeline",
-    body: "It opens on who's stuck, with every stage across the top; Everyone shows the rest. Pick a job for its board, then drag a card to another column to move them, or press S on it.",
+    body: "It opens on who's stuck, with every stage across the top; Everyone shows the rest. A row opens the person over the list. Pick a job for its board, then drag a card to another column to move them, or press S on it.",
   },
   {
     href: "/client/interviews",

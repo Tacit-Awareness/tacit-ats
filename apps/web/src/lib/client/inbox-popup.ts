@@ -1,5 +1,5 @@
-// The Inbox pop-up's DOM half (app/client/inbox/popup.tsx is the React half).
-// A native modal <dialog> would turn off every page key: useKeys and ignoreKey
+// The pop-up's DOM half (components/pop-up.tsx is the React half), the Inbox's
+// first and now the Pipeline's too. A native modal <dialog> would turn off every page key: useKeys and ignoreKey
 // stand down while one is open, on purpose, and A, O, R, F, E, J and K have to
 // work in here. So the pop-up is an aria-modal element, and these give it what
 // showModal gives a <dialog>: nothing behind it can be reached. Unit-tested.
@@ -10,12 +10,15 @@ export type PopupNode = {
   inert: boolean;
   parentElement: PopupNode | null;
   children: Iterable<PopupNode>;
+  dataset?: { toasts?: string };
 };
 
 /**
  * Left alone: nothing to reach, Next's announcer has to go on reading route
  * changes, and a <dialog> is closed until it opens over everything, which inert
- * on the dialog itself would leave dead to the mouse (the `?` sheet is always mounted).
+ * on the dialog itself would leave dead to the mouse (the `?` sheet is always
+ * mounted). The toasts stay live too (`data-toasts`): an Undo has to work over a
+ * pop-up, and a reader has to hear what lands there.
  */
 const SKIP = new Set(["SCRIPT", "STYLE", "LINK", "TEMPLATE", "NEXT-ROUTE-ANNOUNCER", "DIALOG"]);
 
@@ -30,7 +33,7 @@ export function inertOutside(root: PopupNode): () => void {
   const set: PopupNode[] = [];
   for (let node = root; node.parentElement && node.tagName !== "BODY"; node = node.parentElement) {
     for (const sibling of node.parentElement.children) {
-      if (sibling === node || sibling.inert || SKIP.has(sibling.tagName)) continue;
+      if (sibling === node || sibling.inert || SKIP.has(sibling.tagName) || sibling.dataset?.toasts !== undefined) continue;
       sibling.inert = true;
       set.push(sibling);
     }
@@ -46,14 +49,6 @@ export function inertOutside(root: PopupNode): () => void {
  * confirmation, and a navigation discards the action's answer.
  */
 export const writeInFlight = (sheet: { querySelector(selector: string): unknown } | null): boolean => !!sheet?.querySelector('form button[type="submit"]:disabled');
-
-/** Where closing lands: the plain Inbox, carrying a notice and its Undo so a close doesn't lose them. */
-export function closeHref(notice: string | null, undo: string | null): string {
-  if (!notice) return "/client/inbox";
-  const params = new URLSearchParams({ notice });
-  if (undo) params.set("undo", undo);
-  return `/client/inbox?${params}`;
-}
 
 /** The row an issue key names. The key came through the URL, so it is quoted. */
 export const rowSelector = (key: string) => `[data-issue-row="${key.replace(/["\\]/g, "\\$&")}"]`;

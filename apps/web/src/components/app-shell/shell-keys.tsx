@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Kbd, usePageKeyHelp, type KeyHelpSection } from "@/components/keys";
-import { chord, ignoreKey } from "@/lib/keys";
+import { SIGN_OUT_KEYS, chord, ignoreKey, isSignOutKey, modalOpen } from "@/lib/keys";
 
 // The shell's half of design/tats's keyboard model: G then a letter goes to
 // a page, `?` opens the sheet of keys (this page's, then the global ones).
 // `[` and ⌘K stay in shell-frame.tsx, where they began. The sheet is a
 // native <dialog>: Esc closes it, focus stays inside and goes back after.
+// ⇧⌘Q signs out, by the same POST as the account menu's Sign out (isSignOutKey
+// says why only that chord).
 
 export type GoKey = { key: string; label: string; href: string };
 
@@ -73,6 +75,7 @@ export function KeysButton({ className, children }: { className?: string; childr
 export function ShellKeys({ go }: { go: GoKey[] }) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
+  const signOut = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const page = usePageKeyHelp();
   const goRef = useRef(go);
@@ -82,6 +85,11 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
     let pending: number | null = null;
     // Capture phase, so the letter after G is taken before a page's J or K sees it.
     const onKey = (e: KeyboardEvent) => {
+      if (isSignOutKey(e) && !modalOpen()) {
+        e.preventDefault();
+        signOut.current?.requestSubmit();
+        return;
+      }
       if (ignoreKey(e) || dialog.current?.open) return;
       const step = chord(pending, e.key, Date.now());
       pending = step.pending;
@@ -118,35 +126,39 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
       ...go.map((g) => ({ keys: `G then ${g.key.toUpperCase()}`, label: g.label })),
       { keys: "[", label: "Collapse or expand the sidebar" },
       { keys: "?", label: "This list" },
+      { keys: SIGN_OUT_KEYS, label: "Sign out" },
     ],
   };
 
   return (
-    <dialog
-      ref={dialog}
-      aria-label="Keyboard shortcuts"
-      onClose={() => setOpen(false)}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) setOpen(false);
-      }}
-      className="m-auto w-[min(720px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
-    >
-      <div className="flex items-center justify-between border-b border-[color:var(--line)] px-4 py-3">
-        <h2 className="m-0 text-[14px] font-semibold">Keyboard Shortcuts</h2>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="rounded-full px-2 py-1 text-[12.5px] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
-        >
-          Close <Kbd decorative>esc</Kbd>
-        </button>
-      </div>
-      <div className="grid gap-x-8 gap-y-5 p-4 sm:grid-cols-2">
-        {page.map((s) => (
-          <HelpSection key={s.title} section={s} />
-        ))}
-        <HelpSection section={global} />
-      </div>
-    </dialog>
+    <>
+      <form ref={signOut} action="/client/signout" method="post" hidden />
+      <dialog
+        ref={dialog}
+        aria-label="Keyboard shortcuts"
+        onClose={() => setOpen(false)}
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget) setOpen(false);
+        }}
+        className="m-auto w-[min(720px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      >
+        <div className="flex items-center justify-between border-b border-[color:var(--line)] px-4 py-3">
+          <h2 className="m-0 text-[14px] font-semibold">Keyboard Shortcuts</h2>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded-full px-2 py-1 text-[12.5px] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+          >
+            Close <Kbd decorative>esc</Kbd>
+          </button>
+        </div>
+        <div className="grid gap-x-8 gap-y-5 p-4 sm:grid-cols-2">
+          {page.map((s) => (
+            <HelpSection key={s.title} section={s} />
+          ))}
+          <HelpSection section={global} />
+        </div>
+      </dialog>
+    </>
   );
 }
