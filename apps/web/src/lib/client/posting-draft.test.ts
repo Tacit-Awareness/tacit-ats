@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { clientTools } from "@tacit-ats/core";
 import { clientTools as tools } from "@tacit-ats/core";
-import { carryOn, defaultQuestions, draftFromPost, draftPayload, editorBlocks, leavesPage, newRoleDraft, previewQuestions, tooBigToSend } from "./posting-draft";
+import { carryOn, defaultQuestions, draftFromPost, draftPayload, editorBlocks, leavesPage, newRoleDraft, previewQuestions, seededSteps, tooBigToSend, withDepartment } from "./posting-draft";
 import { parseDraft } from "./posting-edit-rules";
 
 const QUESTIONS: clientTools.Question[] = [
@@ -128,5 +128,32 @@ describe("leavesPage", () => {
     expect(leavesPage(click, link("https://ats.test/x.pdf", { download: "x.pdf" }), here)).toBe(false);
     expect(leavesPage(click, link(here), here)).toBe(false);
     expect(leavesPage(click, link("https://example.com/"), here)).toBe(false);
+  });
+});
+
+describe("a new role's steps", () => {
+  const seeds = { byDepartment: { eng: ["Tech", "Final"], sales: ["Pitch", "Final"] }, none: ["Chat"] };
+
+  test("start from the process, the department's or the default", () => {
+    expect(newRoleDraft("eng", seeds).steps).toEqual(["Tech", "Final"]);
+    expect(newRoleDraft(null, seeds).steps).toEqual(["Chat"]);
+    expect(newRoleDraft("eng").steps).toEqual([]);
+    expect(seededSteps(seeds, "gone")).toEqual(["Chat"]);
+  });
+
+  test("a seed is a copy: editing one job's steps touches no other", () => {
+    newRoleDraft("eng", seeds).steps.push("Extra");
+    expect(seeds.byDepartment.eng).toEqual(["Tech", "Final"]);
+  });
+
+  test("follow the department until the member edits them", () => {
+    const draft = newRoleDraft("eng", seeds);
+    expect(withDepartment(draft, "sales", seeds, false)).toMatchObject({ departmentId: "sales", steps: ["Pitch", "Final"] });
+    expect(withDepartment(draft, "", seeds, false)).toMatchObject({ departmentId: "", steps: ["Chat"] });
+    expect(withDepartment({ ...draft, steps: ["Mine"] }, "sales", seeds, true)).toMatchObject({ departmentId: "sales", steps: ["Mine"] });
+  });
+
+  test("with no process a change of department leaves them alone", () => {
+    expect(withDepartment({ ...newRoleDraft(null), steps: ["Mine"] }, "sales", null, false).steps).toEqual(["Mine"]);
   });
 });

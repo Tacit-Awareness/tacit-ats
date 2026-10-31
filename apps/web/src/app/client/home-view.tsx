@@ -40,7 +40,7 @@ export type HomeViewProps = {
   filters: { label: string; value: string; on: boolean; options: FilterOption[] }[];
   pipelineHref: string;
   newApps: { value: number; change: number | null; bars: Bar[]; target: TargetChipProps | null };
-  inProcess: { value: number; bars: Bar[] };
+  inProcess: { value: number; bars: Bar[]; /** The bars are the company's own stages. */ byProcess: boolean };
   review: WaitCard;
   schedule: WaitCard;
   /** Null for someone who manages no job: the cards are not theirs. */
@@ -62,6 +62,8 @@ export type HomeViewProps = {
   /** Null alongside `feedback`: not theirs. */
   outstanding: { total: number; rows: { id: string; interviewer: string; line: string; wait: string; href: string }[]; more: { href: string; label: string } | null } | null;
   stages: StageLine[];
+  /** Where an admin changes the stages. Null for anyone else. */
+  editStages: string | null;
   active: number;
   stays: { label: string; avgDays: number | null; stays: number }[];
   truncated: boolean;
@@ -279,7 +281,7 @@ export function HomeView(p: HomeViewProps) {
 
         <Card
           label="Candidates in process"
-          def="Everyone in an open job's pipeline, by column of the Pipeline board"
+          def={p.inProcess.byProcess ? "Everyone in an open job's pipeline, by stage of your interview process" : "Everyone in an open job's pipeline, by column of the Pipeline board"}
           value={p.inProcess.value.toLocaleString("en-US")}
           unit="active"
           ctx={`across ${p.inProcess.bars.filter((b) => b.n).length} stages`}
@@ -378,7 +380,7 @@ export function HomeView(p: HomeViewProps) {
           )}
         </Section>
 
-        <Section title="Time in stage" count={`${p.active} active`}>
+        <Section title="Time in stage" count={`${p.active} active`} aside={p.editStages ? go(p.editStages, "Edit stages") : undefined}>
           <div className="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
             {SEGMENT_KEYS.map((k, i) => (
               <span key={k} className="inline-flex items-center gap-1.5">

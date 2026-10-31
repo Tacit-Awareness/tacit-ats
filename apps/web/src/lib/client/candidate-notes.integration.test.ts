@@ -52,7 +52,7 @@ const rex = () => [member("user_cnote_rex"), ctx(REX, "elevated")] as const;
 const notes = async (personId: string) =>
   must(await db().from("person_notes").select("actor_id, text, source").eq("person_id", personId).order("created_at")).data!;
 const claims = async (actorId: string) =>
-  must(await db().from("audit_log").select("action, after").eq("actor_id", actorId)).data!;
+  must(await db().from("audit_log").select("action, after").eq("actor_id", actorId).order("created_at")).data!;
 
 beforeEach(async () => {
   await clear();

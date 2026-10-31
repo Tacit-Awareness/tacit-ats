@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { CRM_PAGE_SIZE, crmHref, crmTable, inJobs, matches, parseCrmQuery, rowFor, sortRows, stageLabel, type CrmApplication, type CrmCandidate, type CrmQuery } from "./crm-views";
+import { CRM_PAGE_SIZE, crmHref, crmTable, inJobs, matches, parseCrmQuery, rowFor, sortRows, stageLabel, withStageNames, type CrmApplication, type CrmCandidate, type CrmQuery } from "./crm-views";
 
 const day = (n: number) => new Date(Date.parse("2026-10-01T12:00:00Z") + n * 86_400_000).toISOString();
 
@@ -188,5 +188,22 @@ describe("a department's candidates", () => {
     expect(href).toBe("/client/candidates?department=dep-1&view=hired&page=2");
     expect(parseCrmQuery(Object.fromEntries(new URL(href, "http://x").searchParams))).toEqual(full);
     expect(parseCrmQuery({ department: "  " }).department).toBeNull();
+  });
+});
+
+describe("stage names", () => {
+  test("a row names its lead application, and a name goes on by that id", () => {
+    const lead = app("offer");
+    const row = rowFor(person("Ana", [app("sourced"), lead]), "all")!;
+    expect(row.lead).toEqual({ applicationId: lead.applicationId, jobId: lead.jobId });
+    expect(withStageNames([row], new Map([[lead.applicationId, "Offer letter"]]))[0].stageName).toBe("Offer letter");
+    expect(withStageNames([row], new Map())[0].stageName).toBeNull();
+    expect(rowFor(person("Bo", []), "all")!.lead).toBeNull();
+  });
+
+  test("the stage column sorts by the enum, whatever the stages are called", () => {
+    const rows = [rowFor(person("Ana", [app("sourced")]), "all")!, rowFor(person("Bo", [app("offer")]), "all")!];
+    const named = withStageNames(rows, new Map([[rows[1].lead!.applicationId, "Aardvark"], [rows[0].lead!.applicationId, "Zebra"]]));
+    expect(sortRows(named, "stage", "asc").map((r) => r.name)).toEqual(["Bo", "Ana"]);
   });
 });

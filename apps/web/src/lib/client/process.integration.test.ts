@@ -79,7 +79,7 @@ const GRAPH: ProcessDoc = {
 };
 
 const audit = async (action: string) =>
-  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", action).not("after", "is", null)).data ?? [];
+  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", action).not("after", "is", null).order("created_at")).data ?? [];
 const steps = async (id: string) => must(await db().from("roles").select("interview_steps").eq("id", id).single()).data!.interview_steps;
 const saved = async () => {
   const answer = await saveProcess(...ada(), { graph: GRAPH, expectedUpdatedAt: null });

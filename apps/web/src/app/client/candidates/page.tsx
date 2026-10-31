@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { clientTools } from "@tacit-ats/core";
 import { Page, PageBar, Section, textLink } from "@/components/page";
-import { CRM_SCAN_MAX, readCandidates } from "@/lib/client/crm";
-import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, inJobs, parseCrmQuery, stageLabel, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
+import { CRM_SCAN_MAX, readCandidates, readStageNames } from "@/lib/client/crm";
+import { CRM_PAGE_SIZE, CRM_VIEWS, DEFAULT_DIR, crmHref, crmTable, inJobs, parseCrmQuery, stageLabel, withStageNames, type CrmQuery, type CrmSort } from "@/lib/client/crm-views";
 import { departmentScope, departmentTabs } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
 import { ago } from "@/lib/client/pipeline-columns";
@@ -81,6 +81,7 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
   const query: CrmQuery = { ...parsed, department: scope.departmentId };
   const candidates = scope.jobIds ? inJobs(everyone, scope.jobIds) : everyone;
   const table = crmTable(candidates, query);
+  const rows = withStageNames(table.rows, await readStageNames(db, ctx, table.rows));
   const now = Date.now();
   const at = (next: Partial<CrmQuery>) => crmHref({ ...query, page: 1, ...next });
 
@@ -104,12 +105,12 @@ export default async function ClientCandidates({ searchParams }: { searchParams:
       departments={departmentTabs(scope, (department) => at({ department }))}
       viewLabel={CRM_VIEWS.find((v) => v.key === query.view)!.label}
       columns={columns}
-      rows={table.rows.map((r) => ({
+      rows={rows.map((r) => ({
         href: `/client/candidates/${r.candidateId}`,
         name: r.name,
         jobs: r.jobs.map((j) => j.title),
         profile: profileOf(r.linkedinUrl),
-        stage: stageLabel(r.stage),
+        stage: r.stageName ?? stageLabel(r.stage),
         stageTone: r.stage === "hired" ? "green" : "grey",
         ownerName: r.ownerName,
         lastTouchAt: r.lastTouchAt,

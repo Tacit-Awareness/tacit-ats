@@ -22,7 +22,7 @@ export async function readTeamMatrix(db: Db, ctx: clientTools.ClientToolCtx): Pr
   return { matrix: buildTeamMatrix(members.people, nodes, teams), truncated: members.truncated };
 }
 
-export type SkillsRead = { sheet: SkillSheet; truncated: boolean };
+export type SkillsRead = { sheet: SkillSheet; truncated: boolean; teams: number };
 
 export async function readSkillSheet(db: Db, ctx: clientTools.ClientToolCtx): Promise<SkillsRead> {
   const [{ matrix, truncated }, types, profiles] = await Promise.all([
@@ -31,7 +31,7 @@ export async function readSkillSheet(db: Db, ctx: clientTools.ClientToolCtx): Pr
     scanRows((from, to) => db.from("interviewer_profiles").select(clientTools.PROFILE_COLUMNS).order("actor_id").range(from, to)),
   ]);
   const read = new Map(profiles.rows.map((r) => [r.actor_id, clientTools.profileFromRow(r)]));
-  return { sheet: buildSkillSheet(matrix.people, read, types, matrix.teams), truncated };
+  return { sheet: buildSkillSheet(matrix.people, read, types, matrix.teams), truncated, teams: matrix.teams.length };
 }
 
 /**

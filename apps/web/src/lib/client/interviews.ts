@@ -1,5 +1,8 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
+import { jobSteps, type ProcessDoc, type ProcessLookup } from "./process-graph";
+import { planMatches } from "./process-stages";
+import { readDrawnProcess } from "./process";
 import type { AccessLevel } from "./session";
 
 // The Interviews page's reads, on the member's OWN client (never a privileged
@@ -149,4 +152,21 @@ export async function readInterview(db: Db, member: Member, item: Pick<Interview
     clientTools.getFeedback(db, ctx, { interviewId: item.interviewId }),
   ]);
   return { plan, feedback };
+}
+
+export type InterviewRoute = { graph: ProcessDoc; lookup: ProcessLookup; departmentId: string | null };
+
+/**
+ * What the routing graph is drawn from, or null for the plain loop: an interviewer
+ * (refused before any read, so their token never touches the process), an external
+ * recruiter, a company with no process, or a job whose plan is not the process's.
+ */
+export async function readInterviewRoute(db: Db, member: Member, jobId: string, plan: string[]): Promise<InterviewRoute | null> {
+  const drawn = await readDrawnProcess(db, toolCtx(member));
+  if (!drawn) return null;
+  const { data, error } = await db.from("roles").select("department_id").eq("id", jobId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  if (!planMatches(plan, jobSteps(drawn.graph, data.department_id, drawn.lookup.departments))) return null;
+  return { ...drawn, departmentId: data.department_id };
 }

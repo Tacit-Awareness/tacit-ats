@@ -49,7 +49,7 @@ const FULL: clientTools.InterviewerProfileInput = { preference: "avoids", weekly
 const row = async (id: string) => (await db().from("interviewer_profiles").select("*").eq("actor_id", id).maybeSingle()).data;
 const version = async (id: string) => (await row(id))?.updated_at ?? null;
 const audit = async () =>
-  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", "interviewer_profile.update")).data ?? [];
+  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", "interviewer_profile.update").order("created_at")).data ?? [];
 
 beforeEach(async () => {
   await clear();

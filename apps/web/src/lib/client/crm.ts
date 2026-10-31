@@ -1,5 +1,8 @@
 import type { Db } from "@tacit/db";
-import type { CrmCandidate } from "./crm-views";
+import { clientTools } from "@tacit-ats/core";
+import type { CrmCandidate, CrmRow } from "./crm-views";
+import { readDrawnProcess } from "./process";
+import { jobStages, nextPlanStep, processStages, stageNameFor } from "./process-stages";
 
 // The CRM's read, on the member's OWN client (never a privileged one): every
 // candidate they can read in `people`, each with the applications they can
@@ -72,4 +75,44 @@ export async function readCandidates(db: Db): Promise<CrmRead> {
       })),
     })),
   };
+}
+
+const IDS_PER_READ = 150;
+
+/**
+ * What the process calls the stage of each row in view, by application id; none
+ * for a member who may not read it (`readDrawnProcess`), so the page keeps today's
+ * labels. Only the page's rows, since `interviewing` wants that application's
+ * interviews: the table sorts by the enum and never needs a name to order them.
+ */
+export async function readStageNames(db: Db, ctx: clientTools.ClientToolCtx, rows: CrmRow[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const leads = rows.flatMap((r) => (r.lead && r.stage ? [{ ...r.lead, stage: r.stage }] : []));
+  if (!leads.length) return names;
+  const drawn = await readDrawnProcess(db, ctx);
+  if (!drawn) return names;
+
+  const jobIds = [...new Set(leads.map((l) => l.jobId))];
+  const interviewing = leads.filter((l) => l.stage === "interviewing").map((l) => l.applicationId);
+  const interviews = new Map<string, Array<{ step: string | null; status: string }>>();
+  for (let i = 0; i < interviewing.length; i += IDS_PER_READ) {
+    const { data, error } = await db.from("interviews").select("application_id, step, status").in("application_id", interviewing.slice(i, i + IDS_PER_READ)).neq("status", "cancelled");
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) if (row.application_id) interviews.set(row.application_id, [...(interviews.get(row.application_id) ?? []), row]);
+  }
+  const { data: jobs, error } = await db.from("roles").select("id, department_id, interview_steps").in("id", jobIds);
+  if (error) throw new Error(error.message);
+
+  const process = processStages(drawn.graph, drawn.lookup.departments);
+  const byJob = new Map((jobs ?? []).map((j) => {
+    const steps = clientTools.stepsOf(j.interview_steps);
+    return [j.id, { steps, stages: jobStages(process, { departmentId: j.department_id, steps }) }];
+  }));
+  for (const lead of leads) {
+    const job = byJob.get(lead.jobId);
+    if (!job) continue;
+    const name = stageNameFor(job.stages, lead.stage, nextPlanStep(job.steps, interviews.get(lead.applicationId) ?? []));
+    if (name) names.set(lead.applicationId, name.name);
+  }
+  return names;
 }

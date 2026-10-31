@@ -103,6 +103,8 @@ Home is the Recruiting Overview: it answers *where are candidates getting stuck?
 - **Bottlenecks**: each one links to the page that clears it, with the longest waits listed under time in stage.
 - **Feedback**: time to feedback by interviewer, the average stay in each stage, and the oldest outstanding feedback.
 
+Once your company has drawn its [interview process](/docs/app-interviews#interview-process), candidates in process and time in stage use the stages you named. Steps side by side after a split count as one stage. A job whose plan doesn't match the process keeps the usual labels, and so does anyone who can't read the process. Admins change the stages from **Edit stages**. The stage a candidate is in is worked out each time: nothing about them changes when you rename a step.
+
 The feedback card appears for admins and whoever manages a job, and covers every job they manage even when you pick one job.
 
 ### Targets
@@ -154,7 +156,7 @@ Admins add a job with **Add a role**. Whoever manages a job can edit its post in
 
 - **The post**: its title, location and description.
 - **The application form**: name and email are always asked. Phone, LinkedIn and a resume link are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
-- **Hiring steps**: the job's interview plan. Only your team sees these.
+- **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
 - **Preview as applicant**: the page exactly as an applicant will see it.
 
 **Publish** puts a post live and **Close post** takes it down. A post can go live only while its job is open, and edits to a live post reach applicants when you save. If a teammate saved first, Tacit asks before replacing their work.
@@ -267,6 +269,8 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 Pick one to see the candidate's whole loop and who ran each round, then this interview's recommendation, ratings and notes.
 
+When a job's plan matches your [interview process](/docs/app-interviews#interview-process), admins and the hiring team see the loop as the process itself: the candidate's branch lit, other teams' branches faded, who is up next and how many rounds are left before the offer. It shows who has filed feedback, never what they said, and rounds that aren't on the plan sit below it. Admins can open the process from there. On a phone, scroll it sideways.
+
 Press \`E\`, or the round button on a row, to mark a past interview as reviewed. The mark is yours alone, and the page counts how many are left.
 
 If you connected Granola, your own notes appear on interviews you sat on, with the transcript a click away. Only your own notes are ever read.
@@ -330,7 +334,9 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
 
 **People** lists your team with each person's access and title. Anyone can set their own title; an admin can set anyone's. Interviewers set theirs on the **Interviewers** page, with the rest of their profile. An external recruiter sees the team on the **Interviewers** page too.
 
-Review is coming next, and its page says so. The checklist already counts what your company has set up.`,
+### Review
+
+**Review** shows your totals and who runs each interview type, with prioritized people first. A type nobody is on says "No one runs this yet". Admins can jump to **Interview skills** to fill it; your hiring team can read this page. The step ticks itself once the other four are done, and comes unticked if one of them is undone.`,
   },
   {
     slug: "app-integrations",
