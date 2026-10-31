@@ -1529,7 +1529,7 @@ function referralsPage() {
         <button class="icon-btn" data-act="refPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="refPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>
     </div>
     <section class="hm-box ref-side"><div class="hm-h"><b>Top referrers</b></div>
-      <div class="ref-lb-h"><span></span><span>Referred</span><span>In process</span><span>Hired</span></div>
+      <div class="ref-lb-h"><span></span><span>Referrer</span><span>Referred</span><span>In process</span><span>Hired</span></div>
       ${people.map((p) => `<div class="ref-lb">${personAv(p.id)}<span class="ref-lb-n"><b>${esc(PEOPLE[p.id].name)}</b><i style="width:${(p.n / maxN) * 100}%"></i></span><em>${p.n}</em><em>${p.open}</em><em class="${p.hired ? "hired" : ""}">${p.hired}</em></div>`).join("")}</section>
   </div>`;
 }
