@@ -5380,6 +5380,81 @@ body.surface.slack { background: #fff; }
 body.surface { padding: 0 !important; display: block !important; }
 .cli-l, .slk-m p { white-space: pre-line; }
 
+/* v80: brand-tinted neutrals. One scale from near-white to near-black, every step carrying the
+   brand's hue (the accent, #5E6AD2), so frames, panels, lines and text read as Meridian without
+   any of them looking blue. Change --brand-h to retint the whole interface; --tint scales how much. */
+:root {
+  --brand-h: 275;
+  --tint: 1;
+  --n0:    oklch(0.995 calc(0.003 * var(--tint)) var(--brand-h));
+  --n25:   oklch(0.983 calc(0.006 * var(--tint)) var(--brand-h));
+  --n50:   oklch(0.968 calc(0.009 * var(--tint)) var(--brand-h));
+  --n100:  oklch(0.948 calc(0.012 * var(--tint)) var(--brand-h));
+  --n150:  oklch(0.922 calc(0.015 * var(--tint)) var(--brand-h));
+  --n200:  oklch(0.885 calc(0.018 * var(--tint)) var(--brand-h));
+  --n300:  oklch(0.800 calc(0.022 * var(--tint)) var(--brand-h));
+  --n400:  oklch(0.690 calc(0.026 * var(--tint)) var(--brand-h));
+  --n500:  oklch(0.565 calc(0.028 * var(--tint)) var(--brand-h));
+  --n600:  oklch(0.455 calc(0.028 * var(--tint)) var(--brand-h));
+  --n700:  oklch(0.350 calc(0.026 * var(--tint)) var(--brand-h));
+  --n800:  oklch(0.265 calc(0.022 * var(--tint)) var(--brand-h));
+  --n850:  oklch(0.228 calc(0.020 * var(--tint)) var(--brand-h));
+  --n900:  oklch(0.200 calc(0.018 * var(--tint)) var(--brand-h));
+  --n950:  oklch(0.172 calc(0.016 * var(--tint)) var(--brand-h));
+  --n1000: oklch(0.140 calc(0.014 * var(--tint)) var(--brand-h));
+  /* the ink and the paper as channels, for lines, hovers and shadows at any opacity */
+  --ink-a:   0.265 calc(0.022 * var(--tint)) var(--brand-h);
+  --paper-a: 0.968 calc(0.009 * var(--tint)) var(--brand-h);
+
+  --frame: var(--n50); --surface: var(--n25); --paper: var(--n0); --raised: var(--n0); --pane: var(--n25);
+  --ink: var(--n800); --muted: var(--n500); --faint: var(--n400);
+  --line: var(--n150); --line-strong: var(--n200); --edge: oklch(var(--ink-a) / 0.12);
+  --soft: var(--n50); --soft-strong: var(--n100); --band: var(--n50); --sb-bg: var(--n50);
+  --hover: oklch(var(--ink-a) / 0.045); --sel: var(--n100);
+  --scrim: oklch(var(--ink-a) / 0.34);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(var(--ink-a) / 0.05), 0 4px 12px -6px oklch(var(--ink-a) / 0.09);
+  --elev-hi: 0 0 0 1px oklch(var(--ink-a) / 0.16), 0 2px 4px oklch(var(--ink-a) / 0.06), 0 12px 28px -10px oklch(var(--ink-a) / 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --frame: var(--n1000); --surface: var(--n950); --paper: var(--n900); --raised: var(--n850); --pane: var(--n950); --sb-bg: var(--n1000);
+    --ink: var(--n50); --muted: var(--n300); --faint: var(--n500);
+    --line: oklch(var(--paper-a) / 0.08); --line-strong: oklch(var(--paper-a) / 0.15); --edge: oklch(var(--paper-a) / 0.1);
+    --soft: oklch(var(--paper-a) / 0.05); --soft-strong: oklch(var(--paper-a) / 0.08); --band: oklch(var(--paper-a) / 0.035);
+    --hover: oklch(var(--paper-a) / 0.045); --sel: oklch(var(--paper-a) / 0.08);
+    --scrim: oklch(0.1 calc(0.014 * var(--tint)) var(--brand-h) / 0.6);
+    --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.01 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.01 var(--brand-h) / 0.45);
+    --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.01 var(--brand-h) / 0.65);
+  }
+}
+:root[data-theme="dark"] {
+  --frame: var(--n1000); --surface: var(--n950); --paper: var(--n900); --raised: var(--n850); --pane: var(--n950); --sb-bg: var(--n1000);
+  --ink: var(--n50); --muted: var(--n300); --faint: var(--n500);
+  --line: oklch(var(--paper-a) / 0.08); --line-strong: oklch(var(--paper-a) / 0.15); --edge: oklch(var(--paper-a) / 0.1);
+  --soft: oklch(var(--paper-a) / 0.05); --soft-strong: oklch(var(--paper-a) / 0.08); --band: oklch(var(--paper-a) / 0.035);
+  --hover: oklch(var(--paper-a) / 0.045); --sel: oklch(var(--paper-a) / 0.08);
+  --scrim: oklch(0.1 calc(0.014 * var(--tint)) var(--brand-h) / 0.6);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.01 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.01 var(--brand-h) / 0.45);
+  --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.01 var(--brand-h) / 0.65);
+}
+/* what the tokens don't reach: the same scale, set by hand */
+.pills > .on, .cx-seg > .on, .seg > .on, .ibx-seg > .on, .fm-seg > .on, .tabs > .on, .fm-seg input:checked + span { background: var(--n600) !important; color: var(--n25) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n800) !important; } }
+:root[data-theme="dark"] :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n800) !important; }
+/* people and team colours keep their lightness, so they still tell apart, but take the brand's hue */
+:is(.av, .team-key, .tdot)[style*="--c"]:not(.pal-prev *) { filter: none; background: oklch(from var(--c) calc(l * 0.92) calc(0.035 * var(--tint)) var(--brand-h)) !important; }
+.av, .team-key, .ws-logo, .ft-flag, .gc-bubble.in, .crm-tab.on { color: var(--n25); }
+.av.grok { background-color: var(--n950) !important; box-shadow: 0 0 0 1px oklch(var(--ink-a) / 0.08); }
+:root { --ev-gray: var(--n100); --ev-gray-ink: var(--n600); }
+.gc { --gc-border: var(--n150); --gc-text: var(--n600); }
+.pg { background: var(--n0); color: var(--n850); }
+.pg-head { border-bottom-color: var(--n150); }
+.pg-term .cmd { color: var(--n150); }
+.sb-ws .ws-logo, .phonebar .ws-logo, .btn.primary, .btn.sm.primary, .cx-primary, .bar .cx-primary.je-save, .kb.primary { color: var(--n25); }
+.su-tog i { background: var(--n0); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); } }
+:root[data-theme="dark"] .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); }
+
 </style>
 
 <div class="app" id="app">
@@ -5720,14 +5795,14 @@ const CH_NAME = { slack: "Slack", imessage: "iMessage", gmail: "Gmail", cal: "Ca
 
 /* ---------------- avatars, court ---------------- */
 const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
+const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color};--c:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
 // A Grokbot is its person's avatar with a spark badge: it acts as them.
 // Every Grokbot wears the Grokbot picture; whose it is shows in the text beside it.
 const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot" title="${esc(first(id))}'s Grokbot"><span class="av grok ${size}"></span></span>`;
 // Applicants have no photos, so they get no picture placeholder: their name carries the row.
 const candAv = () => "";
-const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color}"></i>`;
-const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
+const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}"></i>`;
+const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
 function court(a) {
   const c = STATES[a.state].court;
   if (c === "you") return { av: personAv(ME), label: "You" };

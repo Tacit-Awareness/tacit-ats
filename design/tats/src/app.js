@@ -128,14 +128,14 @@ const CH_NAME = { slack: "Slack", imessage: "iMessage", gmail: "Gmail", cal: "Ca
 
 /* ---------------- avatars, court ---------------- */
 const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
+const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color};--c:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
 // A Grokbot is its person's avatar with a spark badge: it acts as them.
 // Every Grokbot wears the Grokbot picture; whose it is shows in the text beside it.
 const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot" title="${esc(first(id))}'s Grokbot"><span class="av grok ${size}"></span></span>`;
 // Applicants have no photos, so they get no picture placeholder: their name carries the row.
 const candAv = () => "";
-const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color}"></i>`;
-const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
+const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}"></i>`;
+const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
 function court(a) {
   const c = STATES[a.state].court;
   if (c === "you") return { av: personAv(ME), label: "You" };
