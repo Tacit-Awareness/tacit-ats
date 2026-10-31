@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { KeyList } from "@/components/keys";
 import { Avatar, Empty, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
+import { hoverAttr } from "@/lib/hover-card";
 import type { BulkItem } from "@/lib/client/crm-bulk-rules";
 import { cn } from "@/lib/utils";
 import { BulkBar, BulkKeys, PageCheck, RowCheck, type BulkOptions } from "./bulk";
@@ -171,7 +172,10 @@ export function CrmView({
                     </span>
                     <span role="cell" className={cn(CELL, "gap-2.5")}>
                       <Link href={r.href} data-key-item className="min-w-0 truncate font-medium after:absolute after:inset-0">
-                        {r.name}
+                        {/* Above the link's stretch, so only the name raises a card; a click still lands on the link. */}
+                        <span data-hc={hoverAttr("candidate", r.bulk.candidateId)} className="relative z-[1]">
+                          {r.name}
+                        </span>
                       </Link>
                     </span>
                     <span role="cell" className={cn(CELL, "gap-1.5")}>

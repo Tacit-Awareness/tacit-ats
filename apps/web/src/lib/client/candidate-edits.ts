@@ -1,7 +1,7 @@
 import type { Db } from "@tacit/db";
 import { logTouch, setOwner } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
-import { closeReasonKind, type MoveInput, type NextActionInput } from "./candidate-edit-rules";
+import { closeReasonKind, type LabelInput, type MoveInput, type NextActionInput } from "./candidate-edit-rules";
 
 // The candidate page's writes, and what its controls need to read, on the
 // member's OWN client (never a privileged one), so the policies decide again;
@@ -116,6 +116,45 @@ export async function moveCandidate(db: Db, ctx: clientTools.ClientToolCtx, inpu
       return { ok: false, error: "reason_required" };
     }
     return refused(err);
+  }
+}
+
+export type LabelChoices = { tagId: string; name: string }[];
+
+/**
+ * The labels the menu offers, or null when the member may not change this
+ * candidate: can_edit_person, the check tag and untag make. The live ones and any
+ * archived one they carry, which can still come off. A plain `tags` read, as New
+ * view's: listTags counts each label's candidates, which this doesn't need.
+ */
+export async function readLabelChoices(db: Db, candidateId: string, carried: string[]): Promise<LabelChoices | null> {
+  const allowed = await db.rpc("can_edit_person", { p_person: candidateId });
+  if (allowed.error) throw new Error(allowed.error.message);
+  if (allowed.data !== true) return null;
+  const { data, error } = await db.from("tags").select("id, name, archived_at").order("name").limit(500);
+  if (error) throw new Error(error.message);
+  return (data ?? []).filter((t) => !t.archived_at || carried.includes(t.name)).map((t) => ({ tagId: t.id, name: t.name }));
+}
+
+export type LabelError = "label_forbidden" | "label_gone" | "label_archived" | "rate_limited";
+export type LabelOutcome = { ok: true; changed: boolean } | { ok: false; error: LabelError };
+
+const LABEL_REFUSALS: Record<clientTools.ClientToolErrorCode, LabelError> = {
+  forbidden: "label_forbidden",
+  not_found: "label_gone",
+  invalid: "label_archived",
+  rate_limited: "rate_limited",
+};
+
+/** Puts a label on or takes it off: clientTools' audited tag and untag, so the policies decide again. */
+export async function setCandidateLabel(db: Db, ctx: clientTools.ClientToolCtx, input: LabelInput): Promise<LabelOutcome> {
+  const args = { candidateId: input.candidateId, tag: input.tagId };
+  try {
+    const r = await (input.on ? clientTools.tagCandidate(db, ctx, args) : clientTools.untagCandidate(db, ctx, args));
+    return { ok: true, changed: r.outcome === "tagged" || r.outcome === "untagged" };
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError) return { ok: false, error: LABEL_REFUSALS[err.code] };
+    throw err;
   }
 }
 

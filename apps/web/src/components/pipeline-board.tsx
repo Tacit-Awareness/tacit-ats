@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { hoverAttr } from "@/lib/hover-card";
 import { useOptimistic, useState, useTransition } from "react";
 import type { PipelineCard } from "@tacit/core";
 import { Pill } from "@/components/page";
@@ -99,11 +100,13 @@ function CardView({
     >
       <div className="flex items-start justify-between gap-2">
         {links.person ? (
-          <Link href={`${links.person}/${card.personId}`} className="font-medium hover:underline">
+          <Link href={`${links.person}/${card.personId}`} data-hc={hoverAttr("candidate", card.personId)} className="font-medium hover:underline">
             {card.personName}
           </Link>
         ) : (
-          <span className="font-medium">{card.personName}</span>
+          <span data-hc={hoverAttr("candidate", card.personId)} className="font-medium">
+            {card.personName}
+          </span>
         )}
         {editable && (
           <button

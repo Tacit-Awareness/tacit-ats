@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { Avatar, Count, Empty, KeyValues, Page, PageBar, Section, textLink } from "@/components/page";
+import { hoverAttr } from "@/lib/hover-card";
 import { CHANNEL_LABELS, PREFERENCE_LABELS, loadMeter, type StoredProfile } from "@/lib/client/interviewer-profile";
 import { cn } from "@/lib/utils";
 import { TitleForm } from "../onboarding/people/title-form";
@@ -118,9 +119,13 @@ function Rows({ rows, feedback, max }: { rows: InterviewerViewRow[]; feedback: b
   return rows.map((r) => (
     <div role="row" key={r.actorId} className={cn(grid, "min-h-14 border-b border-[color:var(--line)] text-[13px] last:border-b-0")}>
       <span role="cell" className="flex min-w-0 items-center gap-2.5 py-2">
-        <Avatar name={r.name} size="lg" />
+        <span data-hc={hoverAttr("member", r.actorId)}>
+          <Avatar name={r.name} size="lg" />
+        </span>
         <span className="grid min-w-0">
-          <b className="truncate font-medium">{r.name}</b>
+          <b data-hc={hoverAttr("member", r.actorId)} className="truncate font-medium">
+            {r.name}
+          </b>
           <span className="truncate text-xs text-faint" title={r.jobs.length > 1 ? r.jobs.join(", ") : undefined}>
             {r.jobs.length ? `${r.jobs[0]}${r.jobs.length > 1 ? ` +${r.jobs.length - 1}` : ""}` : "No jobs"}
           </span>

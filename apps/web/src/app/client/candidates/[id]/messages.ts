@@ -23,6 +23,10 @@ export const CANDIDATE_ERRORS = {
   rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
   failed: "That didn't work. Nothing was changed.",
   unsure: "That didn't finish, so they may or may not have moved. Check where they are before trying again.",
+  label_forbidden: "You can't change this candidate's labels.",
+  label_gone: "That label or candidate isn't one you can use any more. Nothing was changed.",
+  label_archived: "That label is archived, so it goes on no one new.",
+  label_unsure: "That didn't finish, so the label may or may not have changed. Check it before trying again.",
 } as const;
 
 export type CandidateNotice = keyof typeof CANDIDATE_NOTICES;

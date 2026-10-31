@@ -2,14 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { candidateOf, parseMove, parseNextAction, parseNote, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
+import { candidateOf, parseLabel, parseMove, parseNextAction, parseNote, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
 import {
   addCandidateNote,
   logCandidateTouch,
   moveCandidate,
+  setCandidateLabel,
   setCandidateNextAction,
   setCandidateOwner,
   type EditOutcome,
+  type LabelOutcome,
   type NoteOutcome,
 } from "@/lib/client/candidate-edits";
 import { requireClient } from "@/lib/client/session";
@@ -83,6 +85,29 @@ export async function logTouchAction(form: FormData): Promise<void> {
   const input = parseTouch(form);
   if (!input) return back(candidateId, { error: "not_found" });
   return run(candidateId, "touched", () => logCandidateTouch(db, actorId, input));
+}
+
+export type LabelResult = { ok: true; changed: boolean } | { ok: false; error: CandidateError };
+
+/** A label on or off (label-menu.tsx). Answers rather than redirecting, so the Pipeline's pop-up stays open. */
+export async function setLabelAction(form: FormData): Promise<LabelResult> {
+  const member = await requireClient();
+  const input = parseLabel(form);
+  if (!input) return { ok: false, error: "label_gone" };
+
+  let outcome: LabelOutcome;
+  try {
+    outcome = await setCandidateLabel(member.db, toolCtx(member), input);
+  } catch (err) {
+    console.error("[client-candidate] label failed:", err instanceof Error ? err.message : err);
+    return { ok: false, error: "failed" };
+  }
+  if (outcome.ok && outcome.changed) {
+    revalidatePath(`/client/candidates/${input.candidateId}`);
+    revalidatePath("/client/candidates");
+    revalidatePath("/client/pipeline");
+  }
+  return outcome.ok ? { ok: true, changed: outcome.changed } : outcome;
 }
 
 export async function addNoteAction(prev: NoteState, form: FormData): Promise<NoteState> {

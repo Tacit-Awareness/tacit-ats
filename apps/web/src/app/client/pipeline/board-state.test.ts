@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { neighbourOf, shiftCard, type BoardCard, type BoardColumn } from "./board-state";
+import { neighbourOf, shiftCard, type BoardCard, type BoardColumn, menuSpot, moveForm, takesRowMenu } from "./board-state";
 
 const card = (id: string, stage = "screening"): BoardCard => ({
   applicationId: id,
@@ -10,6 +10,7 @@ const card = (id: string, stage = "screening"): BoardCard => ({
   line: "Engineer",
   status: "Touched today",
   ownerName: null,
+  ownerActorId: null,
   stalled: false,
   stage,
   stageLabel: stage,
@@ -64,5 +65,35 @@ describe("neighbourOf", () => {
   test("is nothing on an empty board or for a card not on it", () => {
     expect(neighbourOf([col("new", [card("a")])], "a")).toBeNull();
     expect(neighbourOf(board(), "z")).toBeNull();
+  });
+});
+
+describe("a right-click on a row", () => {
+  const plain = { shiftKey: false, pointerType: "mouse" };
+  const movable = { moves: {} };
+
+  test("is the menu on a desktop, on a row the member may move", () => {
+    expect(takesRowMenu(plain, true, movable, false)).toBe(true);
+    // Safari's contextmenu is a MouseEvent, with no pointerType.
+    expect(takesRowMenu({ shiftKey: false }, true, movable, false)).toBe(true);
+  });
+
+  test("keeps the browser's menu otherwise: the board's own gate, a phone, a touch, Shift, or something in the way", () => {
+    expect(takesRowMenu(plain, true, { moves: null }, false)).toBe(false);
+    expect(takesRowMenu(plain, true, undefined, false)).toBe(false);
+    expect(takesRowMenu(plain, false, movable, false)).toBe(false);
+    expect(takesRowMenu({ shiftKey: false, pointerType: "touch" }, true, movable, false)).toBe(false);
+    expect(takesRowMenu({ shiftKey: true, pointerType: "mouse" }, true, movable, false)).toBe(false);
+    expect(takesRowMenu(plain, true, movable, true)).toBe(false);
+  });
+
+  test("sits at the pointer, or under the row when the menu key sent it", () => {
+    expect(menuSpot(40, 60, { left: 10, bottom: 20 })).toEqual({ left: 40, right: 40, top: 60, bottom: 60 });
+    expect(menuSpot(0, 0, { left: 10, bottom: 20 })).toEqual({ left: 10, right: 10, top: 20, bottom: 20 });
+  });
+
+  test("a move carries the stage the page showed", () => {
+    const form = moveForm({ applicationId: "a", personId: "p", stage: "screening" }, "offer");
+    expect(Object.fromEntries(form)).toEqual({ applicationId: "a", candidateId: "p", stage: "offer", expectedStage: "screening" });
   });
 });

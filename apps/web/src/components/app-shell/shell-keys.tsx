@@ -122,7 +122,7 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
   const global: KeyHelpSection = {
     title: "Anywhere",
     rows: [
-      { keys: "⌘K", label: "Command menu" },
+      { keys: "⌘K", label: "Command menu: pages, jobs, candidates" },
       ...go.map((g) => ({ keys: `G then ${g.key.toUpperCase()}`, label: g.label })),
       { keys: "[", label: "Collapse or expand the sidebar" },
       { keys: "?", label: "This list" },

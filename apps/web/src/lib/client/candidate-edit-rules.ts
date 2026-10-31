@@ -123,3 +123,13 @@ export function parseNote(f: Fields): NoteParse {
 
 /** The candidate a form came from, for the redirect back. */
 export const candidateOf = (f: Fields): string | null => idOf(f, "candidateId");
+
+export type LabelInput = { candidateId: string; tagId: string; on: boolean };
+
+/** A label going on or coming off, from the menu. `on` is the state wanted, never "toggle", so a repeat changes nothing. */
+export function parseLabel(f: Fields): LabelInput | null {
+  const candidateId = candidateOf(f);
+  const tagId = idOf(f, "tagId");
+  const on = f.get("on");
+  return candidateId && tagId && (on === "1" || on === "0") ? { candidateId, tagId, on: on === "1" } : null;
+}

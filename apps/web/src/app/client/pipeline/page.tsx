@@ -30,7 +30,8 @@ import { PipelineView, type PipelineListProps } from "./view";
 // the candidate in a pop-up (`?open=<application id>`, only ever one this read
 // holds, so a tampered id is no pop-up), a card their page; on a job the member
 // may edit, a card also carries its real stage moves (lib/client/pipeline-moves.ts),
-// which board.tsx offers by drag and keys.
+// which board.tsx offers by drag, keys and a right-click, and a row the same ones
+// by a right-click and S (row-menu.tsx).
 // A saved view (lib/saved-views.ts) is the same page with
 // `?stage=&source=&tag=&view=` in the URL: the filters come from there, never
 // from the browser's copy, and picking a department leaves the view, as the
@@ -117,6 +118,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
       line: job ? (e.headline ?? e.roleTitle) : e.roleTitle,
       status: statusOf(e, nowMs),
       ownerName: e.ownerName,
+      ownerActorId: e.ownerActorId,
       stalled: e.stalled.length > 0,
       stage: e.stage,
       stageLabel: e.stageName?.name ?? stageLabel(e.stage),
@@ -133,9 +135,18 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   const list = (): PipelineListProps => {
     const matching = unstaged.filter(matches);
+    const matchingById = new Map(matching.map((e) => [e.applicationId, e]));
     const groups = rowGroups(matching, { mode, stage: filters.stage, expanded, now: nowMs }).map((g) => ({
       ...g,
-      rows: g.rows.map((r) => ({ ...r, openHref: href({ open: r.applicationId }), active: r.applicationId === openId })),
+      rows: g.rows.map((r) => {
+        const e = matchingById.get(r.applicationId);
+        return {
+          ...r,
+          openHref: href({ open: r.applicationId }),
+          active: r.applicationId === openId,
+          menu: e?.editable ? { stage: e.stage, stageLabel: e.stageName?.name ?? stageLabel(e.stage), moves: movesFor(e.stage, e.interviews, nowMs) } : null,
+        };
+      }),
       moreHref: g.more ? href({ all: g.more.all }) : null,
     }));
     const filtered = !!(needle || filters.stage || filters.source || filters.tag);

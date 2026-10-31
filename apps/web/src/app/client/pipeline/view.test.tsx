@@ -9,7 +9,7 @@ vi.mock("./actions", () => ({ moveCardAction: vi.fn() }));
 import { PersonPopup } from "./popup";
 import { PipelineView, type LayoutSwitch, type PipelineListProps } from "./view";
 
-const person = { applicationId: "a1", href: "/client/candidates/p1", name: "Ann Lee", status: "Waiting", facts: "Engineer", time: "2d", stuck: false, openHref: "/client/pipeline?open=a1", active: false };
+const person = { applicationId: "a1", personId: "c1c00000-0000-4000-8000-000000000001", href: "/client/candidates/p1", name: "Ann Lee", status: "Waiting", facts: "Engineer", time: "2d", stuck: false, openHref: "/client/pipeline?open=a1", active: false };
 const list: PipelineListProps = {
   modes: [{ href: "/client/pipeline", label: "Stuck", active: true }],
   stages: [],

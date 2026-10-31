@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { KeyList, useKeyHelp, useKeys } from "@/components/keys";
 import { Avatar } from "@/components/page";
 import { dismissToast, showToast } from "@/components/toasts";
 import { NO_DROP, type ColumnKey } from "@/lib/client/pipeline-columns";
 import type { StageMove } from "@/lib/client/pipeline-moves";
-import { isTyping, menuKey } from "@/lib/keys";
+import { hoverAttr } from "@/lib/hover-card";
+import { isTyping } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { CANDIDATE_ERRORS, CANDIDATE_NOTICES } from "../candidates/[id]/messages";
 import { moveCardAction, type BoardMoveResult } from "./actions";
-import { neighbourOf, shiftCard, type BoardCard, type BoardColumn } from "./board-state";
-import { cssPx, cssRect } from "@/lib/ui-scale";
+import { DESKTOP_POINTER, menuSpot, moveForm, neighbourOf, shiftCard, takesRowMenu, type BoardCard, type BoardColumn } from "./board-state";
+import { MoveMenu, type MenuAt } from "./move-menu";
+import { cssRect } from "@/lib/ui-scale";
 
 // The board's columns and cards, and what moves one: a drag, the menu on the
 // card, or a key. All three are the same move (moveCardAction, the stage the
@@ -22,9 +24,9 @@ import { cssPx, cssRect } from "@/lib/ui-scale";
 // takes no drop. The card moves at once and the server's answer settles it; a
 // refusal puts it back and says why. Keys, from design/tats's Pipeline: J/K
 // walk the cards, Enter opens one, S is its stage menu, A its next stage, F or
-// / the filter, B the list. Its X, P and L have nothing behind them here.
-
-type MenuAt = { card: BoardCard; rect: DOMRect };
+// / the filter, B the list. Its X, P and L have nothing behind them here. A
+// right-click on a card is the same menu with Open first (move-menu.tsx), on a
+// job the member may edit and on a desktop.
 
 const cardEl = (id: string) => document.querySelector<HTMLElement>(`[data-card="${id}"]`);
 const linkOf = (id: string) => cardEl(id)?.querySelector<HTMLElement>("[data-key-item]") ?? null;
@@ -46,6 +48,7 @@ function Card({
   onDragStart,
   onDragEnd,
   onMenu,
+  onContext,
 }: {
   card: BoardCard;
   dragged: boolean;
@@ -54,6 +57,7 @@ function Card({
   onDragStart: (card: BoardCard) => void;
   onDragEnd: () => void;
   onMenu: (card: BoardCard) => void;
+  onContext: (card: BoardCard, e: React.MouseEvent) => void;
 }) {
   const movable = card.moves !== null;
   return (
@@ -66,13 +70,16 @@ function Card({
         onDragStart(card);
       }}
       onDragEnd={onDragEnd}
+      onContextMenu={(e) => onContext(card, e)}
       className={cn(
         "group relative border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
         dragged && "opacity-40",
       )}
     >
       <Link href={card.href} draggable={false} data-key-item className="grid gap-1 p-3">
-        <span className={cn("truncate text-[14px] leading-[1.3] font-medium", movable && "pr-5")}>{card.name}</span>
+        <span data-hc={hoverAttr("candidate", card.personId)} className={cn("truncate text-[14px] leading-[1.3] font-medium", movable && "pr-5")}>
+          {card.name}
+        </span>
         <span className="truncate text-[12.5px] text-muted-foreground">{card.line}</span>
         <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px]">
           <span
@@ -82,7 +89,7 @@ function Card({
             {card.status}
           </span>
           {card.ownerName ? (
-            <span title={card.ownerName} className="shrink-0">
+            <span title={card.ownerName} data-hc={card.ownerActorId ? hoverAttr("member", card.ownerActorId) : undefined} className="shrink-0">
               <Avatar name={card.ownerName} size="xs" />
             </span>
           ) : null}
@@ -178,99 +185,12 @@ function Column({
   );
 }
 
-const MENU_WIDTH = 220;
-const MENU_ITEM =
-  "flex h-8 w-full items-center gap-2 px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
-
-/**
- * The stage menu, design/tats's `statusMenu`: "<stage> · move to", J/K or the
- * arrows, Enter, a digit, Esc. Fixed rather than inside its card, where the
- * board's scroller would clip it. Rejecting needs a reason, so that line goes
- * to the candidate page, where the reasons are.
- */
-function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMove) => void; onClose: () => void }) {
-  const box = useRef<HTMLDivElement>(null);
-  const moves = at.card.moves?.stages ?? [];
-  const count = moves.length;
-
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const gap = 8;
-    const height = el.offsetHeight;
-    const below = at.rect.bottom + 4;
-    el.style.top = `${below + height + gap > cssPx(window.innerHeight) ? Math.max(gap, at.rect.top - height - 4) : below}px`;
-    el.style.left = `${Math.max(gap, Math.min(at.rect.right - MENU_WIDTH, cssPx(window.innerWidth) - MENU_WIDTH - gap))}px`;
-    el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
-  }, [at]);
-
-  useEffect(() => {
-    const items = () => Array.from(box.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? []);
-    const outside = (e: Event) => {
-      if (!box.current?.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      // Its keys are for it alone: the ? sheet takes focus while the key that opened it is still on its way here.
-      if (!box.current?.contains(document.activeElement)) return onClose();
-      const command = menuKey(e, count);
-      if (!command) return;
-      if (command.kind === "close") {
-        if (!command.refocus) return onClose();
-        e.preventDefault();
-        linkOf(at.card.applicationId)?.focus();
-        return onClose();
-      }
-      e.preventDefault();
-      const all = items();
-      if (command.kind === "pick") return all[command.index]?.click();
-      const cur = all.indexOf(document.activeElement as HTMLElement);
-      all[(cur + command.d + all.length) % all.length]?.focus();
-    };
-    // focusin too: F, / and ⌘K take focus to a field, and the menu's keys stop there.
-    document.addEventListener("pointerdown", outside);
-    document.addEventListener("focusin", outside);
-    document.addEventListener("scroll", outside, true);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onClose);
-    return () => {
-      document.removeEventListener("pointerdown", outside);
-      document.removeEventListener("focusin", outside);
-      document.removeEventListener("scroll", outside, true);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onClose);
-    };
-  }, [at, count, onClose]);
-
-  return (
-    <div
-      ref={box}
-      role="menu"
-      aria-label={`Move ${at.card.name}`}
-      style={{ width: MENU_WIDTH }}
-      className="fixed z-50 grid gap-px border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
-    >
-      <p className="m-0 truncate px-2 py-1 text-[12px] text-faint">{at.card.stageLabel} · move to</p>
-      {moves.map((m, i) => (
-        <button key={m.stage} type="button" role="menuitem" tabIndex={-1} onClick={() => onPick(m)} className={MENU_ITEM}>
-          <span className="min-w-0 flex-1 truncate">{m.label}</span>
-          <span aria-hidden className="text-[11.5px] text-faint tabular-nums">
-            {i + 1}
-          </span>
-        </button>
-      ))}
-      <Link href={at.card.href} role="menuitem" tabIndex={-1} className={cn(MENU_ITEM, "text-muted-foreground")}>
-        Reject or withdraw…
-      </Link>
-    </div>
-  );
-}
-
 export function Board({ columns }: { columns: BoardColumn[] }) {
   const [shown, shift] = useOptimistic(columns, shiftCard);
   const [pending, start] = useTransition();
   const [drag, setDrag] = useState<{ card: BoardCard; from: string } | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  const [menu, setMenu] = useState<MenuAt | null>(null);
+  const [menu, setMenu] = useState<MenuAt<BoardCard> | null>(null);
   // Where focus goes while a move settles: a moved card is a new element.
   const refocus = useRef<{ id: string; fallback: string | null } | null>(null);
   // The last thing the board said: a move takes it away, a refusal left standing included.
@@ -293,11 +213,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     setMenu(null);
     if (said.current) dismissToast(said.current);
     if (keepFocus) refocus.current = { id: card.applicationId, fallback: neighbourOf(shown, card.applicationId) };
-    const form = new FormData();
-    form.set("applicationId", card.applicationId);
-    form.set("candidateId", card.personId);
-    form.set("stage", to.stage);
-    form.set("expectedStage", card.stage);
+    const form = moveForm(card, to.stage);
     start(async () => {
       shift({ applicationId: card.applicationId, stage: to.stage, stageLabel: to.label, column: to.column });
       const result: BoardMoveResult = await moveCardAction(form).catch(() => ({ ok: false, error: "unsure" }) as const);
@@ -312,6 +228,15 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
   };
 
   const closeMenu = useCallback(() => setMenu(null), []);
+  const focusCard = useCallback((id: string) => linkOf(id)?.focus(), []);
+
+  const onContext = (card: BoardCard, e: React.MouseEvent) => {
+    const el = cardEl(card.applicationId);
+    if (!el || !takesRowMenu(e.nativeEvent, matchMedia(DESKTOP_POINTER).matches, card, pending)) return;
+    e.preventDefault();
+    linkOf(card.applicationId)?.focus();
+    setMenu({ card, rect: menuSpot(e.clientX, e.clientY, el.getBoundingClientRect()), open: { href: card.href, scroll: true } });
+  };
 
   const drop = (column: BoardColumn) => {
     const from = drag;
@@ -350,7 +275,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     "Pipeline",
     movable
       ? [
-          { keys: "S", label: "Move to a stage" },
+          { keys: "S or right-click", label: "Move to a stage" },
           { keys: "A", label: "Move to the next stage" },
           { keys: "Drag", label: "Move to another column" },
         ]
@@ -385,13 +310,14 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
                     setOver(null);
                   }}
                   onMenu={openMenu}
+                  onContext={onContext}
                 />
               ))}
             </Column>
           ))}
         </div>
       </KeyList>
-      {menu ? <MoveMenu at={menu} onPick={(m) => move(menu.card, m, true)} onClose={closeMenu} /> : null}
+      {menu ? <MoveMenu at={menu} onPick={(m) => move(menu.card, m, true)} onClose={closeMenu} focusRow={focusCard} /> : null}
     </>
   );
 }
