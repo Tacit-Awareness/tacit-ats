@@ -2,9 +2,87 @@
    design/tats's .fc and .su. Imported by the steps that use them. */
 
 .proc-gap { color: var(--amber); }
-.proc-level { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.proc-level { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--n100); }
 .proc-level:first-child { border-top: 0; }
 .proc-path { display: grid; grid-template-columns: minmax(96px, 200px) minmax(0, 1fr); gap: 2px 12px; }
+
+.proc-notes { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line)); font-size: 13px; }
+.proc-notes.gaps { border-color: var(--line); }
+.proc-notes b { font-weight: 500; }
+.proc-notes ul { margin: 0; padding-left: 16px; color: var(--muted-text); }
+
+/* Canvas or List. Below 900px there is no canvas, and no choice. */
+@media (min-width: 900px) {
+  .proc[data-view="canvas"] .proc-listwrap { display: none; }
+  .proc[data-view="list"] .fc { display: none; }
+}
 @media (max-width: 899px) {
+  .proc .fc, .proc-views { display: none; }
   .proc-path { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The flowchart. */
+.fc { position: relative; height: max(520px, calc(100 * var(--vh) - 380px)); overflow: hidden; background: var(--surface); border: 1px solid var(--line); user-select: none; }
+.fc-vp { position: absolute; inset: 0; cursor: grab; background-image: radial-gradient(circle, var(--line-strong) 1px, transparent 1.2px); touch-action: none; }
+.fc-vp:active { cursor: grabbing; }
+.fc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.fc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.fc-e .hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.fc-e .ln { fill: none; stroke: var(--n500); stroke-width: 1.5; }
+.fc-e .ar { fill: var(--n500); }
+.fc-e text { font-size: 12px; fill: var(--muted-text); text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.fc-e:hover .ln { stroke: var(--ink); }
+.fc-e.sel .ln { stroke: var(--accent); stroke-width: 2; }
+.fc-e.sel .ar { fill: var(--accent); }
+.fc-e.sel text { fill: var(--accent); }
+.fc-tmp { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 4; }
+
+.fc-n { position: absolute; display: flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid var(--line-strong); box-shadow: var(--shadow); cursor: default; color: var(--ink); transition: box-shadow 0.15s, border-color 0.15s; }
+.fc[data-mode="edit"] .fc-n { cursor: grab; }
+.fc-n.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow); }
+.fc-n.bad { border-color: var(--red); }
+.fc-n.gap .fc-nf { color: var(--amber); }
+.fc-n > svg { color: var(--muted-text); }
+.fc-n b { font-weight: 600; font-size: 14px; min-width: 0; }
+.fc-n.stage { flex-direction: column; align-items: stretch; justify-content: center; gap: 8px; padding: 0 14px; }
+.fc-nh { display: flex; align-items: baseline; gap: 8px; }
+.fc-nh b { flex: 1; }
+.fc-nh span { color: var(--faint); font-size: 12px; }
+.fc-nf { display: flex; align-items: center; gap: 6px; color: var(--muted-text); font-size: 12.5px; min-width: 0; }
+.fc-n.start, .fc-n.end { padding: 0 14px; border-radius: 999px; justify-content: center; }
+.fc-n.end { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.fc-n.end > svg { color: var(--paper); }
+.fc-n.route { padding: 0 14px; border-style: dashed; justify-content: center; background: var(--surface); }
+.fc-n.note { align-items: flex-start; padding: 12px 14px; overflow: hidden; background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 30%, var(--line)); box-shadow: none; }
+.fc-n.note p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+
+.fc-port { position: absolute; right: -6px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--n500); cursor: crosshair; opacity: 0; transition: opacity 0.12s, transform 0.12s; }
+.fc-n:hover .fc-port, .fc-n.sel .fc-port { opacity: 1; }
+.fc-port:hover { transform: scale(1.3); border-color: var(--accent); background: var(--accent); }
+
+.fc-tools { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; }
+.fc-tb { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; color: var(--ink); font-size: 13px; font-weight: 500; transition: background 0.15s; }
+.fc-tb.ic { width: 32px; padding: 0; justify-content: center; }
+.fc-tb:hover:not([disabled]) { background: var(--hover); }
+.fc-tb[disabled] { opacity: 0.35; }
+.fc-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
+.fc-z { min-width: 40px; text-align: center; color: var(--muted-text); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.fc-pill { position: absolute; left: 12px; top: 12px; padding: 6px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; color: var(--muted-text); font-size: 12.5px; }
+
+.fc-insp { position: absolute; right: 12px; top: 12px; width: 272px; max-height: calc(100% - 92px); overflow: auto; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow); user-select: text; }
+.fc-ih { font-size: 14px; font-weight: 600; }
+.fc-sub, .fc-hint { color: var(--muted-text); font-size: 12.5px; line-height: 1.45; margin: 0; overflow-wrap: anywhere; }
+.fc-f { display: grid; gap: 6px; min-width: 0; }
+.fc-f > span:first-child, .fc-f label > span:first-child { color: var(--muted-text); font-size: 12px; font-weight: 500; }
+.fc-f input, .fc-f textarea, .fc-f select { width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
+.fc-f textarea { height: auto; padding: 8px 10px; resize: vertical; }
+.fc-f input:focus, .fc-f textarea:focus, .fc-f select:focus { outline: none; border-color: var(--accent); }
+.fc-f :disabled { opacity: 1; color: var(--muted-text); }
+.fc-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.fc-pills > button { height: 26px; padding: 0 10px; border-radius: 999px; background: var(--soft); color: var(--muted-text); font-size: 12.5px; }
+.fc-pills > button.on { background: var(--pick); color: var(--pick-ink); }
+.fc-people { display: flex; flex-wrap: wrap; gap: 4px; }
+.fc-pp { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-size: 12px; color: var(--ink); }
+.fc-out { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 6px; font-size: 13px; }
+.fc-out input, .fc-out select { height: 28px; padding: 0 6px; font-size: 12.5px; }
+.fc-del { justify-self: start; color: var(--muted-text); font-size: 12.5px; text-decoration: underline; }
