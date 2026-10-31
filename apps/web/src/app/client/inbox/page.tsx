@@ -6,6 +6,7 @@ import { readDone, readDoneStory, readInbox, readIssue } from "@/lib/client/inbo
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
 import { issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
+import { closeHref } from "@/lib/client/inbox-popup";
 import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
@@ -179,6 +180,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
             : null
         }
         flash={flash}
+        home={closeHref(isInboxNotice(notice) ? notice : null, UUID.test(undo) ? undo : null)}
         truncated={truncated}
         draftsCapped={draftsCapped}
       />

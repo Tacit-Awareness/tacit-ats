@@ -43,5 +43,13 @@ export function inertOutside(root: PopupNode): () => void {
  */
 export const writeInFlight = (sheet: { querySelector(selector: string): unknown } | null): boolean => !!sheet?.querySelector('form button[type="submit"]:disabled');
 
+/** Where closing lands: the plain Inbox, carrying a notice and its Undo so a close doesn't lose them. */
+export function closeHref(notice: string | null, undo: string | null): string {
+  if (!notice) return "/client/inbox";
+  const params = new URLSearchParams({ notice });
+  if (undo) params.set("undo", undo);
+  return `/client/inbox?${params}`;
+}
+
 /** The row an issue key names. The key came through the URL, so it is quoted. */
 export const rowSelector = (key: string) => `[data-issue-row="${key.replace(/["\\]/g, "\\$&")}"]`;

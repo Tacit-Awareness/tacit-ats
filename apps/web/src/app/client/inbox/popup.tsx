@@ -8,7 +8,8 @@ import { inertOutside, rowSelector, writeInFlight, type PopupNode } from "@/lib/
 
 // design/tats's full-page pop-up (`.overlay.fs`, `.fs-sheet`): one issue over
 // the Inbox card, holding the reader. `?i=` is its only state, so it can be
-// linked and refreshed and Back works; closing is going to the plain Inbox.
+// linked and refreshed and Back works; closing is going to the Inbox, with any
+// notice and its Undo (`closeHref`).
 //
 // Deliberately not a <dialog>: useKeys and ignoreKey stand down for one, and the
 // bars' keys have to work in here (lib/client/inbox-popup.ts has the rest). The
@@ -16,8 +17,6 @@ import { inertOutside, rowSelector, writeInFlight, type PopupNode } from "@/lib/
 // again, this one's Esc included: useKeys is why Esc backs out of a confirmation
 // and leaves this open. It closes on ✕, Esc or a press on the scrim, not while a
 // write is under way.
-
-const HOME = "/client/inbox";
 
 function CloseIcon() {
   return (
@@ -27,7 +26,7 @@ function CloseIcon() {
   );
 }
 
-export function IssuePopup({ issueKey, title, subject, children }: { issueKey: string; title: string; subject: string; children: React.ReactNode }) {
+export function IssuePopup({ issueKey, title, subject, home, children }: { issueKey: string; title: string; subject: string; home: string; children: React.ReactNode }) {
   const router = useRouter();
   const titleId = useId();
   const overlay = useRef<HTMLDivElement>(null);
@@ -39,7 +38,7 @@ export function IssuePopup({ issueKey, title, subject, children }: { issueKey: s
   const busy = () => writeInFlight(sheet.current);
   const close = () => {
     // Without scrolling: the card stays where they left it.
-    if (!busy()) router.push(HOME, { scroll: false });
+    if (!busy()) router.push(home, { scroll: false });
   };
   useKeys({ Escape: close });
   useKeyHelp("Inbox", [{ keys: "Esc", label: "Close, back to the Inbox" }]);
@@ -89,7 +88,7 @@ export function IssuePopup({ issueKey, title, subject, children }: { issueKey: s
             {subject ? <p className="m-0 text-[13px] break-words text-muted-foreground">{subject}</p> : null}
           </div>
           <Link
-            href={HOME}
+            href={home}
             scroll={false}
             aria-label="Close"
             onClick={(e) => {

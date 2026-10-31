@@ -244,6 +244,7 @@ export function InboxView({
   rows,
   issue,
   flash,
+  home = "/client/inbox",
   truncated,
   draftsCapped,
 }: {
@@ -251,6 +252,8 @@ export function InboxView({
   /** The issue `?i=` opened, read in full. Null is the card alone. */
   issue: IssueReaderProps | null;
   flash: React.ReactNode;
+  /** Where closing the pop-up lands (`closeHref`). */
+  home?: string;
   truncated: boolean;
   draftsCapped: boolean;
 }) {
@@ -278,7 +281,7 @@ export function InboxView({
         </section>
       </div>
       {issue ? (
-        <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject}>
+        <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home}>
           <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 pb-10 md:px-6">
             {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
             <Reader issue={issue} />

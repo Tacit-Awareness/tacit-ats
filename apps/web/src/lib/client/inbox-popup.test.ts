@@ -1,5 +1,17 @@
 import { describe, expect, test } from "vitest";
-import { inertOutside, rowSelector, writeInFlight, type PopupNode } from "./inbox-popup";
+import { closeHref, inertOutside, rowSelector, writeInFlight, type PopupNode } from "./inbox-popup";
+
+describe("closeHref", () => {
+  test("is the plain Inbox with no notice", () => {
+    expect(closeHref(null, null)).toBe("/client/inbox");
+    expect(closeHref(null, "u1")).toBe("/client/inbox");
+  });
+
+  test("keeps a notice and its Undo", () => {
+    expect(closeHref("dismissed", "u1")).toBe("/client/inbox?notice=dismissed&undo=u1");
+    expect(closeHref("sent", null)).toBe("/client/inbox?notice=sent");
+  });
+});
 
 const node = (tagName: string, children: PopupNode[] = [], inert = false): PopupNode => {
   const n: PopupNode = { tagName, inert, parentElement: null, children };
