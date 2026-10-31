@@ -166,6 +166,24 @@ describe("fixIssueAction", () => {
     expect((await fix({ applicationId: APPLICATION, write: "touch" })).searchParams.get("notice")).toBe("touched");
     expect(inbox.noteResolved.mock.calls[0]![1]).toBeNull();
   });
+
+  test("names what it dealt with for the toast, by key, and keeps the range", async () => {
+    inbox.clearOverdueAction.mockResolvedValue({ ok: true, changed: true, roleId: "r" });
+    const url = await fix({ ...FIX, range: "3", next: `appr-${REQUEST}` });
+    expect(url.searchParams.get("was")).toBe(`app-${APPLICATION}`);
+    expect(url.searchParams.get("i")).toBe(`appr-${REQUEST}`);
+    expect(url.searchParams.get("range")).toBe("3");
+  });
+
+  test("changed nothing, it names nothing: nothing moved to Done", async () => {
+    inbox.clearOverdueAction.mockResolvedValue({ ok: true, changed: false, roleId: "r" });
+    expect((await fix(FIX)).searchParams.get("was")).toBeNull();
+  });
+
+  test("a tampered range is the default, and no id or name rides in it", async () => {
+    inbox.clearOverdueAction.mockResolvedValue({ ok: true, changed: true, roleId: "r" });
+    expect((await fix({ ...FIX, range: "Sam Lee" })).searchParams.get("range")).toBeNull();
+  });
 });
 
 describe("dismissIssueAction", () => {
@@ -199,6 +217,16 @@ describe("dismissIssueAction", () => {
     expect(url.searchParams.get("i")).toBeNull();
     expect(url.searchParams.get("notice")).toBe("dismissed");
     expect(url.searchParams.get("undo")).toBe(ROW);
+    expect(url.searchParams.get("was")).toBeNull();
+  });
+
+  test("from the pop-up it moves on, naming what left for the toast, with its Undo and range", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
+    const url = await dismiss({ ...FIELDS, next: OTHER, range: "7" });
+    expect(url.searchParams.get("i")).toBe(OTHER);
+    expect(url.searchParams.get("was")).toBe(NEXT);
+    expect(url.searchParams.get("undo")).toBe(ROW);
+    expect(url.searchParams.get("range")).toBe("7");
   });
 
   test("from a row, a refusal says so on the card too", async () => {
@@ -218,12 +246,12 @@ describe("dismissIssueAction", () => {
     inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
     const url = await dismiss({ ...FIELDS, next: OTHER });
     expect(url.pathname).toBe("/client/inbox");
-    expect(Object.fromEntries(url.searchParams)).toEqual({ i: OTHER, notice: "dismissed", undo: ROW });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ i: OTHER, was: NEXT, notice: "dismissed", undo: ROW });
   });
 
   test("with nothing below it, the reader stays on this application, so a phone still shows the Undo", async () => {
     inbox.dismissIssue.mockResolvedValue({ ok: true, changed: true, id: ROW });
-    expect(Object.fromEntries((await dismiss(FIELDS)).searchParams)).toEqual({ i: NEXT, notice: "dismissed", undo: ROW });
+    expect(Object.fromEntries((await dismiss(FIELDS)).searchParams)).toEqual({ i: NEXT, was: NEXT, notice: "dismissed", undo: ROW });
   });
 
   test("a second press moves on with no Undo", async () => {

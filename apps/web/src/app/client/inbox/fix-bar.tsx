@@ -53,7 +53,7 @@ function LinkFix({ fix }: { fix: Extract<IssueFix, { type: "link" }> }) {
   );
 }
 
-function WriteFix({ fix, instance, next }: { fix: Extract<IssueFix, { type: "write" }>; instance: IssueInstance; next: string | null }) {
+function WriteFix({ fix, instance, next, range }: { fix: Extract<IssueFix, { type: "write" }>; instance: IssueInstance; next: string | null; range: number }) {
   const form = useRef<HTMLFormElement>(null);
   const submit = useRef<HTMLButtonElement | null>(null);
   return (
@@ -63,6 +63,7 @@ function WriteFix({ fix, instance, next }: { fix: Extract<IssueFix, { type: "wri
       <input type="hidden" name="write" value={fix.write} />
       <input type="hidden" name="issueReason" value={instance.reason} />
       <input type="hidden" name="issueAt" value={instance.at} />
+      <input type="hidden" name="range" value={range} />
       {fix.nextAction !== null ? <input type="hidden" name="expected" value={fix.nextAction} /> : null}
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <Submit label={fix.label} refFn={(b) => void (submit.current = b)} />
@@ -74,17 +75,19 @@ export function FixBar({
   fix,
   instance,
   next,
+  range,
   secondary,
 }: {
   fix: Extract<IssueFix, { type: "link" | "write" }>;
   instance: IssueInstance;
   next: string | null;
+  range: number;
   secondary: { label: string; href: string } | null;
 }) {
   return (
     <div data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
-      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} instance={instance} next={next} />}
-      <DismissButton instance={instance} next={next} />
+      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} instance={instance} next={next} range={range} />}
+      <DismissButton instance={instance} next={next} range={range} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}

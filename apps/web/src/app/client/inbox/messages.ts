@@ -44,5 +44,23 @@ export const INBOX_ERRORS = {
 export type InboxNotice = keyof typeof INBOX_NOTICES;
 export type InboxError = keyof typeof INBOX_ERRORS;
 
+/** The notices that took an issue out of the pop-up and into Done. */
+const LEFT_THE_QUEUE: ReadonlySet<InboxNotice> = new Set(["dismissed", "done", "touched", "sent", "moved_offer", "closed", "approved_step", "approved_offer", "approved_job", "rejected_offer", "rejected_job"]);
+/** Those whose own sentence says something the member needs: what did not happen, or what comes next. */
+const SAYS_MORE: ReadonlySet<InboxNotice> = new Set(["moved_offer", "closed", "approved_step", "approved_offer", "approved_job", "rejected_offer", "rejected_job"]);
+
+/**
+ * design/tats's `autoClear` after an action in the pop-up: "Ada moved to Done.
+ * Next: Lin." or "... You're all caught up." `next` is who the pop-up opened on;
+ * `caughtUp` only when nothing is left, since a stale page's next can have gone
+ * while others wait. Null for anything else, which keeps its own sentence.
+ */
+export function movedToast(notice: InboxNotice, input: { name: string | null; next: string | null; caughtUp: boolean }): string | null {
+  if (!LEFT_THE_QUEUE.has(notice)) return null;
+  const moved = `${input.name ?? "That"} moved to Done.`;
+  const then = input.next ? ` Next: ${input.next}.` : input.caughtUp ? " You're all caught up." : "";
+  return `${SAYS_MORE.has(notice) ? `${INBOX_NOTICES[notice]} ` : ""}${moved}${then}`;
+}
+
 export const isInboxNotice = (v: unknown): v is InboxNotice => typeof v === "string" && Object.hasOwn(INBOX_NOTICES, v);
 export const isInboxError = (v: unknown): v is InboxError => typeof v === "string" && Object.hasOwn(INBOX_ERRORS, v);

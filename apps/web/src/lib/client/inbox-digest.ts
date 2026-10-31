@@ -30,11 +30,12 @@ export const parseRange = (v: unknown): DigestRange => DIGEST_RANGES.find((r) =>
 export const rangeLabel = (range: DigestRange) => DIGEST_RANGES.find((r) => r.days === range)!.label;
 export const rangeStart = (range: DigestRange, now: number) => new Date(now - range * DAY).toISOString();
 
-/** The Open tab at a range, and `?i=` for an issue: the pop-up closes back to the same range. */
-export function inboxHref(range: DigestRange, i?: string | null): string {
+/** The Inbox at a range, `?i=` for an issue and `?open=` for a digest row: a pop-up closes back to the same range. */
+export function inboxHref(range: DigestRange, i?: string | null, open?: string | null): string {
   const qs = new URLSearchParams();
   if (range !== DEFAULT_RANGE) qs.set("range", String(range));
   if (i) qs.set("i", i);
+  if (open) qs.set("open", open);
   const query = qs.toString();
   return query ? `/client/inbox?${query}` : "/client/inbox";
 }
@@ -67,8 +68,6 @@ export type DigestSubject = {
   personId: string;
   personName: string | null;
   jobTitle: string | null;
-  /** On a live stage of an open job, so the Pipeline's pop-up can show it. */
-  live: boolean;
 };
 
 export type StageEvent = DigestSubject & { id: string; actorName: string | null; toStage: string | null; at: string };
@@ -89,6 +88,10 @@ export type DigestRow = {
   at: string;
   /** A booking's interview, which the browser words in its own zone. */
   interviewAt: string | null;
+  /** Whose ticket the row opens, in the pop-up over the Inbox (`?open=`). */
+  candidate: { id: string; name: string };
+  applicationId: string;
+  jobTitle: string | null;
   href: string;
   page: string;
 };
@@ -139,16 +142,23 @@ const VERDICT: Record<string, string> = { strong_yes: "a strong yes", yes: "a ye
 function filed(f: FiledFeedback): string {
   const who = f.interviewerName ? firstName(f.interviewerName) : "An interviewer";
   const verdict = f.recommendation ? VERDICT[f.recommendation] : undefined;
-  return `${who} filed feedback on ${nameOf(f)}${verdict ? `: ${verdict}` : ""}.`;
+  return `${who} sent a read on ${nameOf(f)}${verdict ? `: ${verdict}` : ""}.`;
 }
 
 const candidatePage = (s: DigestSubject) => `/client/candidates/${s.personId}`;
-/** The Pipeline's pop-up reads live applications on open jobs; anything else has only its page. */
-const rowHref = (s: DigestSubject) => (s.live ? `/client/pipeline?open=${s.applicationId}` : candidatePage(s));
 const metaOf = (person: string | null, s: DigestSubject) => [person, s.jobTitle].filter(Boolean).join(" · ");
 
-function rows(input: DigestInput): Record<DigestGroupKey, DigestRow[]> {
-  const base = (s: DigestSubject, id: string, mark: ReadMark) => ({ id, mark, at: mark.at, href: rowHref(s), page: candidatePage(s) });
+function rows(input: DigestInput, range: DigestRange): Record<DigestGroupKey, DigestRow[]> {
+  const base = (s: DigestSubject, id: string, mark: ReadMark) => ({
+    id,
+    mark,
+    at: mark.at,
+    candidate: { id: s.personId, name: nameOf(s) },
+    applicationId: s.applicationId,
+    jobTitle: s.jobTitle,
+    href: inboxHref(range, null, id),
+    page: candidatePage(s),
+  });
   return {
     decided: input.events.map((e) => ({ ...base(e, e.id, { key: `evt-${e.id}`, reason: "decided", at: e.at }), what: decided(e), who: e.actorName, meta: metaOf(e.actorName, e), interviewAt: null })),
     booked: input.bookings.map((b) => {
@@ -164,7 +174,7 @@ const GROUPS: DigestGroupKey[] = ["decided", "booked", "fyi"];
 
 export function buildDigest(input: DigestInput, read: ReadonlySet<string>, range: DigestRange, now: number, needs: number): Digest {
   const from = Date.parse(rangeStart(range, now));
-  const all = rows(input);
+  const all = rows(input, range);
   const inRange = GROUPS.map((key) => {
     const within = all[key].filter((r) => Date.parse(r.at) >= from);
     const unread = within.filter((r) => !read.has(markId(r.mark))).sort((x, y) => Date.parse(y.at) - Date.parse(x.at));
@@ -177,6 +187,20 @@ export function buildDigest(input: DigestInput, read: ReadonlySet<string>, range
     shown: needs + groups.reduce((n, g) => n + g.rows.length, 0),
     unread: inRange.flatMap((g) => g.unread.map((r) => r.mark)),
   };
+}
+
+/**
+ * The row `?open=` asks for, by its exact id among the rows this member's own
+ * read listed. A tampered id, someone else's row, or one read or aged out of
+ * the range matches nothing, so nothing about it is read and no pop-up opens.
+ */
+export const selectedRow = (groups: DigestGroup[], id: string | null | undefined): DigestRow | null => groups.flatMap((g) => g.rows).find((r) => r.id === id) ?? null;
+
+/** What takes focus when a row goes: the one below it, across Needs you and the groups, else the one above. */
+export function rowAfter(walk: string[], key: string): string | null {
+  const i = walk.indexOf(key);
+  if (i < 0) return null;
+  return walk[i + 1] ?? walk[i - 1] ?? null;
 }
 
 /** Mark all as read covers what the page showed, not what landed after it. */

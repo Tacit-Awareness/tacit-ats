@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { buildDigest, DIGEST_KEY, DIGEST_REASONS, inboxHref, markId, parseMark, parseRange, rangeStart, seenBy, worthLine, type Booking, type DigestInput, type FiledFeedback, type ReadMark, type StageEvent } from "./inbox-digest";
+import { buildDigest, DIGEST_KEY, DIGEST_REASONS, inboxHref, markId, parseMark, parseRange, rangeStart, rowAfter, seenBy, selectedRow, worthLine, type Booking, type DigestInput, type FiledFeedback, type ReadMark, type StageEvent } from "./inbox-digest";
 import { doneItems, isIssueKey, parseInstance, type Dismissal } from "./inbox-done";
 import { isIssueReason } from "./inbox-issues";
 
@@ -10,7 +10,7 @@ const NOW = Date.parse("2026-10-31T12:00:00.000Z");
 const hoursAgo = (h: number) => new Date(NOW - h * 3_600_000).toISOString();
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
-const subject = { applicationId: uuid(100), personId: uuid(101), personName: "Sam Lee", jobTitle: "Staff Engineer", live: true };
+const subject = { applicationId: uuid(100), personId: uuid(101), personName: "Sam Lee", jobTitle: "Staff Engineer" };
 const event = (n: number, over: Partial<StageEvent> = {}): StageEvent => ({ ...subject, id: uuid(n), actorName: "Ada Admin", toStage: "offer", at: hoursAgo(2), ...over });
 const booking = (n: number, over: Partial<Booking> = {}): Booking => ({ ...subject, id: uuid(n), interviewerNames: ["Dana Fox"], startsAt: hoursAgo(-24), at: hoursAgo(3), ...over });
 const feedback = (n: number, over: Partial<FiledFeedback> = {}): FiledFeedback => ({ ...subject, id: uuid(n), interviewId: uuid(n + 500), interviewerName: "Dana Fox", recommendation: "yes", at: hoursAgo(4), ...over });
@@ -22,7 +22,7 @@ describe("grouping", () => {
   test("stage changes are decisions, interviews booked, feedback FYI, in that order", () => {
     const d = buildDigest(input({ feedback: [feedback(3)], bookings: [booking(2)], events: [event(1)] }), none, 1, NOW, 0);
     expect(d.groups.map((g) => [g.key, g.label])).toEqual([["decided", "Decisions made"], ["booked", "Booked"], ["fyi", "FYI"]]);
-    expect(whats(d)).toEqual(["Sam Lee moves to an offer.", "Sam Lee is booked with Dana.", "Dana filed feedback on Sam Lee: a yes."]);
+    expect(whats(d)).toEqual(["Sam Lee moves to an offer.", "Sam Lee is booked with Dana.", "Dana sent a read on Sam Lee: a yes."]);
   });
 
   test("a group with nothing in it is left out", () => {
@@ -64,6 +64,7 @@ describe("range", () => {
     expect(inboxHref(1)).toBe("/client/inbox");
     expect(inboxHref(3)).toBe("/client/inbox?range=3");
     expect(inboxHref(7, "app-x")).toBe("/client/inbox?range=7&i=app-x");
+    expect(inboxHref(3, null, "row")).toBe("/client/inbox?range=3&open=row");
   });
 });
 
@@ -159,7 +160,7 @@ describe("nothing private in the wording", () => {
 
   test("no verdict to hand, none claimed", () => {
     const d = buildDigest(input({ feedback: [feedback(1, { recommendation: null, interviewerName: null })] }), none, 1, NOW, 0);
-    expect(whats(d)).toEqual(["An interviewer filed feedback on Sam Lee."]);
+    expect(whats(d)).toEqual(["An interviewer sent a read on Sam Lee."]);
   });
 
   test("a stage it doesn't know is never printed raw, and a rejection claims no email", () => {
@@ -177,14 +178,34 @@ describe("nothing private in the wording", () => {
 });
 
 describe("where a row goes", () => {
-  test("a live application opens in the Pipeline's pop-up, and the arrow is always their page", () => {
-    const [row] = buildDigest(input({ events: [event(1)] }), none, 1, NOW, 0).groups[0]!.rows;
-    expect(row).toMatchObject({ href: `/client/pipeline?open=${subject.applicationId}`, page: `/client/candidates/${subject.personId}` });
+  test("every row opens the pop-up over the Inbox, by its own id at this range, and the arrow is always their page", () => {
+    const [row] = buildDigest(input({ events: [event(1)] }), none, 3, NOW, 0).groups[0]!.rows;
+    expect(row).toMatchObject({ href: `/client/inbox?range=3&open=${uuid(1)}`, page: `/client/candidates/${subject.personId}`, candidate: { id: subject.personId, name: "Sam Lee" }, applicationId: subject.applicationId });
   });
 
-  test("a closed one goes to the candidate: the pop-up can't show it", () => {
-    const [row] = buildDigest(input({ events: [event(1, { live: false })] }), none, 1, NOW, 0).groups[0]!.rows;
-    expect(row!.href).toBe(`/client/candidates/${subject.personId}`);
+  test("a row's id comes from the rows read, so a tampered one opens nothing", () => {
+    const d = buildDigest(input({ events: [event(1)], bookings: [booking(2)] }), none, 1, NOW, 0);
+    expect(selectedRow(d.groups, uuid(2))?.what).toBe("Sam Lee is booked with Dana.");
+    expect(selectedRow(d.groups, uuid(99))).toBeNull();
+    expect(selectedRow(d.groups, subject.applicationId)).toBeNull();
+    expect(selectedRow(d.groups, "")).toBeNull();
+    expect(selectedRow(d.groups, null)).toBeNull();
+  });
+
+  test("a row read, or past the group's six, can't be opened by its old URL", () => {
+    const e = event(1);
+    const read = buildDigest(input({ events: [e] }), new Set([markId({ key: `evt-${e.id}`, reason: "decided", at: e.at })]), 1, NOW, 0);
+    expect(selectedRow(read.groups, e.id)).toBeNull();
+    const events = Array.from({ length: 7 }, (_, n) => event(n + 1, { at: hoursAgo(n + 1) }));
+    expect(selectedRow(buildDigest(input({ events }), none, 1, NOW, 0).groups, uuid(7))).toBeNull();
+  });
+
+  test("focus goes to the row after, across the groups, else the one before", () => {
+    const walk = ["app-a", "e1", "e2"];
+    expect(rowAfter(walk, "app-a")).toBe("e1");
+    expect(rowAfter(walk, "e2")).toBe("e1");
+    expect(rowAfter(["e1"], "e1")).toBeNull();
+    expect(rowAfter(walk, "gone")).toBeNull();
   });
 
   test("a name the member can't read, and an interview with nobody on it, still read as sentences", () => {

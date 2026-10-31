@@ -19,19 +19,22 @@ import type { InboxError, InboxNotice } from "./messages";
 // clientTools' too: approve or reject an approval, or move the team's call to
 // offer or rejected. Send here is clientTools' sendEmail, on the draft the
 // dialog showed. A fix that changed something also leaves a `resolved` row for
-// the Done tab. E and Undo are the member's own inbox_dismissals row, which
-// nothing else reads, and a digest row's read mark is one too. Posted fields are request data, so they are re-read. A
-// reason, a note, an offer's terms and an email's words never go in the URL or
-// the log.
+// Done. E and Undo are the member's own inbox_dismissals row, which nothing else
+// reads, and a digest row's read mark is one too. Posted fields are request
+// data, so they are re-read. A reason, a note, an offer's terms and an email's
+// words never go in the URL or the log. Every form posts its range, so what
+// closes a pop-up still lands on the range it opened from. `was` names what a
+// pop-up just dealt with, by key, for the toast (page.tsx reads its name).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Only codes and ids go in the URL, never a name or a message.
-const back = (params: { tab?: "done"; range?: DigestRange; i?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): never => {
+const back = (params: { tab?: "done"; range?: DigestRange; i?: string | null; was?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): never => {
   const qs = new URLSearchParams();
   if (params.range && params.range !== DEFAULT_RANGE) qs.set("range", String(params.range));
   if (params.tab) qs.set("tab", params.tab);
   if (params.i) qs.set("i", params.i);
+  if (params.was) qs.set("was", params.was);
   if (params.notice) qs.set("notice", params.notice);
   if (params.error) qs.set("error", params.error);
   if (params.undo) qs.set("undo", params.undo);
@@ -48,7 +51,8 @@ export async function fixIssueAction(form: FormData): Promise<void> {
   const { db, actorId } = member;
   const applicationId = form.get("applicationId");
   const write = form.get("write");
-  if (typeof applicationId !== "string" || !UUID.test(applicationId) || (write !== "done" && write !== "touch")) return back({ error: "not_found" });
+  const range = parseRange(form.get("range"));
+  if (typeof applicationId !== "string" || !UUID.test(applicationId) || (write !== "done" && write !== "touch")) return back({ range, error: "not_found" });
   const i = nextKey(form);
   const expected = form.get("expected");
 
@@ -57,18 +61,18 @@ export async function fixIssueAction(form: FormData): Promise<void> {
     outcome = write === "done" ? await clearOverdueAction(db, toolCtx(member), { applicationId, nextAction: typeof expected === "string" ? expected : null }, new Date()) : await touchApplication(db, actorId, applicationId);
   } catch (err) {
     console.error("[client-inbox] fix failed:", err instanceof Error ? err.message : err);
-    return back({ i: `app-${applicationId}`, error: "failed" });
+    return back({ range, i: `app-${applicationId}`, error: "failed" });
   }
   if (!outcome.ok) {
     const { error } = outcome;
-    return back({ i: `app-${applicationId}`, error: error === "forbidden" || error === "rate_limited" ? error : "not_found" });
+    return back({ range, i: `app-${applicationId}`, error: error === "forbidden" || error === "rate_limited" ? error : "not_found" });
   }
 
   if (outcome.changed) await noteResolved(db, parseInstance(form, `app-${applicationId}`));
   revalidatePath("/client/inbox");
   revalidatePath("/client/pipeline");
   // On to the next issue: the one below it in the list, as the page sent it.
-  return back({ i, notice: !outcome.changed ? "unchanged" : write === "done" ? "done" : "touched" });
+  return back({ range, i, was: outcome.changed ? `app-${applicationId}` : null, notice: !outcome.changed ? "unchanged" : write === "done" ? "done" : "touched" });
 }
 
 /** A, O or R, once the member has confirmed: the dialog posts here. */
@@ -76,7 +80,8 @@ export async function decideIssueAction(form: FormData): Promise<void> {
   const member = await requireClient();
   const { db } = member;
   const decision = parseDecision(form);
-  if (!decision) return back({ error: "not_found" });
+  const range = parseRange(form.get("range"));
+  if (!decision) return back({ range, error: "not_found" });
   const here = decision.on === "approval" ? `appr-${decision.requestId}` : `app-${decision.move.applicationId}`;
 
   let done: { notice: InboxNotice } | { error: InboxError };
@@ -96,23 +101,23 @@ export async function decideIssueAction(form: FormData): Promise<void> {
     console.error("[client-inbox] decision failed:", err instanceof Error ? err.message : err);
     done = { error: "failed" };
   }
-  if ("error" in done) return back({ i: here, error: done.error });
+  if ("error" in done) return back({ range, i: here, error: done.error });
 
   if (settled) await noteResolved(db, parseInstance(form, here));
   revalidatePath("/client/inbox");
   revalidatePath("/client/pipeline");
   // On to the next issue, as the page sent it.
-  return back({ i: nextKey(form), notice: done.notice });
+  return back({ range, i: nextKey(form), was: settled ? here : null, notice: done.notice });
 }
 
 /** E: this one instance leaves this member's queue and shows under Done. A stale page's names one that has gone, and that row hides nothing. */
 export async function dismissIssueAction(form: FormData): Promise<void> {
   const { db } = await requireClient();
   const instance = parseInstance(form);
-  if (!instance) return back({ error: "not_found" });
+  const range = parseRange(form.get("range"));
+  if (!instance) return back({ range, error: "not_found" });
   // From a row on the card: stay on the card, with no pop-up to open.
   const onCard = form.get("from") === "row";
-  const range = onCard ? parseRange(form.get("range")) : undefined;
 
   let outcome: Awaited<ReturnType<typeof dismissIssue>>;
   try {
@@ -126,7 +131,7 @@ export async function dismissIssueAction(form: FormData): Promise<void> {
   revalidatePath("/client/inbox");
   // With nothing below it, what takes its place on this application.
   const i = onCard ? null : (nextKey(form) ?? instance.key);
-  return outcome.changed ? back({ range, i, notice: "dismissed", undo: outcome.id }) : back({ range, i, notice: "unchanged" });
+  return outcome.changed ? back({ range, i, was: onCard ? null : instance.key, notice: "dismissed", undo: outcome.id }) : back({ range, i, notice: "unchanged" });
 }
 
 /** The check on a digest row: this member's read mark, never an issue. */
@@ -181,17 +186,19 @@ export async function restoreIssueAction(form: FormData): Promise<void> {
     console.error("[client-inbox] restore failed:", err instanceof Error ? err.message : err);
     return back({ tab: "done", i: id, error: "restore_failed" });
   }
-  if (!restored) return back({ notice: "restore_gone" });
+  const range = parseRange(form.get("range"));
+  if (!restored) return back({ range, notice: "restore_gone" });
 
   revalidatePath("/client/inbox");
-  return back({ i: isIssueKey(restored.key) ? restored.key : null, notice: "restored" });
+  return back({ range, i: isIssueKey(restored.key) ? restored.key : null, notice: "restored" });
 }
 
 /** Send, in the dialog that showed the draft: that stored draft, exactly as stored, and only its author's. */
 export async function sendDraftAction(form: FormData): Promise<void> {
   const member = await requireClient();
   const draftId = form.get("draftId");
-  if (typeof draftId !== "string" || !UUID.test(draftId)) return back({ error: "send_gone" });
+  const range = parseRange(form.get("range"));
+  if (typeof draftId !== "string" || !UUID.test(draftId)) return back({ range, error: "send_gone" });
   const here = `draft-${draftId}`;
 
   let done: { notice: InboxNotice } | { error: InboxError };
@@ -203,11 +210,11 @@ export async function sendDraftAction(form: FormData): Promise<void> {
     done = { error: "send_failed" };
   }
   revalidatePath("/client/inbox");
-  if ("error" in done) return back({ i: here, error: done.error });
+  if ("error" in done) return back({ range, i: here, error: done.error });
 
   await noteResolved(member.db, parseInstance(form, here));
   revalidatePath("/client/applicants");
   revalidatePath("/client/pipeline");
   // On to the next issue, as the page sent it.
-  return back({ i: nextKey(form), notice: done.notice });
+  return back({ range, i: nextKey(form), was: here, notice: done.notice });
 }

@@ -1,9 +1,11 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
-import { dismissIssue, readDone, readInbox } from "./inbox";
+import { readCandidate } from "./candidate";
+import { dismissIssue, readDecisionLoop, readDone, readInbox, readIssueName } from "./inbox";
 import { markRead, readDigest } from "./inbox-feed";
-import type { ReadMark } from "./inbox-digest";
+import { selectedRow, type ReadMark } from "./inbox-digest";
+import { lastHeld } from "./interview-loop";
 
 /**
  * The Inbox digest against the local stack, on members' own tokens: the
@@ -121,7 +123,7 @@ describe("job scoping, on the member's own token", () => {
       "Candidate 2 is a no.",
       "Candidate 3 is booked with Ada.",
       "Candidate 3 moves to interviews.",
-      "Ivan filed feedback on Candidate 1: a strong yes.",
+      "Ivan sent a read on Candidate 1: a strong yes.",
     ]);
   });
 
@@ -137,10 +139,11 @@ describe("job scoping, on the member's own token", () => {
     expect(whats(await readDigest(ginaDb(), 1, NOW, 0))).toEqual(["Candidate 4 moves to an offer."]);
   });
 
-  test("the rows link by what the pop-up can show: live on an open job, else the candidate", async () => {
+  test("every row opens over the Inbox by its own id, a closed application's too", async () => {
     const rows = (await readDigest(adaDb(), 1, NOW, 0)).groups.flatMap((g) => g.rows);
-    expect(rows.find((r) => r.what === "Candidate 1 moves to an offer.")!.href).toBe(`/client/pipeline?open=${app(1)}`);
-    expect(rows.find((r) => r.what === "Candidate 2 is a no.")!.href).toBe(`/client/candidates/${person(2)}`);
+    const closed = rows.find((r) => r.what === "Candidate 2 is a no.")!;
+    expect(closed.href).toBe(`/client/inbox?open=${closed.id}`);
+    expect(closed).toMatchObject({ candidate: { id: person(2), name: "Candidate 2" }, applicationId: app(2), page: `/client/candidates/${person(2)}` });
   });
 
   test("a merged application and a cancelled interview drop out", async () => {
@@ -164,9 +167,80 @@ describe("what stays private", () => {
     must(await db().from("orgs").update({ feedback_visibility: "never" }).eq("id", ACME));
     const lead = JSON.stringify(await readDigest(leeDb(), 1, NOW, 0));
     expect(lead).toContain("Candidate 1 moves to an offer.");
-    expect(lead).not.toContain("filed feedback");
+    expect(lead).not.toContain("sent a read");
     expect(lead).not.toContain("strong yes");
-    expect(whats(await readDigest(adaDb(), 1, NOW, 0))).toContain("Ivan filed feedback on Candidate 1: a strong yes.");
+    expect(whats(await readDigest(adaDb(), 1, NOW, 0))).toContain("Ivan sent a read on Candidate 1: a strong yes.");
+  });
+});
+
+// `?open=` is the row's id: it opens only what this member's own read listed.
+describe("a row's pop-up param", () => {
+  const rowsOf = async (client: ReturnType<typeof adaDb>) => (await readDigest(client, 1, NOW, 0)).groups;
+
+  test("a row the member's read listed is found, and its candidate reads on their own token", async () => {
+    const groups = await rowsOf(leeDb());
+    const row = selectedRow(groups, groups[0]!.rows[0]!.id)!;
+    expect(row).not.toBeNull();
+    const view = await readCandidate(leeDb(), { actorId: LEAD, orgId: ACME, accessLevel: "elevated", source: "dashboard" }, row.candidate.id);
+    expect(view?.candidate.candidateId).toBe(row.candidate.id);
+  });
+
+  test("the id of a row on a job they aren't on opens nothing", async () => {
+    const designer = (await rowsOf(adaDb())).flatMap((g) => g.rows).find((r) => r.candidate.id === person(3))!;
+    expect(selectedRow(await rowsOf(leeDb()), designer.id)).toBeNull();
+  });
+
+  test("another company's row opens nothing, and nor does a made-up or an application's id", async () => {
+    const theirs = (await rowsOf(ginaDb()))[0]!.rows[0]!;
+    const mine = await rowsOf(adaDb());
+    expect(selectedRow(mine, theirs.id)).toBeNull();
+    expect(selectedRow(mine, "00000000-0000-4000-8000-000000000000")).toBeNull();
+    expect(selectedRow(mine, app(1))).toBeNull();
+  });
+
+  test("a row marked read has left, so its old URL opens nothing", async () => {
+    const row = (await rowsOf(adaDb()))[0]!.rows[0]!;
+    await markRead(adaDb(), [row.mark]);
+    expect(selectedRow(await rowsOf(adaDb()), row.id)).toBeNull();
+  });
+});
+
+describe("a decision's whole ticket", () => {
+  const lee = { actorId: LEAD, orgId: ACME, accessLevel: "elevated" as const };
+  const gina = { actorId: GLOBEX_ADMIN, orgId: GLOBEX, accessLevel: "admin" as const };
+
+  beforeEach(async () => {
+    must(await db().from("roles").update({ interview_steps: ["Onsite", "Final"] }).eq("id", ENGINEER));
+  });
+
+  test("the loop and the read, on the member's own token", async () => {
+    const read = await readDecisionLoop(leeDb(), lee, { jobId: ENGINEER, applicationId: app(1) });
+    expect(read?.progress.steps.map((s) => s.step)).toEqual(["Onsite", "Final"]);
+    expect(read?.feedback?.feedback.map((f) => f.recommendation)).toEqual(["strong_yes"]);
+    expect(read?.stage).toBe("offer");
+    expect(lastHeld(read!.progress, Date.now())).toBe(INTERVIEW);
+  });
+
+  test("a job they can't read is no ticket: an approver not on it keeps the reader", async () => {
+    expect(await readDecisionLoop(leeDb(), lee, { jobId: DESIGNER, applicationId: app(3) })).toBeNull();
+  });
+
+  test("another company's job is none either", async () => {
+    expect(await readDecisionLoop(ginaDb(), gina, { jobId: ENGINEER, applicationId: app(1) })).toBeNull();
+  });
+
+  test("feedback the company hides stays hidden, and the loop still draws", async () => {
+    must(await db().from("orgs").update({ feedback_visibility: "never" }).eq("id", ACME));
+    const read = await readDecisionLoop(leeDb(), lee, { jobId: ENGINEER, applicationId: app(1) });
+    expect(read?.progress.steps).toHaveLength(2);
+    expect(JSON.stringify(read)).not.toContain(NOTES);
+    expect(read?.feedback?.feedback ?? []).toEqual([]);
+  });
+
+  test("the toast's name is whoever the member can read, and nobody else's", async () => {
+    expect(await readIssueName(adaDb(), ADMIN, `app-${app(3)}`, [])).toBe("Candidate 3");
+    expect(await readIssueName(leeDb(), LEAD, `app-${app(3)}`, [])).toBeNull();
+    expect(await readIssueName(ginaDb(), GLOBEX_ADMIN, `app-${app(1)}`, [])).toBeNull();
   });
 });
 

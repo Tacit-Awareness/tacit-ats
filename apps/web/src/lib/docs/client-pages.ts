@@ -128,23 +128,25 @@ The Inbox is one card for admins and the hiring team: what is stuck and waiting 
 | **Decisions** | Candidates whose interviews are done with nothing booked next, and approvals waiting on you |
 | **Unsent drafts** | Your own candidate emails, left unsent for two hours |
 
-Click an issue, or press \`Enter\` on it, to open it in a pop-up with the candidate's recent history, then act. \`Esc\`, the close button or a click outside takes you back to the card. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:
+Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. A decision on a candidate opens their whole ticket: the interview loop, the feedback you can read, and everything on their page. Anything else opens with the candidate's recent history. \`Esc\`, the close button or a click outside takes you back to the card, at the same period. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:
 
 | Key | What it does |
 | --- | --- |
-| \`J\` / \`K\` | Next, previous. On the card this moves between rows; in the pop-up it opens the next issue |
+| \`J\` / \`K\` | Next, previous, through every row: **Needs you**, then what happened lately. On the card this moves between rows and \`Enter\` opens one; in a pop-up it opens the next row |
 | \`F\` | The issue's fix, such as **Mark it done**, **Log a touch** or **Send here** |
 | \`A\` | Approve an approval. On a candidate, opens their page for the next round |
 | \`O\` | Move a candidate to offer |
 | \`R\` | Reject, with a reason |
-| \`E\` | Dismiss to **Done** |
+| \`E\` | Dismiss to **Done**. On the card, the row you are on: an issue is dismissed, a row under it is marked read |
 | \`Z\` | Undo the dismiss |
 
 Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer, and rejecting someone here sends no email.
 
-Dismissing changes only your own queue. **Done** lists what you dismissed or fixed from here, and **Move back to Inbox** brings back an issue that still stands.
+Once you act on an issue in the pop-up, it moves to Done and the pop-up opens the next one. A message says who moved and who is next, or that you are all caught up.
 
-Hover a row, or tab to it, for its two buttons: the arrow opens its page without the pop-up, and the check dismisses it where you are (\`E\` does too, on the row you are on). On a touch screen they are always there. In the pop-up, **Open as a page** goes to the candidate or job itself. Confirmations and **Undo** appear for a few seconds at the bottom right of the window; \`Z\` undoes a dismiss while its message is up.
+Dismissing changes only your own queue. **Done**, at the foot of the card, lists what you dismissed or fixed from here, **Move back to Inbox** brings back an issue that still stands, and **Inbox** at the top of Done takes you back.
+
+Hover a row, or tab to it, for its two buttons: the arrow opens its page without the pop-up, and the check dismisses it where you are (\`E\` does too, on the row you are on). On a touch screen they are always there. In the pop-up, **Open as a page** goes to the candidate or job itself. Confirmations and **Undo** appear for a few seconds at the bottom right of the window. Only a dismiss can be undone there, and \`Z\` does it while its message is up; a fix, a decision or a sent email stands.
 
 ### What happened lately
 
@@ -154,9 +156,9 @@ Under **Needs you**, the card lists what changed on the jobs you can read. Choos
 | --- | --- |
 | **Decisions made** | A candidate moved to another stage, hired or rejected |
 | **Booked** | An interview scheduled, and who is on it |
-| **FYI** | Feedback filed. You see who filed it, and the verdict only if you can read that feedback. The notes stay on the candidate |
+| **FYI** | Feedback sent. You see who sent it, and the verdict only if you can read that feedback. The notes stay on the candidate |
 
-Each group lists its six newest. A row opens the candidate in the Pipeline's pop-up while they are live on an open job, and their page otherwise; the arrow always opens their page. The check marks a row read, for you alone, and **Mark all as read** does that for everything in the period you picked, including rows past the six. Neither touches **Needs you** or **Done**, and a read row can't be brought back.`,
+Each group lists its six newest. A row opens the whole candidate in a pop-up over the Inbox, and closing it brings you back at the same period; the arrow opens their page instead. The check, or \`E\` on the row you are on, marks a row read, for you alone, and **Mark all as read** does that for everything in the period you picked, including rows past the six. Neither touches **Needs you** or **Done**, and a read row can't be brought back.`,
   },
   {
     slug: "app-postings",
@@ -406,7 +408,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant T
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
   },
   {
     slug: "connect",

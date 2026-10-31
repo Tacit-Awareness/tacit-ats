@@ -2,14 +2,15 @@ import { Suspense } from "react";
 import { clientTools } from "@tacit-ats/core";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { granolaReadable } from "@/lib/client/interview-granola";
-import { GROUPS, RECOMMENDATION_LABEL, groupInterviews, verdictOf, type Recommendation, type Verdict } from "@/lib/client/interview-groups";
-import { hiddenOn, loopRounds, routeView, stageIsOpen } from "@/lib/client/interview-loop";
+import { GROUPS, groupInterviews, verdictOf, type Verdict } from "@/lib/client/interview-groups";
+import { hiddenOn } from "@/lib/client/interview-loop";
 import { readReviewed } from "@/lib/client/interview-reviews";
 import { readInterview, readInterviewRoute, readInterviews, type InterviewDetail, type InterviewListItem, type InterviewRoute, type Member } from "@/lib/client/interviews";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
 import { GranolaLoading, GranolaNotes } from "./granola";
+import { feedbackCards, loopProps } from "./loop-props";
 import { InterviewsView, type ListGroup, type Reader } from "./view";
 
 // design/tats's Interviews: every interview the member can see, Upcoming and
@@ -40,22 +41,7 @@ function buildReader(
   now: number,
 ): Reader {
   const progress = detail.plan.candidate!;
-  const rounds = loopRounds(progress, item.interviewId, listed, now, stageIsOpen(stage)).map(({ interviewId, ...r }) => ({ ...r, href: interviewId ? href(interviewId) : null }));
-  const route = routing && progress.seesAllInterviews ? routeView({ ...routing, rounds, stepCount: progress.steps.length, stage }) : null;
-  const current = rounds.find((r) => r.place === "current");
-  const held = rounds.filter((r) => r.status === "Held").length;
   const candidate = item.candidateName ?? "Candidate";
-
-  const feedback = detail.feedback.feedback.map((f) => ({
-    feedbackId: f.feedbackId,
-    interviewer: f.mine ? "You" : (f.interviewer ?? "Someone"),
-    recommendation: RECOMMENDATION_LABEL[f.recommendation as Recommendation] ?? f.recommendation,
-    verdict: verdictOf([f.recommendation]),
-    rating: f.rating,
-    submitted: `Filed ${ago(f.submittedAt, now)}`,
-    ratings: f.ratings.map((r) => ({ attribute: r.attribute ?? "Scorecard item", rating: r.rating, note: r.note })),
-    notes: f.notes,
-  }));
   const hidden = hiddenOn(progress, item.interviewId);
   const notes = [
     detail.feedback.yoursOutstanding && member.accessLevel !== "admin" ? "Others' feedback may stay hidden until you file yours." : null,
@@ -66,14 +52,8 @@ function buildReader(
     title: `${candidate} · ${item.step ?? "Interview"}`,
     sub: [item.jobTitle, item.interviewers.join(", "), when(item, now)].filter(Boolean).join(" · "),
     verdict: isPast(item, now) ? verdictOf(item.recommendations) : null,
-    candidate,
-    tag: route?.tag ?? (current ? `Round ${current.n} of ${rounds.length}` : `${rounds.length} rounds`),
-    loopLine: `${detail.plan.title} · ${held} of ${rounds.length} ${rounds.length === 1 ? "round" : "rounds"} held`,
-    rounds,
-    route,
-    editProcess: route && member.accessLevel === "admin" ? "/client/onboarding/process" : null,
-    partial: !progress.seesAllInterviews,
-    feedback,
+    ...loopProps({ candidate, jobTitle: detail.plan.title, progress, selectedId: item.interviewId, listed, href, stage, routing, isAdmin: member.accessLevel === "admin", now }),
+    feedback: feedbackCards(detail.feedback, now),
     feedbackNote: notes.length ? notes.join(" ") : null,
   };
 }

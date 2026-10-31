@@ -29,6 +29,38 @@ export function dayWord(iso: string, now: number, timeZone: string): string {
   return `${MONTHS[m - 1]} ${d}${day.slice(0, 4) !== today.slice(0, 4) ? `, ${y}` : ""}`;
 }
 
+const twoDigits = (n: number) => String(n).padStart(2, "0");
+const clock = (minutes: number) => `${twoDigits(Math.floor(minutes / 60))}:${twoDigits(minutes % 60)}`;
+
+/** design/tats's `ibWhen`: the time today, the weekday and the time this past week, else the day and the time. */
+export function whenWord(iso: string, now: number, timeZone: string): string {
+  const { day, minutes } = zoned(iso, timeZone);
+  if (day === todayIn(timeZone, now)) return clock(minutes);
+  const near = Math.abs(now - Date.parse(iso)) < 6 * DAY;
+  const word = near ? new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`)) : dayWord(iso, now, timeZone);
+  return `${word} ${clock(minutes)}`;
+}
+
+/** What follows "for" in a sentence: "tomorrow 14:00", "Oct 3 14:00". */
+export function forWord(iso: string, now: number, timeZone: string): string {
+  const word = dayWord(iso, now, timeZone);
+  return `${/^[TY]/.test(word) ? word.toLowerCase() : word} ${clock(zoned(iso, timeZone).minutes)}`;
+}
+
+/** When something happened, in the browser's zone; `fallback` until it knows its zone. */
+export function LocalWhen({ iso, fallback }: { iso: string; fallback: string }) {
+  const timeZone = useSyncExternalStore(noSubscribe, browserZone, serverZone);
+  if (!timeZone || Number.isNaN(Date.parse(iso))) return <>{fallback}</>;
+  return <>{whenWord(iso, Date.now(), timeZone)}</>;
+}
+
+/** The end of a sentence saying when an interview is: " for tomorrow 14:00." Only the full stop until the browser knows its zone. */
+export function LocalForEnd({ iso }: { iso: string }) {
+  const timeZone = useSyncExternalStore(noSubscribe, browserZone, serverZone);
+  if (!timeZone || Number.isNaN(Date.parse(iso))) return <>.</>;
+  return <> for {forWord(iso, Date.now(), timeZone)}.</>;
+}
+
 export function LocalDay({ iso, fallback }: { iso: string; fallback: string }) {
   const timeZone = useSyncExternalStore(noSubscribe, browserZone, serverZone);
   if (!timeZone || Number.isNaN(Date.parse(iso))) return <>{fallback}</>;

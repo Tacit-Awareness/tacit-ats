@@ -4,6 +4,7 @@ import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
 import { doneItems, type Dismissal, type DoneItem, type DoneSubject } from "./inbox-done";
 import { DRAFT_LATE_MS, currentDrafts, inboxIssues, instanceId, isIssueReason, standingIssues, type InboxDraft, type InboxInput, type InboxOutstanding, type Issue, type IssueInstance, type LaterEmail } from "./inbox-issues";
+import { readInterviewRoute, type InterviewRoute } from "./interviews";
 import { readPipeline } from "./pipeline";
 
 // The Inbox's reads and writes, on the member's OWN client (never a
@@ -254,6 +255,55 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
       : true,
   ]);
   return { story, canEdit, terms, reasons, canOpen: story !== null && jobSeen };
+}
+
+export type DecisionLoop = { plan: clientTools.InterviewPlan; progress: clientTools.PlanProgress; feedback: clientTools.FeedbackSummary | null; stage: string | null; routing: InterviewRoute | null };
+
+/**
+ * The loop and the read for a decision's whole ticket, on the member's own
+ * token: the Interviews reader's reads, by application, so every round's
+ * feedback comes back as far as can_see_feedback lets this member have it.
+ * Null when there is no loop to show or they can't read the job: an approver not
+ * on it still has the bar and the card. Read for the one open, nowhere else.
+ */
+export async function readDecisionLoop(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, input: { jobId: string; applicationId: string }): Promise<DecisionLoop | null> {
+  const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
+  const refused = (err: unknown) => {
+    if (err instanceof clientTools.ClientToolError) return null;
+    throw err;
+  };
+  try {
+    const plan = await clientTools.getInterviewPlan(db, ctx, input);
+    const progress = plan.candidate;
+    if (!progress || (!progress.steps.length && !progress.offPlan.length)) return null;
+    const [feedback, application, routing] = await Promise.all([
+      // Refused, or no interviews yet: the loop still draws.
+      clientTools.getFeedback(db, ctx, { applicationId: input.applicationId }).catch(refused),
+      db.from("applications").select("stage").eq("id", input.applicationId).maybeSingle(),
+      readInterviewRoute(db, member, input.jobId, plan.steps),
+    ]);
+    return { plan, progress, feedback, stage: application.data?.stage ?? null, routing };
+  } catch (err) {
+    return refused(err);
+  }
+}
+
+/**
+ * Who a pop-up has just dealt with, for the toast. `key` came through the URL,
+ * so it is read like any Done row, on the member's own token, and what they
+ * can't read has no name.
+ */
+export async function readIssueName(db: Db, actorId: string, key: string, standing: Issue[]): Promise<string | null> {
+  const live = standing.find((i) => i.key === key);
+  if (live) return live.candidate?.name ?? live.job.title;
+  try {
+    const subject = (await readDoneSubjects(db, actorId, [key])).get(key);
+    return subject?.candidate?.name ?? subject?.jobTitle ?? null;
+  } catch (err) {
+    // Only a toast's words: the page still has to draw.
+    console.error("[client-inbox] name for the toast failed:", err instanceof Error ? err.message : "read failed");
+    return null;
+  }
 }
 
 type DoneApplication = { id: string; person_id: string; role_id: string; people: { display_name: string | null } | null; roles: { title: string } | null };

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { clientTools } from "@tacit-ats/core";
-import { hiddenOn, loopRounds, routeView, stageIsOpen } from "./interview-loop";
+import { hiddenOn, lastHeld, loopRounds, routeView, stageIsOpen } from "./interview-loop";
 import type { ProcessDoc, ProcessEdge, ProcessLookup, ProcessNode } from "./process-graph";
 
 const NOW = Date.parse("2026-10-29T12:00:00Z");
@@ -37,6 +37,16 @@ const progress: clientTools.PlanProgress = {
   offPlan: [interview("i3", null, 24, "scheduled", [{ userId: "u1", name: "Ana", feedback: "not_filed" }])],
   nextStep: "Final",
 };
+
+describe("lastHeld", () => {
+  test("is the latest that has happened, not a cancelled one or one still to come", () => {
+    expect(lastHeld(progress, NOW)).toBe("i2");
+  });
+
+  test("is nothing before anything has been held", () => {
+    expect(lastHeld({ ...progress, steps: [], offPlan: progress.offPlan }, NOW)).toBeNull();
+  });
+});
 
 describe("loopRounds", () => {
   const rounds = loopRounds(progress, "i2", new Set(["i1", "i2", "i3"]), NOW, true);
