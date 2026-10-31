@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { BANNER } from "./banner.js";
 import { run, type Io } from "./cli.js";
 import { fakeTacit, INSTRUCTIONS, memoryStore, SERVER } from "./test-helpers/fake-tacit.js";
+import { VERSION } from "./version.js";
 
 const ID = "3f6c2a1e-8b4d-4c2a-9e1f-0a1b2c3d4e5f";
 
@@ -73,6 +75,27 @@ describe("help", () => {
   });
 });
 
+describe("the banner", () => {
+  it("puts the name and this version beside the mark's middle rows", () => {
+    const rows = BANNER.split("\n");
+    expect(rows).toHaveLength(4);
+    expect(rows[1]).toMatch(/Powered by Tacit$/);
+    expect(rows[2]).toMatch(new RegExp(`v${VERSION.replaceAll(".", "\\.")}$`));
+    expect(rows[1]!.indexOf("Powered")).toBe(rows[2]!.indexOf("v"));
+  });
+
+  it("opens help for a person at a terminal", async () => {
+    expect(await tats([], { interactive: true })).toBe(0);
+    expect(out[0]).toContain(BANNER);
+    expect(out[1]).toContain("Usage: tats");
+  });
+
+  it("stays out of help for agents and pipes", async () => {
+    expect(await tats([])).toBe(0);
+    expect(out.join("")).not.toContain(BANNER);
+  });
+});
+
 describe("tats agent", () => {
   it("carries the connector's own instructions and the --yes list", async () => {
     await signIn();
@@ -88,9 +111,11 @@ describe("tats agent", () => {
     expect(out[0]).toContain("Sign in to see the list");
   });
 
-  it("asks for the footer, in the reply only", async () => {
+  it("asks for the banner once a session, in a code block, in the reply only", async () => {
     expect(await tats(["agent"])).toBe(0);
-    expect(out[0]).toContain("<> Powered by Tacit ATS");
+    expect(out[0]).toContain("The first time you reply to the user after using tats in a session");
+    expect(out[0]).toContain("Later replies in\nthe session leave it out.");
+    expect(out[0]).toContain("```\n" + BANNER + "\n```");
     expect(out[0]).toMatch(/only in your reply to the user, never in an email/);
   });
 });
