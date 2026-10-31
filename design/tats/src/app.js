@@ -766,13 +766,37 @@ function appsByDay(days) {
 }
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
-// The company's interview process, as drawn in Onboarding. Stage timing reads in these words.
-const PROCESS_KEY = "tats.process.v2";
+// The company's interview process, as drawn in Onboarding: candidates' stages take the flowchart's step names, in order.
+// Steps side by side (one per team after a split) are one stage; Offer is the end step. Unreached stages keep these defaults.
 const PROCESS_DEFAULT = [["review", "Application review"], ["tb", "Testbench"], ["r1", "Team interview"], ["r2", "Cross-team interview"], ["r3", "Final with the CTO"], ["offer", "Offer"]];
-try { state.process = JSON.parse(localStorage.getItem(PROCESS_KEY) || "null"); } catch {}
-if (!Array.isArray(state.process) || state.process.length !== PROCESS_DEFAULT.length) state.process = PROCESS_DEFAULT.map((x) => x[1]);
-const procName = (k) => state.process[PROCESS_DEFAULT.findIndex((x) => x[0] === k)];
-const saveProcess = () => { try { localStorage.setItem(PROCESS_KEY, JSON.stringify(state.process)); } catch {} };
+const PROCESS_ABBR = ["Rev", "TB", "R1", "R2", "Fin", "Off"];
+function processNames() {
+  const f = state.flow, dflt = PROCESS_DEFAULT.map((x) => x[1]);
+  const start = f && f.nodes.find((n) => n.kind === "start");
+  if (!start) return dflt;
+  // how many steps a candidate has passed on reaching each node, by the longest way there
+  const depth = new Map([[start.id, 0]]);
+  for (let pass = 0, moved = true; moved && pass < f.nodes.length; pass++) {
+    moved = false;
+    for (const e of f.edges) {
+      const b = f.nodes.find((n) => n.id === e.to);
+      if (!depth.has(e.from) || !b || b.kind === "note") continue;
+      const d = depth.get(e.from) + (b.kind === "stage" ? 1 : 0);
+      if (!(depth.get(b.id) >= d)) { depth.set(b.id, d); moved = true; }
+    }
+  }
+  const levels = [];
+  for (const n of f.nodes) if (n.kind === "stage" && depth.has(n.id)) {
+    const xs = (levels[depth.get(n.id) - 1] ||= []), label = n.label.trim();
+    if (label && !xs.includes(label)) xs.push(label);
+  }
+  const stages = levels.filter((xs) => xs && xs.length).map((xs) => xs.join(" / "));
+  const end = f.nodes.find((n) => n.kind === "end" && depth.has(n.id));
+  return dflt.map((d, i) => (i === dflt.length - 1 ? (end && end.label.trim()) || d : stages[i] || d));
+}
+const procName = (k) => processNames()[PROCESS_DEFAULT.findIndex((x) => x[0] === k)];
+// The short label under a chart bar: ours for a default name, else the name's first word.
+const procAbbr = (k) => { const i = PROCESS_DEFAULT.findIndex((x) => x[0] === k), n = procName(k); return n === PROCESS_DEFAULT[i][1] ? PROCESS_ABBR[i] : n.split(/[\s/]+/)[0].slice(0, 5); };
 // Which round a candidate is in: hand-written ones from their earlier rounds, generated ones spread 60/30/10.
 const roundOf = (a) => (a.bulk ? (((+a.id.slice(4) * 7) % 10) < 6 ? 1 : ((+a.id.slice(4) * 7) % 10) < 9 ? 2 : 3) : Math.min(3, (PRIOR[a.id] || []).length + 1));
 const isOfferOut = (a) => OFFERS.some((o) => o.a === a);
@@ -825,7 +849,7 @@ function metricCard(m) {
     const st = PROCESS_DEFAULT.map(([k]) => ({ k, n: m.act.filter((a) => stageOf(a) === k).length })), max = Math.max(...st.map((x) => x.n), 1);
     value = m.v.toLocaleString();
     sub = `<span class="hm-sub">across ${st.filter((x) => x.n).length} stages</span>`;
-    chart = `<div class="hm-hist">${st.map((x, i) => `<span title="${x.n} in ${esc(procName(x.k))}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${["Rev", "TB", "R1", "R2", "Fin", "Off"][i]}</em></span>`).join("")}</div>`;
+    chart = `<div class="hm-hist">${st.map((x, i) => `<span title="${x.n} in ${esc(procName(x.k))}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${esc(procAbbr(x.k))}</em></span>`).join("")}</div>`;
   } else if (m.unit === "load") {
     // Actual hours are solid; the Testbench saving is an estimate and looks like one.
     const w = workload(m.act), max = Math.max(...w.byTeam.map((x) => x.h), 1);
@@ -902,7 +926,7 @@ function homeOverview() {
     <div class="hm-row stuck">
       <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
         ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
-      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#settings" title="Rename stages in Settings">Edit stages${ico("arrowR")}</a></div>
+      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#setup~process" title="Stages are the steps of your interview process">Edit stages${ico("arrowR")}</a></div>
         <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
         <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
         ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
@@ -3529,7 +3553,7 @@ function jobDraft(k) {
   return (state.job = {
     k, tab: "overview", preview: false, title: r ? r.title : "", team, status: (r && r.status) || "live",
     loc: (r && r.loc) || "San Francisco", type: (r && r.type) || "Full time", where: (r && r.where) || "On-site", comp: (r && r.comp) || "$180K – $240K", equity: r && r.equity != null ? r.equity : "Offers equity",
-    intro: (r && r.intro) || c.intro, does: [...((r && r.does) || c.does)], fit: [...((r && r.fit) || c.fit)], steps: [...((r && r.steps) || state.process.slice(1, -1))],
+    intro: (r && r.intro) || c.intro, does: [...((r && r.does) || c.does)], fit: [...((r && r.fit) || c.fit)], steps: [...((r && r.steps) || processNames().slice(1, -1))],
     qs: ((r && r.qs) || JOB_QS).map((q) => ({ ...q })), tb: (r && r.tb) || "", tbLen: (r && r.tbLen) || "3 hours",
   });
 }
@@ -4623,7 +4647,6 @@ document.addEventListener("submit", (e) => {
 });
 document.addEventListener("input", (e) => {
   if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; state.crmPg = 0; render(); }
-  if (e.target.classList && e.target.classList.contains("proc-in")) { state.process[+e.target.dataset.i] = e.target.value; saveProcess(); return; }
   if (e.target.id === "actq") { state.actQ = e.target.value; render(); }
   if (e.target.id === "calq") { state.calQ = e.target.value; render(); }
   if (e.target.id === "tri-draft") { e.target.dataset.dirty = 1; state.tri.draft = e.target.value; }
