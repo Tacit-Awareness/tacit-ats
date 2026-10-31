@@ -5,7 +5,7 @@
 // "applied before". An application is one per person and job, so coming back
 // to the same job reopens it and leaves no past record here. Pure.
 
-const CLOSED: readonly string[] = ["rejected", "withdrawn", "hired"];
+export const CLOSED: readonly string[] = ["rejected", "withdrawn", "hired"];
 /** The way to hired, for how far they got. */
 const ORDER: readonly string[] = ["sourced", "contacted", "screening", "interviewing", "offer"];
 

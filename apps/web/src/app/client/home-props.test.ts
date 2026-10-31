@@ -20,6 +20,7 @@ const read = (over: Partial<HomeRead> = {}): HomeRead => ({
   waiting: [],
   stages: null,
   stays: [],
+  efficiency: null,
   interviews: [],
   names: {},
   feedback: [],
@@ -146,6 +147,30 @@ describe("stages from the process", () => {
   test("the review and scheduling cards stay on the board's columns", () => {
     const p = props({ stages, waiting: [{ ...waiter(5, "new", "a"), stage: stages[0] }] });
     expect(p.review.waiting).toBe(1);
+  });
+
+  test("the workload is by department, by person with none, and the bars never claim more than the total", () => {
+    const iv = (team: string | null, id: string) => ({ startsAt: new Date(NOW - 2 * H).toISOString(), endsAt: new Date(NOW - H).toISOString(), interviewerIds: [id], team });
+    const named = props({ interviews: [iv("Infra", "a"), iv("Infra", "b"), iv(null, "a")], names: { a: "Ann", b: "Bo" } }).workload;
+    expect(named.byTeam).toBe(true);
+    expect(named.rows.map((r) => [r.name, r.label])).toEqual([["Infra", "2h"], ["No department", "1h"]]);
+
+    const people = props({ interviews: [iv(null, "a"), iv(null, "a"), iv(null, "b")], names: { a: "Ann" } }).workload;
+    expect(people.byTeam).toBe(false);
+    expect(people.rows.map((r) => [r.name, r.label])).toEqual([["Ann", "2h"], ["Unknown", "1h"]]);
+  });
+
+  test("interview efficiency in words, and a dash where there is no hire to divide by", () => {
+    const e = { closed: 9, hires: 2, rounds: [{ label: "Round 1 to the final", from: 3, to: 2, rate: 2 / 3 }], interviewsPerHire: 4.25, hoursPerHire: 5 };
+    expect(props({ efficiency: e }).efficiency).toEqual({
+      closed: 9,
+      hires: 2,
+      rounds: [{ label: "Round 1 to the final", share: 2 / 3, value: "67%", title: "2 of 3 went on" }],
+      perHire: "4.3",
+      hoursPerHire: "5.0h",
+    });
+    expect(props({ efficiency: { ...e, hires: 0, interviewsPerHire: null, hoursPerHire: null } }).efficiency).toMatchObject({ perHire: "—", hoursPerHire: "—" });
+    expect(props({}).efficiency).toBeNull();
   });
 
   test("only an admin is offered Edit stages", () => {

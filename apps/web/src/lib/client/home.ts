@@ -7,13 +7,20 @@ import { readHomeTargets } from "./home-targets";
 import type { HomeTargets } from "./home-target-rules";
 import { readPipeline } from "./pipeline";
 import type { StageName } from "./process-stages";
+import { CLOSED } from "./past-applications";
 import {
+  EFFICIENCY_DAYS,
   bins,
+  closedApplications,
+  interviewEfficiency,
   mergeStays,
   periodCount,
   waitingSince,
   type Bin,
+  type ClosedApplication,
+  type EfficiencyInterview,
   type FeedbackRow,
+  type InterviewEfficiency,
   type PeriodCount,
   type StageMove,
   type Waiting,
@@ -24,8 +31,8 @@ import {
 // (never a privileged one), so every number counts only what their token can
 // read: an admin's org, a hiring-team member's jobs, an external recruiter's
 // own adds. The live candidates are the Pipeline board's read; around them,
-// plain reads of applications, application_events and interviews, and
-// @tacit-ats/core's pipelineReport and interviewerActivity, the connector's
+// plain reads of applications, application_events, interviews and each closed
+// application's job, and @tacit-ats/core's pipelineReport and interviewerActivity, the connector's
 // own reports. lib/client/home-metrics.ts does the counting.
 //
 // A department (lib/client/departments.ts) narrows every card to its jobs and
@@ -60,6 +67,8 @@ export type HomeRead = {
   stages: StageName[] | null;
   /** Average days in each stage over stays that ended, applications added in the period (pipelineReport). */
   stays: { stage: string; avgDays: number | null; stays: number }[];
+  /** From applications closed in the last EFFICIENCY_DAYS, whatever the period; null with too few. */
+  efficiency: InterviewEfficiency | null;
   interviews: WorkloadInterview[];
   /** Interviewer names by actor id, for the workload. */
   names: Record<string, string>;
@@ -138,6 +147,35 @@ async function movesFor(db: Db, applicationIds: string[]) {
   return byApp;
 }
 
+type ClosingRow = { application_id: string; to_stage: string; applications: { stage: string; role_id: string } };
+
+/**
+ * Everything interviewEfficiency counts for these applications: their
+ * interviews, each read to its end, and their jobs' plans, closed jobs too.
+ */
+async function efficiencyReads(db: Db, closed: ClosedApplication[]) {
+  const interviews: EfficiencyInterview[] = [];
+  let truncated = false;
+  for (let i = 0; i < closed.length; i += IDS_PER_READ) {
+    const ids = closed.slice(i, i + IDS_PER_READ).map((a) => a.id);
+    const read = await scanRows<{ application_id: string | null; step: string | null; status: string; starts_at: string; ends_at: string; interviewer_actor_ids: string[] | null }>((from, to) =>
+      db.from("interviews").select("application_id, step, status, starts_at, ends_at, interviewer_actor_ids").in("application_id", ids).neq("status", "cancelled").order("id").range(from, to),
+    );
+    truncated ||= read.truncated;
+    for (const row of read.rows) {
+      if (row.application_id) interviews.push({ applicationId: row.application_id, step: row.step, status: row.status, startsAt: row.starts_at, endsAt: row.ends_at, interviewerIds: row.interviewer_actor_ids ?? [] });
+    }
+  }
+  const plans = new Map<string, string[]>();
+  const jobIds = [...new Set(closed.map((a) => a.roleId))];
+  for (let i = 0; i < jobIds.length; i += IDS_PER_READ) {
+    const { data, error } = await db.from("roles").select("id, interview_steps").in("id", jobIds.slice(i, i + IDS_PER_READ));
+    if (error) throw new Error(error.message);
+    for (const r of data ?? []) plans.set(r.id, clientTools.stepsOf(r.interview_steps));
+  }
+  return { interviews, plans, truncated };
+}
+
 /** The YYYY-MM-DD the reports take as `since`. */
 const sinceDay = (now: Date, days: number) => new Date(now.getTime() - days * DAY).toISOString().slice(0, 10);
 
@@ -160,7 +198,7 @@ export async function readHome(
 
   const prevFrom = new Date(nowMs - 2 * input.days * DAY).toISOString();
   const since = sinceDay(now, input.days);
-  const [moves, apps, ivs, activity, targets] = await Promise.all([
+  const [moves, apps, ivs, activity, targets, closings] = await Promise.all([
     movesFor(db, entries.map((e) => e.applicationId)),
     // A department is narrowed here, after the read, so a long list of job ids never rides in the URL.
     scanRows<{ created_at: string; role_id: string }>((from, to) => {
@@ -190,6 +228,18 @@ export async function readHome(
       throw err;
     }),
     readHomeTargets(db),
+    // Dated by the move that closed each one, as core's rejectionReport: an application has no closed date of its own.
+    scanRows<ClosingRow>((from, to) => {
+      let q = db
+        .from("application_events")
+        .select("application_id, to_stage, applications!inner(stage, role_id, merged_into_id)")
+        .in("to_stage", [...CLOSED])
+        .is("applications.merged_into_id", null)
+        .in("applications.stage", [...CLOSED])
+        .gte("created_at", new Date(nowMs - EFFICIENCY_DAYS * DAY).toISOString());
+      if (jobId) q = q.eq("applications.role_id", jobId);
+      return q.order("created_at", { ascending: false }).order("id").range(from, to).overrideTypes<ClosingRow[], { merge: false }>();
+    }),
   ]);
 
   const appRows = apps.rows.filter((a) => counts(a.role_id));
@@ -215,7 +265,18 @@ export async function readHome(
     hours: Math.max(0, nowMs - Date.parse(waitingSince(e, moves.get(e.applicationId) ?? [], nowMs))) / 3_600_000,
   }));
 
-  const interviews = ivs.rows.filter((i) => counts(i.applications?.role_id)).map((i) => ({ startsAt: i.starts_at, endsAt: i.ends_at, interviewerIds: i.interviewer_actor_ids ?? [] }));
+  const closed = closedApplications(
+    closings.rows.map((m) => ({ applicationId: m.application_id, roleId: m.applications.role_id, toStage: m.to_stage, stage: m.applications.stage })),
+  ).filter((a) => counts(a.roleId));
+  const closedRead = await efficiencyReads(db, closed);
+
+  // A job's department by its name, its path once it is a live one the filter offers.
+  const paths = new Map(scope.options.map((o) => [o.id, o.path]));
+  const teamNames = new Map(structure.departments.map((d) => [d.id, paths.get(d.id) ?? d.name]));
+  const teamOf = new Map(structure.jobs.map((j) => [j.jobId, j.departmentId ? (teamNames.get(j.departmentId) ?? null) : null]));
+  const interviews = ivs.rows
+    .filter((i) => counts(i.applications?.role_id))
+    .map((i) => ({ startsAt: i.starts_at, endsAt: i.ends_at, interviewerIds: i.interviewer_actor_ids ?? [], team: teamOf.get(i.applications?.role_id ?? "") ?? null }));
   const ids = [...new Set(interviews.flatMap((i) => i.interviewerIds))];
   const names: Record<string, string> = {};
   for (let i = 0; i < ids.length; i += IDS_PER_READ) {
@@ -235,12 +296,13 @@ export async function readHome(
     waiting,
     stages: pipeline.stages,
     stays: mergeStays(reports),
+    efficiency: interviewEfficiency(closed, closedRead.interviews, closedRead.plans, nowMs),
     interviews,
     names,
     feedback: activity ? activity.interviewers : null,
     feedbackMedianHours: activity ? activity.medianHoursToFeedback : null,
     outstanding,
     targets,
-    truncated: apps.truncated || ivs.truncated || reports.some((r) => r.truncated) || (activity?.truncated ?? false),
+    truncated: apps.truncated || ivs.truncated || reports.some((r) => r.truncated) || (activity?.truncated ?? false) || closings.truncated || closedRead.truncated,
   };
 }

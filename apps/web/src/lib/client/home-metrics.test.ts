@@ -15,6 +15,10 @@ import {
   workload,
   type FeedbackRow,
   type Waiting,
+  closedApplications,
+  interviewEfficiency,
+  type ClosedApplication,
+  type EfficiencyInterview,
 } from "./home-metrics";
 
 const NOW = Date.parse("2026-10-29T12:00:00Z");
@@ -227,5 +231,117 @@ describe("average stays over several jobs' reports", () => {
   test("one report is itself; none is every stage empty", () => {
     expect(mergeStays([report({ screening: [1.3, 7] })]).find((s) => s.stage === "screening")).toEqual({ stage: "screening", avgDays: 1.3, stays: 7 });
     expect(mergeStays([]).every((s) => s.avgDays === null && s.stays === 0)).toBe(true);
+  });
+});
+
+describe("workload by team", () => {
+  const NOW_ = Date.parse("2026-10-30T12:00:00Z");
+  const iv = (team: string | null, interviewerIds: string[], hours = 1) => ({
+    startsAt: new Date(NOW_ - 48 * 3_600_000).toISOString(),
+    endsAt: new Date(NOW_ - (48 - hours) * 3_600_000).toISOString(),
+    interviewerIds,
+    team,
+  });
+
+  test("each department's interviewer hours add up to the total, the jobs in none last", () => {
+    const load = workload([iv("Infra", ["a", "b"]), iv("Research", ["a"], 3), iv(null, ["c"], 5), iv("Infra", ["c"])], 7, NOW_);
+    expect(load.byTeam).toEqual([
+      { name: "Infra", hours: 3, interviews: 2 },
+      { name: "Research", hours: 3, interviews: 1 },
+      { name: null, hours: 5, interviews: 1 },
+    ]);
+    expect(load.byTeam.reduce((n, t) => n + t.hours, 0)).toBe(load.hours);
+  });
+
+  test("an interview outside the window is on no team", () => {
+    const old = { ...iv("Infra", ["a"]), startsAt: new Date(NOW_ - 30 * 86_400_000).toISOString(), endsAt: new Date(NOW_ - 30 * 86_400_000 + 3_600_000).toISOString() };
+    expect(workload([old], 7, NOW_).byTeam).toEqual([]);
+  });
+});
+
+describe("interview efficiency", () => {
+  const NOW_ = Date.parse("2026-10-30T12:00:00Z");
+  const past = (h: number) => new Date(NOW_ - h * 3_600_000).toISOString();
+  const app = (id: string, stage = "rejected", roleId = "j1"): ClosedApplication => ({ id, roleId, stage });
+  const iv = (applicationId: string, step: string | null, over: Partial<EfficiencyInterview> = {}): EfficiencyInterview => ({
+    applicationId,
+    step,
+    status: "done",
+    startsAt: past(49),
+    endsAt: past(48),
+    interviewerIds: ["x"],
+    ...over,
+  });
+  const plan = new Map([["j1", ["Screen", "Onsite", "Founder"]]]);
+  const five = [app("a"), app("b"), app("c"), app("d"), app("e", "hired")];
+
+  test("too few closed says nothing", () => {
+    expect(interviewEfficiency(five.slice(0, 4), [], plan, NOW_)).toBeNull();
+  });
+
+  test("names rounds by position in the plan, the last one the final", () => {
+    const e = interviewEfficiency(
+      five,
+      [iv("a", "Screen"), iv("b", "Screen"), iv("c", "screen "), iv("c", "ONSITE"), iv("e", "Screen"), iv("e", "Onsite"), iv("e", "Founder")],
+      plan,
+      NOW_,
+    )!;
+    expect(e.rounds).toEqual([
+      { label: "Round 1 to round 2", from: 4, to: 2, rate: 0.5 },
+      { label: "Round 2 to the final", from: 2, to: 1, rate: 0.5 },
+    ]);
+  });
+
+  test("a later round counts as having passed the ones before it", () => {
+    const e = interviewEfficiency(five, [iv("a", "Onsite")], plan, NOW_)!;
+    expect(e.rounds[0]).toMatchObject({ from: 1, to: 1, rate: 1 });
+  });
+
+  test("a job with a shorter plan is no drop-off on a round it does not have", () => {
+    const plans = new Map([...plan, ["j2", ["Screen"]]]);
+    const closed = [app("a"), app("b"), app("c"), app("d", "rejected", "j2"), app("e", "hired", "j2")];
+    const e = interviewEfficiency(closed, [iv("a", "Screen"), iv("b", "Screen"), iv("b", "Onsite"), iv("d", "Screen"), iv("e", "Screen")], plans, NOW_)!;
+    expect(e.rounds[0]).toMatchObject({ from: 2, to: 1 });
+  });
+
+  test("interviews and hours per hire count every closed application, each interviewer's time", () => {
+    const e = interviewEfficiency(five, [iv("a", "Screen"), iv("b", null), iv("e", "Screen", { interviewerIds: ["x", "y"], startsAt: past(50) })], plan, NOW_)!;
+    expect(e).toMatchObject({ closed: 5, hires: 1, interviewsPerHire: 3, hoursPerHire: 6 });
+  });
+
+  test("only interviews that were held, on the applications counted", () => {
+    const e = interviewEfficiency(
+      five,
+      [iv("e", "Screen"), iv("e", "Screen", { status: "no_show" }), iv("e", "Onsite", { status: "scheduled", startsAt: past(-1), endsAt: past(-2) }), iv("e", "Screen", { status: "scheduled" }), iv("zz", "Screen")],
+      plan,
+      NOW_,
+    )!;
+    expect(e.interviewsPerHire).toBe(2);
+    expect(e.rounds).toEqual([{ label: "Round 1 to round 2", from: 1, to: 0, rate: 0 }]);
+  });
+
+  test("no hire means no cost per hire, not a cost per one", () => {
+    const e = interviewEfficiency(five.map((a) => ({ ...a, stage: "rejected" })), [iv("a", "Screen"), iv("b", "Screen"), iv("b", "Onsite")], plan, NOW_)!;
+    expect(e.interviewsPerHire).toBeNull();
+    expect(e.hoursPerHire).toBeNull();
+    expect(e.rounds).toHaveLength(2);
+  });
+
+  test("closed before any interview, with no hire, is nothing to say", () => {
+    expect(interviewEfficiency(five.map((a) => ({ ...a, stage: "withdrawn" })), [], plan, NOW_)).toBeNull();
+  });
+
+  test("a job with no plan still has its cost per hire", () => {
+    const e = interviewEfficiency(five, [iv("e", "Chat")], new Map(), NOW_)!;
+    expect(e.rounds).toEqual([]);
+    expect(e.interviewsPerHire).toBe(1);
+  });
+
+  test("closedApplications: the move that left it closed, once each", () => {
+    const move = (applicationId: string, toStage: string, stage: string) => ({ applicationId, roleId: "j1", toStage, stage });
+    expect(closedApplications([move("a", "rejected", "withdrawn"), move("a", "withdrawn", "withdrawn"), move("a", "withdrawn", "withdrawn"), move("b", "hired", "hired")])).toEqual([
+      { id: "a", roleId: "j1", stage: "withdrawn" },
+      { id: "b", roleId: "j1", stage: "hired" },
+    ]);
   });
 });

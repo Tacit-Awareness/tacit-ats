@@ -18,7 +18,8 @@ import { ViewName } from "./view-name";
 // its count and up to a dozen calm cards. A card is the person, their headline,
 // one status line and the owner. Colour only for meaning: a stalled person reads
 // red. On a saved view the crumb is Views, then its name; the bar's Views link
-// goes there.
+// goes there. A name filter that finds closed applications says how many, under
+// the sub-bar, and leads to the CRM, where they live.
 
 /** Under the sub-bar when no job is picked. `zero` when nobody is left to list. */
 export type PipelineListProps = {
@@ -86,6 +87,7 @@ export function PipelineView({
   capped,
   layout,
   popup,
+  past,
 }: {
   total: number;
   /** The board, for one job. */
@@ -105,6 +107,8 @@ export function PipelineView({
   layout: LayoutSwitch;
   /** A row's pop-up, when `?open=` names one on the list. */
   popup?: React.ReactNode;
+  /** A name filter's closed applications; null with none, or no filter. */
+  past?: { href: string; label: string } | null;
 }) {
   return (
     <Page
@@ -145,6 +149,14 @@ export function PipelineView({
       }
     >
       {capped ? <p className="m-0 mb-3 text-[12.5px] text-faint">A job has more than 1,000 applications, so this board may stop short of the people touched most recently.</p> : null}
+      {past ? (
+        <Link href={past.href} className="mb-3 flex items-center gap-2 rounded-lg bg-[color:var(--soft)] px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="size-[13px] shrink-0" aria-hidden>
+            <path d="M2.5 4c0-1 2.5-1.5 5.5-1.5s5.5.5 5.5 1.5-2.5 1.5-5.5 1.5S2.5 5 2.5 4ZM2.5 4v8c0 1 2.5 1.5 5.5 1.5s5.5-.5 5.5-1.5V4M2.5 8c0 1 2.5 1.5 5.5 1.5s5.5-.5 5.5-1.5" />
+          </svg>
+          <span className="min-w-0 [overflow-wrap:anywhere]">{past.label}</span>
+        </Link>
+      ) : null}
       <FilterKeys enabled={!popup} />
       {empty ? null : <LayoutKey to={layout.on === "list" ? layout.board : layout.list} refusal={NO_BOARD} enabled={!popup} />}
       {empty ? (

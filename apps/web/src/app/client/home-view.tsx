@@ -9,8 +9,9 @@ import { TargetChip, type TargetChipProps } from "./home-target";
 // does the reads and the counting. The prototype's bar (the crumb, then the
 // period, department and job chips) and its Overview / Applicant Tickets /
 // Interviews / Referrals tabs; six cards, then "Where are candidates getting
-// stuck?": the bottlenecks beside time in stage, then feedback by
-// interviewer, the average stay per stage and the feedback outstanding. Bars
+// stuck?": the bottlenecks beside time in stage with the average stay under
+// it, then feedback by interviewer, interview efficiency and the feedback
+// outstanding. Bars
 // are plain CSS, no chart library. Colour only for meaning: red for a
 // falling count, the longest waits and a missed target. A card's target sits
 // at the left of its foot (home-target.tsx).
@@ -57,7 +58,16 @@ export type HomeViewProps = {
     allJobs: boolean;
     interviewers: { id: string; name: string; median: string | null; medianHours: number | null; out: number }[];
   } | null;
-  workload: { hours: string; interviews: number; held: number; booked: number; target: TargetChipProps | null; people: { id: string; name: string; hours: number; label: string }[] };
+  workload: {
+    hours: string;
+    interviews: number;
+    held: number;
+    booked: number;
+    target: TargetChipProps | null;
+    /** The rows are departments; otherwise interviewers. */
+    byTeam: boolean;
+    rows: { id: string; name: string; hours: number; label: string }[];
+  };
   bottlenecks: { key: string; over: boolean; what: string; why: string; icon: BottleneckIcon; label: string; href: string }[];
   /** Null alongside `feedback`: not theirs. */
   outstanding: { total: number; rows: { id: string; interviewer: string; line: string; wait: string; href: string }[]; more: { href: string; label: string } | null } | null;
@@ -65,6 +75,8 @@ export type HomeViewProps = {
   /** Where an admin changes the stages. Null for anyone else. */
   editStages: string | null;
   active: number;
+  /** Null with too few closed to say. */
+  efficiency: { closed: number; hires: number; rounds: { label: string; share: number; value: string; title: string }[]; perHire: string; hoursPerHire: string } | null;
   stays: { label: string; avgDays: number | null; stays: number }[];
   truncated: boolean;
 };
@@ -236,7 +248,7 @@ function HBar({ lead, name, share, value, aside }: { lead?: React.ReactNode; nam
 export function HomeView(p: HomeViewProps) {
   const pct = (x: number) => `${Math.round(Math.abs(x) * 100)}%`;
   const maxStage = Math.max(1, ...p.stages.map((s) => s.n));
-  const maxLoad = Math.max(1, ...p.workload.people.map((x) => x.hours));
+  const maxLoad = Math.max(1, ...p.workload.rows.map((x) => x.hours));
   const maxFeedback = Math.max(1, ...(p.feedback?.interviewers ?? []).map((x) => x.medianHours ?? 0));
   const maxStay = Math.max(1, ...p.stays.map((s) => s.avgDays ?? 0));
 
@@ -331,14 +343,14 @@ export function HomeView(p: HomeViewProps) {
 
         <Card
           label="Interview workload"
-          def={`Interviewer hours: interviews held in the last ${p.days} days and booked in the next ${p.days}`}
+          def={`Interviewer hours${p.workload.byTeam ? ", by the job's department" : ""}: interviews held in the last ${p.days} days and booked in the next ${p.days}`}
           value={p.workload.hours}
           ctx={`${p.workload.held} held · ${p.workload.booked} booked`}
           target={p.workload.target}
         >
-          {p.workload.people.length ? (
+          {p.workload.rows.length ? (
             <div className="mt-1 grid">
-              {p.workload.people.map((x) => (
+              {p.workload.rows.map((x) => (
                 <HBar key={x.id} name={x.name} share={x.hours / maxLoad} value={x.label} />
               ))}
             </div>
@@ -380,70 +392,90 @@ export function HomeView(p: HomeViewProps) {
           )}
         </Section>
 
-        <Section title="Time in stage" count={`${p.active} active`} aside={p.editStages ? go(p.editStages, "Edit stages") : undefined}>
-          <div className="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
-            {SEGMENT_KEYS.map((k, i) => (
-              <span key={k} className="inline-flex items-center gap-1.5">
-                <i className={cn("block size-2.5", SEGMENT_FILL[i])} />
-                {k}
-              </span>
-            ))}
-          </div>
-          <div className="grid">
-            <div className="-mx-4 grid grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] pr-4 pb-1 pl-6 text-[12.5px] text-faint">
-              <span>Stage</span>
-              <span>Candidates</span>
-              <span>Waiting</span>
-              <span>Longest</span>
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+          <Section title="Time in stage" count={`${p.active} active`} aside={p.editStages ? go(p.editStages, "Edit stages") : undefined}>
+            <div className="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
+              {SEGMENT_KEYS.map((k, i) => (
+                <span key={k} className="inline-flex items-center gap-1.5">
+                  <i className={cn("block size-2.5", SEGMENT_FILL[i])} />
+                  {k}
+                </span>
+              ))}
             </div>
-            {p.stages.map((s) => {
-              const row = (
-                <>
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <Icon name="chevR" className="size-[13px] text-faint transition-transform group-open:rotate-90" />
-                    <span className="truncate">{s.label}</span>
-                  </span>
-                  <b className="font-medium tabular-nums">{s.n}</b>
-                  <span className="flex min-w-0 items-center gap-2">
-                    {s.n ? (
-                      <span className="flex h-2.5 gap-0.5" style={{ width: `${(s.n / maxStage) * 70}%` }}>
-                        {s.segments.map((n, i) =>
-                          n ? <i key={i} className={cn("block h-full min-w-[3px]", SEGMENT_FILL[i])} style={{ flex: n }} title={`${n} waiting ${SEGMENT_KEYS[i].toLowerCase()}`} /> : null,
-                        )}
-                      </span>
-                    ) : null}
-                    <em className="text-[13px] whitespace-nowrap text-muted-foreground not-italic">{s.typical ? `typical ${s.typical}` : "None"}</em>
-                  </span>
-                  <span className="text-[13px] text-muted-foreground tabular-nums">{s.longest ?? ""}</span>
-                </>
-              );
-              const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] items-center gap-3 px-2 text-[13.5px]";
-              return s.n ? (
-                <details key={s.key} className="group">
-                  <summary className={cn(cls, "cursor-pointer list-none hover:bg-[color:var(--hover)] group-open:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden")}>{row}</summary>
-                  <div className="mb-2 ml-4 grid border-l border-[color:var(--line)] pl-3">
-                    {s.people.map((x) => (
-                      <Link key={x.id} href={x.href} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
-                        <b className="font-medium">{x.name}</b>
-                        <span className="truncate text-muted-foreground">{x.line}</span>
-                        <em className="text-muted-foreground tabular-nums not-italic">{x.wait}</em>
-                      </Link>
-                    ))}
-                    {s.more ? (
-                      <Link href={s.more.href} className={cn(textLink, "px-2 py-1.5")}>
-                        {s.more.label} →
-                      </Link>
-                    ) : null}
+            <div className="grid">
+              <div className="-mx-4 grid grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] pr-4 pb-1 pl-6 text-[12.5px] text-faint">
+                <span>Stage</span>
+                <span>Candidates</span>
+                <span>Waiting</span>
+                <span>Longest</span>
+              </div>
+              {p.stages.map((s) => {
+                const row = (
+                  <>
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <Icon name="chevR" className="size-[13px] text-faint transition-transform group-open:rotate-90" />
+                      <span className="truncate">{s.label}</span>
+                    </span>
+                    <b className="font-medium tabular-nums">{s.n}</b>
+                    <span className="flex min-w-0 items-center gap-2">
+                      {s.n ? (
+                        <span className="flex h-2.5 gap-0.5" style={{ width: `${(s.n / maxStage) * 70}%` }}>
+                          {s.segments.map((n, i) =>
+                            n ? <i key={i} className={cn("block h-full min-w-[3px]", SEGMENT_FILL[i])} style={{ flex: n }} title={`${n} waiting ${SEGMENT_KEYS[i].toLowerCase()}`} /> : null,
+                          )}
+                        </span>
+                      ) : null}
+                      <em className="text-[13px] whitespace-nowrap text-muted-foreground not-italic">{s.typical ? `typical ${s.typical}` : "None"}</em>
+                    </span>
+                    <span className="text-[13px] text-muted-foreground tabular-nums">{s.longest ?? ""}</span>
+                  </>
+                );
+                const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] items-center gap-3 px-2 text-[13.5px]";
+                return s.n ? (
+                  <details key={s.key} className="group">
+                    <summary className={cn(cls, "cursor-pointer list-none hover:bg-[color:var(--hover)] group-open:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden")}>{row}</summary>
+                    <div className="mb-2 ml-4 grid border-l border-[color:var(--line)] pl-3">
+                      {s.people.map((x) => (
+                        <Link key={x.id} href={x.href} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
+                          <b className="font-medium">{x.name}</b>
+                          <span className="truncate text-muted-foreground">{x.line}</span>
+                          <em className="text-muted-foreground tabular-nums not-italic">{x.wait}</em>
+                        </Link>
+                      ))}
+                      {s.more ? (
+                        <Link href={s.more.href} className={cn(textLink, "px-2 py-1.5")}>
+                          {s.more.label} →
+                        </Link>
+                      ) : null}
+                    </div>
+                  </details>
+                ) : (
+                  <div key={s.key} className={cn(cls, "text-faint")}>
+                    {row}
                   </div>
-                </details>
-              ) : (
-                <div key={s.key} className={cn(cls, "text-faint")}>
-                  {row}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
+                );
+              })}
+            </div>
+          </Section>
+
+          <Section title="Average stay in each stage" aside={<span>applications added in the last {p.days} days</span>}>
+            {p.stays.every((s) => s.avgDays === null) ? (
+              <Empty>No candidate added in this period has moved on yet.</Empty>
+            ) : (
+              <div className="grid">
+                {p.stays.map((s) => (
+                  <HBar
+                    key={s.label}
+                    name={s.label}
+                    share={(s.avgDays ?? 0) / maxStay}
+                    value={s.avgDays === null ? "—" : `${s.avgDays}d`}
+                    aside={<span className="text-right text-[12px] whitespace-nowrap text-faint">{s.stays ? `${s.stays} moved on` : ""}</span>}
+                  />
+                ))}
+              </div>
+            )}
+          </Section>
+        </div>
       </div>
 
       <div className={cn("grid items-start gap-4", p.feedback ? "min-[768px]:grid-cols-2 min-[1100px]:grid-cols-3" : "")}>
@@ -468,21 +500,37 @@ export function HomeView(p: HomeViewProps) {
           </Section>
         ) : null}
 
-        <Section title="Average stay in each stage" aside={<span>applications added in the last {p.days} days</span>}>
-          {p.stays.every((s) => s.avgDays === null) ? (
-            <Empty>No candidate added in this period has moved on yet.</Empty>
+        <Section title="Interview efficiency" aside={<span>closed in the last 12 months</span>}>
+          {p.efficiency ? (
+            <>
+              {p.efficiency.rounds.length ? (
+                <div className="grid">
+                  {p.efficiency.rounds.map((r) => (
+                    <div key={r.label} title={r.title} className="grid gap-1.5 py-1.5">
+                      <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
+                        <span className="min-w-0">{r.label}</span>
+                        <b className="font-medium tabular-nums">{r.value}</b>
+                      </div>
+                      <span className="block h-2 overflow-hidden bg-[color:var(--soft)]">
+                        <i className="block h-full bg-muted-foreground" style={{ width: `${r.share * 100}%` }} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <div className={cn("grid grid-cols-2 gap-4", p.efficiency.rounds.length ? "mt-2 border-t border-[color:var(--line)] pt-3" : "")}>
+                <div className="grid gap-0.5" title={`${p.efficiency.closed} closed, ${p.efficiency.hires} hired`}>
+                  <b className="text-[22px] font-medium tracking-[-0.01em] tabular-nums">{p.efficiency.perHire}</b>
+                  <span className="text-[12.5px] text-muted-foreground">interviews per hire</span>
+                </div>
+                <div className="grid gap-0.5">
+                  <b className="text-[22px] font-medium tracking-[-0.01em] tabular-nums">{p.efficiency.hoursPerHire}</b>
+                  <span className="text-[12.5px] text-muted-foreground">interviewer time per hire</span>
+                </div>
+              </div>
+            </>
           ) : (
-            <div className="grid">
-              {p.stays.map((s) => (
-                <HBar
-                  key={s.label}
-                  name={s.label}
-                  share={(s.avgDays ?? 0) / maxStay}
-                  value={s.avgDays === null ? "—" : `${s.avgDays}d`}
-                  aside={<span className="text-right text-[12px] whitespace-nowrap text-faint">{s.stays ? `${s.stays} moved on` : ""}</span>}
-                />
-              ))}
-            </div>
+            <Empty>Not enough closed yet.</Empty>
           )}
         </Section>
 
