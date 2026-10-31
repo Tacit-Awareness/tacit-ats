@@ -78,10 +78,11 @@ export const SIGN_OUT_KEYS = "⇧ ⌘ Q";
 /**
  * ⇧⌘Q and nothing else. Never Ctrl: Ctrl+Shift+Q quits Chrome and Firefox on
  * Windows and Linux. On a Mac it is also the system's Log Out, so whether a page
- * gets it first depends on the browser (apps/web/CLAUDE.md, Keys).
+ * gets it first depends on the browser (apps/web/CLAUDE.md, Keys). Not while
+ * typing: a slip in a half-written note must not sign anyone out and lose it.
  */
-export const isSignOutKey = (e: Pick<KeyEventLike, "key" | "metaKey" | "ctrlKey" | "altKey"> & { shiftKey: boolean; repeat: boolean }): boolean =>
-  e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && !e.repeat && e.key.toLowerCase() === "q";
+export const isSignOutKey = (e: Pick<KeyEventLike, "key" | "metaKey" | "ctrlKey" | "altKey"> & { shiftKey: boolean; repeat: boolean; target?: EventTarget | null }): boolean =>
+  e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && !e.repeat && e.key.toLowerCase() === "q" && !isTyping(e.target ?? null);
 
 /** How long G waits for its letter, as design/tats. */
 export const CHORD_MS = 900;

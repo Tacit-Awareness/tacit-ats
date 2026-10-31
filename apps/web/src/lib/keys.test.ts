@@ -86,6 +86,13 @@ describe("sign out's chord", () => {
     expect(press({ key: "w" })).toBe(false);
     expect(press({ repeat: true })).toBe(false);
   });
+
+  it("is nothing while typing, so a slip can't lose a half-written note", () => {
+    const field = (tagName: string) => ({ tagName }) as unknown as EventTarget;
+    expect(press({ target: field("TEXTAREA") })).toBe(false);
+    expect(press({ target: field("INPUT") })).toBe(false);
+    expect(press({ target: field("DIV") })).toBe(true);
+  });
 });
 
 describe("the G chord", () => {
