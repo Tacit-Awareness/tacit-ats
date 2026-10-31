@@ -6,7 +6,7 @@ import { rankPages } from "@/components/docs/docs-search";
 import { CLIENT_SITE, docHref, docSections, findDocPage, headingId, type DocPage } from ".";
 
 /**
- * The docs describe the client connector, which lives in another app, so
+ * The docs describe the client connector too, which lives in another app, so
  * nothing would notice them drifting apart. These tests read its source and
  * hold the tool reference page to exactly the tools registered there.
  */
@@ -60,6 +60,34 @@ describe("the client site", () => {
     }
   });
 
+  test("a link to a heading lands on a heading of that page", () => {
+    const anchors = (page: DocPage) => [...page.body.matchAll(/^#{2,3} (.+)$/gm)].map((m) => headingId(m[1]!));
+    for (const page of CLIENT_SITE.pages) {
+      for (const link of linksOf(page)) {
+        const [, slug, anchor] = /^\/docs\/([a-z0-9-]+)(?:#(.+))?$/.exec(link)!;
+        if (anchor) expect(anchors(findDocPage(CLIENT_SITE, [slug!])!), `${page.slug} links to ${link}`).toContain(anchor);
+      }
+    }
+  });
+
+  test("a category's pages sit together, so previous and next follow the sidebar", () => {
+    const seen = CLIENT_SITE.pages.map((p) => p.category).filter((c, i, all) => c !== all[i - 1]);
+    expect(new Set(seen).size).toBe(seen.length);
+  });
+
+  test("the overview reaches the app, the connector, the CLI and the bot", () => {
+    const links = linksOf(findDocPage(CLIENT_SITE, [])!);
+    for (const slug of ["app-home", "connect", "cli", "grok-bot"]) expect(links).toContain(`/docs/${slug}`);
+  });
+
+  test("every sidebar page of the app has a features page", () => {
+    const features = CLIENT_SITE.pages.filter((p) => p.category === "tATS features");
+    const text = features.map((p) => p.body).join("\n");
+    for (const label of ["Home", "Inbox", "CRM", "Job Postings", "Applicant Tickets", "Analytics", "Pipeline", "Interviews", "Calendar", "Interviewers", "Referrals", "Integrations"]) {
+      expect(text, label).toContain(label);
+    }
+  });
+
   test("headings on a page have distinct anchors", () => {
     for (const page of CLIENT_SITE.pages) {
       const ids = docSections(page).map(headingId);
@@ -70,7 +98,7 @@ describe("the client site", () => {
 
 describe("findDocPage", () => {
   test("no slug is the site's first page", () => {
-    expect(findDocPage(CLIENT_SITE, [])?.slug).toBe("connect");
+    expect(findDocPage(CLIENT_SITE, [])?.slug).toBe("overview");
   });
 
   test("a staff-only page is not found on the client site", () => {

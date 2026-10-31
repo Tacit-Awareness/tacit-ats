@@ -16,11 +16,11 @@ export type DocsSite = {
   pages: DocPage[];
 };
 
-/** /client/docs: the client connector only. */
+/** /client/docs: the app, the connector, the CLI and the team's bot, in one place. */
 export const CLIENT_SITE: DocsSite = {
   basePath: "/client/docs",
-  title: "Tacit in Claude",
-  intro: "Work your company's hiring in Claude with the Tacit connector.",
+  title: "tATS documentation",
+  intro: "The app, Claude, the command line and your team's bot.",
   pages: CLIENT_DOCS,
 };
 
