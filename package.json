@@ -19,7 +19,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@tacit/db": "file:vendor/tacit-db-8ee0268.tgz"
+      "@tacit/db": "file:vendor/tacit-db-acc4f65.tgz"
     }
   },
   "devDependencies": {
