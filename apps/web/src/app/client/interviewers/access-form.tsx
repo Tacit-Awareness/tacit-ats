@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { selectClass } from "@/components/ui/input";
 import { ACCESS_LEVELS, LEVELS, isAccessLevel } from "@/lib/client/levels";
 import { cn } from "@/lib/utils";
-import { setAccessAction } from "./actions";
+import { setAccessAction } from "../onboarding/actions";
 
 // One member's access on the team list, for an admin: the picker shows their
 // level and Save appears once it says something else. Nothing happens until

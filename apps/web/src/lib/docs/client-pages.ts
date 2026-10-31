@@ -258,7 +258,7 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
   },
   {
     slug: "app-interviews",
-    title: "Interviews, Calendar & team",
+    title: "Interviews, Calendar & Onboarding",
     category: "tATS features",
     description: "Review interview feedback, book and move interviews, and manage who interviews.",
     body: `## Interviews
@@ -298,7 +298,21 @@ Each person can fill in their own profile with **Edit**, and an admin can edit a
 
 ## Members and invitations
 
-Under the interviewers is your company's team. Admins can invite colleagues at one of three levels, resend or withdraw an invitation, and change a member's level with the select beside their name. Your company always keeps one admin who has signed in, so the last admin cannot step down. What each level gives: [Access levels](/docs/access).`,
+These moved to Onboarding, and the Interviewers page links there. **Team**, in the sidebar's **Onboarding** section, opens the People step. Admins can invite colleagues at one of three levels, resend or withdraw an invitation, and change a member's level with the select beside their name. Your company always keeps one admin who has signed in, so the last admin cannot step down. What each level gives: [Access levels](/docs/access).
+
+## Onboarding
+
+**Onboarding** is your company's setup, in five steps with a checklist beside them: People, Teams, Interview skills, Interview process and Review. Open it from **Team** or **Interview process** in the sidebar, or from the menu under your name. Nothing makes you finish it, and Home stays where you start. The checklist is worked out from what your company has set up, so undoing something takes its tick back.
+
+| Who | What they get |
+| --- | --- |
+| Admins | Change everything |
+| Your company's hiring team | Read it, and change their own title |
+| Interviewers and external recruiters | A pointer back to Home |
+
+**People** lists your team with each person's access and title. Anyone can set their own title; an admin can set anyone's. Interviewers set theirs on the **Interviewers** page, with the rest of their profile. An external recruiter sees the team on the **Interviewers** page too.
+
+Teams, Interview skills, Interview process and Review are coming next, and their pages say so. The checklist already counts what your company has in them.`,
   },
   {
     slug: "app-integrations",
@@ -345,11 +359,11 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant T
 
 ## Tutorial
 
-**Tutorial**, at the bottom of the sidebar and in the menu under your name, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews and Referrals, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, at the bottom of the sidebar and in the menu under your name, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet.`,
   },
   {
     slug: "connect",

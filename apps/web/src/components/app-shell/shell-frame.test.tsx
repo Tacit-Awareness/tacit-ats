@@ -30,6 +30,28 @@ describe("the sidebar's foot", () => {
   });
 });
 
+describe("the sidebar's Onboarding section", () => {
+  const section = () => {
+    const html = shell(false);
+    const at = html.indexOf('aria-label="Onboarding"');
+    return html.slice(at, html.indexOf("</nav>", at));
+  };
+
+  test("is Team, Interview process and CRM, in that order, and CRM has left the top", () => {
+    const html = section();
+    expect(html).toContain('href="/client/onboarding/people"');
+    expect(html.indexOf(">Team<")).toBeLessThan(html.indexOf(">Interview process<"));
+    expect(html.indexOf(">Interview process<")).toBeLessThan(html.indexOf(">CRM<"));
+    const all = shell(false);
+    const top = all.slice(all.indexOf('aria-label="Home"'), all.indexOf('aria-label="Top of Funnel"'));
+    expect(top).not.toContain(">CRM<");
+  });
+
+  test("says nothing of a Grokbot", () => {
+    expect(section()).not.toMatch(/grok/i);
+  });
+});
+
 test("the toasts are there from the start, so a reader hears the first, and stay live under a pop-up", () => {
   const html = renderToStaticMarkup(<Toaster />);
   expect(html).toContain('role="status"');
