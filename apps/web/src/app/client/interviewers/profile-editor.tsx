@@ -14,7 +14,7 @@ import {
   type StoredProfile,
 } from "@/lib/client/interviewer-profile";
 import { saveProfileAction } from "./actions";
-import { PROFILE_ERRORS, TEAM_NOTICES, type ProfileAnswer } from "./messages";
+import { PROFILE_ERRORS, PROFILE_NOTICES, type ProfileAnswer } from "./messages";
 
 // A member's interviewer profile, in a native <dialog> as the CRM's bulk
 // actions are, so keys.ts leaves it alone. Mounted only while open, so every
@@ -60,7 +60,7 @@ function ProfileDialog({ actorId, name, self, profile, onClose }: { actorId: str
     start(async () => {
       try {
         const saved = await saveProfileAction(form);
-        if (saved.ok) onClose(TEAM_NOTICES[saved.notice]);
+        if (saved.ok) onClose(PROFILE_NOTICES[saved.notice]);
         else setAnswer(saved);
       } catch {
         setAnswer("dropped");

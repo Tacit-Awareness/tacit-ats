@@ -76,6 +76,12 @@ export const TOUR: TourStep[] = [
     body: "Who referred whom and where they are now. Add one here.",
   },
   {
+    href: "/client/onboarding/people",
+    targets: ['[data-tour="onboarding"]', 'aside a[href="/client/onboarding/people"]'],
+    title: "Onboarding",
+    body: "Your company's setup, one step at a time, with a checklist of what's done. Admins invite people and set their access here, and can come back whenever the team changes. Nothing makes you finish it.",
+  },
+  {
     href: null,
     targets: ['[data-tour="keys"]'],
     title: "One key per action",

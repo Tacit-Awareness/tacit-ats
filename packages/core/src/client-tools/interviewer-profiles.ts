@@ -159,6 +159,62 @@ function changedColumns(before: InterviewerProfile, after: InterviewerProfile): 
 
 const NOTHING_SAID: InterviewerProfile = { preference: null, weeklyCap: null, focusAreas: [], channel: null, awayUntil: null };
 
+export const MEMBER_TITLE_MAX = 120;
+
+/** A title as the table holds it: one trimmed line, or null for not said. */
+export function cleanTitle(raw: string | null): string | null {
+  const title = trimEdges(raw ?? "");
+  if (!title) return null;
+  if ([...title].length > MEMBER_TITLE_MAX || INLINE.test(title)) {
+    throw new ClientToolError("invalid", `A title is one line of ${MEMBER_TITLE_MAX} characters at most.`, "title");
+  }
+  return title;
+}
+
+/**
+ * What a member's job is called (interviewer_profiles.title): their own at any
+ * level, anyone's for an admin. Its own write and not part of the profile's, so
+ * it never carries a stale copy of a teammate's answers; it does move the
+ * row's `updated_at`, so a profile dialog open at that moment hears "stale".
+ * Last save wins: one line, nothing to merge. The audit row names the field only.
+ */
+export async function setMemberTitle(
+  db: Db,
+  ctx: ClientToolCtx,
+  input: { memberId: string; title: string | null },
+): Promise<{ outcome: "changed" | "unchanged"; title: string | null }> {
+  const { memberId } = input;
+  const own = memberId === ctx.actorId;
+  if (!own && ctx.accessLevel !== "admin") throw new ClientToolError("forbidden", "Only an admin can change someone else's title.");
+  const title = cleanTitle(input.title);
+  if (!own) await activeMember(db, memberId);
+
+  const { data: row, error: readError } = await db.from("interviewer_profiles").select("title").eq("actor_id", memberId).maybeSingle();
+  if (readError) throw new Error(readError.message);
+  if ((row?.title ?? null) === title) return { outcome: "unchanged", title };
+
+  return withAudit(db, ctx, { action: "interviewer_profile.update", entity: "actor" }, async () => {
+    const update = () => db.from("interviewer_profiles").update({ title }).eq("actor_id", memberId).select("actor_id");
+    let write = row ? await update() : await db.from("interviewer_profiles").insert({ actor_id: memberId, title }).select("actor_id");
+    // Two first saves at once: the row is there now.
+    if (write.error?.code === "23505") write = await update();
+    const { data, error } = write;
+    if (error) {
+      if (error.code === "23503") throw new ClientToolError("not_found", "No one at your company with that user id.");
+      if (error.code === "42501") throw new ClientToolError("forbidden", "Only an admin can change someone else's title.");
+      if (error.code === "23514") throw new ClientToolError("invalid", `A title is one line of ${MEMBER_TITLE_MAX} characters at most.`, "title");
+      throw new Error(error.message);
+    }
+    const saved = !!data?.length;
+    return {
+      result: { outcome: saved ? ("changed" as const) : ("unchanged" as const), title: saved ? title : (row?.title ?? null) },
+      entityId: memberId,
+      after: { fields: ["title"] },
+      changed: saved,
+    };
+  });
+}
+
 export type SetProfileResult = { outcome: "changed" | "unchanged" | "stale" };
 
 export async function setInterviewerProfile(

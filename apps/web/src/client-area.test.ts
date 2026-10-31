@@ -221,6 +221,7 @@ describe("every server action checks who is calling, first", () => {
 
   test("there are server actions to check", () => {
     expect(actionFiles.map(rel)).toContain("app/client/interviewers/actions.ts");
+    expect(actionFiles.map(rel)).toContain("app/client/onboarding/actions.ts");
   });
 
   test("a 'use server' file exports only async functions", () => {

@@ -6,12 +6,15 @@ export {
   FOCUS_AREA_MAX,
   INTERVIEW_CHANNELS,
   INTERVIEW_PREFERENCES,
+  MEMBER_TITLE_MAX,
   PROFILE_COLUMNS,
   WEEKLY_CAP_MAX,
   cleanFocusAreas,
   cleanProfile,
+  cleanTitle,
   profileFromRow,
   setInterviewerProfile,
+  setMemberTitle,
 } from "./interviewer-profiles.js";
 export type {
   InterviewChannel,
@@ -22,6 +25,17 @@ export type {
   SetProfileResult,
   StoredInterviewerProfile,
 } from "./interviewer-profiles.js";
+export { seesCompanySetup } from "./company-setup.js";
+export { addTeamMember, listTeams, removeTeamMember, setTeamLead } from "./teams.js";
+export type { Team, TeamLeadChange, TeamMember as DepartmentMember, TeamMemberChange } from "./teams.js";
+export {
+  INTERVIEW_TYPE_NAME_MAX,
+  addInterviewType, archiveInterviewType, assignInterviewType, cleanTypeName, listInterviewTypes, prioritizeInterviewType,
+  renameInterviewType, unassignInterviewType,
+} from "./interview-types.js";
+export type { AddTypeResult, AssignResult, InterviewType, TypeInterviewer } from "./interview-types.js";
+export { PROCESS_GRAPH_MAX_BYTES, getProcess, setProcess } from "./process.js";
+export type { InterviewProcess, ProcessGraph, SetProcessResult } from "./process.js";
 export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./connector.js";
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";

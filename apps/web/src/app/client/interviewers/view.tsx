@@ -1,7 +1,9 @@
+import Link from "next/link";
 import * as React from "react";
-import { Avatar, Count, Empty, KeyValues, Page, PageBar, Section } from "@/components/page";
+import { Avatar, Count, Empty, KeyValues, Page, PageBar, Section, textLink } from "@/components/page";
 import { CHANNEL_LABELS, PREFERENCE_LABELS, loadMeter, type StoredProfile } from "@/lib/client/interviewer-profile";
 import { cn } from "@/lib/utils";
+import { TitleForm } from "../onboarding/people/title-form";
 import { ProfileEditor } from "./profile-editor";
 
 // The Interviewers page's markup, props only (page.tsx does the reads):
@@ -154,13 +156,44 @@ function Rows({ rows, feedback, max }: { rows: InterviewerViewRow[]; feedback: b
   ));
 }
 
-/** Where a member with no row on the table reads and edits their own, an interviewer always. */
-export function OwnProfile({ actorId, name, profile, away }: { actorId: string; name: string; profile: StoredProfile | null; away: string | null }) {
+/** The team and its invitations moved to Onboarding; every capability is still a click from here. */
+export function OnboardingLink({ isAdmin }: { isAdmin: boolean }) {
+  return (
+    <Section title="Members and invitations">
+      <p className="m-0 text-[13px] text-muted-foreground">
+        {isAdmin ? "Invite people, re-send or withdraw an invitation, and change someone's access in " : "Everyone on your team, with their access and title, is in "}
+        <Link href="/client/onboarding/people" className={textLink}>
+          Onboarding
+        </Link>
+        .
+      </p>
+    </Section>
+  );
+}
+
+/**
+ * Where a member with no row on the table reads and edits their own, an interviewer always.
+ * `title` undefined leaves it out: Onboarding's People step has it for them.
+ */
+export function OwnProfile({
+  actorId,
+  name,
+  profile,
+  away,
+  title,
+}: {
+  actorId: string;
+  name: string;
+  profile: StoredProfile | null;
+  away: string | null;
+  title?: string | null;
+}) {
   const said = (text: string | null | undefined) => text || <span className="text-faint">Not said</span>;
   return (
     <Section title="Your interviewer profile" aside={<ProfileEditor actorId={actorId} name={name} self profile={profile} />}>
       <KeyValues
         items={[
+          ...(title === undefined ? [] : ([["Title", <TitleForm key={title ?? ""} actorId={actorId} name={name} title={title} />]] as [React.ReactNode, React.ReactNode][])),
           ["Interviewing", said(profile?.preference ? PREFERENCE_LABELS[profile.preference] : null)],
           ["Most a week", profile?.weeklyCap == null ? <span className="text-faint">No limit</span> : profile.weeklyCap],
           ["Knows", said(profile?.focusAreas.join(", "))],
@@ -177,7 +210,6 @@ export function InterviewersView({
   feedback,
   note,
   empty,
-  notices,
   children,
 }: {
   groups: InterviewerViewGroup[];
@@ -186,9 +218,7 @@ export function InterviewersView({
   /** A line under the table, such as the read stopping short. */
   note: string | null;
   empty: string | null;
-  /** What the last invite or withdrawal said, above the table. */
-  notices?: React.ReactNode;
-  /** The team and invitations, under the table. */
+  /** Their own profile, and the way to the team, under the table. */
   children?: React.ReactNode;
 }) {
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
@@ -196,7 +226,6 @@ export function InterviewersView({
   const grid = gridOf(feedback);
   return (
     <Page bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
-      {notices}
       <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
         <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3.5 text-[13.5px] font-medium">
           Interviewers

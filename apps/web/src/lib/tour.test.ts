@@ -19,6 +19,12 @@ describe("the tour's steps", () => {
     expect(step.body).toContain("press S");
   });
 
+  it("the Onboarding step falls back to its sidebar link, for whoever the page gives a pointer home", () => {
+    const step = TOUR.find((s) => s.title === "Onboarding")!;
+    expect(step.href).toBe("/client/onboarding/people");
+    expect(step.targets).toEqual(['[data-tour="onboarding"]', 'aside a[href="/client/onboarding/people"]']);
+  });
+
   it("the Interviews step spotlights the list and names how one is checked off", () => {
     const step = TOUR.find((s) => s.href === "/client/interviews")!;
     expect(step.targets).toContain('[data-tour="interviews"]');

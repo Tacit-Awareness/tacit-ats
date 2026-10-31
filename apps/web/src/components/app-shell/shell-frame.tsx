@@ -19,7 +19,7 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking), with Integrations, Documentation, Tutorial, the keys and your name at the bottom.
+// sections (Top of Funnel, Routing & Tracking) and Onboarding, with Integrations, Documentation, Tutorial, the keys and your name at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
 // edge to open it again), ⌘K opens the command menu. No counts: the sidebar is for getting around, not a report.
@@ -48,6 +48,7 @@ const ICONS = {
   cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
   layers: "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3",
   tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
+  route: "M3 2.5h4v3.5H3ZM9 10h4v3.5H9ZM5 6v3a2 2 0 0 0 2 2h2",
 } as const;
 type IconName = keyof typeof ICONS;
 
@@ -81,6 +82,14 @@ const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", i
 const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
+// Onboarding's steps but its process, which has its own link, as in design/tats.
+const TEAM: NavLink = {
+  href: "/client/onboarding/people",
+  label: "Team",
+  icon: "team",
+  activeUnder: ["/client/onboarding/teams", "/client/onboarding/skills", "/client/onboarding/review"],
+};
+const PROCESS: NavLink = { href: "/client/onboarding/process", label: "Interview process", icon: "route" };
 const SETTINGS: NavLink[] = [
   { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
 ];
@@ -373,6 +382,8 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
     { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
     { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
+    { group: "Go to", label: "Onboarding", href: TEAM.href },
+    { group: "Go to", label: PROCESS.label, href: PROCESS.href },
     ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
@@ -430,7 +441,6 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         <nav className="sb-group" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
           <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} />
-          <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </nav>
 
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")}>
@@ -447,6 +457,12 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
           <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
           <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
+        </Section>
+
+        <Section label="Onboarding" open={!shut.has("ob")} onToggle={() => shutToggle("ob")}>
+          <NavItem link={TEAM} active={isActive(TEAM)} rail={rail} />
+          <NavItem link={PROCESS} active={isActive(PROCESS)} rail={rail} />
+          <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </Section>
 
         <div className="sb-foot">
