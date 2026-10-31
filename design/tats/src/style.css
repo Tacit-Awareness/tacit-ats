@@ -5435,7 +5435,9 @@ body.surface { padding: 0 !important; display: block !important; }
 :root[data-theme="dark"] :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n800) !important; }
 /* people and team colours keep their lightness, so they still tell apart, but take the brand's hue */
 :is(.av, .team-key, .tdot)[style*="--c"]:not(.pal-prev *) { filter: none; background: oklch(from var(--c) calc(l * 0.92) calc(0.035 * var(--tint)) var(--brand-h)) !important; }
-.av, .team-key, .ws-logo, .ft-flag, .gc-bubble.in, .crm-tab.on { color: var(--n25); }
+.av, .team-key, .ws-logo, .ft-flag, .crm-tab.on { color: var(--n25); }
+/* the interviewer's reply sits on the ink, so its text is the paper: dark on light in dark mode */
+.gc-bubble.in { color: var(--paper); }
 .av.grok { background-color: var(--n950) !important; box-shadow: 0 0 0 1px oklch(var(--ink-a) / 0.08); }
 :root { --ev-gray: var(--n100); --ev-gray-ink: var(--n600); }
 .gc { --gc-border: var(--n150); --gc-text: var(--n600); }
