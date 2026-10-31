@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { clientTools } from "@tacit-ats/core";
 import { granolaReadable } from "@/lib/client/interview-granola";
 import { GROUPS, RECOMMENDATION_LABEL, groupInterviews, verdictOf, type Recommendation, type Verdict } from "@/lib/client/interview-groups";
-import { hiddenOn, loopRounds } from "@/lib/client/interview-loop";
+import { hiddenOn, loopRounds, stageIsOpen } from "@/lib/client/interview-loop";
 import { readReviewed } from "@/lib/client/interview-reviews";
 import { readInterview, readInterviews, type InterviewDetail, type InterviewListItem, type Member } from "@/lib/client/interviews";
 import { ago, until } from "@/lib/client/pipeline-columns";
@@ -29,9 +29,9 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 const whoRan = (names: string[]) => (names.length > 1 ? `${names[0]} +${names.length - 1}` : (names[0] ?? null));
 const when = (i: InterviewListItem, now: number) => (isPast(i, now) ? ago(i.startsAt, now) : until(i.startsAt, now));
 
-function buildReader(item: InterviewListItem, detail: InterviewDetail, listed: ReadonlySet<string>, member: Member, now: number): Reader {
+function buildReader(item: InterviewListItem, detail: InterviewDetail, stillOpen: boolean, listed: ReadonlySet<string>, member: Member, now: number): Reader {
   const progress = detail.plan.candidate!;
-  const rounds = loopRounds(progress, item.interviewId, listed, now).map(({ interviewId, ...r }) => ({ ...r, href: interviewId ? href(interviewId) : null }));
+  const rounds = loopRounds(progress, item.interviewId, listed, now, stillOpen).map(({ interviewId, ...r }) => ({ ...r, href: interviewId ? href(interviewId) : null }));
   const current = rounds.find((r) => r.place === "current");
   const held = rounds.filter((r) => r.status === "Held").length;
   const candidate = item.candidateName ?? "Candidate";
@@ -88,7 +88,12 @@ export default async function ClientInterviews({ searchParams }: { searchParams:
   let readerError: string | null = null;
   if (selected) {
     try {
-      reader = buildReader(selected, await readInterview(db, member, selected), listed, member, nowMs);
+      // Only "Up next" hangs on the stage, so a failed or refused read just shows none.
+      const [detail, application] = await Promise.all([
+        readInterview(db, member, selected),
+        db.from("applications").select("stage").eq("id", selected.applicationId).maybeSingle(),
+      ]);
+      reader = buildReader(selected, detail, stageIsOpen(application.data?.stage), listed, member, nowMs);
     } catch (err) {
       if (!(err instanceof clientTools.ClientToolError)) throw err;
       readerError = "This interview is no longer there for you to read.";

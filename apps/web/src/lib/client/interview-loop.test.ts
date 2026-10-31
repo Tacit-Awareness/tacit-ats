@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { clientTools } from "@tacit-ats/core";
-import { hiddenOn, loopRounds } from "./interview-loop";
+import { hiddenOn, loopRounds, stageIsOpen } from "./interview-loop";
 
 const NOW = Date.parse("2026-10-29T12:00:00Z");
 const H = 3_600_000;
@@ -38,7 +38,7 @@ const progress: clientTools.PlanProgress = {
 };
 
 describe("loopRounds", () => {
-  const rounds = loopRounds(progress, "i2", new Set(["i1", "i2", "i3"]), NOW);
+  const rounds = loopRounds(progress, "i2", new Set(["i1", "i2", "i3"]), NOW, true);
 
   test("the plan's steps in order, then off-plan interviews, numbered", () => {
     expect(rounds.map((r) => [r.n, r.name, r.status])).toEqual([
@@ -65,13 +65,44 @@ describe("loopRounds", () => {
 
   test("other listed rounds link to their interview; this one and unlisted ones do not", () => {
     expect(rounds.map((r) => r.interviewId)).toEqual(["i1", null, null, "i3"]);
-    expect(loopRounds(progress, "i2", new Set(["i2"]), NOW).map((r) => r.interviewId)).toEqual([null, null, null, null]);
+    expect(loopRounds(progress, "i2", new Set(["i2"]), NOW, true).map((r) => r.interviewId)).toEqual([null, null, null, null]);
+  });
+
+  test("the next round is the first still to happen, and there is only one", () => {
+    expect(rounds.map((r) => r.next)).toEqual([false, false, true, false]);
+  });
+
+  test("a booked round can be next, and so can the one being read", () => {
+    const ahead = { ...progress, steps: progress.steps.slice(0, 1) };
+    expect(loopRounds(ahead, "i3", new Set(), NOW, true).map((r) => [r.place, r.next])).toEqual([["past", false], ["current", true]]);
+  });
+
+  test("a cancelled round is passed over", () => {
+    const steps = [
+      { position: 1, step: "Screen", state: "cancelled" as const, interviews: [interview("c", "Screen", -5, "cancelled", [])] },
+      { position: 2, step: "Final", state: "not_scheduled" as const, interviews: [] },
+    ];
+    expect(loopRounds({ ...progress, steps, offPlan: [] }, "c", new Set(), NOW, true).map((r) => r.next)).toEqual([false, true]);
+  });
+
+  test("nothing is next once every round is held, or the application closed", () => {
+    expect(loopRounds({ ...progress, steps: progress.steps.slice(0, 2), offPlan: [] }, "i2", new Set(), NOW, true).some((r) => r.next)).toBe(false);
+    expect(loopRounds(progress, "i2", new Set(), NOW, false).some((r) => r.next)).toBe(false);
+  });
+
+  test("a member who sees only their own rounds is told of no next one", () => {
+    expect(loopRounds({ ...progress, seesAllInterviews: false }, "i2", new Set(), NOW, true).some((r) => r.next)).toBe(false);
   });
 
   test("an interviewer who sees only their own rounds", () => {
-    const own = loopRounds({ ...progress, seesAllInterviews: false, steps: [{ position: 1, step: "Screen", state: "not_visible", interviews: [] }], offPlan: [] }, "x", new Set(), NOW);
-    expect(own).toEqual([{ key: "step-1", n: 1, name: "Screen", status: "Not yours", people: [], when: null, interviewId: null, place: "past" }]);
+    const own = loopRounds({ ...progress, seesAllInterviews: false, steps: [{ position: 1, step: "Screen", state: "not_visible", interviews: [] }], offPlan: [] }, "x", new Set(), NOW, true);
+    expect(own).toEqual([{ key: "step-1", n: 1, name: "Screen", status: "Not yours", people: [], when: null, interviewId: null, place: "past", next: false }]);
   });
+});
+
+test("stageIsOpen: a closed stage, or none read, has no next round", () => {
+  expect(["interviewing", "offer"].map(stageIsOpen)).toEqual([true, true]);
+  expect(["hired", "rejected", "withdrawn", null, undefined].map(stageIsOpen)).toEqual([false, false, false, false, false]);
 });
 
 test("hiddenOn counts the interviewers whose feedback the member cannot see", () => {

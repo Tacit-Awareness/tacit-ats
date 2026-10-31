@@ -5,15 +5,16 @@ import { Avatar, Empty, ListReader, PageBar } from "@/components/page";
 import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
 import type { LoopPerson, LoopRound as Round } from "@/lib/client/interview-loop";
 import { cn } from "@/lib/utils";
+import { LoopRow } from "./loop-row";
 import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 
 // The Interviews page's markup, props only (page.tsx does the reads):
 // design/tats's Interviews as a list and a reader under one bar. The list is a
 // bar of how past interviews went, then Upcoming and the verdict groups, a row
 // each, a past one with its reviewed check (review.tsx). The reader is one
-// card: its head, the candidate's loop as a tree (each round, who ran it and whether
-// they filed; this round highlighted, later ones faded), then this
-// interview's feedback as far as the member may read it, then the member's own
+// card: its head, the candidate's loop as a path (each round, who ran it and whether
+// they filed; held ones solid, this one outlined, the next marked, later ones
+// stepped back), then this interview's feedback as far as the member may read it, then the member's own
 // Granola notes when page.tsx passes them (./granola.tsx). Notes are the
 // interviewer's own words: plain text, never markup.
 
@@ -150,98 +151,93 @@ const PERSON_DOT: Record<LoopPerson["tone"], string> = {
   none: "bg-[color:var(--faint)]",
 };
 
-const line = "absolute bg-[color:var(--line-strong)]";
+/** The four looks of a round on the path (`.pth-s`), as design/tats's v74. */
+function roundLook(r: LoopRound) {
+  if (r.place === "current") return "border-[color:var(--accent)] bg-[color:var(--raised)] shadow-[var(--shadow),0_0_0_1.5px_var(--accent)]";
+  if (r.next) return "border-[color:var(--line-strong)] bg-[color:var(--raised)] shadow-[var(--shadow),inset_0_3px_0_var(--accent)]";
+  if (r.status === "Held") return "border-[color:var(--line)] bg-[color:var(--raised)] shadow-[var(--shadow)]";
+  return "border-[color:var(--line-strong)] text-muted-foreground";
+}
+
+/** The arrow into a round takes the look of the round it reaches. */
+function Arrow({ to }: { to: LoopRound }) {
+  const tone = to.next ? "text-[color:var(--accent)]" : to.place === "current" || to.status === "Held" ? "text-foreground" : "text-[color:var(--line-strong)]";
+  return (
+    <span aria-hidden className={cn("relative h-0.5 w-7 flex-none self-center bg-current", tone)}>
+      <i className="absolute -top-1 right-0 border-y-[5px] border-l-[6px] border-y-transparent border-l-current" />
+    </span>
+  );
+}
+
+function RoundCard({ round: r }: { round: LoopRound }) {
+  const steppedBack = r.place !== "current" && !r.next && r.status !== "Held";
+  const flag = [r.place === "current" ? "This interview" : null, r.next ? "Up next" : null].filter(Boolean).join(" · ");
+  const body = (
+    <>
+      <span className="flex items-start gap-2 text-[13.5px] leading-5">
+        <span className="grid size-5 flex-none place-items-center bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
+        <b className="min-w-0 font-medium [overflow-wrap:anywhere]">{r.name}</b>
+      </span>
+      <span className="flex flex-wrap gap-x-1.5 text-[11.5px] leading-4">
+        {flag ? <em className="font-medium text-[color:var(--accent)] not-italic">{flag}</em> : null}
+        <span className="text-faint">{[r.status, r.when].filter(Boolean).join(" · ")}</span>
+      </span>
+      {r.people.map((p, j) => (
+        <span key={j} className="flex min-w-0 items-center gap-2">
+          <span className={cn("flex-none", steppedBack && "opacity-60")}>
+            <Avatar name={p.name} size="lg" />
+          </span>
+          <span className="grid min-w-0 leading-tight">
+            <b className="truncate text-[12.5px] font-medium" title={p.name}>
+              {p.name}
+            </b>
+            <span className="inline-flex items-center gap-[5px] text-[12px] text-muted-foreground">
+              <i className={cn("size-1.5 flex-none rounded-full", PERSON_DOT[p.tone])} />
+              {p.state}
+            </span>
+          </span>
+        </span>
+      ))}
+    </>
+  );
+  const card = cn("grid w-40 min-w-0 flex-1 content-start gap-2 border p-3", roundLook(r));
+  return r.href ? (
+    <Link href={r.href} className={cn(card, "transition-colors hover:border-[color:var(--faint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]")}>
+      {body}
+    </Link>
+  ) : (
+    <div className={card}>{body}</div>
+  );
+}
 
 /**
- * The candidate's loop as design/tats's tree (`.pt`): the candidate on the
- * left, each round in the middle, who ran it on the right, joined by elbow
- * lines drawn in CSS (a spine down the second column, one segment a round, so
- * a round with several interviewers can grow). Below the container's 2xl it
- * stacks, without the lines.
+ * The candidate's loop as design/tats's path (`.pth`): a summary line, then the
+ * rounds left to right joined by arrows. A held round is solid, the one being
+ * read outlined in the accent, the next one marked Up next, the rest step back;
+ * each state is in words on the card, not only in its colour. The row scrolls
+ * sideways inside itself (LoopRow) and never widens the page.
  */
-function Loop({ reader }: { reader: Reader }) {
-  const n = reader.rounds.length;
+export function Loop({ reader }: { reader: Reader }) {
   return (
-    <section
-      aria-label="Interview loop"
-      style={{ "--rows": Math.max(n, 1) } as React.CSSProperties}
-      className="grid gap-2.5 border-b border-[color:var(--line)] px-4 pt-5 pb-6 @2xl:grid-cols-[minmax(190px,260px)_40px_minmax(130px,180px)_28px_minmax(170px,1fr)] @2xl:gap-x-0 @2xl:px-6 @2xl:pt-[22px]"
-    >
-      <div className="relative z-[1] grid content-center justify-items-start gap-2 @2xl:col-start-1 @2xl:[grid-row:1/span_var(--rows)]">
-        <span className="inline-flex h-6 items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium text-muted-foreground">{reader.tag}</span>
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3.5">
-          <Avatar name={reader.candidate} size="lg" candidate />
-          <div className="grid min-w-0">
-            <b className="truncate text-[14.5px] font-medium">{reader.candidate}</b>
-            <span className="text-[12.5px] text-muted-foreground">{reader.loopLine}</span>
-          </div>
-        </div>
+    <section aria-label="Interview loop" className="grid gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 pt-4 pb-3 @2xl:px-[26px]">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+        <p className="m-0 min-w-0 text-[13.5px]">
+          <b className="font-medium">{reader.candidate}</b>
+          <span className="text-muted-foreground"> · {reader.loopLine}</span>
+        </p>
+        <span className="inline-flex h-6 flex-none items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
       </div>
-      {n > 0 ? (
-        <span aria-hidden className="relative hidden @2xl:col-start-2 @2xl:block @2xl:[grid-row:1/span_var(--rows)]">
-          <i className={cn(line, "top-1/2 left-0 h-px w-1/2")} />
-        </span>
+      {reader.rounds.length ? (
+        <LoopRow current={reader.rounds.find((r) => r.place === "current")?.key ?? null}>
+          {reader.rounds.map((r, i) => (
+            <li key={r.key} aria-current={r.place === "current" ? "step" : undefined} className="flex max-w-[300px] flex-[1_0_auto] items-stretch">
+              {i > 0 ? <Arrow to={r} /> : null}
+              <RoundCard round={r} />
+            </li>
+          ))}
+        </LoopRow>
       ) : null}
-      {reader.rounds.map((r, i) => {
-        const cur = r.place === "current";
-        const hot = cur ? "bg-[color:var(--accent)]" : undefined;
-        const fade = r.place === "later" && "opacity-45";
-        const round = (
-          <>
-            <span className="grid size-5 flex-none place-items-center bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
-            <b className="truncate font-medium">{r.name}</b>
-            {cur ? (
-              <em className="ml-auto text-[12.5px] text-[color:var(--accent)] not-italic">Now</em>
-            ) : (
-              <em className="ml-auto text-[12px] whitespace-nowrap text-faint not-italic">{r.status}</em>
-            )}
-          </>
-        );
-        const node = cn(
-          "relative z-[1] flex min-h-11 min-w-0 items-center gap-[9px] border bg-[color:var(--paper)] px-3 text-[13.5px]",
-          cur ? "border-[color:color-mix(in_srgb,var(--accent)_50%,var(--line))] shadow-[0_6px_18px_color-mix(in_srgb,var(--accent)_14%,transparent)]" : "border-[color:var(--line)]",
-          fade,
-        );
-        return (
-          <div key={r.key} style={{ "--r": i + 1 } as React.CSSProperties} className="grid gap-1.5 @2xl:contents">
-            <span aria-hidden className={cn("relative hidden @2xl:col-start-2 @2xl:block @2xl:[grid-row:var(--r)]", fade)}>
-              {n > 1 ? (
-                <i className={cn(line, "left-1/2 w-px", i === 0 ? "top-1/2" : "-top-[5px]", i === n - 1 ? "bottom-1/2" : "-bottom-[5px]")} />
-              ) : null}
-              <i className={cn(line, "top-1/2 right-0 left-1/2 h-px", hot)} />
-            </span>
-            {r.href ? (
-              <Link href={r.href} className={cn(node, "transition-colors hover:border-[color:var(--line-strong)] @2xl:col-start-3 @2xl:[grid-row:var(--r)]")}>
-                {round}
-              </Link>
-            ) : (
-              <div className={cn(node, "@2xl:col-start-3 @2xl:[grid-row:var(--r)]")}>{round}</div>
-            )}
-            <span aria-hidden className={cn("relative hidden @2xl:col-start-4 @2xl:block @2xl:[grid-row:var(--r)]", fade)}>
-              <i className={cn(line, "top-1/2 right-0 left-0 h-px", hot)} />
-            </span>
-            <div className={cn(node, "grid gap-1.5 py-2 @2xl:col-start-5 @2xl:[grid-row:var(--r)]")}>
-              {r.people.length === 0 ? <span className="text-[12px] text-muted-foreground">{r.status || "Not booked"}</span> : null}
-              {r.people.map((p, j) => (
-                <div key={j} className="flex min-w-0 items-center gap-[9px]">
-                  <Avatar name={p.name} size="lg" />
-                  <span className="grid min-w-0 leading-tight">
-                    <b className="truncate text-[13px] font-medium">{p.name}</b>
-                    <span className="inline-flex items-center gap-[5px] text-[12px] text-muted-foreground">
-                      <i className={cn("size-1.5 rounded-full", PERSON_DOT[p.tone])} />
-                      {p.state}
-                    </span>
-                  </span>
-                  {j === 0 && r.when ? <span className="ml-auto text-[12px] whitespace-nowrap text-faint">{r.when}</span> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-      {reader.partial ? (
-        <p className="m-0 text-xs text-faint @2xl:col-span-5">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p>
-      ) : null}
+      {reader.partial ? <p className="m-0 text-xs text-faint">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p> : null}
     </section>
   );
 }

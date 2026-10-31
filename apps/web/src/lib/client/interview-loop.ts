@@ -20,6 +20,8 @@ export type LoopRound = {
   /** The interview this round opens in the list, when it is in the list and not the one already open. */
   interviewId: string | null;
   place: "past" | "current" | "later";
+  /** The round the candidate reaches next; see loopRounds. */
+  next: boolean;
 };
 
 function personState(feedback: FeedbackState | null, held: boolean): Pick<LoopPerson, "state" | "tone"> {
@@ -57,11 +59,24 @@ const STEP_STATUS: Record<clientTools.StepState, string> = {
   cancelled: "Cancelled",
 };
 
+/** Application stages that end the loop: nobody has a next round after these. */
+const CLOSED_STAGES: ReadonlySet<string> = new Set(["hired", "rejected", "withdrawn"]);
+export const stageIsOpen = (stage: string | null | undefined) => !!stage && !CLOSED_STAGES.has(stage);
+
+const STILL_TO_HAPPEN: ReadonlySet<string> = new Set(["Booked", STEP_STATUS.not_scheduled]);
+
+/**
+ * `open` is whether the application is still going. The next round is the first,
+ * left to right, still to happen: booked or not booked yet, as design/tats does.
+ * A cancelled round is not it, and a member who sees only their own rounds gets
+ * none, since one they cannot see may come first.
+ */
 export function loopRounds(
   progress: clientTools.PlanProgress,
   selectedId: string,
   listed: ReadonlySet<string>,
   now: number,
+  open: boolean,
 ): LoopRound[] {
   const raw = [
     ...progress.steps.map((s) => round(`step-${s.position}`, s.step, s.interviews, STEP_STATUS[s.state], now)),
@@ -70,11 +85,13 @@ export function loopRounds(
       .map((i) => round(`iv-${i.interviewId}`, i.step ?? "Interview", [i], "", now)),
   ];
   const current = raw.findIndex((r) => r.ids.includes(selectedId));
+  const next = open && progress.seesAllInterviews ? raw.findIndex((r) => STILL_TO_HAPPEN.has(r.status)) : -1;
   return raw.map(({ ids: _ids, leadId, ...r }, n) => ({
     ...r,
     n: n + 1,
     interviewId: leadId && leadId !== selectedId && listed.has(leadId) ? leadId : null,
     place: current < 0 || n < current ? "past" : n === current ? "current" : "later",
+    next: n === next,
   }));
 }
 
