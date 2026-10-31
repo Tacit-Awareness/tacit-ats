@@ -976,7 +976,8 @@ function setupPage(step) {
     <div class="su-main">
       <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
       <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
-      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at. About five minutes."}</p>
+      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."}</p>
+      <button class="su-live" data-act="suAsk" title="Ask your Grokbot in Slack or the CLI to change anything here. You'll see it happen.">${botAv(ME)}<span>Your Grokbot can change this page. Ask it in Slack or the CLI.</span><i class="su-live-dot"></i></button>
       <nav class="su-steps">${SETUP_STEPS.map(([k, n], i) => `${i ? `<i></i>` : ""}<a href="#setup~${k}" class="${k === step ? "on" : ""} ${done[k] && k !== step ? "done" : ""}"><span>${done[k] && k !== step ? ico("check") : i + 1}</span>${n}</a>`).join("")}</nav>
       <div class="su-frame">${body}
         <div class="su-foot"><a class="su-skip" href="#home">${state.setupSaved ? "Back to tATS" : "Skip for now"}</a><span class="grow"></span>
@@ -1381,6 +1382,106 @@ function processTree(x) {
     <div class="ft" data-act="flowEdit" role="button" tabindex="0" title="Open the interview process to edit it"><div class="ft-in" style="width:${W}px;height:${H}px"><svg class="ft-e" width="${W}" height="${H}" aria-hidden="true">${es}</svg>${cols.flat().map(node).join("")}</div></div></section>`;
 }
 
+/* ---------------- The Grokbot, live on Onboarding ---------------- */
+// Ask your Grokbot in Slack or the CLI ("put Daniel on Infra, Product and Research") and its cursor comes onto this page,
+// goes to each box and makes the change, so you watch it happen. setupOps reads the request; grokDo moves the cursor.
+const IV_KW = { "Technical screen": /tech(nical)? screen/, "Systems design": /systems? design/, "GPU performance deep dive": /gpu/, "Research deep dive": /research deep dive/, "FDE customer scenario": /\bfde\b|customer scenario/, "Product and design": /product (and|&) design/, "Final with the CTO": /\bfinal\b/ };
+const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0] || "");
+function setupOps(raw) {
+  const t = raw.toLowerCase(), ops = [];
+  const who = staff().filter((id) => t.includes(PEOPLE[id].name.toLowerCase()) || new RegExp(`\\b${first(id).toLowerCase()}\\b`).test(t));
+  const names = andList(who.map((id) => first(id)));
+  const off = /\b(remove|take|drop|pull)\b[^.]*\b(off|from|out of)\b/.test(t);
+  if (/process|flow ?chart|interview loop/.test(t)) {
+    const q = raw.replace(/\s+(?:in|to|from|of)\s+(?:the|our|my)\s+(?:interview\s+)?(?:process|loop|flow ?chart)\b/i, "").replace(/^(?:hey\s+)?(?:please\s+)?(?:change|set|make|update)\s+(?:the|our|my)\s+(?:interview\s+)?process(?:\s+to)?[:,]?\s*/i, "");
+    let said = "";
+    ops.push({ step: "process", sel: ".fc .fc-vp", label: "Updating the interview process", apply: () => { said = flowAsk(q).say; fcPaint(); } });
+    return { ops, say: () => said };
+  }
+  const teams = Object.keys(TEAMS).filter((k) => new RegExp(`\\b${TEAMS[k].name.toLowerCase()}\\b`).test(t));
+  if (who.length && teams.length && !/interview|skill|tag|star/.test(t.replace(/\b(infra|research|product)\b/g, ""))) {
+    who.forEach((id) => teams.forEach((k) => {
+      if (TEAMS[k].members.includes(id) === !off) return;
+      ops.push({ step: "teams", sel: `.su-cell .ck[data-id="${id}"][data-v="${k}"]`, label: `${off ? "Taking" : "Putting"} ${first(id)} ${off ? "off" : "on"} ${TEAMS[k].name}`, apply: () => ACT.suTeam({ dataset: { id, v: k } }) });
+    }));
+    return { ops, say: ops.length ? `${names} ${off ? "is off" : "is on"} ${andList(teams.map((k) => TEAMS[k].name))}.` : `${names} ${off ? "isn't on" : "is already on"} ${andList(teams.map((k) => TEAMS[k].name))}.` };
+  }
+  if (who.length && /grokbot|\bbot\b/.test(t) && /\b(turn|switch)\b|connect|pause/.test(t)) {
+    const on = !/\boff\b|disconnect|pause/.test(t);
+    who.forEach((id) => { if ((PEOPLE[id].bot === "on") === on) return; ops.push({ step: "people", sel: `.su-tog[data-id="${id}"]`, label: `Turning ${on ? "on" : "off"} ${possessive(first(id))} Grokbot`, apply: () => ACT.suBot({ dataset: { id } }) }); });
+    return { ops, say: `${possessive(names)} Grokbot${who.length > 1 ? "s are" : " is"} ${on ? "on" : "off"}.` };
+  }
+  const types = IV_TYPES.filter((ty) => IV_KW[ty].test(t));
+  if (who.length && types.length) {
+    const want = /\b(stop|remove|no longer|not)\b/.test(t) ? 0 : /star|prioriti|first|lead/.test(t) ? 2 : 1;
+    who.forEach((id) => types.forEach((ty) => {
+      const r = PEOPLE[id].runs || {}, cur = !(ty in r) ? 0 : r[ty] ? 2 : 1;
+      if (cur === want || (want === 1 && cur === 2)) return;
+      const n = (want - cur + 3) % 3;
+      ops.push({ step: "skills", sel: `.su-iv[data-id="${id}"][data-v="${ty}"]`, label: `${want === 2 ? "Starring" : want ? "Adding" : "Removing"} ${ty} for ${first(id)}`, apply: () => { for (let i = 0; i < n; i++) ACT.suRun({ dataset: { id, v: ty } }); } });
+    }));
+    return { ops, say: `${names}: ${andList(types)} ${want === 2 ? "starred" : want ? "added" : "removed"}.` };
+  }
+  const tg = raw.match(/(?:tag|skills?)\b[^:]*?(?:with|:|as)\s+(.+)$/i);
+  if (who.length && tg) {
+    const tags = tg[1].split(/\s*(?:,|&|\band\b)\s*/).map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
+    who.forEach((id) => tags.forEach((g) => { if ((PEOPLE[id].focus || []).some((x) => x.toLowerCase() === g.toLowerCase())) return; ops.push({ step: "skills", sel: `[data-act="suTagAdd"][data-id="${id}"]`, label: `Tagging ${first(id)}: ${g}`, apply: () => { (PEOPLE[id].focus ||= []).push(g); render(); } }); }));
+    return { ops, say: `Tagged ${names} with ${andList(tags)}.` };
+  }
+  const add = raw.match(/\badd\s+([A-Z][a-z'-]+(?:\s+[A-Z][a-z'-]+)+)(?:\s*(?:as|,|-|–)\s*(?:an?\s+|our\s+)?(.+?))?\.?$/);
+  if (add) {
+    ops.push({ step: "people", sel: "#suAddForm input[name=name]", label: `Adding ${add[1]}`, apply: () => { if (addPerson(add[1], "", add[2] ? capFirst(add[2]) : "")) render(); } });
+    return { ops, say: `Added ${add[1]}. Their Grokbot invite went out in Slack.` };
+  }
+  return { ops, say: "I can put people on teams, turn Grokbots on or off, set what someone interviews for, tag skills, add people, or change the interview process." };
+}
+let gbBusy = false;
+async function grokDo(ops) {
+  if (gbBusy) return;
+  gbBusy = true;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), still = !G || calm();
+  const cur = document.createElement("div");
+  cur.className = "gb-cur";
+  cur.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 2.5 16.5 10l-6 1.4-2.8 5.6Z"/></svg><span class="gb-tag"><span class="gb-who">${botAv(ME)}${esc(first(ME))}'s Grokbot</span><span class="gb-what"></span></span>`;
+  document.body.appendChild(cur);
+  const what = $(".gb-what", cur), put = (x, y) => (G ? G.set(cur, { x, y }) : (cur.style.transform = `translate(${x}px,${y}px)`));
+  put(innerWidth - 120, innerHeight - 40);
+  if (G && !still) G.fromTo(cur, { opacity: 0 }, { opacity: 1, duration: 0.15 });
+  const glide = (x, y) => new Promise((res) => (still ? (put(x, y), res()) : G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: res })));
+  for (const op of ops) {
+    if (state.route.name !== "setup" || state.route.id !== op.step) { what.textContent = `Opening ${SETUP_STEPS.find((s) => s[0] === op.step)[1]}`; go(`setup~${op.step}`); await sleep(260); }
+    let el = $(op.sel);
+    what.textContent = op.label;
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+      const r = el.getBoundingClientRect();
+      await glide(r.left + Math.min(r.width / 2, 40) - 3, r.top + r.height / 2 - 3);
+      if (!still) G.to(cur, { scale: 0.86, duration: 0.07, yoyo: true, repeat: 1, transformOrigin: "0 0" });
+      await sleep(140);
+    }
+    op.apply();
+    el = $(op.sel);
+    if (el) { el.classList.remove("gb-hit"); void el.offsetWidth; el.classList.add("gb-hit"); }
+    await sleep(320);
+  }
+  what.textContent = "Done";
+  await sleep(900);
+  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() }); else cur.remove();
+  gbBusy = false;
+}
+// The same request from Slack, the CLI, or the box on this page.
+function setupAsk(text) {
+  const r = setupOps(text);
+  if (!r.ops.length) return toast(typeof r.say === "function" ? r.say() : r.say);
+  grokDo(r.ops).then(() => { const s = typeof r.say === "function" ? r.say() : r.say; if (s) toast(s.replace(/<[^>]+>/g, "")); });
+}
+function openSetupAsk() {
+  const ex = ["Put Daniel Okafor on Infra, Product and Research", "Star Sam for Systems design", "Turn off Wei's Grokbot", "Tag Noor with CUDA and Inference"];
+  openForm({ title: "Message your Grokbot", sub: "The same as asking in Slack or the CLI. You'll see it make the change here.", submit: "Send",
+    body: `<label class="fm-f"><input name="q" placeholder="${esc(ex[0])}" autocomplete="off"></label><div class="gb-ex">${ex.map((x) => `<button type="button" class="chip" data-act="suEx" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>`,
+    onSubmit: (v) => { const q = (v.q || "").trim(); if (!q) return false; setTimeout(() => setupAsk(q), 60); } });
+}
+
 function addPerson(name, email, role) {
   name = (name || "").trim().replace(/\s+/g, " ");
   if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
@@ -1482,6 +1583,7 @@ function grokOwes() {
 // What the Grokbot can do from a sentence. Anything else it takes on and reports back in Grokbot Activity.
 function grokReply(text) {
   const t = text.toLowerCase();
+  { const so = setupOps(text); if (so.ops.length && !/process|flow ?chart|interview loop/.test(t)) { so.ops.forEach((o) => o.apply()); return { html: esc(typeof so.say === "function" ? so.say() : so.say), btns: [["Open Onboarding", "goSetup", so.ops[0].step]] }; } }
   if (/process|flow ?chart|interview loop/.test(t)) {
     const r = flowAsk(text.replace(/\s+(?:in|to|from|of)\s+(?:the|our|my)\s+(?:interview\s+)?(?:process|loop|flow ?chart)\b/i, "").replace(/^(?:change|set|make|update)\s+(?:the|our|my)\s+(?:interview\s+)?process(?:\s+to)?[:,]?\s*/i, ""));
     return { html: r.say, btns: r.flow || r.edit ? [["Open the process", "goProcess", ""]] : [] };
@@ -4328,6 +4430,9 @@ const ACT = {
   setView: (el) => { state.view = el.dataset.v; render(); },
   flowEdit: () => openFlow(),
   goProcess: () => go("setup~process"),
+  suAsk: () => openSetupAsk(),
+  goSetup: (el) => go(`setup~${el.dataset.id || "people"}`),
+  suEx: (el) => { const i = $('.fm input[name="q"]'); if (i) { i.value = el.dataset.v; i.focus(); } },
   fcAdd: (el) => fcAddNode(el.dataset.k),
   fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
   fcFit: () => fcFit(),
