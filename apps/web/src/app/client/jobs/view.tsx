@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { ShareLinks } from "./share-links";
 import { Empty, Page, PageBar, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ function Row({ row }: { row: PostingRowProps }) {
               Public link
             </a>
             <CopyButton value={row.link.url} label="Copy the public link" />
+            <ShareLinks url={row.link.url} />
           </>
         ) : null}
         <Link href={`/client/jobs/${row.jobId}`} className={cn(textLink, "ml-2 font-medium")}>
