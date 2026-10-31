@@ -45,6 +45,10 @@ describe("the control panel", () => {
     expect(out).not.toContain("Testbench");
   });
 
+  test("only the picked move can be posted: Enter in the reason submits the form's first button", () => {
+    expect(html().match(/name="route" value="[a-z]+"/g)).toEqual(['name="route" value="interview"']);
+  });
+
   test("the picked pill wears the hover highlight", () => {
     const pills = html().match(/<button type="button" aria-pressed="(true|false)"[^>]*aria-keyshortcuts="[ISD]"[^>]*>/g)!;
     const picked = pills.find((p) => p.includes('aria-pressed="true"'))!;
