@@ -4692,6 +4692,7 @@ html.pal-prev .hm { background: linear-gradient(180deg, color-mix(in srgb, var(-
 .set-link b { display: block; font-size: 14.5px; font-weight: 500; }
 .set-link span span { color: var(--muted); font-size: 13px; }
 .set-link .ico { width: 16px; height: 16px; color: var(--muted); }
+.set-link:has(+ .set-link) { margin-bottom: calc(var(--s3) - 20px); }
 @media (max-width: 1180px) { .su { grid-template-columns: minmax(0, 1fr); } .su-side { padding-top: 0; } }
 .su-who > .av { color: #fff; }
 .su-mx-h, .su-mx-r { grid-template-columns: minmax(250px, 1.8fr) repeat(var(--cols), minmax(90px, 1fr)); }

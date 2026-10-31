@@ -766,7 +766,7 @@ function appsByDay(days) {
 }
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
-// The company's interview process, as set in Settings. Stage timing reads in these words.
+// The company's interview process, as drawn in Onboarding. Stage timing reads in these words.
 const PROCESS_KEY = "tats.process.v2";
 const PROCESS_DEFAULT = [["review", "Application review"], ["tb", "Testbench"], ["r1", "Team interview"], ["r2", "Cross-team interview"], ["r3", "Final with the CTO"], ["offer", "Offer"]];
 try { state.process = JSON.parse(localStorage.getItem(PROCESS_KEY) || "null"); } catch {}
@@ -902,7 +902,7 @@ function homeOverview() {
     <div class="hm-row stuck">
       <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
         ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
-      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from Settings.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#settings" title="Rename stages in Settings">Edit stages${ico("arrowR")}</a></div>
+      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#settings" title="Rename stages in Settings">Edit stages${ico("arrowR")}</a></div>
         <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
         <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
         ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
@@ -4107,8 +4107,7 @@ function botsPage(tab = "runs") {
   const title = tab === "people" ? "Interviewers" : tab === "rules" ? "Settings" : "Grokbot Activity";
   if (tab === "checks") tab = "runs";
   if (tab === "rules") body = `<a class="set-link" href="#setup~people">${ico("users")}<span><b>People &amp; teams</b><span>Add interviewers and their Grokbots, move people between teams, and set what each person interviews for</span></span>${ico("arrowR")}</a>
-    <div class="set-h"><h2>Interview Process</h2></div>
-    <section class="cardbox set-proc">${PROCESS_DEFAULT.map(([k], i) => `<label class="proc-r"><span class="proc-n">${i + 1}</span><input class="proc-in" data-i="${i}" value="${esc(state.process[i])}" aria-label="Stage ${i + 1}"></label>`).join("")}</section>
+    <a class="set-link" href="#setup~process">${ico("route")}<span><b>Interview process</b><span>Draw the steps from applying to an offer, who runs each one and how long it takes. The Grokbots route by it</span></span>${ico("arrowR")}</a>
     <div class="set-h"><h2>Routing Rules</h2></div>${body}`;
   return `<div class="bar cx-bar"><h1 class="cx-title">${title}</h1><span class="spacer"></span>${tab === "people" ? `<a class="cx-btn" href="#setup~teams">${ico("users")}Manage people &amp; teams</a><a class="cx-btn" href="#setup~people">${ico("plus")}Add people</a>` : ""}
     </div>
