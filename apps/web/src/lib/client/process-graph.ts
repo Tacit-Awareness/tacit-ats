@@ -391,10 +391,9 @@ function paths(graph: ProcessDoc, departments: DepartmentNode[], push: (p: Probl
   for (const scope of scopes) {
     const path = pathFor(graph, scope, departments);
     if (!path.complete) {
-      if (!required.includes(scope)) continue;
       const at = path.stoppedAt;
       if (path.stop === "dead_end" && at) push({ code: "dead_end", message: `${named(at)} leads nowhere. Connect it to what comes next.`, nodeId: at.id });
-      if (path.stop === "no_branch" && at) {
+      if (path.stop === "no_branch" && at && required.includes(scope)) {
         const row = unbranched.get(at.id) ?? { node: at, teams: [] };
         row.teams.push(nameOf(scope));
         unbranched.set(at.id, row);

@@ -223,7 +223,12 @@ export type PlanChange = {
 export async function setInterviewPlan(
   db: Db,
   ctx: ClientToolCtx,
-  input: { jobId: string; steps: string[] },
+  input: {
+    jobId: string;
+    steps: string[];
+    /** Every check and the answer it would give, with nothing written and no audit claim. Not on the connector. */
+    dryRun?: boolean;
+  },
 ): Promise<PlanChange> {
   const steps = cleanPlan(input.steps);
   const job = await visibleJob(db, input.jobId);
@@ -254,6 +259,8 @@ export async function setInterviewPlan(
       if (on.length) keptOnInterviews.push({ step, interviews: on.length, scheduled: on.filter((i) => i.status === "scheduled").length });
     }
   }
+
+  if (input.dryRun) return { outcome: "updated", steps, removed, keptOnInterviews };
 
   return withAudit(db, ctx, { action: "role.interview_plan", entity: "role" }, async () => {
     const { data, error: updateError } = await db

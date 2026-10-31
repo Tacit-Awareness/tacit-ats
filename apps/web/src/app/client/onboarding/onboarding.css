@@ -11,6 +11,11 @@
 .proc-notes b { font-weight: 500; }
 .proc-notes ul { margin: 0; padding-left: 16px; color: var(--muted-text); }
 
+.proc-job { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--n100); }
+.proc-job:first-child { border-top: 0; }
+.proc-job input { margin-top: 3px; }
+.proc-warn { margin: 2px 0 0; padding-left: 16px; color: var(--amber); font-size: 12.5px; }
+
 /* Canvas or List. Below 900px there is no canvas, and no choice. */
 @media (min-width: 900px) {
   .proc[data-view="canvas"] .proc-listwrap { display: none; }

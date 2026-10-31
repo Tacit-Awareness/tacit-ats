@@ -8,6 +8,7 @@ import { editorReducer, editorState } from "@/lib/client/process-editor";
 import { validateGraph } from "@/lib/client/process-graph";
 import { leavesPage } from "@/lib/client/posting-draft";
 import { saveProcessAction } from "./actions";
+import { ApplyDialog } from "./apply-dialog";
 import { ProcessCanvas } from "./canvas";
 import { ProcessList } from "./list";
 import { SAVE_ERRORS, STALE_SAVE } from "./messages";
@@ -26,6 +27,7 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
   const [conflict, setConflict] = useState<{ latest: string | null } | null>(null);
   const [said, setSaid] = useState<Said>(null);
   const [saving, start] = useTransition();
+  const [applying, setApplying] = useState(false);
 
   const dirty = useMemo(() => JSON.stringify(state.graph) !== saved.text, [state.graph, saved.text]);
   const { problems, gaps } = useMemo(() => validateGraph(state.graph, read.lookup), [state.graph, read.lookup]);
@@ -70,6 +72,9 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
       }
     });
 
+  const applyHint = dirty || !saved.drawn ? "Save first: Apply uses what's saved." : problems.length ? "Fix what's listed first." : undefined;
+  const canApply = !applyHint && !saving && saved.updatedAt !== null;
+
   return (
     <div className="proc grid min-w-0 gap-2.5" data-view={view}>
       {saved.drawn ? null : <Notice>Nothing&apos;s saved yet. This is a starting point, not your process.</Notice>}
@@ -91,6 +96,9 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
             </span>
             <Button size="sm" disabled={saving || (!dirty && saved.drawn)} onClick={() => save(saved.updatedAt)}>
               {saving ? "Saving…" : "Save"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={!canApply} title={applyHint} onClick={() => setApplying(true)}>
+              Apply to jobs
             </Button>
           </>
         ) : null}
@@ -134,6 +142,7 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
           </ul>
         </div>
       ) : null}
+      {applying && saved.updatedAt ? <ApplyDialog updatedAt={saved.updatedAt} onClose={() => setApplying(false)} /> : null}
     </div>
   );
 }
