@@ -14,12 +14,14 @@ const inbox = vi.hoisted(() => ({
   restoreIssue: vi.fn(),
   noteResolved: vi.fn(),
 }));
+const feed = vi.hoisted(() => ({ markRead: vi.fn(), readDigest: vi.fn() }));
 const email = vi.hoisted(() => ({ sendDraft: vi.fn() }));
 const mailer = vi.hoisted(() => ({ webMailer: vi.fn() }));
 const redirected = vi.hoisted(() => ({ to: [] as string[] }));
 
 vi.mock("@/lib/client/session", () => session);
 vi.mock("@/lib/client/inbox", () => inbox);
+vi.mock("@/lib/client/inbox-feed", () => feed);
 vi.mock("@/lib/client/email", () => email);
 vi.mock("@/lib/client/mailer", () => mailer);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -30,7 +32,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { decideIssueAction, dismissIssueAction, fixIssueAction, restoreIssueAction, sendDraftAction } from "./actions";
+import { decideIssueAction, dismissIssueAction, fixIssueAction, markAllDigestReadAction, markDigestReadAction, restoreIssueAction, sendDraftAction } from "./actions";
 
 const REQUEST = "11111111-1111-4111-8111-111111111111";
 const APPLICATION = "22222222-2222-4222-8222-222222222222";
@@ -331,5 +333,83 @@ describe("sendDraftAction", () => {
     email.sendDraft.mockRejectedValue(new Error("connection reset"));
     expect((await send({ draftId: DRAFT })).searchParams.get("error")).toBe("send_failed");
     log.mockRestore();
+  });
+});
+
+describe("the digest's read marks", () => {
+  const EVENT = `evt-${APPLICATION}`;
+  const AT = "2026-10-31T10:00:00.123456+00:00";
+  const post = async (action: (f: FormData) => Promise<void>, fields: Record<string, string>) => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(fields)) form.set(k, v);
+    redirected.to.length = 0;
+    await action(form).catch((err: Error) => {
+      if (err.message !== "NEXT_REDIRECT") throw err;
+    });
+    return new URL(redirected.to[0]!, "http://x");
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    session.requireClient.mockResolvedValue({ db: {}, actorId: "a", orgId: "o", accessLevel: "admin" });
+    feed.markRead.mockResolvedValue({ ok: true });
+  });
+
+  test("one row: its mark, re-read, and back to the same range", async () => {
+    const url = await post(markDigestReadAction, { markKey: EVENT, markReason: "decided", markAt: AT, range: "7" });
+    expect(feed.markRead).toHaveBeenCalledWith({}, [{ key: EVENT, reason: "decided", at: AT }]);
+    expect(url.searchParams.get("notice")).toBe("read");
+    expect(url.searchParams.get("range")).toBe("7");
+  });
+
+  test.each([
+    ["an issue's key", { markKey: `app-${APPLICATION}`, markReason: "decided", markAt: AT }],
+    ["an issue's reason, which would hide nothing and show on Done", { markKey: EVENT, markReason: "feedback", markAt: AT }],
+    ["no time", { markKey: EVENT, markReason: "decided" }],
+  ])("%s writes nothing", async (_, fields) => {
+    expect((await post(markDigestReadAction, fields as Record<string, string>)).searchParams.get("error")).toBe("read_refused");
+    expect(feed.markRead).not.toHaveBeenCalled();
+  });
+
+  test("a member the policy stops gets a code, not a claim", async () => {
+    feed.markRead.mockResolvedValue({ ok: false, error: "refused" });
+    expect((await post(markDigestReadAction, { markKey: EVENT, markReason: "decided", markAt: AT })).searchParams.get("error")).toBe("read_refused");
+  });
+
+  test("with no session nothing is read or written", async () => {
+    session.requireClient.mockRejectedValue(new Error("no session"));
+    await expect(markAllDigestReadAction(new FormData())).rejects.toThrow("no session");
+    await expect(markDigestReadAction(new FormData())).rejects.toThrow("no session");
+    expect(feed.readDigest).not.toHaveBeenCalled();
+    expect(feed.markRead).not.toHaveBeenCalled();
+  });
+
+  test("all: what the member's own read finds, up to when the page was read", async () => {
+    const seen = { key: EVENT, reason: "decided", at: "2026-10-31T10:00:00.000Z" };
+    feed.readDigest.mockResolvedValue({ unread: [seen, { key: `iv-${APPLICATION}`, reason: "booked", at: "2026-10-31T11:30:00.000Z" }] });
+    const url = await post(markAllDigestReadAction, { range: "3", asOf: "2026-10-31T11:00:00.000Z", needs: "0", markKey: `evt-${REASON}` });
+    expect(feed.readDigest.mock.calls[0]![1]).toBe(3);
+    expect(feed.markRead).toHaveBeenCalledWith({}, [seen]);
+    expect(url.searchParams.get("notice")).toBe("all_read");
+  });
+
+  test("all, with Needs you left, says it stays", async () => {
+    feed.readDigest.mockResolvedValue({ unread: [] });
+    expect((await post(markAllDigestReadAction, { asOf: AT, needs: "1" })).searchParams.get("notice")).toBe("all_read_needs");
+  });
+
+  test("a failure is a code, and only that reaches the URL", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    feed.readDigest.mockRejectedValue(new Error("connection reset"));
+    const url = await post(markAllDigestReadAction, { asOf: AT });
+    expect(url.searchParams.get("error")).toBe("read_failed");
+    expect(url.search).not.toContain("connection");
+    log.mockRestore();
+  });
+
+  test("a row's Dismiss stays on the range it was pressed at", async () => {
+    inbox.dismissIssue.mockResolvedValue({ ok: true, changed: false });
+    const url = await post(dismissIssueAction, { issueKey: `app-${APPLICATION}`, issueReason: "quiet", issueAt: AT, from: "row", range: "3" });
+    expect(url.searchParams.get("range")).toBe("3");
   });
 });

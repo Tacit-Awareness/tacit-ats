@@ -2,10 +2,14 @@ import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
 import { Avatar, PageBar, Tabs, textLink } from "@/components/page";
+import { DIGEST_RANGES, DEFAULT_RANGE, inboxHref, rangeLabel, worthLine, type DigestGroupKey, type DigestRange, type DigestRow } from "@/lib/client/inbox-digest";
 import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import type { IssueFix, IssueInstance, IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
+import { LocalDay } from "../candidates/local-day";
+import { markAllDigestReadAction, markDigestReadAction } from "./actions";
+import { button, plain } from "./buttons";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
 import { IssuePopup } from "./popup";
@@ -13,10 +17,12 @@ import { SendBar, type SendProps } from "./send-bar";
 import { RowDismiss, RowKeys } from "./set-aside";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
-// #inbox as a digest, one centred card (`.ibx`): a heading with how many need
-// the member, the Open and Done pills, and Needs you, a row each saying what is
-// wrong, who it is about and its age, and beside the row's link its own two
-// buttons, the page and Dismiss (design/tats's `.ibx-acts`). A row opens that
+// #inbox as a digest, one centred card (`.ibx`): Welcome back with what's worth
+// the member's time, the Open and Done pills, how far back to look, and Needs
+// you, a row each saying what is wrong, who it is about and its age, and beside
+// the row's link its own two buttons, the page and Dismiss (design/tats's
+// `.ibx-acts`). Under it Decisions made, Booked and FYI, with Mark read in
+// Dismiss's place, then Mark all as read. Needs you's row opens that
 // issue in a pop-up (popup.tsx) holding the reader: the same heading, the one fix (fix-bar.tsx,
 // key F), Send here on an unsent draft (send-bar.tsx, key F, after a dialog) or
 // the decision (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E),
@@ -76,8 +82,6 @@ const TONE: Record<IssueKind, string> = {
   decide: "bg-[color:var(--soft)] text-muted-foreground",
 };
 
-const needLine = (n: number) => (n === 0 ? "Nothing needs you" : n === 1 ? "1 thing needs you" : `${n} things need you`);
-
 function KindIcon({ kind, className }: { kind: IssueKind; className?: string }) {
   return (
     <span aria-hidden className={cn("grid size-8 flex-none place-items-center rounded-full", TONE[kind], className)}>
@@ -112,6 +116,30 @@ export function Row({ r }: { r: IssueRow }) {
   );
 }
 
+export type DigestProps = {
+  range: DigestRange;
+  /** When the page was read: Mark all as read covers no more than this. */
+  asOf: string;
+  now: number;
+  total: number;
+  shown: number;
+  unread: number;
+  capped: boolean;
+  groups: { key: DigestGroupKey; label: string; rows: (DigestRow & { age: string })[] }[];
+};
+
+const NO_DIGEST: Omit<DigestProps, "total" | "shown"> = { range: DEFAULT_RANGE, asOf: "", now: 0, unread: 0, capped: false, groups: [] };
+
+const GROUP_ICON: Record<DigestGroupKey, string> = {
+  decided: ICON.decide,
+  booked: "M3 3.5h10v9.5H3ZM3 6.5h10M5.5 2v2.5M10.5 2v2.5",
+  fyi: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 7.5V11M8 5h.01",
+};
+
+function RangeTabs({ range }: { range: DigestRange }) {
+  return <Tabs label="How far back" tabs={DIGEST_RANGES.map((r) => ({ label: r.label, href: inboxHref(r.days), active: r.days === range }))} />;
+}
+
 function InboxTabs({ tab, openCount, className }: { tab: "open" | "done"; openCount: number; className?: string }) {
   return (
     <Tabs
@@ -135,12 +163,14 @@ const ROW_ACTIONS =
   "flex flex-none items-center gap-0.5 self-start pt-2 pr-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:absolute [@media(hover:hover)]:top-0 [@media(hover:hover)]:right-0 [@media(hover:none)]:opacity-100";
 const ROW_ACTION = "grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground disabled:opacity-60";
 
+const GROUP_HEAD = "m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[14px] font-medium sm:-mx-6 sm:px-6";
+
 /**
  * A line of the digest (`.ibx-r`). `scroll={false}`: opening and closing leave
  * the card where it was. The buttons sit beside the link, never in it: a control
  * inside a link is invalid, and a click on one would open the row as well.
  */
-function DigestRow({ r }: { r: IssueRow }) {
+function NeedRow({ r, range }: { r: IssueRow; range: DigestRange }) {
   return (
     <div data-key-row className="group relative -mx-3 flex min-w-0 items-stretch transition-colors hover:bg-[color:var(--hover)]">
       <Link
@@ -171,7 +201,7 @@ function DigestRow({ r }: { r: IssueRow }) {
               </svg>
             </Link>
           ) : null}
-          <RowDismiss instance={r.instance} what={r.what} next={r.next ?? null} className={ROW_ACTION} />
+          <RowDismiss instance={r.instance} what={r.what} next={r.next ?? null} range={range} className={ROW_ACTION} />
         </span>
       ) : null}
     </div>
@@ -189,12 +219,12 @@ function CapNotes({ truncated, draftsCapped }: { truncated: boolean; draftsCappe
 }
 
 /** J and K: over the card they move focus and Enter opens, since a key shouldn't throw up a pop-up; in the pop-up they walk the queue, as they walked the reader. */
-function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; popup: boolean; truncated: boolean; draftsCapped: boolean }) {
+function NeedsYou({ rows, popup, range, truncated, draftsCapped }: { rows: IssueRow[]; popup: boolean; range: DigestRange; truncated: boolean; draftsCapped: boolean }) {
   return (
     <KeyList title="Inbox" next="Next issue" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start">
       {popup ? null : <RowKeys />}
       <section aria-labelledby="inbox-needs-you" className="grid grid-cols-[minmax(0,1fr)]">
-        <h2 id="inbox-needs-you" className="m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[14px] font-medium sm:-mx-6 sm:px-6">
+        <h2 id="inbox-needs-you" className={GROUP_HEAD}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden>
             <path d="M8 2.5 14 13H2ZM8 6.5v3M8 11.3h.01" />
           </svg>
@@ -202,7 +232,7 @@ function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; 
           <span className="font-normal text-faint tabular-nums">{rows.length}</span>
         </h2>
         {rows.map((r) => (
-          <DigestRow key={r.key} r={r} />
+          <NeedRow key={r.key} r={r} range={range} />
         ))}
       </section>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
@@ -210,14 +240,93 @@ function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; 
   );
 }
 
-function CaughtUp({ truncated, draftsCapped }: { truncated: boolean; draftsCapped: boolean }) {
+/** A line of what happened: the row goes to the Pipeline's pop-up or the candidate, with the page and Mark read beside it. Everything in it renders as text. */
+function InfoRow({ r, range, now }: { r: DigestProps["groups"][number]["rows"][number]; range: DigestRange; now: number }) {
+  return (
+    <div className="group relative -mx-3 flex min-w-0 items-stretch transition-colors hover:bg-[color:var(--hover)]">
+      <Link href={r.href} className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-3">
+        <span className="grid min-w-0 gap-1">
+          <span className="text-[15.5px] leading-[1.45] break-words">{r.what}</span>
+          <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+            {r.who ? <Avatar name={r.who} size="xs" /> : null}
+            <span className="min-w-0 break-words">
+              {r.meta}
+              {r.interviewAt ? (
+                <>
+                  {r.meta ? " · " : ""}Interview <LocalDay iso={r.interviewAt} fallback={Date.parse(r.interviewAt) >= now ? "coming up" : "held"} />
+                </>
+              ) : null}
+            </span>
+          </span>
+        </span>
+        <span className="pt-0.5 text-[12.5px] whitespace-nowrap text-faint tabular-nums [@media(hover:hover)]:group-focus-within:invisible [@media(hover:hover)]:group-hover:invisible">{r.age}</span>
+      </Link>
+      <span className={ROW_ACTIONS}>
+        <Link href={r.page} title="Open as a page" aria-label={`Open as a page: ${r.what}`} className={ROW_ACTION}>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+            <path d="M5 11l6-6M6 5h5v5" />
+          </svg>
+        </Link>
+        <form action={markDigestReadAction} className="contents">
+          <input type="hidden" name="markKey" value={r.mark.key} />
+          <input type="hidden" name="markReason" value={r.mark.reason} />
+          <input type="hidden" name="markAt" value={r.mark.at} />
+          <input type="hidden" name="range" value={range} />
+          <button type="submit" title="Mark read" aria-label={`Mark read: ${r.what}`} className={ROW_ACTION}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+              <path d="m3.5 8.5 3 3 6-7" />
+            </svg>
+          </button>
+        </form>
+      </span>
+    </div>
+  );
+}
+
+function DigestGroups({ digest }: { digest: DigestProps }) {
+  return digest.groups.map((g) => (
+    <section key={g.key} aria-labelledby={`inbox-${g.key}`} className="grid grid-cols-[minmax(0,1fr)]">
+      <h2 id={`inbox-${g.key}`} className={GROUP_HEAD}>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden>
+          <path d={GROUP_ICON[g.key]} />
+        </svg>
+        {g.label}
+        <span className="font-normal text-faint tabular-nums">{g.rows.length}</span>
+      </h2>
+      {g.rows.map((r) => (
+        <InfoRow key={r.id} r={r} range={digest.range} now={digest.now} />
+      ))}
+    </section>
+  ));
+}
+
+function DigestFoot({ digest, needs }: { digest: DigestProps; needs: number }) {
+  if (!digest.unread && !digest.capped) return null;
+  return (
+    <footer className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:flex sm:items-center sm:justify-between">
+      <p className="m-0 text-[12.5px] text-faint">{digest.capped ? "A lot happened in this period, so only the newest updates are listed." : null}</p>
+      {digest.unread ? (
+        <form action={markAllDigestReadAction} className="grid sm:block">
+          <input type="hidden" name="range" value={digest.range} />
+          <input type="hidden" name="asOf" value={digest.asOf} />
+          <input type="hidden" name="needs" value={needs ? "1" : "0"} />
+          <button type="submit" className={cn(button, plain, "justify-center")}>
+            Mark all as read
+          </button>
+        </form>
+      ) : null}
+    </footer>
+  );
+}
+
+function CaughtUp({ range, truncated, draftsCapped }: { range: DigestRange; truncated: boolean; draftsCapped: boolean }) {
   return (
     <div className="grid justify-items-center gap-1.5 border-t border-[color:var(--line)] py-12 text-center">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-[22px] text-[color:var(--green)]" aria-hidden>
         <path d="m3.5 8.5 3 3 6-7" />
       </svg>
       <h2 className="m-0 text-[15px] font-medium">You&apos;re all caught up</h2>
-      <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
+      <p className="m-0 text-[13px] text-muted-foreground">Nothing new in the last {rangeLabel(range)}.</p>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
       <div className="mt-1 flex items-center gap-3">
         <Link href="/client/inbox?tab=done" className={textLink}>
@@ -291,6 +400,7 @@ export function InboxView({
   home = "/client/inbox",
   truncated,
   draftsCapped,
+  digest: given,
 }: {
   rows: IssueRow[];
   /** The issue `?i=` opened, read in full. Null is the card alone. */
@@ -300,7 +410,10 @@ export function InboxView({
   home?: string;
   truncated: boolean;
   draftsCapped: boolean;
+  /** What happened lately. Left out, the card is Needs you alone. */
+  digest?: DigestProps;
 }) {
+  const digest = given ?? { ...NO_DIGEST, total: rows.length, shown: rows.length };
   return (
     <div className="list-reader flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--frame)] px-4 py-6 md:py-12">
@@ -311,17 +424,22 @@ export function InboxView({
           aria-labelledby="inbox-title"
           className="mx-auto grid w-[760px] max-w-full grid-cols-[minmax(0,1fr)] gap-5 bg-[color:var(--raised)] p-4 pb-3 shadow-[var(--shadow)] outline-none sm:p-6 sm:pb-3"
         >
-          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <header className="flex flex-col gap-x-4 gap-y-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="grid gap-1">
               <h1 id="inbox-title" className="m-0 text-[18px] font-semibold tracking-[-0.01em]">
-                Inbox
+                Welcome back
               </h1>
-              <p className="m-0 text-[14.5px] text-muted-foreground">{needLine(rows.length)}</p>
+              <p className="m-0 text-[14.5px] text-muted-foreground">{worthLine(digest.shown, digest.total)}</p>
             </div>
-            <InboxTabs tab="open" openCount={rows.length} />
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <InboxTabs tab="open" openCount={rows.length} />
+              <RangeTabs range={digest.range} />
+            </div>
           </header>
           {!issue ? flash : null}
-          {rows.length ? <NeedsYou rows={rows} popup={issue !== null} truncated={truncated} draftsCapped={draftsCapped} /> : <CaughtUp truncated={truncated} draftsCapped={draftsCapped} />}
+          {rows.length ? <NeedsYou rows={rows} popup={issue !== null} range={digest.range} truncated={truncated} draftsCapped={draftsCapped} /> : null}
+          <DigestGroups digest={digest} />
+          {rows.length || digest.groups.length ? <DigestFoot digest={digest} needs={rows.length} /> : <CaughtUp range={digest.range} truncated={truncated} draftsCapped={draftsCapped} />}
         </section>
       </div>
       {issue ? (

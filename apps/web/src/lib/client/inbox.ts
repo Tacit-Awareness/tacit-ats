@@ -306,6 +306,9 @@ export async function readDone(db: Db, actorId: string, standing: Issue[]): Prom
   const { data, error } = await db
     .from("inbox_dismissals")
     .select("id, issue_key, reason, issue_at, how, dismissed_at")
+    // The digest's read marks share the table. doneItems would drop them, but only after this read's limit: one Mark all as read would push real rows off Done.
+    .not("issue_key", "like", "evt-%")
+    .not("issue_key", "like", "iv-%")
     .order("dismissed_at", { ascending: false })
     .order("id")
     .limit(DONE_MAX);

@@ -13,6 +13,13 @@ export const ISSUE_KEY = /^(app|appr|draft)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-
 /** Only what `Date.parse` and the column's check both read the same way: a date in Postgres's or JavaScript's form. */
 const INSTANT = /^(\d{4})-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}(:?\d{2})?)$/;
 
+/** A timestamp as a posted field: the same check for an issue's instance and a digest row's read mark. */
+export function isInstant(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const year = INSTANT.exec(v)?.[1];
+  return !!year && year !== "0000" && !Number.isNaN(Date.parse(v));
+}
+
 /** A key this page may name: for `?i=` and for a dismissal. */
 export const isIssueKey = (v: unknown): v is string => typeof v === "string" && ISSUE_KEY.test(v);
 
@@ -25,9 +32,7 @@ export const isIssueKey = (v: unknown): v is string => typeof v === "string" && 
 export function parseInstance(form: FormData, key: unknown = form.get("issueKey")): IssueInstance | null {
   const reason = form.get("issueReason");
   const at = form.get("issueAt");
-  if (!isIssueKey(key) || !isIssueReason(reason) || typeof at !== "string") return null;
-  const year = INSTANT.exec(at)?.[1];
-  if (!year || year === "0000" || Number.isNaN(Date.parse(at))) return null;
+  if (!isIssueKey(key) || !isIssueReason(reason) || !isInstant(at)) return null;
   return { key, reason, at };
 }
 

@@ -120,7 +120,7 @@ Interviewers get a simpler Home: the people they interview, the jobs they can se
 
 ## Inbox
 
-The Inbox is one card listing what is stuck and waiting on someone, under **Needs you**, for admins and the hiring team. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with.
+The Inbox is one card for admins and the hiring team: what is stuck and waiting on someone, under **Needs you**, then what has happened lately. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with.
 
 | Kind | What lands here |
 | --- | --- |
@@ -144,7 +144,19 @@ Decisions always show what will change and wait for you to confirm. Moving someo
 
 Dismissing changes only your own queue. **Done** lists what you dismissed or fixed from here, and **Move back to Inbox** brings back an issue that still stands.
 
-Hover a row, or tab to it, for its two buttons: the arrow opens its page without the pop-up, and the check dismisses it where you are (\`E\` does too, on the row you are on). On a touch screen they are always there. In the pop-up, **Open as a page** goes to the candidate or job itself. Confirmations and **Undo** appear for a few seconds at the bottom right of the window; \`Z\` undoes a dismiss while its message is up.`,
+Hover a row, or tab to it, for its two buttons: the arrow opens its page without the pop-up, and the check dismisses it where you are (\`E\` does too, on the row you are on). On a touch screen they are always there. In the pop-up, **Open as a page** goes to the candidate or job itself. Confirmations and **Undo** appear for a few seconds at the bottom right of the window; \`Z\` undoes a dismiss while its message is up.
+
+### What happened lately
+
+Under **Needs you**, the card lists what changed on the jobs you can read. Choose **1 day**, **3 days** or **1 week** at the top; **Needs you** stays whichever you pick.
+
+| Group | What lands here |
+| --- | --- |
+| **Decisions made** | A candidate moved to another stage, hired or rejected |
+| **Booked** | An interview scheduled, and who is on it |
+| **FYI** | Feedback filed. You see who filed it, and the verdict only if you can read that feedback. The notes stay on the candidate |
+
+Each group lists its six newest. A row opens the candidate in the Pipeline's pop-up while they are live on an open job, and their page otherwise; the arrow always opens their page. The check marks a row read, for you alone, and **Mark all as read** does that for everything in the period you picked, including rows past the six. Neither touches **Needs you** or **Done**, and a read row can't be brought back.`,
   },
   {
     slug: "app-postings",

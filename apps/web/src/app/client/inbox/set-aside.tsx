@@ -65,7 +65,7 @@ function RowCheck({ what, className }: { what: string; className: string }) {
  * `from=row` keeping the member on the card. It goes with its row, so focus
  * moves to the row below rather than falling to the page.
  */
-export function RowDismiss({ instance, what, next, className }: { instance: IssueInstance; what: string; next: string | null; className: string }) {
+export function RowDismiss({ instance, what, next, range, className }: { instance: IssueInstance; what: string; next: string | null; range: number; className: string }) {
   const posted = useRef(false);
   const toNext = useRef(next);
   toNext.current = next;
@@ -83,6 +83,7 @@ export function RowDismiss({ instance, what, next, className }: { instance: Issu
       <input type="hidden" name="issueReason" value={instance.reason} />
       <input type="hidden" name="issueAt" value={instance.at} />
       <input type="hidden" name="from" value="row" />
+      <input type="hidden" name="range" value={range} />
       <RowCheck what={what} className={className} />
     </form>
   );
