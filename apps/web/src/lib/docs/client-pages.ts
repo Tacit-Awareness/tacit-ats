@@ -49,7 +49,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Pipeline & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
-New to the app? The play button at the bottom of the sidebar starts a guided [tutorial](/docs/app-keys#tutorial).`,
+New to the app? **Tutorial**, in the menu under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
   },
   {
     slug: "access",
@@ -113,19 +113,19 @@ Interviewers get a simpler Home: the people they interview, the jobs they can se
 
 ## Inbox
 
-The Inbox lists what is stuck and waiting on someone, for admins and the hiring team. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with.
+The Inbox is one card listing what is stuck and waiting on someone, under **Needs you**, for admins and the hiring team. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with.
 
-| Group | What lands here |
+| Kind | What lands here |
 | --- | --- |
 | **Overdue** | Feedback not filed, a next action past its date, or nobody in touch with the candidate for a week |
 | **Decisions** | Candidates whose interviews are done with nothing booked next, and approvals waiting on you |
 | **Unsent drafts** | Your own candidate emails, left unsent for two hours |
 
-Open an issue to see it with the candidate's recent history, then act:
+Click an issue, or press \`Enter\` on it, to open it in a pop-up with the candidate's recent history, then act. \`Esc\`, the close button or a click outside takes you back to the card. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:
 
 | Key | What it does |
 | --- | --- |
-| \`J\` / \`K\` | Next, previous |
+| \`J\` / \`K\` | Next, previous. On the card this moves between rows; in the pop-up it opens the next issue |
 | \`F\` | The issue's fix, such as **Mark it done**, **Log a touch** or **Send here** |
 | \`A\` | Approve an approval. On a candidate, opens their page for the next round |
 | \`O\` | Move a candidate to offer |
@@ -168,17 +168,18 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 
 ## Applicant Tickets
 
-**Applicant Tickets** holds new job-board applicants, grouped by job, newest first. Open one to read the whole application, then route it:
+**Applicant Tickets** holds new job-board applicants, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application. Pick the next step in the panel under it, then press the button beside it:
 
 | Key | What it does |
 | --- | --- |
 | \`J\` / \`K\` | Next, previous |
-| \`I\` | Interview |
-| \`S\` | Move to screening |
-| \`D\` | Decline, with a reason from your company's list |
+| \`I\` | Pick Interview |
+| \`S\` | Pick Screening |
+| \`D\` | Pick Decline, then choose a reason from your company's list |
+| \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-Routing moves the candidate and opens the next ticket. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+Picking a step moves nobody; the button does, then the next ticket opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
@@ -214,7 +215,11 @@ Interviewers see a short card: the resume, their own notes and their own intervi
 
 ## Pipeline
 
-**Pipeline** puts every open job's live candidates on one board. The columns work themselves out from each candidate's stage and interviews:
+**Pipeline** shows every open job's live candidates. It opens on **Stuck**, the people who have stalled; **Everyone** shows the rest. The bar across the top gives each stage its headcount and how many are stuck, and clicking a stage filters to it. A saved view, a name search or a link to a stage opens in Everyone.
+
+Each person is one row, grouped by stage: what is happening, the facts, and how long since anything happened, red once they have stalled. \`J\` and \`K\` walk the rows and \`Enter\` opens the candidate page.
+
+Pick one job and its board appears. The stages work themselves out from each candidate's stage and interviews:
 
 | Column | Who is in it |
 | --- | --- |
@@ -225,9 +230,9 @@ Interviewers see a short card: the resume, their own notes and their own intervi
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
 
-Hired, rejected and withdrawn candidates leave the board. Filter by department, job or name, and open a card for the candidate page.
+Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name, and open a row or card for the candidate page.
 
-Where you can edit a job, move a card by dragging it, with its **Move** button, or from the keyboard:
+On a job's board, where you can edit that job, move a card by dragging it, with its **Move** button, or from the keyboard:
 
 | Key | What it does |
 | --- | --- |
@@ -334,11 +339,11 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant T
 
 ## Tutorial
 
-The play button by the keyboard button, at the bottom of the sidebar, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews and Referrals, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, in the menu under your name at the bottom of the sidebar, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews and Referrals, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet.`,
   },
   {
     slug: "connect",

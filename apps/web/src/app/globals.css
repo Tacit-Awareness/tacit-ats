@@ -12,7 +12,7 @@
    application's white page) names a step directly. Values are the prototype's
    resolved ones (its style.css redefines them in layers; the last :root wins).
    Two themes: light below, dark in the blocks after it. With no choice made the
-   page follows the system; the sidebar's toggle stores one in the `tacit-theme`
+   page follows the system; the account menu's switch stores one in the `tacit-theme`
    cookie, which the root layout renders as <html data-theme>, so there is no
    flash of the wrong theme and no before-paint script.
 
@@ -57,7 +57,7 @@
   --frame: var(--n35); /* the sidebar and everything behind the panel */
   --surface: var(--n25); /* header strips and table heads, one step down from the panel */
   --paper: var(--n0); /* the panel a page sits on, and cards */
-  --raised: var(--n0); /* popovers, the active nav item */
+  --raised: var(--n0); /* popovers */
   --pane: var(--n25); /* a reader pane, one shade under its list */
   --band: var(--n25); /* group headers */
   --ink: var(--n900);
@@ -67,7 +67,7 @@
   --line: var(--n100); /* hairlines inside a box */
   --line-strong: var(--n150); /* structure: bars, splits, table heads; inputs, outlined buttons */
   --soft: var(--n50); /* recessed fill: hovers, bands, avatar chips */
-  --soft-strong: var(--n100); /* the active nav item, the track of a pill group */
+  --soft-strong: var(--n100); /* the track of a pill group */
   --pick: var(--n900); /* the picked option in a pill track */
   --pick-ink: var(--n25);
   --hover: oklch(var(--ink-a) / 0.04);
