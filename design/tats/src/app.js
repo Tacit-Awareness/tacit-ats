@@ -5,6 +5,39 @@
 // back with the interviewer's read. You only see it again when it's your call.
 // Plain DOM: render() redraws from `state`; clicks route through data-act.
 
+/* ---------------- UI scale: the whole interface grows with the window ----------------
+   The layout is drawn for a ~1440 x 840 window. Larger windows zoom the body by the smaller of the two ratios
+   (capped at 1.6), so type, spacing and panels grow together. Under zoom the browser reports rects, pointer
+   positions and the window size in screen pixels while CSS lengths stay unscaled; the shims below translate
+   them back into the page's own CSS pixels, so every drag, popover and measurement keeps working unchanged. */
+const UI = { z: 1, base: { w: 1440, h: 840 }, max: 1.6 };
+{
+  const own = (o, k) => Object.getOwnPropertyDescriptor(o, k);
+  const W0 = own(window, "innerWidth").get, H0 = own(window, "innerHeight").get;
+  const realW = () => W0.call(window), realH = () => H0.call(window);
+  Object.defineProperty(window, "innerWidth", { configurable: true, get: () => realW() / UI.z });
+  Object.defineProperty(window, "innerHeight", { configurable: true, get: () => realH() / UI.z });
+  for (const P of [MouseEvent.prototype, window.Touch && Touch.prototype].filter(Boolean))
+    for (const k of ["clientX", "clientY", "pageX", "pageY", "x", "y"]) {
+      const d = own(P, k); if (!d || !d.get) continue;
+      Object.defineProperty(P, k, { configurable: true, enumerable: true, get() { return d.get.call(this) / UI.z; } });
+    }
+  const rect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () { const r = rect.call(this); return UI.z === 1 ? r : new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z); };
+  const rects = Element.prototype.getClientRects;
+  Element.prototype.getClientRects = function () { const rs = rects.call(this); return UI.z === 1 ? rs : [...rs].map((r) => new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z)); };
+  const at = Document.prototype.elementFromPoint, ats = Document.prototype.elementsFromPoint;
+  Document.prototype.elementFromPoint = function (x, y) { return at.call(this, x * UI.z, y * UI.z); };
+  Document.prototype.elementsFromPoint = function (x, y) { return ats.call(this, x * UI.z, y * UI.z); };
+  const fit = () => {
+    const z = Math.round(Math.max(1, Math.min(UI.max, realW() / UI.base.w, realH() / UI.base.h)) * 100) / 100;
+    if (z === UI.z) return;
+    UI.z = z; document.documentElement.style.setProperty("--ui-scale", z);
+  };
+  fit(); addEventListener("resize", fit);
+}
+
+
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -4625,7 +4658,7 @@ const ACT = {
   jeSave: () => jeSave(),
   addBot: () => openAddBot(),
   openTicketPop: (el) => go(`t~${el.dataset.id}`),
-  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); renderSide(); },
+  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); sbAnimate(); renderSide(); },
   policy: (el) => { const p = POLICY.find((x) => x.k === el.dataset.k); p.off = !p.off; render(); },
 };
 document.addEventListener("click", (e) => {
@@ -4884,29 +4917,41 @@ function applySidebar() {
   app.classList.toggle("sb-collapsed", !!state.sbCollapsed);
   if (state.sbWidth) app.style.setProperty("--sbw", `${state.sbWidth}px`); else app.style.removeProperty("--sbw");
 }
-function setSidebar(collapsed) { state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
+// .sb-anim lets the CSS play the change (allow-discrete out, @starting-style in), then steps aside.
+let sbAnimT;
+function sbAnimate() { const app = $("#app"); app.classList.add("sb-anim"); clearTimeout(sbAnimT); sbAnimT = setTimeout(() => app.classList.remove("sb-anim"), 400); }
+function setSidebar(collapsed) { sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
 try { const sv = JSON.parse(localStorage.getItem(SB_KEY) || "null"); if (sv) { state.sbWidth = sv.w || null; state.sbCollapsed = !!sv.c; } } catch {}
 {
   const h = $("#sbResize");
   let drag = null;
   const clampW = (w) => Math.max(200, Math.min(380, Math.round(w)));
+  // One drag goes both ways: out of the rail past SNAP opens it, back under SNAP folds it. Each snap animates
+  // (sb-dragging comes off for the length of the transition), then the edge follows the pointer again.
+  const SNAP = 140;
+  const snap = (collapsed) => {
+    document.body.classList.remove("sb-dragging");
+    drag.snapUntil = performance.now() + 300;
+    sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); renderSide();
+  };
   h.addEventListener("pointerdown", (e) => {
-    if (state.sbCollapsed) return;
-    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width };
+    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width, snapUntil: 0 };
     document.body.classList.add("sb-dragging");
     try { h.setPointerCapture(e.pointerId); } catch {}
   });
   h.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const w = drag.w + e.clientX - drag.x;
-    if (w < 140) { drag = null; document.body.classList.remove("sb-dragging"); return setSidebar(true); }
+    if (state.sbCollapsed) { if (w >= SNAP) { state.sbWidth = clampW(w); snap(false); } return; }
+    if (w < SNAP) return snap(true);
+    if (performance.now() > drag.snapUntil) document.body.classList.add("sb-dragging");
     state.sbWidth = clampW(w);
     applySidebar();
   });
   const end = () => { if (!drag) return; drag = null; document.body.classList.remove("sb-dragging"); saveSidebar(); fitCalendar(); };
   h.addEventListener("pointerup", end);
   h.addEventListener("pointercancel", end);
-  h.addEventListener("dblclick", () => { state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
+  h.addEventListener("dblclick", () => { if (state.sbCollapsed) return setSidebar(false); state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
   h.addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();

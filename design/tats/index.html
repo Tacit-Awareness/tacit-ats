@@ -1222,7 +1222,7 @@ a.logrow:hover { background: var(--hover); }
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 12vh 16px 16px;
+  padding: calc(12 * var(--vh)) 16px 16px;
   animation: fade 0.12s ease-out;
 }
 @keyframes fade { from { opacity: 0; } }
@@ -1238,7 +1238,7 @@ a.logrow:hover { background: var(--hover); }
 .palette .ctx { display: flex; gap: 6px; padding: 12px 14px 0; }
 .palette input { width: 100%; height: 50px; border: 0; outline: none; background: transparent; padding: 0 16px; font-size: 15px; }
 .palette input::placeholder { color: var(--faint); }
-.palette .res { border-top: 1px solid var(--line); max-height: 52vh; overflow-y: auto; padding: 6px; }
+.palette .res { border-top: 1px solid var(--line); max-height: calc(52 * var(--vh)); overflow-y: auto; padding: 6px; }
 .palette .sec { font-size: 11.5px; color: var(--faint); padding: 8px 10px 4px; }
 .palette .opt { height: 36px; padding: 0 10px; }
 .palette .foot { display: flex; gap: 14px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); color: var(--faint); font-size: 12px; }
@@ -1493,7 +1493,7 @@ a.logrow:hover { background: var(--hover); }
 .act.go:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
 .act.go .kbd { background: rgba(255, 255, 255, 0.18); color: inherit; border-color: transparent; }
 .tri-hint { margin-top: 10px; color: var(--faint); font-size: 12.5px; display: flex; gap: 5px; align-items: center; }
-.tri-done { display: grid; justify-items: center; gap: 8px; padding: 18vh 24px; text-align: center; }
+.tri-done { display: grid; justify-items: center; gap: 8px; padding: calc(18 * var(--vh)) 24px; text-align: center; }
 .tri-done .ico.big { width: 28px; height: 28px; color: var(--ok); stroke-width: 1.6; }
 .tri-done h2 { margin: 6px 0 0; font-size: 20px; font-weight: 600; }
 .tri-done p { margin: 0 0 10px; color: var(--muted); }
@@ -1797,7 +1797,7 @@ button.stat { cursor: pointer; }
 .c-head b { font-weight: 500; }
 .c-head .chip { height: 26px; }
 .sugg { font-size: 11.5px; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 9px; }
-.composer2 textarea { width: 100%; min-height: 128px; max-height: 32vh; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; font-size: 13.5px; line-height: 1.55; outline: none; }
+.composer2 textarea { width: 100%; min-height: 128px; max-height: calc(32 * var(--vh)); resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 10px 12px; font-size: 13.5px; line-height: 1.55; outline: none; }
 .composer2 textarea:focus { border-color: var(--line-strong); background: var(--paper); box-shadow: var(--shadow); }
 .c-foot { display: flex; align-items: center; gap: 10px; }
 .c-foot .hint { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 12.5px; margin-right: auto; min-width: 0; }
@@ -2004,7 +2004,7 @@ a.ct-row:hover { background: var(--hover); }
 
 /* ---------- v10: event card (Google Calendar's popover) ---------- */
 .gpop-wrap { position: fixed; inset: 0; z-index: 70; pointer-events: none; }
-.gpop { position: fixed; pointer-events: auto; width: 440px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.08); animation: pop 0.16s ease-out; overflow: hidden; }
+.gpop { position: fixed; pointer-events: auto; width: 440px; max-height: calc(calc(100 * var(--vh)) - 24px); display: flex; flex-direction: column; background: var(--raised); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.28), 0 4px 12px rgba(0, 0, 0, 0.08); animation: pop 0.16s ease-out; overflow: hidden; }
 .gp-tools { display: flex; align-items: center; gap: 2px; padding: 10px 10px 0 12px; }
 .gbtn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: var(--muted); }
 .gbtn:hover { background: var(--hover); color: var(--ink); }
@@ -2067,7 +2067,7 @@ a.ct-row:hover { background: var(--hover); }
 .btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
 .btn.danger:hover { background: color-mix(in srgb, var(--red) 88%, #000); }
 button.pill2 { width: auto; text-align: left; border: 0; cursor: pointer; }
-.gpop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-height: 86vh; border-radius: 16px 16px 0 0; animation: sheetup 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.gpop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-height: calc(86 * var(--vh)); border-radius: 16px 16px 0 0; animation: sheetup 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
 @keyframes sheetup { from { transform: translateY(24px); opacity: 0; } }
 @media (max-width: 767px) {
   .gp-body { padding: 4px 16px 16px; }
@@ -2468,7 +2468,7 @@ body { font-size: 13.5px; }
 .fm-head > div { flex: 1; }
 .fm-head h3 { margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.012em; }
 .fm-head p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
-.fm-body { padding: 10px 22px 18px; display: grid; gap: 14px; max-height: 70vh; overflow-y: auto; }
+.fm-body { padding: 10px 22px 18px; display: grid; gap: 14px; max-height: calc(70 * var(--vh)); overflow-y: auto; }
 .fm-f { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
 .fm-f input, .fm-f select, .fm-f textarea { width: 100%; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); font-size: 14px; outline: none; }
 .fm-f textarea { height: auto; padding: 10px 12px; line-height: 1.55; resize: vertical; }
@@ -3080,7 +3080,7 @@ a.rk-r:hover > i { background: color-mix(in srgb, var(--accent) 18%, transparent
 .ib-donebtn { margin-right: 4px; }
 .ib-donebtn .kbd { margin-left: 4px; }
 .ib-donebtn:hover { background: var(--ok-soft); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
-.ib-zero { display: grid; justify-items: center; gap: 8px; padding: 18vh 32px 40px; text-align: center; }
+.ib-zero { display: grid; justify-items: center; gap: 8px; padding: calc(18 * var(--vh)) 32px 40px; text-align: center; }
 .ib-zero-mark { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--ok-soft); color: var(--ok); margin-bottom: 4px; }
 .ib-zero-mark svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ib-zero h2 { margin: 0; font-size: 18px; font-weight: 600; }
@@ -3761,7 +3761,7 @@ b[data-hc]:hover, .card .name[data-hc]:hover { text-decoration: underline; text-
 .ib-tabs { margin-left: 4px; }
 .ib-tabs button span { margin-left: 6px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .ib-note { margin: 0; padding: 10px 20px; border-bottom: 1px solid var(--line); color: var(--faint); font-size: 12.5px; }
-.ib-zero.big { padding: 22vh 24px 40px; }
+.ib-zero.big { padding: calc(22 * var(--vh)) 24px 40px; }
 .ib-zero.big p { max-width: 340px; }
 .ib-zero-acts { display: flex; gap: 8px; }
 
@@ -4538,7 +4538,7 @@ a.hm-li:hover b { text-decoration: underline; text-underline-offset: 3px; }
 .cmp-col { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--s2); min-width: 0; }
 .cmp-h { display: flex; align-items: center; justify-content: space-between; }
 .cmp-h b { font-size: 14px; font-weight: 600; }
-.cmp-frame { border: 1px solid var(--line-strong); border-radius: 12px; overflow: auto; background: var(--paper); max-height: calc(100vh - 160px); }
+.cmp-frame { border: 1px solid var(--line-strong); border-radius: 12px; overflow: auto; background: var(--paper); max-height: calc(calc(100 * var(--vh)) - 160px); }
 .cmp-inner { width: 1180px; zoom: 0.52; pointer-events: none; }
 .cmp-inner .bar, .cmp-inner .hm-nav { pointer-events: none; }
 .cmp-inner .scroll { overflow: visible; }
@@ -5007,7 +5007,7 @@ button.cp-msg:hover { box-shadow: var(--elev-hi); }
 .cp-msg-h { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); color: var(--faint); font-size: 12.5px; }
 .cp-msg-h b { color: var(--accent); font-weight: 500; }
 .cp-msg-b { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--ink); font-size: 14px; line-height: 1.55; white-space: pre-line; }
-.cp-msg.editing textarea { min-height: 140px; max-height: 34vh; border: 0; padding: 0; background: transparent; font-size: 14px; line-height: 1.6; box-shadow: none; }
+.cp-msg.editing textarea { min-height: 140px; max-height: calc(34 * var(--vh)); border: 0; padding: 0; background: transparent; font-size: 14px; line-height: 1.6; box-shadow: none; }
 .cp-send { display: grid; align-content: end; justify-items: end; gap: var(--s2); }
 .cp-send .cx-primary { height: 48px; padding: 0 26px; font-size: 15px; }
 .cp-hint { color: var(--faint); font-size: 12px; }
@@ -5281,7 +5281,7 @@ i.pill-glass.press { transform-origin: center; }
 .fl-sheet .fc { flex: 1; border: 0; }
 .su-wide .su { grid-template-columns: minmax(0, 1fr) !important; max-width: none !important; }
 .su-wide .su-side { display: none; }
-.su-flow .fc { height: max(520px, calc(100vh - 380px)); margin-top: var(--s4); }
+.su-flow .fc { height: max(520px, calc(calc(100 * var(--vh)) - 380px)); margin-top: var(--s4); }
 /* Interviews: the routing graph from the process */
 .ft-wrap .pth-c { display: flex; align-items: center; gap: var(--s3); }
 .ft { position: relative; overflow-x: auto; padding: var(--s4) var(--s1) var(--s2); cursor: pointer; }
@@ -5340,9 +5340,9 @@ i.pill-glass.press { transform-origin: center; }
 .su-surf:hover { border-bottom-color: var(--ink); }
 .su-surf svg { width: 13px; height: 13px; }
 .su-surf .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-body.surface { margin: 0; height: 100vh; overflow: hidden; }
+body.surface { margin: 0; height: calc(100 * var(--vh)); overflow: hidden; }
 body.surface.cli { background: #0d0d0f; }
-.cli { display: flex; flex-direction: column; height: 100vh; font: 13.5px/1.6 "SF Mono", ui-monospace, Menlo, monospace; color: #e6e6e6; }
+.cli { display: flex; flex-direction: column; height: calc(100 * var(--vh)); font: 13.5px/1.6 "SF Mono", ui-monospace, Menlo, monospace; color: #e6e6e6; }
 .cli-bar { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; background: #1a1a1d; border-bottom: 1px solid #26262a; color: #8b8b92; font-size: 12px; }
 .cli-bar i { width: 11px; height: 11px; border-radius: 50% !important; background: #3a3a3f; }
 .cli-bar span { flex: 1; text-align: center; margin-right: 50px; }
@@ -5356,7 +5356,7 @@ body.surface.cli { background: #0d0d0f; }
 .cli-in span { color: #7ee2a8; }
 .cli-in input { flex: 1; background: none; border: 0; outline: none; color: #fff; font: inherit; caret-color: #7ee2a8; }
 body.surface.slack { background: #fff; }
-.slk { display: grid; grid-template-columns: 220px 1fr; height: 100vh; font-family: Inter, system-ui, sans-serif; color: #1d1c1d; }
+.slk { display: grid; grid-template-columns: 220px 1fr; height: calc(100 * var(--vh)); font-family: Inter, system-ui, sans-serif; color: #1d1c1d; }
 .slk-side { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; background: #3f0e40; color: #cfc3cf; font-size: 14px; }
 .slk-side b { color: #fff; padding: 4px 10px 12px; font-size: 16px; }
 .slk-side span { display: flex; align-items: center; gap: 8px; padding: 4px 10px; }
@@ -5382,81 +5382,182 @@ body.surface { padding: 0 !important; display: block !important; }
 .cli-l, .slk-m p { white-space: pre-line; }
 
 /* v80: brand-tinted neutrals. One scale from near-white to near-black, every step carrying the
-   brand's hue (the accent, #5E6AD2), so frames, panels, lines and text read as Meridian without
-   any of them looking blue. Change --brand-h to retint the whole interface; --tint scales how much. */
+   brand's hue at a whisper (Linear's chroma, ~0.005), so it reads as cool white and graphite, never blue.
+   Light lives on the 1 / 5 / 10% steps (#F4F5F8 is 5%) with text on 70 / 80 / 90% (#222326 is 90%);
+   dark mirrors it. The mid-tones are left for the few marks that need them. --brand-h retints, --tint scales. */
 :root {
-  --brand-h: 275;
+  --brand-h: 271;
   --tint: 1;
-  --n0:    oklch(0.995 calc(0.003 * var(--tint)) var(--brand-h));
-  --n25:   oklch(0.983 calc(0.006 * var(--tint)) var(--brand-h));
-  --n50:   oklch(0.968 calc(0.009 * var(--tint)) var(--brand-h));
-  --n100:  oklch(0.948 calc(0.012 * var(--tint)) var(--brand-h));
-  --n150:  oklch(0.922 calc(0.015 * var(--tint)) var(--brand-h));
-  --n200:  oklch(0.885 calc(0.018 * var(--tint)) var(--brand-h));
-  --n300:  oklch(0.800 calc(0.022 * var(--tint)) var(--brand-h));
-  --n400:  oklch(0.690 calc(0.026 * var(--tint)) var(--brand-h));
-  --n500:  oklch(0.565 calc(0.028 * var(--tint)) var(--brand-h));
-  --n600:  oklch(0.455 calc(0.028 * var(--tint)) var(--brand-h));
-  --n700:  oklch(0.350 calc(0.026 * var(--tint)) var(--brand-h));
-  --n800:  oklch(0.265 calc(0.022 * var(--tint)) var(--brand-h));
-  --n850:  oklch(0.228 calc(0.020 * var(--tint)) var(--brand-h));
-  --n900:  oklch(0.200 calc(0.018 * var(--tint)) var(--brand-h));
-  --n950:  oklch(0.172 calc(0.016 * var(--tint)) var(--brand-h));
-  --n1000: oklch(0.140 calc(0.014 * var(--tint)) var(--brand-h));
+  /* backgrounds: 1%, 5%, 10%, and the two line steps between 10 and 20 */
+  --n0:    oklch(0.995 calc(0.0015 * var(--tint)) var(--brand-h));
+  --n25:   oklch(0.985 calc(0.0025 * var(--tint)) var(--brand-h)); /* 1% */
+  --n35:   oklch(0.978 calc(0.0033 * var(--tint)) var(--brand-h)); /* 3%, the frame and sidebar, as in Linear */
+  --n50:   oklch(0.970 calc(0.0041 * var(--tint)) var(--brand-h)); /* 5%  #F4F5F8 */
+  --n100:  oklch(0.948 calc(0.0048 * var(--tint)) var(--brand-h)); /* 10% */
+  --n150:  oklch(0.922 calc(0.0052 * var(--tint)) var(--brand-h));
+  --n200:  oklch(0.890 calc(0.0055 * var(--tint)) var(--brand-h));
+  --n300:  oklch(0.800 calc(0.0058 * var(--tint)) var(--brand-h));
+  --n400:  oklch(0.680 calc(0.0060 * var(--tint)) var(--brand-h));
+  --n500:  oklch(0.600 calc(0.0060 * var(--tint)) var(--brand-h));
+  --n600:  oklch(0.530 calc(0.0060 * var(--tint)) var(--brand-h));
+  /* text: 70%, 80%, 90% */
+  --n700:  oklch(0.515 calc(0.0060 * var(--tint)) var(--brand-h)); /* 70% */
+  --n800:  oklch(0.390 calc(0.0060 * var(--tint)) var(--brand-h)); /* 80% */
+  --n900:  oklch(0.256 calc(0.0058 * var(--tint)) var(--brand-h)); /* 90% #222326 */
+  /* dark surfaces, under and over the 90% step */
+  --n850:  oklch(0.288 calc(0.0058 * var(--tint)) var(--brand-h));
+  --n950:  oklch(0.226 calc(0.0055 * var(--tint)) var(--brand-h));
+  --n1000: oklch(0.198 calc(0.0052 * var(--tint)) var(--brand-h));
   /* the ink and the paper as channels, for lines, hovers and shadows at any opacity */
-  --ink-a:   0.265 calc(0.022 * var(--tint)) var(--brand-h);
-  --paper-a: 0.968 calc(0.009 * var(--tint)) var(--brand-h);
+  --ink-a:   0.256 calc(0.0058 * var(--tint)) var(--brand-h);
+  --paper-a: 0.970 calc(0.0041 * var(--tint)) var(--brand-h);
 
-  --frame: var(--n50); --surface: var(--n25); --paper: var(--n0); --raised: var(--n0); --pane: var(--n25);
-  --ink: var(--n800); --muted: var(--n500); --faint: var(--n400);
-  --line: var(--n150); --line-strong: var(--n200); --edge: oklch(var(--ink-a) / 0.12);
-  --soft: var(--n50); --soft-strong: var(--n100); --band: var(--n50); --sb-bg: var(--n50);
-  --hover: oklch(var(--ink-a) / 0.045); --sel: var(--n100);
-  --scrim: oklch(var(--ink-a) / 0.34);
-  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(var(--ink-a) / 0.05), 0 4px 12px -6px oklch(var(--ink-a) / 0.09);
-  --elev-hi: 0 0 0 1px oklch(var(--ink-a) / 0.16), 0 2px 4px oklch(var(--ink-a) / 0.06), 0 12px 28px -10px oklch(var(--ink-a) / 0.18);
+  --frame: var(--n35); --surface: var(--n25); --paper: var(--n0); --raised: var(--n0); --pane: var(--n25);
+  --ink: var(--n900); --muted: var(--n800); --faint: var(--n700);
+  --line: var(--n100); --line-strong: var(--n150); --edge: oklch(var(--ink-a) / 0.09);
+  --soft: var(--n50); --soft-strong: var(--n100); --band: var(--n25); --sb-bg: var(--n35);
+  --hover: oklch(var(--ink-a) / 0.04); --sel: var(--n100);
+  --scrim: oklch(var(--ink-a) / 0.3);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(var(--ink-a) / 0.04), 0 4px 12px -6px oklch(var(--ink-a) / 0.07);
+  --elev-hi: 0 0 0 1px oklch(var(--ink-a) / 0.12), 0 2px 4px oklch(var(--ink-a) / 0.05), 0 12px 28px -10px oklch(var(--ink-a) / 0.16);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --frame: var(--n1000); --surface: var(--n950); --paper: var(--n900); --raised: var(--n850); --pane: var(--n950); --sb-bg: var(--n1000);
-    --ink: var(--n50); --muted: var(--n300); --faint: var(--n500);
-    --line: oklch(var(--paper-a) / 0.08); --line-strong: oklch(var(--paper-a) / 0.15); --edge: oklch(var(--paper-a) / 0.1);
-    --soft: oklch(var(--paper-a) / 0.05); --soft-strong: oklch(var(--paper-a) / 0.08); --band: oklch(var(--paper-a) / 0.035);
-    --hover: oklch(var(--paper-a) / 0.045); --sel: oklch(var(--paper-a) / 0.08);
-    --scrim: oklch(0.1 calc(0.014 * var(--tint)) var(--brand-h) / 0.6);
-    --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.01 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.01 var(--brand-h) / 0.45);
-    --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.01 var(--brand-h) / 0.65);
+    --ink: var(--n50); --muted: var(--n300); --faint: var(--n400);
+    --line: oklch(var(--paper-a) / 0.07); --line-strong: oklch(var(--paper-a) / 0.12); --edge: oklch(var(--paper-a) / 0.08);
+    --soft: oklch(var(--paper-a) / 0.04); --soft-strong: oklch(var(--paper-a) / 0.07); --band: oklch(var(--paper-a) / 0.025);
+    --hover: oklch(var(--paper-a) / 0.04); --sel: oklch(var(--paper-a) / 0.07);
+    --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
+    --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.004 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.004 var(--brand-h) / 0.45);
+    --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.004 var(--brand-h) / 0.65);
   }
 }
 :root[data-theme="dark"] {
   --frame: var(--n1000); --surface: var(--n950); --paper: var(--n900); --raised: var(--n850); --pane: var(--n950); --sb-bg: var(--n1000);
-  --ink: var(--n50); --muted: var(--n300); --faint: var(--n500);
-  --line: oklch(var(--paper-a) / 0.08); --line-strong: oklch(var(--paper-a) / 0.15); --edge: oklch(var(--paper-a) / 0.1);
-  --soft: oklch(var(--paper-a) / 0.05); --soft-strong: oklch(var(--paper-a) / 0.08); --band: oklch(var(--paper-a) / 0.035);
-  --hover: oklch(var(--paper-a) / 0.045); --sel: oklch(var(--paper-a) / 0.08);
-  --scrim: oklch(0.1 calc(0.014 * var(--tint)) var(--brand-h) / 0.6);
-  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.01 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.01 var(--brand-h) / 0.45);
-  --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.01 var(--brand-h) / 0.65);
+  --ink: var(--n50); --muted: var(--n300); --faint: var(--n400);
+  --line: oklch(var(--paper-a) / 0.07); --line-strong: oklch(var(--paper-a) / 0.12); --edge: oklch(var(--paper-a) / 0.08);
+  --soft: oklch(var(--paper-a) / 0.04); --soft-strong: oklch(var(--paper-a) / 0.07); --band: oklch(var(--paper-a) / 0.025);
+  --hover: oklch(var(--paper-a) / 0.04); --sel: oklch(var(--paper-a) / 0.07);
+  --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
+  --elev: 0 0 0 1px var(--edge), 0 1px 2px oklch(0.1 0.004 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.004 var(--brand-h) / 0.45);
+  --elev-hi: 0 0 0 1px oklch(var(--paper-a) / 0.1), 0 12px 32px -10px oklch(0.08 0.004 var(--brand-h) / 0.65);
 }
 /* what the tokens don't reach: the same scale, set by hand */
-.pills > .on, .cx-seg > .on, .seg > .on, .ibx-seg > .on, .fm-seg > .on, .tabs > .on, .fm-seg input:checked + span { background: var(--n600) !important; color: var(--n25) !important; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n800) !important; } }
-:root[data-theme="dark"] :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n800) !important; }
+.pills > .on, .cx-seg > .on, .seg > .on, .ibx-seg > .on, .fm-seg > .on, .tabs > .on, .fm-seg input:checked + span { background: var(--n900) !important; color: var(--n25) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n900) !important; } }
+:root[data-theme="dark"] :is(.pills, .cx-seg, .seg, .ibx-seg, .tabs) > .on { background: var(--n50) !important; color: var(--n900) !important; }
 /* people and team colours keep their lightness, so they still tell apart, but take the brand's hue */
-:is(.av, .team-key, .tdot)[style*="--c"]:not(.pal-prev *) { filter: none; background: oklch(from var(--c) calc(l * 0.92) calc(0.035 * var(--tint)) var(--brand-h)) !important; }
+:is(.av, .team-key, .tdot)[style*="--c"]:not(.pal-prev *) { filter: none; background: oklch(from var(--c) calc(l * 0.92) calc(0.02 * var(--tint)) var(--brand-h)) !important; }
 .av, .team-key, .ws-logo, .ft-flag, .crm-tab.on { color: var(--n25); }
 /* the interviewer's reply sits on the ink, so its text is the paper: dark on light in dark mode */
 .gc-bubble.in { color: var(--paper); }
 .av.grok { background-color: var(--n950) !important; box-shadow: 0 0 0 1px oklch(var(--ink-a) / 0.08); }
-:root { --ev-gray: var(--n100); --ev-gray-ink: var(--n600); }
-.gc { --gc-border: var(--n150); --gc-text: var(--n600); }
-.pg { background: var(--n0); color: var(--n850); }
+:root { --ev-gray: var(--n100); --ev-gray-ink: var(--n800); }
+.gc { --gc-border: var(--n150); --gc-text: var(--n800); }
+.pg { background: var(--n0); color: var(--n900); }
 .pg-head { border-bottom-color: var(--n150); }
 .pg-term .cmd { color: var(--n150); }
 .sb-ws .ws-logo, .phonebar .ws-logo, .btn.primary, .btn.sm.primary, .cx-primary, .bar .cx-primary.je-save, .kb.primary { color: var(--n25); }
 .su-tog i { background: var(--n0); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); } }
 :root[data-theme="dark"] .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); }
+
+/* the stuck count on a stage: a soft red pill, like Linear's quiet destructive buttons, not loose red text */
+.pl-sc { align-items: center; }
+.pl-sc em { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px !important;
+  font-size: 12px; font-weight: 500; color: var(--bad, #e5484d);
+  background: color-mix(in oklch, var(--bad, #e5484d) 8%, var(--paper));
+  border: 1px solid color-mix(in oklch, var(--bad, #e5484d) 22%, transparent);
+  transition: background 0.15s, border-color 0.15s; }
+.pl-sc em::before { content: ""; width: 5px; height: 5px; border-radius: 999px !important; background: currentColor; }
+.pl-seg:has(.pl-sc em) { min-width: 156px; }
+.pl-seg:hover .pl-sc em { background: color-mix(in oklch, var(--bad, #e5484d) 13%, var(--paper)); border-color: color-mix(in oklch, var(--bad, #e5484d) 32%, transparent); }
+
+/* the sidebar's rhythm follows the window's height. Three tiers, like a spacing spec: tight between items,
+   a step under each section label, the widest step between sections. Each grows with the viewport between
+   a floor (a 13" laptop) and a ceiling (a 27" display), so the sidebar fills the height instead of
+   bunching at the top or running into the account row. Below the floor it scrolls; nothing overlaps. */
+.sb {
+  --sb-item-h:   clamp(28px, calc(3.9 * var(--vh)), 38px);  /* each row */
+  --sb-gap:      clamp(0px, calc(0.3 * var(--vh)), 4px);    /* between items */
+  --sb-sec-h:    clamp(24px, calc(3.3 * var(--vh)), 30px);  /* a section label */
+  --sb-sec-gap:  clamp(2px, calc(0.8 * var(--vh)), 8px);    /* label to its first item */
+  --sb-group-gap: clamp(12px, calc(3.1 * var(--vh)), 40px); /* between sections */
+  --sb-head-gap: clamp(14px, calc(3.1 * var(--vh)), 40px);  /* workspace to the first section */
+}
+.sb > * { flex-shrink: 0; }
+.sb-ws { margin-bottom: var(--sb-head-gap); }
+.sb-group { gap: var(--sb-gap); }
+.sb-group + .sb-group { margin-top: var(--sb-group-gap); }
+.sb-sec { height: var(--sb-sec-h); margin-bottom: var(--sb-sec-gap); }
+.sb-item { height: var(--sb-item-h); }
+.sb-group:has(+ .sb-acct) { margin-bottom: var(--sb-group-gap); }
+
+/* the sidebar moves instead of jumping. Collapsing to the rail: the width eases and the edge cuts the words off
+   as it passes (each label truncates to "…"); transition-behavior: allow-discrete keeps them in the layout until
+   the edge reaches the rail, then lets display: none land. Expanding: they're back at once and the edge uncovers
+   them. A section's ▾ folds its rows the same way, clipped by their own height. No fades, no overshoot.
+   The icons hold their place the whole time, so the rail narrows around them rather than re-centring them.
+   .sb-anim is on #app only while a toggle plays, so @starting-style never fires on an ordinary render. */
+:root { --sb-ease: cubic-bezier(0.4, 0, 0.2, 1); --sb-dur: 0.26s; }
+.sb-group { gap: 0; }
+.sb-group > .sb-item + .sb-item { margin-top: var(--sb-gap); }
+.sb-sec { overflow: hidden; }
+.sb-item { overflow: clip; overflow-clip-margin: 3px; }
+@media (min-width: 768px) {
+  .sb-collapsed .sb-item, .sb-collapsed .sb-item.sub { justify-content: flex-start; padding-left: 10px; padding-right: 0; }
+  .sb-collapsed .sb-sec { height: 0; margin-bottom: 0; }
+  .sb-collapsed .sb-group.shut .sb-item { height: var(--sb-item-h); }
+}
+.sb-group.shut .sb-item { height: 0; margin-top: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .side { transition: width var(--sb-dur) var(--sb-ease), padding var(--sb-dur) var(--sb-ease); }
+  .sb-dragging .side { transition: none; }
+  .sb-item { transition: height var(--sb-dur) var(--sb-ease), margin var(--sb-dur) var(--sb-ease), padding var(--sb-dur) var(--sb-ease),
+    background 0.15s, display var(--sb-dur) allow-discrete; }
+  .sb-sec { transition: height var(--sb-dur) var(--sb-ease), margin var(--sb-dur) var(--sb-ease),
+    background 0.15s, color 0.15s, display var(--sb-dur) allow-discrete; }
+  .sb-sec .tri { transition: transform var(--sb-dur) var(--sb-ease); }
+  :is(.sb-item .trunc, .sb-org b, .sb-org .chev, .sb-ws .icon-btn:not(.sb-toggle), .sb-me .grow, .sb-faces, .sb-agent, .sb-acct, .sb-foot .grow) { transition: display var(--sb-dur) allow-discrete; }
+  /* coming back: start where the leaving ended */
+  @starting-style {
+    .sb-anim .sb-sec { height: 0; margin-bottom: 0; }
+    .sb-anim .sb-group:not(.shut) .sb-item { height: 0; margin-top: 0; }
+  }
+}
+
+/* the rail keeps its edge: drag it out to open the sidebar again */
+@media (min-width: 768px) { .sb-collapsed .sb-resize { cursor: col-resize; pointer-events: auto; } }
+
+/* the edge does the cutting: nothing in the sidebar spills past it while it moves */
+.side, .sb { overflow-x: clip; }
+.sb-org b, .sb-me .grow { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-sec { white-space: nowrap; }
+.sb-group, .sb-item, .sb-ws, .sb-org { min-width: 0; }
+.sb-item .trunc { flex: 0 1 auto; }
+.sb-item > :not(.trunc) { flex-shrink: 0; }
+/* v70 caps every transition at 0.15s; the sidebar's width and folds take their own, unhurried time */
+@media (prefers-reduced-motion: no-preference) {
+  .side, .sb-item, .sb-sec, .sb-sec .tri, :is(.sb-item .trunc, .sb-org b, .sb-org .chev, .sb-ws .icon-btn:not(.sb-toggle), .sb-me .grow, .sb-faces, .sb-agent, .sb-acct, .sb-foot .grow) { transition-duration: var(--sb-dur) !important; }
+  .sb-dragging .side { transition-duration: 0s !important; }
+}
+
+/* where you are: the current page is a solid ink block with paper text, the same treatment as a selected pill.
+   In light that's #222326 with near-white words; in dark it inverts to a light block with dark words. */
+.sb-item.on, .sb-item.on.new { background: var(--ink); color: var(--paper); }
+.sb-item.on:hover, .sb-item.on.new:hover { background: var(--ink); }
+.sb-item.on .sb-ico, .sb-item.on .sb-count, .sb-item.on .sb-count.accent { color: var(--paper); }
+.sb-item.on .sb-count.red { color: color-mix(in oklch, var(--red) 55%, var(--paper)); }
+.sb-item.on .sb-faces .av { box-shadow: 0 0 0 1.5px var(--ink); }
+.sb-collapsed .sb-item.on .sb-count:not(.red) { background: var(--paper); color: var(--ink); }
+
+/* one scale for the whole interface. The layout is drawn for a ~1440 × 840 window; larger windows grow every
+   size together (type, spacing, panels, popovers) instead of leaving small islands in empty space. --ui-scale
+   is set from the window by app.js. --vh is a viewport-height unit that stays true under the zoom: every vh
+   in this file goes through it. */
+:root { --ui-scale: 1; --vh: calc(1vh / var(--ui-scale)); }
+body { zoom: var(--ui-scale); }
 
 </style>
 
@@ -5674,6 +5775,39 @@ const APPLICANTS = [
 // interviewer, text them, draft the invite in their Gmail, book it, and come
 // back with the interviewer's read. You only see it again when it's your call.
 // Plain DOM: render() redraws from `state`; clicks route through data-act.
+
+/* ---------------- UI scale: the whole interface grows with the window ----------------
+   The layout is drawn for a ~1440 x 840 window. Larger windows zoom the body by the smaller of the two ratios
+   (capped at 1.6), so type, spacing and panels grow together. Under zoom the browser reports rects, pointer
+   positions and the window size in screen pixels while CSS lengths stay unscaled; the shims below translate
+   them back into the page's own CSS pixels, so every drag, popover and measurement keeps working unchanged. */
+const UI = { z: 1, base: { w: 1440, h: 840 }, max: 1.6 };
+{
+  const own = (o, k) => Object.getOwnPropertyDescriptor(o, k);
+  const W0 = own(window, "innerWidth").get, H0 = own(window, "innerHeight").get;
+  const realW = () => W0.call(window), realH = () => H0.call(window);
+  Object.defineProperty(window, "innerWidth", { configurable: true, get: () => realW() / UI.z });
+  Object.defineProperty(window, "innerHeight", { configurable: true, get: () => realH() / UI.z });
+  for (const P of [MouseEvent.prototype, window.Touch && Touch.prototype].filter(Boolean))
+    for (const k of ["clientX", "clientY", "pageX", "pageY", "x", "y"]) {
+      const d = own(P, k); if (!d || !d.get) continue;
+      Object.defineProperty(P, k, { configurable: true, enumerable: true, get() { return d.get.call(this) / UI.z; } });
+    }
+  const rect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () { const r = rect.call(this); return UI.z === 1 ? r : new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z); };
+  const rects = Element.prototype.getClientRects;
+  Element.prototype.getClientRects = function () { const rs = rects.call(this); return UI.z === 1 ? rs : [...rs].map((r) => new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z)); };
+  const at = Document.prototype.elementFromPoint, ats = Document.prototype.elementsFromPoint;
+  Document.prototype.elementFromPoint = function (x, y) { return at.call(this, x * UI.z, y * UI.z); };
+  Document.prototype.elementsFromPoint = function (x, y) { return ats.call(this, x * UI.z, y * UI.z); };
+  const fit = () => {
+    const z = Math.round(Math.max(1, Math.min(UI.max, realW() / UI.base.w, realH() / UI.base.h)) * 100) / 100;
+    if (z === UI.z) return;
+    UI.z = z; document.documentElement.style.setProperty("--ui-scale", z);
+  };
+  fit(); addEventListener("resize", fit);
+}
+
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -10295,7 +10429,7 @@ const ACT = {
   jeSave: () => jeSave(),
   addBot: () => openAddBot(),
   openTicketPop: (el) => go(`t~${el.dataset.id}`),
-  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); renderSide(); },
+  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); sbAnimate(); renderSide(); },
   policy: (el) => { const p = POLICY.find((x) => x.k === el.dataset.k); p.off = !p.off; render(); },
 };
 document.addEventListener("click", (e) => {
@@ -10554,29 +10688,41 @@ function applySidebar() {
   app.classList.toggle("sb-collapsed", !!state.sbCollapsed);
   if (state.sbWidth) app.style.setProperty("--sbw", `${state.sbWidth}px`); else app.style.removeProperty("--sbw");
 }
-function setSidebar(collapsed) { state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
+// .sb-anim lets the CSS play the change (allow-discrete out, @starting-style in), then steps aside.
+let sbAnimT;
+function sbAnimate() { const app = $("#app"); app.classList.add("sb-anim"); clearTimeout(sbAnimT); sbAnimT = setTimeout(() => app.classList.remove("sb-anim"), 400); }
+function setSidebar(collapsed) { sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
 try { const sv = JSON.parse(localStorage.getItem(SB_KEY) || "null"); if (sv) { state.sbWidth = sv.w || null; state.sbCollapsed = !!sv.c; } } catch {}
 {
   const h = $("#sbResize");
   let drag = null;
   const clampW = (w) => Math.max(200, Math.min(380, Math.round(w)));
+  // One drag goes both ways: out of the rail past SNAP opens it, back under SNAP folds it. Each snap animates
+  // (sb-dragging comes off for the length of the transition), then the edge follows the pointer again.
+  const SNAP = 140;
+  const snap = (collapsed) => {
+    document.body.classList.remove("sb-dragging");
+    drag.snapUntil = performance.now() + 300;
+    sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); renderSide();
+  };
   h.addEventListener("pointerdown", (e) => {
-    if (state.sbCollapsed) return;
-    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width };
+    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width, snapUntil: 0 };
     document.body.classList.add("sb-dragging");
     try { h.setPointerCapture(e.pointerId); } catch {}
   });
   h.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const w = drag.w + e.clientX - drag.x;
-    if (w < 140) { drag = null; document.body.classList.remove("sb-dragging"); return setSidebar(true); }
+    if (state.sbCollapsed) { if (w >= SNAP) { state.sbWidth = clampW(w); snap(false); } return; }
+    if (w < SNAP) return snap(true);
+    if (performance.now() > drag.snapUntil) document.body.classList.add("sb-dragging");
     state.sbWidth = clampW(w);
     applySidebar();
   });
   const end = () => { if (!drag) return; drag = null; document.body.classList.remove("sb-dragging"); saveSidebar(); fitCalendar(); };
   h.addEventListener("pointerup", end);
   h.addEventListener("pointercancel", end);
-  h.addEventListener("dblclick", () => { state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
+  h.addEventListener("dblclick", () => { if (state.sbCollapsed) return setSidebar(false); state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
   h.addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
