@@ -21,6 +21,7 @@ export function IntegrationsView({
   granola,
   calendarConfigured,
   bot,
+  botConnected,
   orgName,
   botCallbackUrl,
   notice,
@@ -31,6 +32,8 @@ export function IntegrationsView({
   calendarConfigured: boolean;
   /** Null for anyone but an admin, who gets the company's bot section. */
   bot: { set: CompanyBot | null } | null;
+  /** For everyone else: just whether the bot is connected (one-time, org-wide). */
+  botConnected?: boolean;
   orgName: string;
   botCallbackUrl: string | null;
   notice?: string;
@@ -92,7 +95,7 @@ export function IntegrationsView({
           </div>
         </Rows>
       </Section>
-      {bot ? <BotSection bot={bot.set} orgName={orgName} callbackUrl={botCallbackUrl} /> : null}
+      {bot || botConnected !== undefined ? <BotSection bot={bot ? bot.set : null} connected={botConnected} callbackUrl={botCallbackUrl} /> : null}
     </Page>
   );
 }
