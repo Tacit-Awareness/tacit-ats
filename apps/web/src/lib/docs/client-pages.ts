@@ -120,7 +120,7 @@ Interviewers get a simpler Home: the people they interview, the jobs they can se
 
 ## Inbox
 
-The Inbox is one card for admins and the hiring team: what is stuck and waiting on someone, under **Needs you**, then what has happened lately. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with.
+The Inbox is one card for admins and the hiring team: what is stuck and waiting on someone, under **Needs you**, then what has happened lately. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with. When you open it, the card shows what it read, with the counts, for under a second; a click or a key skips that.
 
 | Kind | What lands here |
 | --- | --- |

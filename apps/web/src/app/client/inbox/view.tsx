@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
 import { Avatar, PageBar, Tabs, textLink } from "@/components/page";
-import { DIGEST_RANGES, DEFAULT_RANGE, inboxHref, rangeLabel, worthLine, type DigestGroupKey, type DigestRange, type DigestRow } from "@/lib/client/inbox-digest";
+import { DIGEST_RANGES, DEFAULT_RANGE, inboxHref, rangeLabel, readingLine, worthLine, type DigestGroupKey, type DigestRange, type DigestRow, type DigestSource } from "@/lib/client/inbox-digest";
 import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import type { IssueFix, IssueInstance, IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { ActivityStory } from "../candidates/activity-story";
 import { LocalForEnd, LocalWhen } from "../candidates/local-day";
 import { Feedback, Loop, type LoopProps, type Reader as InterviewReader } from "../interviews/view";
 import { markAllDigestReadAction } from "./actions";
+import { OpeningCard } from "./opening-card";
 import { button, plain } from "./buttons";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
@@ -133,6 +134,7 @@ export type DigestProps = {
   asOf: string;
   total: number;
   shown: number;
+  sources?: DigestSource[];
   unread: number;
   capped: boolean;
   groups: { key: DigestGroupKey; label: string; rows: (DigestRow & { age: string; active: boolean; next: string | null })[] }[];
@@ -434,35 +436,24 @@ export function InboxView({
   return (
     <div className="list-reader flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--frame)] px-4 py-6 md:py-12">
-        <section
-          data-tour="inbox"
-          data-inbox-card
-          tabIndex={-1}
-          aria-labelledby="inbox-title"
-          className="mx-auto grid w-[760px] max-w-full grid-cols-[minmax(0,1fr)] gap-5 bg-[color:var(--raised)] p-4 pb-3 shadow-[var(--shadow)] outline-none sm:p-6 sm:pb-3"
+        <OpeningCard
+          play={!popup && !flash && any}
+          sources={digest.sources ?? []}
+          reading={readingLine(digest.total)}
+          worth={worthLine(digest.shown, digest.total)}
+          range={<RangeTabs range={digest.range} />}
         >
-          <header className="flex flex-col gap-x-4 gap-y-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="grid gap-1">
-              <h1 id="inbox-title" className="m-0 text-[18px] font-semibold tracking-[-0.01em]">
-                Welcome back
-              </h1>
-              <p className="m-0 text-[14.5px] text-muted-foreground">{worthLine(digest.shown, digest.total)}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <RangeTabs range={digest.range} />
-            </div>
-          </header>
           {!popup ? flash : null}
           {any ? (
             // J and K walk every row, Needs you first: over the card they move focus and Enter opens, since a key shouldn't throw up a pop-up; in a pop-up they open the next one.
-            <KeyList title="Inbox" next="Next row" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start gap-5">
+            <KeyList title="Inbox" next="Next row" mode={popup ? "select" : "focus"} className="opening-list grid grid-cols-[minmax(0,1fr)] content-start gap-5">
               {popup ? null : <RowKeys />}
               {rows.length ? <NeedsYou rows={rows} range={digest.range} truncated={truncated} draftsCapped={draftsCapped} /> : null}
               <DigestGroups digest={digest} />
             </KeyList>
           ) : null}
           {any ? <DigestFoot digest={digest} needs={rows.length} /> : <CaughtUp range={digest.range} truncated={truncated} draftsCapped={draftsCapped} />}
-        </section>
+        </OpeningCard>
       </div>
       {issue ? (
         <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home} pageHref={issue.page}>

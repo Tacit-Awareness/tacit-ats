@@ -35,6 +35,27 @@ const issue: IssueReaderProps = {
   now: 0,
 };
 const view = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => renderToStaticMarkup(<InboxView rows={[{ ...row, active: false }, other]} issue={null} flash={null} truncated={false} draftsCapped={false} {...over} />);
+describe("the opening", () => {
+  const digest: DigestProps = { range: 1, asOf: "", unread: 0, capped: false, total: 3, shown: 2, sources: [{ label: "Stage moves", count: 3 }], groups: [] };
+
+  test("plays over the card, and the card's real line stays underneath it", () => {
+    const html = view({ digest });
+    expect(html).toContain("inbox-opening");
+    expect(html).toContain("Reading 3 updates…");
+    expect(html).toContain("Stage moves");
+    expect(html).toContain("2 worth your time");
+  });
+
+  test("says nothing of a Grokbot, Slack or Gmail", () => {
+    expect(view({ digest })).not.toMatch(/grok|slack|gmail/i);
+  });
+
+  test("does not play over a notice or a pop-up", () => {
+    expect(view({ digest, flash: "Done" })).not.toContain("inbox-opening");
+    expect(opened({ digest })).not.toContain("inbox-opening");
+  });
+});
+
 const opened = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => view({ rows: [row, other], issue, ...over });
 
 describe("the digest card", () => {

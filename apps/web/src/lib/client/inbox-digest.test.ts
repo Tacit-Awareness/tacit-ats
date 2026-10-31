@@ -18,6 +18,19 @@ const input = (over: Partial<DigestInput> = {}): DigestInput => ({ events: [], b
 const none = new Set<string>();
 const whats = (d: ReturnType<typeof buildDigest>) => d.groups.flatMap((g) => g.rows.map((r) => r.what));
 
+describe("the Inbox's opening", () => {
+  test("counts what the read covered, read rows too, with no source it didn't read", () => {
+    const d = buildDigest(input({ feedback: [feedback(3)], bookings: [booking(2)], events: [event(1)] }), none, 1, NOW, 2);
+    expect(d.sources).toEqual([
+      { label: "Open issues", count: 2 },
+      { label: "Stage moves", count: 1 },
+      { label: "Interviews", count: 1 },
+      { label: "Feedback", count: 1 },
+    ]);
+    expect(d.total).toBe(d.sources.reduce((n, s) => n + s.count, 0));
+  });
+});
+
 describe("grouping", () => {
   test("stage changes are decisions, interviews booked, feedback FYI, in that order", () => {
     const d = buildDigest(input({ feedback: [feedback(3)], bookings: [booking(2)], events: [event(1)] }), none, 1, NOW, 0);

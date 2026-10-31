@@ -99,6 +99,9 @@ export type DigestRow = {
 export type DigestGroupKey = "decided" | "booked" | "fyi";
 export type DigestGroup = { key: DigestGroupKey; label: string; rows: DigestRow[] };
 
+/** What a read covered, for the Inbox's opening: real counts, not a Grokbot's sources. */
+export type DigestSource = { label: string; count: number };
+
 export type Digest = {
   groups: DigestGroup[];
   /** Everything in the range, read or not, plus Needs you. */
@@ -107,6 +110,7 @@ export type Digest = {
   shown: number;
   /** Every unread row, past each group's six too. */
   unread: ReadMark[];
+  sources: DigestSource[];
 };
 
 const nameOf = (s: DigestSubject) => s.personName?.trim() || "This candidate";
@@ -171,6 +175,7 @@ function rows(input: DigestInput, range: DigestRange): Record<DigestGroupKey, Di
 
 const LABEL: Record<DigestGroupKey, string> = { decided: "Decisions made", booked: "Booked", fyi: "FYI" };
 const GROUPS: DigestGroupKey[] = ["decided", "booked", "fyi"];
+const SOURCE: Record<DigestGroupKey, string> = { decided: "Stage moves", booked: "Interviews", fyi: "Feedback" };
 
 export function buildDigest(input: DigestInput, read: ReadonlySet<string>, range: DigestRange, now: number, needs: number): Digest {
   const from = Date.parse(rangeStart(range, now));
@@ -186,6 +191,7 @@ export function buildDigest(input: DigestInput, read: ReadonlySet<string>, range
     total: needs + inRange.reduce((n, g) => n + g.within.length, 0),
     shown: needs + groups.reduce((n, g) => n + g.rows.length, 0),
     unread: inRange.flatMap((g) => g.unread.map((r) => r.mark)),
+    sources: [{ label: "Open issues", count: needs }, ...inRange.map((g) => ({ label: SOURCE[g.key], count: g.within.length }))],
   };
 }
 
@@ -207,4 +213,6 @@ export function rowAfter(walk: string[], key: string): string | null {
 export const seenBy = (marks: ReadMark[], asOf: string) => marks.filter((m) => Date.parse(m.at) <= Date.parse(asOf));
 
 /** "4 worth your time, from 1,205 updates". */
+export const readingLine = (total: number) => `Reading ${total.toLocaleString("en-US")} update${total === 1 ? "" : "s"}…`;
+
 export const worthLine = (shown: number, total: number) => `${shown.toLocaleString("en-US")} worth your time, from ${total.toLocaleString("en-US")} update${total === 1 ? "" : "s"}`;
