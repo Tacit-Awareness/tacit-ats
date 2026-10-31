@@ -5332,3 +5332,30 @@ i.pill-glass.press { transform-origin: center; }
 @keyframes gb-hit { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
 .gb-ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .gb-ex .chip { cursor: pointer; }
+
+/* v81 the Grokbot pop-up on Onboarding: says it can do this, where to ask, a couple of requests for this step */
+.gb-pop { position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 340px; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 12px 32px -12px rgba(118, 92, 255, 0.35), 0 8px 24px -14px rgba(255, 92, 170, 0.3), var(--elev-hi); animation: gb-in 0.2s var(--spring); }
+@keyframes gb-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+.gb-ph { display: flex; align-items: center; gap: 10px; }
+.gb-ph .bot .av { width: 28px; height: 28px; }
+.gb-pt { flex: 1; display: grid; gap: 2px; }
+.gb-pt b { font-size: 14px; font-weight: 600; }
+.gb-pt span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.gb-pp { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.gb-where { display: flex; gap: 8px; }
+.gb-where span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--surface); color: var(--ink); font-size: 12.5px; }
+.gb-where svg { width: 13px; height: 13px; }
+.gb-where .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.gb-tries { display: grid; gap: 4px; }
+.gb-try { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 10px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.35; transition: background 0.15s, border-color 0.15s; }
+.gb-try:hover { background: var(--hover); border-color: var(--line-strong); }
+.gb-try .ico { width: 12px; height: 12px; flex: none; color: var(--muted); }
+.gb-in { display: flex; gap: 6px; }
+.gb-in input { flex: 1; min-width: 0; height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
+.gb-in input:focus { outline: none; border-color: var(--accent); }
+.gb-in .btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+.gb-pill { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev-hi); font-size: 13.5px; font-weight: 500; color: var(--ink); animation: gb-in 0.2s var(--spring); }
+.gb-pill .bot .av { width: 24px; height: 24px; }
+.gb-pill:hover { background: var(--hover); }
+.su-side .gb-pop { position: static; width: auto; margin-bottom: var(--s5); }
+.su-side .gb-pill { position: static; margin-bottom: var(--s5); }

@@ -5341,6 +5341,33 @@ i.pill-glass.press { transform-origin: center; }
 .gb-ex { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .gb-ex .chip { cursor: pointer; }
 
+/* v81 the Grokbot pop-up on Onboarding: says it can do this, where to ask, a couple of requests for this step */
+.gb-pop { position: fixed; right: 24px; bottom: 24px; z-index: 40; width: 340px; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: 0 12px 32px -12px rgba(118, 92, 255, 0.35), 0 8px 24px -14px rgba(255, 92, 170, 0.3), var(--elev-hi); animation: gb-in 0.2s var(--spring); }
+@keyframes gb-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+.gb-ph { display: flex; align-items: center; gap: 10px; }
+.gb-ph .bot .av { width: 28px; height: 28px; }
+.gb-pt { flex: 1; display: grid; gap: 2px; }
+.gb-pt b { font-size: 14px; font-weight: 600; }
+.gb-pt span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.gb-pp { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.gb-where { display: flex; gap: 8px; }
+.gb-where span { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--surface); color: var(--ink); font-size: 12.5px; }
+.gb-where svg { width: 13px; height: 13px; }
+.gb-where .ico { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.gb-tries { display: grid; gap: 4px; }
+.gb-try { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 6px 10px; text-align: left; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; line-height: 1.35; transition: background 0.15s, border-color 0.15s; }
+.gb-try:hover { background: var(--hover); border-color: var(--line-strong); }
+.gb-try .ico { width: 12px; height: 12px; flex: none; color: var(--muted); }
+.gb-in { display: flex; gap: 6px; }
+.gb-in input { flex: 1; min-width: 0; height: 36px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
+.gb-in input:focus { outline: none; border-color: var(--accent); }
+.gb-in .btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+.gb-pill { position: fixed; right: 24px; bottom: 24px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px 0 8px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev-hi); font-size: 13.5px; font-weight: 500; color: var(--ink); animation: gb-in 0.2s var(--spring); }
+.gb-pill .bot .av { width: 24px; height: 24px; }
+.gb-pill:hover { background: var(--hover); }
+.su-side .gb-pop { position: static; width: auto; margin-bottom: var(--s5); }
+.su-side .gb-pill { position: static; margin-bottom: var(--s5); }
+
 </style>
 
 <div class="app" id="app">
@@ -6530,17 +6557,17 @@ function setupPage(step) {
       <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
       <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
       <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."}</p>
-      <button class="su-live" data-act="suAsk" title="Ask your Grokbot in Slack or the CLI to change anything here. You'll see it happen.">${botAv(ME)}<span>Your Grokbot can change this page. Ask it in Slack or the CLI.</span><i class="su-live-dot"></i></button>
       <nav class="su-steps">${SETUP_STEPS.map(([k, n], i) => `${i ? `<i></i>` : ""}<a href="#setup~${k}" class="${k === step ? "on" : ""} ${done[k] && k !== step ? "done" : ""}"><span>${done[k] && k !== step ? ico("check") : i + 1}</span>${n}</a>`).join("")}</nav>
       <div class="su-frame">${body}
         <div class="su-foot"><a class="su-skip" href="#home">${state.setupSaved ? "Back to tATS" : "Skip for now"}</a><span class="grow"></span>
           ${idx ? `<a class="btn" href="#setup~${SETUP_STEPS[idx - 1][0]}">${ico("chevL")}Back</a>` : ""}
           ${idx < SETUP_STEPS.length - 1 ? `<a class="btn primary dark" href="#setup~${SETUP_STEPS[idx + 1][0]}">Continue${ico("chevR")}</a>` : `<button class="btn primary dark" data-act="suFinish">${state.setupSaved ? "Save" : "Open tATS"}${ico("chevR")}</button>`}</div></div>
     </div>
-    <aside class="su-side">
+    ${step === "process" ? gbPop(step) : ""}
+    <aside class="su-side">${step === "process" ? "" : gbPop(step)}
       <section class="su-check"><div class="su-check-h"><b>Setup checklist</b><span>${ndone}/${SETUP_STEPS.length}</span></div><i class="su-prog"><i style="width:${(ndone / SETUP_STEPS.length) * 100}%"></i></i>
         ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "process" ? `${fcSummary().steps} steps, ${fcSummary().ivs} interviews` : k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
-      <button class="su-help" data-act="goChat">${ico("help")}<span><b>Need a hand?</b><span>Ask your Grokbot, or book a 15-minute setup call</span></span></button>
+
     </aside>
   </div></div>`;
 }
@@ -7028,6 +7055,34 @@ function setupAsk(text) {
   if (!r.ops.length) return toast(typeof r.say === "function" ? r.say() : r.say);
   grokDo(r.ops).then(() => { const s = typeof r.say === "function" ? r.say() : r.say; if (s) toast(s.replace(/<[^>]+>/g, "")); });
 }
+// On Onboarding, a pop-up that says the Grokbot can do any of this, with requests for the step you're on.
+// Opens the first time; minimizes to a pill. Same requests work in Slack and the CLI.
+try { state.gbPop = localStorage.getItem("tats.gbpop") || "open"; } catch { state.gbPop = "open"; }
+const GB_EX = {
+  people: ["Add Jane Doe as staff engineer", "Turn off Wei's Grokbot"],
+  teams: ["Put Daniel Okafor on Product and Research", "Take Theo off Research"],
+  skills: ["Star Sam for Systems design", "Tag Noor with CUDA and Inference"],
+  process: ["Add a references check before the offer in the process", "Remove the cross-team interview from the process"],
+  review: ["Put Wei on Research", "Star Aisha for Research deep dive"],
+};
+function gbPop(step) {
+  if (state.gbPop === "min") return `<button class="gb-pill" data-act="gbPop" data-v="open">${botAv(ME)}Ask your Grokbot<i class="su-live-dot"></i></button>`;
+  return `<aside class="gb-pop" role="dialog" aria-label="Your Grokbot">
+    <div class="gb-ph">${botAv(ME)}<span class="gb-pt"><b>Ask your Grokbot</b><span><i class="su-live-dot"></i>Live on this page</span></span><button class="icon-btn" data-act="gbPop" data-v="min" aria-label="Minimize" title="Minimize">${ico("chevD")}</button></div>
+    <p class="gb-pp">It can do anything on this page. Ask in Slack or the CLI, the way you'd ask a teammate, and watch it make the change here.</p>
+    <div class="gb-where"><span>${CH.slack}Slack DM</span><span>${ico("code")}CLI</span></div>
+    <div class="gb-tries">${(GB_EX[step] || GB_EX.review).map((x) => `<button class="gb-try" data-act="gbTry" data-v="${esc(x)}">${ico("arrowR")}<span>${esc(x)}</span></button>`).join("")}</div>
+    <form class="gb-in" id="gbPopForm"><input id="gbPopIn" placeholder="Message your Grokbot…" autocomplete="off"><button class="btn primary sm" type="submit" aria-label="Send">${ico("arrowUp")}</button></form>
+  </aside>`;
+}
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "gbPopForm") return;
+  e.preventDefault();
+  const i = $("#gbPopIn"), q = i.value.trim();
+  if (!q) return;
+  i.value = ""; i.blur();
+  setupAsk(q);
+});
 function openSetupAsk() {
   const ex = ["Put Daniel Okafor on Infra, Product and Research", "Star Sam for Systems design", "Turn off Wei's Grokbot", "Tag Noor with CUDA and Inference"];
   openForm({ title: "Message your Grokbot", sub: "The same as asking in Slack or the CLI. You'll see it make the change here.", submit: "Send",
@@ -9984,6 +10039,8 @@ const ACT = {
   flowEdit: () => openFlow(),
   goProcess: () => go("setup~process"),
   suAsk: () => openSetupAsk(),
+  gbPop: (el) => { state.gbPop = el.dataset.v; try { localStorage.setItem("tats.gbpop", state.gbPop); } catch {} render(); if (state.gbPop === "open") setTimeout(() => $("#gbPopIn")?.focus(), 30); },
+  gbTry: (el) => setupAsk(el.dataset.v),
   goSetup: (el) => go(`setup~${el.dataset.id || "people"}`),
   suEx: (el) => { const i = $('.fm input[name="q"]'); if (i) { i.value = el.dataset.v; i.focus(); } },
   fcAdd: (el) => fcAddNode(el.dataset.k),
