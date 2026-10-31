@@ -64,9 +64,12 @@ export function GranolaPanel({
   reading,
   interviewId,
   noteId,
+  base,
 }: {
   reading: GranolaReading;
   interviewId: string;
+  /** Where its links go: the page's route, or Home's tab. */
+  base?: string;
   /** The meeting the member picked (`?note=`), kept across the transcript's link. */
   noteId?: string;
 }) {
@@ -104,7 +107,7 @@ export function GranolaPanel({
                   <Fenced label="granola meeting" className="min-w-0 flex-1 border-l-0 pl-0 text-[13.5px]">
                     {[meeting.title, meeting.date].filter(Boolean).join(" · ") || meeting.sections[0]?.text || "A meeting with no title"}
                   </Fenced>
-                  <Link href={granolaHref(interviewId, { note: n.noteId })} className={cn(quiet, "flex-none")} prefetch={false}>
+                  <Link href={granolaHref(interviewId, { note: n.noteId }, base)} className={cn(quiet, "flex-none")} prefetch={false}>
                     Use this one
                   </Link>
                 </li>
@@ -129,7 +132,7 @@ export function GranolaPanel({
       ) : null}
       {notes.sections.length ? <Sections sections={notes.sections} label="granola notes" /> : <Empty className="my-0">Granola has no notes on this meeting.</Empty>}
       {reading.transcriptStatus === "not_requested" ? (
-        <Link href={granolaHref(interviewId, { note: noteId, transcript: true })} className={cn(quiet, "justify-self-start")} prefetch={false}>
+        <Link href={granolaHref(interviewId, { note: noteId, transcript: true }, base)} className={cn(quiet, "justify-self-start")} prefetch={false}>
           Show the transcript
         </Link>
       ) : null}
@@ -140,7 +143,7 @@ export function GranolaPanel({
         <div className="grid gap-1.5">
           <div className="flex items-baseline justify-between gap-3">
             <b className="text-[13px] font-medium text-muted-foreground">Transcript</b>
-            <Link href={granolaHref(interviewId, { note: noteId })} className={quiet} prefetch={false}>
+            <Link href={granolaHref(interviewId, { note: noteId }, base)} className={quiet} prefetch={false}>
               Hide
             </Link>
           </div>
@@ -162,13 +165,15 @@ export async function GranolaNotes({
   interviewId,
   noteId,
   transcript,
+  base,
 }: {
   db: Db;
   accessLevel: AccessLevel;
   interviewId: string;
   noteId?: string;
   transcript: boolean;
+  base?: string;
 }) {
   const reading = await readGranolaNotes({ db, accessLevel }, { interviewId, noteId, includeTranscript: transcript });
-  return <GranolaPanel reading={reading} interviewId={interviewId} noteId={noteId} />;
+  return <GranolaPanel reading={reading} interviewId={interviewId} noteId={noteId} base={base} />;
 }

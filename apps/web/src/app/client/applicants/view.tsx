@@ -133,6 +133,8 @@ export function ApplicantsView({
   notice,
   error,
   open,
+  base = "/client/applicants",
+  home = false,
 }: {
   total: number;
   groups: TicketGroup[];
@@ -140,6 +142,10 @@ export function ApplicantsView({
   notice: string | null;
   error: string | null;
   open: boolean;
+  /** Where its links go: its own route, or Home's tab. */
+  base?: string;
+  /** Inside Home's tab, whose bar says where you are. */
+  home?: boolean;
 }) {
   const flash = error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null;
   return (
@@ -150,13 +156,13 @@ export function ApplicantsView({
       narrowList
       flushReader
       // design/tats shows no bar while a ticket is open; the empty queue gets one, so the page still says where you are.
-      bar={ticket ? undefined : <PageBar title="Applicant Tickets" count={total} />}
+      bar={ticket || home ? undefined : <PageBar title="Applicant Tickets" count={total} />}
       list={<TicketList groups={groups} />}
       reader={
         ticket ? (
           <div className="flex min-h-full flex-col bg-[color:var(--soft)]">
             <div className="grid flex-1 grid-cols-[minmax(0,1fr)] content-start gap-3 p-3 md:px-6 md:pt-5 md:pb-10">
-              <Link href="/client/applicants" className={cn(textLink, "md:hidden")}>
+              <Link href={base} className={cn(textLink, "md:hidden")}>
                 ← All applicants
               </Link>
               {flash ? <div className="mx-auto w-[640px] max-w-full">{flash}</div> : null}

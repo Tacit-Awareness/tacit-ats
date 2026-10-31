@@ -24,6 +24,8 @@ import { pill, pillPrimary } from "./routing-bar";
 // reverse. The words are only ever the starters a member reads and changes.
 
 export type Reply = {
+  /** Drawn in Home's tab, so a post comes back there. */
+  home?: boolean;
   applicationId: string;
   candidateId: string;
   /** Whom it would go to, for the composer; the draft says for certain. */
@@ -103,6 +105,7 @@ function DraftReview({ reply, draft, sent, change }: { reply: Reply; draft: Show
         <form action={sendReplyAction} className={sendColumn}>
           <input type="hidden" name="draftId" value={draft.draftId} />
           <input type="hidden" name="applicationId" value={reply.applicationId} />
+          {reply.home ? <input type="hidden" name="home" value="1" /> : null}
           <SendSubmit />
           <button type="button" onClick={change} className={cn(pill, "justify-center")}>
             Change it
@@ -208,6 +211,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
       >
         <input type="hidden" name="applicationId" value={reply.applicationId} />
         <input type="hidden" name="candidateId" value={reply.candidateId} />
+        {reply.home ? <input type="hidden" name="home" value="1" /> : null}
         {open ? (
           <div className={message}>
             <div className="flex flex-wrap items-center gap-1.5">

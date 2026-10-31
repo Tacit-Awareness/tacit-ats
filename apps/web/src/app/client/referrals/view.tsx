@@ -81,6 +81,7 @@ export function ReferralsView({
   notice,
   note,
   empty,
+  home = false,
 }: {
   tabs: Tab[];
   tabLabel: string;
@@ -91,39 +92,45 @@ export function ReferralsView({
   prev: string | null;
   next: string | null;
   /** The search, and the other params a GET form must carry. */
-  search: { q: string; hidden: Record<string, string> };
+  search: { q: string; action: string; hidden: Record<string, string> };
   /** Whether "Add referral" is offered: the member may add people to at least one open job. */
   canAdd: boolean;
   notice: string | null;
   /** A line in the footer, such as the read stopping short. */
   note: string | null;
   empty: string | null;
+  /** Inside Home's tab, whose bar says where you are, so "Add referral" moves to the strip. */
+  home?: boolean;
 }) {
-  return (
-    <Page
-      bar={
-        <>
-          <PageBar
-            title="Referrals"
-            count={all}
-            icon={
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d={USERS} />
-              </svg>
-            }
-          >
-            {canAdd ? (
+  const addReferral = canAdd ? (
               <Link href="/client/referrals/new" data-tour="refer" className={buttonVariants({ size: "sm" })}>
                 <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" className="size-3" aria-hidden>
                   <path d="M8 3v10M3 8h10" />
                 </svg>
                 Add referral
               </Link>
-            ) : null}
-          </PageBar>
+  ) : null;
+  return (
+    <Page
+      bar={
+        <>
+          {home ? null : (
+            <PageBar
+              title="Referrals"
+              count={all}
+              icon={
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d={USERS} />
+                </svg>
+              }
+            >
+              {addReferral}
+            </PageBar>
+          )}
           <SubBar>
             <Tabs strip label="Referrals" tabs={tabs} />
-            <SearchBox action="/client/referrals" defaultValue={search.q} placeholder="Search by name, referrer or job" label="Search referrals" keep={search.hidden} />
+            {home ? <span className="ml-auto">{addReferral}</span> : null}
+            <SearchBox action={search.action} defaultValue={search.q} placeholder="Search by name, referrer or job" label="Search referrals" keep={search.hidden} />
           </SubBar>
         </>
       }

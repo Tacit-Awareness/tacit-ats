@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import { draftReplyAction, sendReplyAction } from "./actions";
+import { draftReplyAction, routeApplicantAction, sendReplyAction } from "./actions";
 
 const APPLICATION = "22222222-2222-4222-8222-222222222222";
 const CANDIDATE = "33333333-3333-4333-8333-333333333333";
@@ -128,5 +128,13 @@ describe("sendReplyAction", () => {
     email.sendDraft.mockRejectedValue(new Error("connection reset"));
     expect((await post({ draftId: DRAFT, applicationId: APPLICATION })).searchParams.get("error")).toBe("send_failed");
     log.mockRestore();
+  });
+});
+
+describe("Home's tab", () => {
+  test("a post from the tab comes back to the tab, and the form can name no other place", async () => {
+    await expect(routeApplicantAction(form({ home: "1" }))).rejects.toThrow("NEXT_REDIRECT");
+    await expect(routeApplicantAction(form({ home: "https://evil.example" }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirected.to).toEqual(["/client?sub=tickets&error=not_found", "/client/applicants?error=not_found"]);
   });
 });

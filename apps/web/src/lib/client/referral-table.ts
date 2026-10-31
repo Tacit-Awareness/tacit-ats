@@ -1,3 +1,4 @@
+import { hrefAt } from "./home-tabs";
 import { IN_PROCESS_STAGES, SOURCE_DETAIL_MAX } from "@tacit/core";
 import { stageLabel } from "./crm-views";
 
@@ -77,13 +78,12 @@ export function parseReferralQuery(sp: Record<string, string | string[] | undefi
 }
 
 /** The URL for a query, leaving defaults out. */
-export function referralsHref(q: ReferralQuery): string {
+export function referralsHref(q: ReferralQuery, base = "/client/referrals"): string {
   const params = new URLSearchParams();
   if (q.tab !== "all") params.set("tab", q.tab);
   if (q.q) params.set("q", q.q);
   if (q.page > 1) params.set("page", String(q.page));
-  const qs = params.toString();
-  return `/client/referrals${qs ? `?${qs}` : ""}`;
+  return hrefAt(base, params);
 }
 
 export type ReferralTable = {
