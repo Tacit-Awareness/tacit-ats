@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import type { clientTools } from "@tacit-ats/core";
-import { hiddenOn, loopRounds, stageIsOpen } from "./interview-loop";
+import { hiddenOn, loopRounds, routeView, stageIsOpen } from "./interview-loop";
+import type { ProcessDoc, ProcessEdge, ProcessLookup, ProcessNode } from "./process-graph";
 
 const NOW = Date.parse("2026-10-29T12:00:00Z");
 const H = 3_600_000;
@@ -109,4 +110,103 @@ test("hiddenOn counts the interviewers whose feedback the member cannot see", ()
   expect(hiddenOn(progress, "i2")).toBe(1);
   expect(hiddenOn(progress, "i1")).toBe(0);
   expect(hiddenOn(progress, "nope")).toBe(0);
+});
+
+describe("routeView", () => {
+  const step = (id: string, label: string, y = 0, extra: Partial<ProcessNode> = {}): ProcessNode => ({ id, kind: "stage", x: 0, y, label, type: "interview", ...extra });
+  const edge = (from: string, to: string, department?: string): ProcessEdge => ({ id: `${from}-${to}`, from, to, label: "", ...(department ? { department } : {}) });
+  const graph: ProcessDoc = {
+    nodes: [
+      { id: "in", kind: "start", x: 0, y: 0, label: "Applied" },
+      step("rev", "Application review", 0, { type: "review" }),
+      { id: "split", kind: "route", x: 0, y: 0, label: "Split by team" },
+      step("onsite", "Onsite", 0, { team: "own" }),
+      step("pitch", "Pitch", 100, { team: "sales" }),
+      step("screen", "Screen", -100, { who: ["u1"] }),
+      step("final", "Final"),
+      { id: "out", kind: "end", x: 0, y: 0, label: "Offer" },
+      { id: "note", kind: "note", x: 0, y: 0, label: "A note" },
+    ],
+    edges: [
+      edge("in", "rev"), edge("rev", "screen"), edge("screen", "split"), edge("split", "onsite", "eng"), edge("split", "pitch", "sales"),
+      edge("onsite", "final"), edge("pitch", "final"), edge("final", "out"), edge("note", "final"),
+    ],
+  };
+  const lookup: ProcessLookup = {
+    departments: [{ id: "eng", name: "Engineering", parentId: null, archived: false }, { id: "sales", name: "Sales", parentId: null, archived: false }],
+    members: [{ id: "u1", name: "Ana Lee" }],
+  };
+  const route = (over: { selected?: string; stage?: string | null; open?: boolean; base?: clientTools.PlanProgress } = {}) => {
+    const base = over.base ?? progress;
+    const stage = over.stage === undefined ? "interviewing" : over.stage;
+    const rounds = loopRounds(base, over.selected ?? "i2", new Set(["i1", "i2", "i3"]), NOW, over.open ?? stageIsOpen(stage));
+    return routeView({ graph, departmentId: "eng", lookup, rounds, stepCount: base.steps.length, stage });
+  };
+  const node = (id: string, over?: Parameters<typeof route>[0]) => route(over)!.nodes.find((n) => n.id === id)!;
+
+  test("what came before the interviews is one step, then the way through in order", () => {
+    expect(route()!.nodes.map((n) => n.id)).toEqual(["pre", "screen", "split", "onsite", "pitch", "final", "out"]);
+    expect(node("pre").label).toBe("Applied");
+  });
+
+  test("the member's branch is lit and the other team's faded, on no round", () => {
+    expect(node("onsite")).toMatchObject({ state: "view", flag: "This interview", round: { name: "Onsite" } });
+    expect(node("pitch")).toMatchObject({ state: "off", round: null, who: "Sales" });
+    expect(route()!.edges.find((e) => e.id === "split-pitch")!.tone).toBe("off");
+    expect(route()!.edges.find((e) => e.id === "split-onsite")!.tone).toBe("done");
+  });
+
+  test("held, up next, and what is left before the offer", () => {
+    expect(node("screen")).toMatchObject({ state: "done" });
+    expect(node("final")).toMatchObject({ state: "up", flag: "Up next" });
+    expect(node("out").state).toBe("todo");
+    expect(route()!.tag).toBe("1 round left before the offer");
+  });
+
+  test("who runs a step: their own team by name, pinned people by first name", () => {
+    expect(node("onsite").who).toBe("Engineering");
+    expect(node("screen").who).toBe("Ana");
+  });
+
+  test("off-plan rounds are handed back for the page to show", () => {
+    expect(route()!.offPlan.map((r) => r.name)).toEqual(["Interview"]);
+  });
+
+  test("with every round held the offer is next", () => {
+    const held = { ...progress, offPlan: [], nextStep: null, steps: progress.steps.map((s) => ({ ...s, state: "done" as const, interviews: [interview(`h${s.position}`, s.step, -5 * s.position, "done", [])] })) };
+    const r = route({ base: held, selected: "h1" })!;
+    expect(r.tag).toBe("Next: the offer");
+    expect(r.nodes.find((n) => n.id === "out")).toMatchObject({ state: "up", flag: "Up next" });
+  });
+
+  test("the stage decides the end of it", () => {
+    expect(route({ stage: "offer" })!.tag).toBe("At the offer");
+    expect(node("out", { stage: "offer" })).toMatchObject({ state: "up", flag: "Here now" });
+    expect(route({ stage: "hired" })!.tag).toBe("Hired");
+    expect(node("out", { stage: "hired" }).state).toBe("done");
+    expect(route({ stage: "rejected" })!.tag).toBe("Closed");
+    expect(node("out", { stage: "withdrawn" }).state).toBe("closed");
+    expect(node("final", { stage: "rejected" })).toMatchObject({ state: "todo", flag: null });
+  });
+
+  test("a stage that could not be read, or rounds that are not the path's, keep the row", () => {
+    expect(route({ stage: null })).toBeNull();
+    expect(route({ base: { ...progress, steps: progress.steps.slice(1) } })).toBeNull();
+    const rounds = loopRounds(progress, "i2", new Set(), NOW, true);
+    expect(routeView({ graph, departmentId: null, lookup, rounds, stepCount: 3, stage: "interviewing" })).toBeNull();
+  });
+
+  test("everyone stays inside the box, nothing on another, however many people a round has", () => {
+    const r = route()!;
+    for (const n of r.nodes) {
+      expect(n.x + n.w).toBeLessThanOrEqual(r.width);
+      expect(n.y + n.h).toBeLessThanOrEqual(r.height);
+    }
+    expect(node("onsite").h).toBeGreaterThan(node("pitch").h);
+  });
+
+  test("it carries who filed and nothing of what they said", () => {
+    expect(JSON.stringify(node("onsite").round)).toContain("Not filed");
+    expect(JSON.stringify(route())).not.toMatch(/recommendation|rating|notes/);
+  });
 });

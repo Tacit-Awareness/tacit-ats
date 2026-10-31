@@ -3,9 +3,9 @@ import { clientTools } from "@tacit-ats/core";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { granolaReadable } from "@/lib/client/interview-granola";
 import { GROUPS, RECOMMENDATION_LABEL, groupInterviews, verdictOf, type Recommendation, type Verdict } from "@/lib/client/interview-groups";
-import { hiddenOn, loopRounds, stageIsOpen } from "@/lib/client/interview-loop";
+import { hiddenOn, loopRounds, routeView, stageIsOpen } from "@/lib/client/interview-loop";
 import { readReviewed } from "@/lib/client/interview-reviews";
-import { readInterview, readInterviews, type InterviewDetail, type InterviewListItem, type Member } from "@/lib/client/interviews";
+import { readInterview, readInterviewRoute, readInterviews, type InterviewDetail, type InterviewListItem, type InterviewRoute, type Member } from "@/lib/client/interviews";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -29,9 +29,19 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 const whoRan = (names: string[]) => (names.length > 1 ? `${names[0]} +${names.length - 1}` : (names[0] ?? null));
 const when = (i: InterviewListItem, now: number) => (isPast(i, now) ? ago(i.startsAt, now) : until(i.startsAt, now));
 
-function buildReader(href: (id: string) => string, item: InterviewListItem, detail: InterviewDetail, stillOpen: boolean, listed: ReadonlySet<string>, member: Member, now: number): Reader {
+function buildReader(
+  href: (id: string) => string,
+  item: InterviewListItem,
+  detail: InterviewDetail,
+  stage: string | null,
+  routing: InterviewRoute | null,
+  listed: ReadonlySet<string>,
+  member: Member,
+  now: number,
+): Reader {
   const progress = detail.plan.candidate!;
-  const rounds = loopRounds(progress, item.interviewId, listed, now, stillOpen).map(({ interviewId, ...r }) => ({ ...r, href: interviewId ? href(interviewId) : null }));
+  const rounds = loopRounds(progress, item.interviewId, listed, now, stageIsOpen(stage)).map(({ interviewId, ...r }) => ({ ...r, href: interviewId ? href(interviewId) : null }));
+  const route = routing && progress.seesAllInterviews ? routeView({ ...routing, rounds, stepCount: progress.steps.length, stage }) : null;
   const current = rounds.find((r) => r.place === "current");
   const held = rounds.filter((r) => r.status === "Held").length;
   const candidate = item.candidateName ?? "Candidate";
@@ -57,9 +67,11 @@ function buildReader(href: (id: string) => string, item: InterviewListItem, deta
     sub: [item.jobTitle, item.interviewers.join(", "), when(item, now)].filter(Boolean).join(" · "),
     verdict: isPast(item, now) ? verdictOf(item.recommendations) : null,
     candidate,
-    tag: current ? `Round ${current.n} of ${rounds.length}` : `${rounds.length} rounds`,
+    tag: route?.tag ?? (current ? `Round ${current.n} of ${rounds.length}` : `${rounds.length} rounds`),
     loopLine: `${detail.plan.title} · ${held} of ${rounds.length} ${rounds.length === 1 ? "round" : "rounds"} held`,
     rounds,
+    route,
+    editProcess: route && member.accessLevel === "admin" ? "/client/onboarding/process" : null,
     partial: !progress.seesAllInterviews,
     feedback,
     feedbackNote: notes.length ? notes.join(" ") : null,
@@ -95,7 +107,8 @@ export async function InterviewsContent({ sp, home = false }: { sp: Record<strin
         readInterview(db, member, selected),
         db.from("applications").select("stage").eq("id", selected.applicationId).maybeSingle(),
       ]);
-      reader = buildReader(href, selected, detail, stageIsOpen(application.data?.stage), listed, member, nowMs);
+      const routing = await readInterviewRoute(db, member, selected.jobId, detail.plan.steps);
+      reader = buildReader(href, selected, detail, application.data?.stage ?? null, routing, listed, member, nowMs);
     } catch (err) {
       if (!(err instanceof clientTools.ClientToolError)) throw err;
       readerError = "This interview is no longer there for you to read.";

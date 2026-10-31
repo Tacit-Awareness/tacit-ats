@@ -3,9 +3,9 @@ import { KeyList } from "@/components/keys";
 import type * as React from "react";
 import { Avatar, Empty, ListReader, PageBar } from "@/components/page";
 import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
-import type { LoopPerson, LoopRound as Round } from "@/lib/client/interview-loop";
+import type { LoopPerson, LoopRound as Round, RouteNode, RouteState, RouteView } from "@/lib/client/interview-loop";
 import { cn } from "@/lib/utils";
-import { LoopRow } from "./loop-row";
+import { LoopRow, RouteRow } from "./loop-row";
 import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 
 // The Interviews page's markup, props only (page.tsx does the reads):
@@ -53,6 +53,10 @@ export type Reader = {
   tag: string;
   loopLine: string;
   rounds: LoopRound[];
+  /** The company's process with this candidate on it; null keeps the row of rounds. */
+  route: RouteView<LoopRound> | null;
+  /** Where an admin changes the process. Null for anyone else. */
+  editProcess: string | null;
   /** Plan steps this member cannot see, an interviewer reading only their own interviews. */
   partial: boolean;
   feedback: FeedbackCard[];
@@ -207,6 +211,105 @@ function RoundCard({ round: r }: { round: LoopRound }) {
   );
 }
 
+const ROUTE_LOOK: Record<RouteState, string> = {
+  done: "border-[color:var(--line)] bg-[color:var(--raised)] shadow-[var(--shadow)]",
+  view: "border-[color:var(--accent)] bg-[color:var(--raised)] shadow-[var(--shadow),0_0_0_1.5px_var(--accent)]",
+  up: "border-[color:var(--line-strong)] bg-[color:var(--raised)] shadow-[var(--shadow),inset_0_3px_0_var(--accent)]",
+  todo: "border-dashed border-[color:var(--line-strong)] text-muted-foreground",
+  off: "border-dashed border-[color:var(--line)] text-faint opacity-55",
+  closed: "border-[color:var(--line-strong)] bg-[color:var(--soft)] text-muted-foreground",
+};
+
+const ROUTE_EDGE: Record<RouteView<LoopRound>["edges"][number]["tone"], string> = {
+  off: "text-[color:var(--line)]",
+  todo: "text-[color:var(--line-strong)]",
+  done: "text-foreground",
+  up: "text-[color:var(--accent)]",
+};
+
+const ROUTE_STATE: Record<RouteState, string> = { done: "passed", view: "this interview", up: "up next", todo: "still to come", off: "another team's branch", closed: "closed" };
+
+function RoutePerson({ person: p }: { person: LoopPerson }) {
+  return (
+    <span className="flex h-[22px] min-w-0 items-center gap-1.5 text-[12px]">
+      <Avatar name={p.name} size="xs" />
+      <span className="max-w-[60%] flex-none truncate" title={p.name}>
+        {p.name}
+      </span>
+      <span className="ml-auto inline-flex min-w-0 items-center gap-1 text-muted-foreground" title={p.state}>
+        <i className={cn("size-1.5 flex-none rounded-full", PERSON_DOT[p.tone])} />
+        <span className="truncate">{p.state}</span>
+      </span>
+    </span>
+  );
+}
+
+function RouteCard({ node: n }: { node: RouteNode<LoopRound> }) {
+  const place = { left: n.x, top: n.y, width: n.w, height: n.h };
+  const box = "absolute m-0 flex min-w-0 list-none border";
+  const current = n.state === "view" ? ("step" as const) : undefined;
+  if (n.kind !== "stage") {
+    return (
+      <li aria-current={current} style={place} className={cn(box, "items-center justify-center gap-1.5 px-2 text-[12.5px]", n.kind === "route" ? "border-dashed border-[color:var(--line-strong)] bg-[color:var(--surface)] text-muted-foreground" : ROUTE_LOOK[n.state], n.kind !== "route" && "rounded-full")}>
+        <b className="truncate font-medium" title={n.label}>
+          {n.label}
+        </b>
+        {n.flag ? <em className="flex-none text-[11px] font-medium text-[color:var(--accent)] not-italic">{n.flag}</em> : null}
+        <span className="sr-only">{ROUTE_STATE[n.state]}</span>
+      </li>
+    );
+  }
+  const r = n.round;
+  const line = r ? [r.status, r.when].filter(Boolean).join(" · ") : n.who;
+  const body = (
+    <>
+      <b className="truncate text-[13px] leading-[18px] font-medium" title={n.label}>
+        {n.label}
+      </b>
+      <span className="flex min-w-0 gap-1.5 text-[11.5px] leading-4">
+        {n.flag ? <em className="flex-none font-medium text-[color:var(--accent)] not-italic">{n.flag}</em> : null}
+        <span className="truncate text-faint">{r && !r.people.length && n.who ? `${line} · ${n.who}` : line}</span>
+      </span>
+      {r?.people.map((p, i) => <RoutePerson key={i} person={p} />)}
+      <span className="sr-only">{ROUTE_STATE[n.state]}</span>
+    </>
+  );
+  const card = "grid h-full w-full min-w-0 content-start px-2.5 py-2";
+  return (
+    <li aria-current={current} style={place} className={cn(box, ROUTE_LOOK[n.state])}>
+      {r?.href ? (
+        <Link href={r.href} className={cn(card, "transition-colors hover:bg-[color:var(--hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]")}>
+          {body}
+        </Link>
+      ) : (
+        <div className={card}>{body}</div>
+      )}
+    </li>
+  );
+}
+
+/** design/tats's routing graph: the way through, the branch for this job's team lit and the others faded. */
+function Route({ route }: { route: RouteView<LoopRound> }) {
+  const current = route.nodes.find((n) => n.state === "view")?.id ?? null;
+  return (
+    <RouteRow current={current} width={route.width} height={route.height}>
+      <svg aria-hidden width={route.width} height={route.height} className="absolute inset-0">
+        {route.edges.map((e) => (
+          <g key={e.id} className={ROUTE_EDGE[e.tone]}>
+            <path d={e.d} fill="none" stroke="currentColor" strokeWidth={e.tone === "off" || e.tone === "todo" ? 1.25 : 1.75} />
+            <path d={e.arrow} fill="currentColor" />
+          </g>
+        ))}
+      </svg>
+      <ol className="m-0 list-none p-0">
+        {route.nodes.map((n) => (
+          <RouteCard key={n.id} node={n} />
+        ))}
+      </ol>
+    </RouteRow>
+  );
+}
+
 /**
  * The candidate's loop as design/tats's path (`.pth`): a summary line, then the
  * rounds left to right joined by arrows. A held round is solid, the one being
@@ -215,6 +318,8 @@ function RoundCard({ round: r }: { round: LoopRound }) {
  * sideways inside itself (LoopRow) and never widens the page.
  */
 export function Loop({ reader }: { reader: Reader }) {
+  const { route } = reader;
+  const rows = route ? route.offPlan : reader.rounds;
   return (
     <section aria-label="Interview loop" className="grid gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 pt-4 pb-3 @2xl:px-[26px]">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
@@ -224,15 +329,22 @@ export function Loop({ reader }: { reader: Reader }) {
         </p>
         <span className="inline-flex h-6 flex-none items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
       </div>
-      {reader.rounds.length ? (
-        <LoopRow current={reader.rounds.find((r) => r.place === "current")?.key ?? null}>
-          {reader.rounds.map((r, i) => (
+      {route ? <Route route={route} /> : null}
+      {route && route.offPlan.length ? <p className="m-0 text-xs text-faint">Not on the plan</p> : null}
+      {rows.length ? (
+        <LoopRow current={rows.find((r) => r.place === "current")?.key ?? null} label={route ? "Rounds not on the plan" : undefined}>
+          {rows.map((r, i) => (
             <li key={r.key} aria-current={r.place === "current" ? "step" : undefined} className="flex max-w-[300px] flex-[1_0_auto] items-stretch">
               {i > 0 ? <Arrow to={r} /> : null}
               <RoundCard round={r} />
             </li>
           ))}
         </LoopRow>
+      ) : null}
+      {reader.editProcess ? (
+        <Link href={reader.editProcess} className="justify-self-start text-[12.5px] font-medium text-[color:var(--accent)] hover:underline hover:underline-offset-3">
+          Edit the process →
+        </Link>
       ) : null}
       {reader.partial ? <p className="m-0 text-xs text-faint">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p> : null}
     </section>
