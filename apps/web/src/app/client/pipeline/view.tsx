@@ -3,17 +3,27 @@ import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { Empty, Page, PageBar, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
 import { Board, FilterKeys } from "./board";
 import type { BoardColumn } from "./board-state";
+import { ListZero, PipelineList, StageBar, type ListGroup, type StageCard } from "./list";
 import { ViewName } from "./view-name";
 
-// The Pipeline board's markup, props only (page.tsx does the reads), as
-// design/tats's Pipeline: the bar (people icon, "Pipeline", the count faint),
+// The Pipeline's markup, props only (page.tsx does the reads), as design/tats's
+// Pipeline: the bar (people icon, "Pipeline", the count faint, Stuck / Everyone),
 // then one sub-bar with the department tabs on the left (none for an org
-// without departments) and the job chip and the name filter on the right,
-// then the board (board.tsx), one column per computed stage filling the width,
-// each a band with its count and up to a dozen calm cards. A card is the
-// person, their job (or headline, once one job is picked), one status line and
-// the owner. Colour only for meaning: a stalled card's status reads red. On a
+// without departments) and the job chip and the name filter on the right. Under
+// that, across jobs, the stage bar and one row per person (list.tsx). A board
+// only reads for one job, so once one is picked it is the board (board.tsx):
+// one column per computed stage filling the width, each a band with its count
+// and up to a dozen calm cards. A card is the person, their headline, one status
+// line and the owner. Colour only for meaning: a stalled person reads red. On a
 // saved view the crumb is Views, then its name; the bar's Views link goes there.
+
+/** Under the sub-bar when no job is picked. `zero` when nobody is left to list. */
+export type PipelineListProps = {
+  modes: Tab[];
+  stages: StageCard[];
+  groups: ListGroup[];
+  zero: { title: string; note: string; action: { href: string; label: string } | null } | null;
+};
 
 function PeopleIcon() {
   return (
@@ -26,6 +36,7 @@ function PeopleIcon() {
 export function PipelineView({
   total,
   columns,
+  list,
   departments,
   job,
   search,
@@ -34,7 +45,10 @@ export function PipelineView({
   capped,
 }: {
   total: number;
+  /** The board, for one job. */
   columns: BoardColumn[];
+  /** The list, across jobs; null once a job is picked. */
+  list: PipelineListProps | null;
   /** Empty for an org with no departments: no filter at all. */
   departments: Tab[];
   /** The job chip; null when there is no open job to pick. */
@@ -56,6 +70,7 @@ export function PipelineView({
             crumbs={view ? [{ href: "/client/views", label: "Views" }] : undefined}
             count={total.toLocaleString("en-US")}
           >
+            {list && !empty ? <Tabs label="Show" tabs={list.modes} /> : null}
             <Link
               href="/client/views"
               className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
@@ -84,7 +99,16 @@ export function PipelineView({
     >
       {capped ? <p className="m-0 mb-3 text-[12.5px] text-faint">A job has more than 1,000 applications, so this board may stop short of the people touched most recently.</p> : null}
       <FilterKeys />
-      {empty ? <Empty>{empty}</Empty> : <Board columns={columns} />}
+      {empty ? (
+        <Empty>{empty}</Empty>
+      ) : list ? (
+        <>
+          <StageBar stages={list.stages} />
+          {list.zero ? <ListZero {...list.zero} /> : <PipelineList groups={list.groups} />}
+        </>
+      ) : (
+        <Board columns={columns} />
+      )}
     </Page>
   );
 }
