@@ -1,24 +1,26 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
 import { KeyList } from "@/components/keys";
-import { Avatar, ListReader, PageBar, Tabs, textLink } from "@/components/page";
+import { Avatar, PageBar, Tabs, textLink } from "@/components/page";
 import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
-import { ISSUE_KINDS, type IssueFix, type IssueInstance, type IssueKind } from "@/lib/client/inbox-issues";
+import type { IssueFix, IssueInstance, IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
+import { IssuePopup } from "./popup";
 import { SendBar, type SendProps } from "./send-bar";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
-// #inbox as a list and a reader under one bar. The list is the queue by kind,
-// a row each: an icon, what is wrong, who it waits on and why, its age. The
-// reader: the same heading, the one fix (fix-bar.tsx, key F), Send here on an
-// unsent draft (send-bar.tsx, key F, after a dialog) or the decision
-// (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E), the card
-// saying what is waiting, an offer's terms for the approver reading it, then
-// the candidate's story. Open and Done are tabs in the bar; done-view.tsx is
-// Done. Everything a member or a candidate wrote renders as text.
+// #inbox as a digest, one centred card (`.ibx`): a heading with how many need
+// the member, the Open and Done pills, and Needs you, a row each saying what is
+// wrong, who it is about and its age. A row opens that issue in a pop-up
+// (popup.tsx) holding the reader: the same heading, the one fix (fix-bar.tsx,
+// key F), Send here on an unsent draft (send-bar.tsx, key F, after a dialog) or
+// the decision (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E),
+// the card saying what is waiting, an offer's terms for the approver reading it,
+// then the candidate's story. done-view.tsx is Done. Everything a member or a
+// candidate wrote renders as text.
 
 export type IssueRow = { key: string; kind: IssueKind; href: string; what: string; who: string | null; line: string; age: string; active: boolean };
 
@@ -55,6 +57,8 @@ const TONE: Record<IssueKind, string> = {
   decide: "bg-[color:var(--soft)] text-muted-foreground",
 };
 
+const needLine = (n: number) => (n === 0 ? "Nothing needs you" : n === 1 ? "1 thing needs you" : `${n} things need you`);
+
 function KindIcon({ kind, className }: { kind: IssueKind; className?: string }) {
   return (
     <span aria-hidden className={cn("grid size-8 flex-none place-items-center rounded-full", TONE[kind], className)}>
@@ -89,22 +93,46 @@ export function Row({ r }: { r: IssueRow }) {
   );
 }
 
-/** The bar on both tabs: design/tats's `.ib-tabs` beside the title, Open with what is left in it. */
-export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: number }) {
+function InboxTabs({ tab, openCount, className }: { tab: "open" | "done"; openCount: number; className?: string }) {
   return (
-    <PageBar
-      title="Inbox"
-      lead={
-        <Tabs
-          label="Inbox"
-          className="ml-1"
-          tabs={[
-            { label: "Open", href: "/client/inbox", active: tab === "open", ...(openCount ? { count: openCount } : {}) },
-            { label: "Done", href: "/client/inbox?tab=done", active: tab === "done" },
-          ]}
-        />
-      }
+    <Tabs
+      label="Inbox"
+      className={className}
+      tabs={[
+        { label: "Open", href: "/client/inbox", active: tab === "open", ...(openCount ? { count: openCount } : {}) },
+        { label: "Done", href: "/client/inbox?tab=done", active: tab === "done" },
+      ]}
     />
+  );
+}
+
+/** Done's bar: the same pills beside the title. Open has them in its card. */
+export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: number }) {
+  return <PageBar title="Inbox" lead={<InboxTabs tab={tab} openCount={openCount} className="ml-1" />} />;
+}
+
+/** A line of the digest (`.ibx-r`). `scroll={false}`: opening and closing leave the card where it was. */
+function DigestRow({ r }: { r: IssueRow }) {
+  return (
+    <Link
+      href={r.href}
+      scroll={false}
+      data-key-item
+      data-issue-row={r.key}
+      aria-current={r.active ? "true" : undefined}
+      aria-haspopup="dialog"
+      className="-mx-3 grid grid-cols-[32px_minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-3 transition-colors hover:bg-[color:var(--hover)]"
+    >
+      <KindIcon kind={r.kind} />
+      <span className="grid min-w-0 gap-1">
+        <span className="text-[14.5px] leading-snug font-medium break-words">{r.what}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+          {r.who ? <Avatar name={r.who} size="xs" /> : null}
+          <span className="min-w-0 break-words">{r.line}</span>
+        </span>
+      </span>
+      <span className="pt-0.5 text-[12.5px] whitespace-nowrap text-faint tabular-nums">{r.age}</span>
+    </Link>
   );
 }
 
@@ -112,32 +140,50 @@ export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: 
 function CapNotes({ truncated, draftsCapped }: { truncated: boolean; draftsCapped: boolean }) {
   return (
     <>
-      {truncated ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
-      {draftsCapped ? <p className="m-0 px-3 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
+      {truncated ? <p className="m-0 pt-3 text-[12.5px] text-faint">Too many interviews to check them all, so some missing feedback may not be listed.</p> : null}
+      {draftsCapped ? <p className="m-0 pt-3 text-[12.5px] text-faint">Showing your newest 100 unsent drafts.</p> : null}
     </>
   );
 }
 
-function IssueList({ rows, truncated, draftsCapped }: { rows: IssueRow[]; truncated: boolean; draftsCapped: boolean }) {
+/** J and K: over the card they move focus and Enter opens, since a key shouldn't throw up a pop-up; in the pop-up they walk the queue, as they walked the reader. */
+function NeedsYou({ rows, popup, truncated, draftsCapped }: { rows: IssueRow[]; popup: boolean; truncated: boolean; draftsCapped: boolean }) {
   return (
-    <KeyList title="Inbox" next="Next issue" mode="select" data-tour="inbox" className="grid content-start gap-0.5">
-      {ISSUE_KINDS.map((k) => {
-        const group = rows.filter((r) => r.kind === k.key);
-        if (!group.length) return null;
-        return (
-          <section key={k.key} aria-label={k.label} className="grid gap-0.5">
-            <h2 className="m-0 flex items-center gap-2 px-3 pt-3 pb-1 text-[12.5px] font-medium text-muted-foreground">
-              {k.label}
-              <span className="font-normal text-faint tabular-nums">{group.length}</span>
-            </h2>
-            {group.map((r) => (
-              <Row key={r.key} r={r} />
-            ))}
-          </section>
-        );
-      })}
+    <KeyList title="Inbox" next="Next issue" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start">
+      <section aria-labelledby="inbox-needs-you" className="grid grid-cols-[minmax(0,1fr)]">
+        <h2 id="inbox-needs-you" className="m-0 -mx-4 mb-1 flex items-center gap-2 border-y border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-2 text-[13.5px] font-medium sm:-mx-6 sm:px-6">
+          Needs you
+          <span className="font-normal text-faint tabular-nums">{rows.length}</span>
+        </h2>
+        {rows.map((r) => (
+          <DigestRow key={r.key} r={r} />
+        ))}
+      </section>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
     </KeyList>
+  );
+}
+
+function CaughtUp({ truncated, draftsCapped }: { truncated: boolean; draftsCapped: boolean }) {
+  return (
+    <div className="grid justify-items-center gap-2 border-t border-[color:var(--line)] py-12 text-center">
+      <span aria-hidden className="grid size-11 place-items-center rounded-full bg-[color:var(--green-soft)] text-[color:var(--green)]">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-5">
+          <path d="m3.5 8.5 3 3 6-7" />
+        </svg>
+      </span>
+      <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
+      <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
+      <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
+      <div className="mt-1 flex items-center gap-3">
+        <Link href="/client/inbox?tab=done" className={textLink}>
+          See Done
+        </Link>
+        <Link href="/client/pipeline" className={textLink}>
+          Open Pipeline
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -162,8 +208,6 @@ function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
 function Reader({ issue }: { issue: IssueReaderProps }) {
   return (
     <article className="mx-auto grid w-[760px] max-w-full content-start">
-      <h1 className="m-0 text-[20px] leading-tight font-semibold tracking-[-0.01em] break-words">{issue.what}</h1>
-      <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">{issue.subject}</p>
       {issue.decision ? (
         <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
       ) : issue.fix.type === "send" && issue.draft ? (
@@ -200,59 +244,50 @@ export function InboxView({
   rows,
   issue,
   flash,
-  open,
+  home = "/client/inbox",
   truncated,
   draftsCapped,
 }: {
   rows: IssueRow[];
+  /** The issue `?i=` opened, read in full. Null is the card alone. */
   issue: IssueReaderProps | null;
   flash: React.ReactNode;
-  open: boolean;
+  /** Where closing the pop-up lands (`closeHref`). */
+  home?: string;
   truncated: boolean;
   draftsCapped: boolean;
 }) {
-  if (!issue) {
-    return (
-      <div className="list-reader flex min-h-0 flex-1 flex-col">
-        <InboxBar tab="open" openCount={0} />
-        <div className="grid flex-1 content-center justify-items-center gap-2 p-6 text-center">
-          {flash}
-          <span aria-hidden className="grid size-11 place-items-center rounded-full bg-[color:var(--green-soft)] text-[color:var(--green)]">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-5">
-              <path d="m3.5 8.5 3 3 6-7" />
-            </svg>
-          </span>
-          <h2 className="m-0 mt-1 text-[15px] font-medium">You&apos;re all caught up</h2>
-          <p className="m-0 text-[13px] text-muted-foreground">Unsent drafts, overdue work and decisions show up here.</p>
-          <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
-          <div className="mt-1 flex items-center gap-3">
-            <Link href="/client/inbox?tab=done" className={textLink}>
-              See Done
-            </Link>
-            <Link href="/client/pipeline" className={textLink}>
-              Open Pipeline
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
   return (
-    <ListReader
-      listLabel="Issues"
-      readerLabel="Issue"
-      open={open}
-      bar={<InboxBar tab="open" openCount={rows.length} />}
-      list={<IssueList rows={rows} truncated={truncated} draftsCapped={draftsCapped} />}
-      reader={
-        <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 md:px-6 md:pt-3 md:pb-10">
-          <Link href="/client/inbox" className={cn(textLink, "md:hidden")}>
-            ← All issues
-          </Link>
-          {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
-          <Reader issue={issue} />
-        </div>
-      }
-    />
+    <div className="list-reader flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--frame)] px-4 py-6 md:py-12">
+        <section
+          data-tour="inbox"
+          data-inbox-card
+          tabIndex={-1}
+          aria-labelledby="inbox-title"
+          className="mx-auto grid w-[760px] max-w-full grid-cols-[minmax(0,1fr)] gap-5 bg-[color:var(--raised)] p-4 pb-3 shadow-[var(--shadow)] outline-none sm:p-6 sm:pb-3"
+        >
+          <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <div className="grid gap-1">
+              <h1 id="inbox-title" className="m-0 text-[18px] font-semibold tracking-[-0.01em]">
+                Inbox
+              </h1>
+              <p className="m-0 text-[14.5px] text-muted-foreground">{needLine(rows.length)}</p>
+            </div>
+            <InboxTabs tab="open" openCount={rows.length} />
+          </header>
+          {!issue ? flash : null}
+          {rows.length ? <NeedsYou rows={rows} popup={issue !== null} truncated={truncated} draftsCapped={draftsCapped} /> : <CaughtUp truncated={truncated} draftsCapped={draftsCapped} />}
+        </section>
+      </div>
+      {issue ? (
+        <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home}>
+          <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 pb-10 md:px-6">
+            {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
+            <Reader issue={issue} />
+          </div>
+        </IssuePopup>
+      ) : null}
+    </div>
   );
 }

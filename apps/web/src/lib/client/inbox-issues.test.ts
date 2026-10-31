@@ -154,9 +154,11 @@ describe("inboxIssues", () => {
 describe("selecting", () => {
   const list = issues({ cards: [card("a", { stalled: ["no_touch"], lastTouchAt: daysAgo(8) }), card("b", { stalled: ["no_touch"], lastTouchAt: daysAgo(9) }), card("c", { stalled: ["no_touch"], lastTouchAt: daysAgo(10) })] });
 
-  test("the one asked for, else the first, else nobody", () => {
+  test("the one asked for, else nobody", () => {
     expect(selectedIssue(list, "app-b")?.key).toBe("app-b");
-    expect(selectedIssue(list, "app-gone")?.key).toBe("app-a");
+    expect(selectedIssue(list, "app-gone")).toBeNull();
+    expect(selectedIssue(list, "")).toBeNull();
+    expect(selectedIssue(list, null)).toBeNull();
     expect(selectedIssue([], null)).toBeNull();
   });
 
