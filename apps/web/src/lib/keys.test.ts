@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHORD_MS, chord, ignoreKey, isShown, isTyping, keyName, menuKey, onePress, stepIndex, type KeyEventLike } from "./keys";
+import { CHORD_MS, chord, ignoreKey, isShown, isSignOutKey, isTyping, keyName, menuKey, onePress, stepIndex, type KeyEventLike } from "./keys";
 
 const ev = (over: Partial<KeyEventLike> = {}): KeyEventLike => ({
   key: "j",
@@ -63,6 +63,28 @@ describe("the modifier guard", () => {
     const inDocument = (modal: unknown) => ({ tagName: "BODY", ownerDocument: { querySelector: (s: string) => (s === "dialog:modal" ? modal : null) } }) as unknown as EventTarget;
     expect(ignoreKey(ev({ target: inDocument({}) }))).toBe(true);
     expect(ignoreKey(ev({ target: inDocument(null) }))).toBe(false);
+  });
+});
+
+describe("sign out's chord", () => {
+  const press = (over: Partial<Parameters<typeof isSignOutKey>[0]>) => isSignOutKey({ key: "q", metaKey: true, shiftKey: true, ctrlKey: false, altKey: false, repeat: false, ...over });
+
+  it("is shift and command and Q, whichever case the browser reports", () => {
+    expect(press({})).toBe(true);
+    expect(press({ key: "Q" })).toBe(true);
+  });
+
+  it("is never Ctrl, which quits the browser on Windows and Linux", () => {
+    expect(press({ metaKey: false, ctrlKey: true })).toBe(false);
+    expect(press({ ctrlKey: true })).toBe(false);
+  });
+
+  it("is nothing without every key, and a held key signs out once", () => {
+    expect(press({ shiftKey: false })).toBe(false);
+    expect(press({ metaKey: false })).toBe(false);
+    expect(press({ altKey: true })).toBe(false);
+    expect(press({ key: "w" })).toBe(false);
+    expect(press({ repeat: true })).toBe(false);
   });
 });
 

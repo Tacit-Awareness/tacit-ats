@@ -72,6 +72,17 @@ export function menuKey(e: KeyEventLike, count: number): MenuCommand | null {
   return /^[1-9]$/.test(k) && Number(k) <= count ? { kind: "pick", index: Number(k) - 1 } : null;
 }
 
+/** Sign out's chord as the account menu and the `?` sheet draw it, design/tats's. */
+export const SIGN_OUT_KEYS = "⇧ ⌘ Q";
+
+/**
+ * ⇧⌘Q and nothing else. Never Ctrl: Ctrl+Shift+Q quits Chrome and Firefox on
+ * Windows and Linux. On a Mac it is also the system's Log Out, so whether a page
+ * gets it first depends on the browser (apps/web/CLAUDE.md, Keys).
+ */
+export const isSignOutKey = (e: Pick<KeyEventLike, "key" | "metaKey" | "ctrlKey" | "altKey"> & { shiftKey: boolean; repeat: boolean }): boolean =>
+  e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && !e.repeat && e.key.toLowerCase() === "q";
+
 /** How long G waits for its letter, as design/tats. */
 export const CHORD_MS = 900;
 
