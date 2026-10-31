@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { readCandidate, toolCtx } from "@/lib/client/candidate";
-import { readEditing } from "@/lib/client/candidate-edits";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
+import { readCandidateView } from "./read";
 import { CANDIDATE_ERRORS, CANDIDATE_NOTICES, isCandidateError, isCandidateNotice } from "./messages";
 import { CandidateView } from "./view";
 
@@ -27,17 +26,8 @@ export default async function ClientCandidate({
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
 
   const { id } = await params;
-  const read = await readCandidate(gate.ctx.db, toolCtx(gate.ctx), id);
+  const read = await readCandidateView(gate.ctx, id, Date.now());
   if (!read) notFound();
-
-  // An interviewer edits nothing here, and their token reads no applications.
-  const editing =
-    gate.ctx.accessLevel === "limited"
-      ? null
-      : await readEditing(
-          gate.ctx.db,
-          read.candidate.applications.map((a) => a.applicationId),
-        );
 
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
@@ -45,19 +35,6 @@ export default async function ClientCandidate({
   const error = one(sp.error);
 
   return (
-    <CandidateView
-      candidate={read.candidate}
-      activity={read.activity}
-      owners={Object.fromEntries(read.owners)}
-      past={read.past}
-      editing={
-        editing && editing.editable.size
-          ? { apps: Object.fromEntries(editing.editable), owners: editing.owners, reasons: editing.reasons }
-          : null
-      }
-      notice={isCandidateNotice(notice) ? CANDIDATE_NOTICES[notice] : null}
-      error={isCandidateError(error) ? CANDIDATE_ERRORS[error] : null}
-      now={Date.now()}
-    />
+    <CandidateView {...read} notice={isCandidateNotice(notice) ? CANDIDATE_NOTICES[notice] : null} error={isCandidateError(error) ? CANDIDATE_ERRORS[error] : null} />
   );
 }

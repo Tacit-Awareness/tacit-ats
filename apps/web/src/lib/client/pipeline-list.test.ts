@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineEntry } from "./pipeline";
-import { ROW_PREVIEW, defaultMode, factsOf, modeParam, pipelineHref, resolveMode, rowGroups, shortSpan, stageCounts, statusOf, toRow, type ModeContext, type PipelineUrl } from "./pipeline-list";
+import { ROW_PREVIEW, defaultMode, factsOf, modeParam, parseLayout, pipelineHref, resolveMode, rowGroups, shortSpan, stageCounts, statusOf, toRow, type ModeContext, type PipelineUrl } from "./pipeline-list";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const daysAgo = (d: number) => new Date(NOW - d * 86_400_000).toISOString();
@@ -66,6 +66,35 @@ describe("the mode a URL means", () => {
     expect(modeParam("stuck", { ...plain, stage: "new" })).toBe("stuck");
     // Clearing that stage from Everyone stays on Everyone.
     expect(modeParam("everyone", { ...plain, stage: "new" })).toBeNull();
+  });
+});
+
+describe("the layout and the pop-up in the URL", () => {
+  const page: PipelineUrl = { department: null, job: null, q: null, all: null, mode: "stuck", stage: null, source: null, tag: null, view: null };
+
+  it("only `list` is a layout: the board is what a job opens on", () => {
+    expect(parseLayout("list")).toBe("list");
+    expect(parseLayout("board")).toBeNull();
+    expect(parseLayout("garbage")).toBeNull();
+    expect(parseLayout(undefined)).toBeNull();
+  });
+
+  it("the list needs a job: across jobs it is all there is", () => {
+    expect(pipelineHref(page, { layout: "list" })).toBe("/client/pipeline");
+    expect(pipelineHref({ ...page, job: "j1" }, { layout: "list" })).toBe("/client/pipeline?job=j1&layout=list");
+  });
+
+  it("it stays on the links that follow, and goes with the job or when asked", () => {
+    const list: PipelineUrl = { ...page, job: "j1", layout: "list" };
+    expect(pipelineHref(list, { job: "j2" })).toBe("/client/pipeline?job=j2&layout=list");
+    expect(pipelineHref(list, { job: null })).toBe("/client/pipeline");
+    expect(pipelineHref(list, { layout: null })).toBe("/client/pipeline?job=j1");
+  });
+
+  it("a row's link opens it, and no other link carries it on", () => {
+    expect(pipelineHref(page, { open: "a1" })).toBe("/client/pipeline?open=a1");
+    expect(pipelineHref({ ...page, q: "ann", mode: "everyone" }, { open: "a1" })).toBe("/client/pipeline?q=ann&open=a1");
+    expect(pipelineHref(page, {})).not.toContain("open");
   });
 });
 

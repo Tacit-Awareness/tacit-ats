@@ -6,12 +6,15 @@ import { readDepartments } from "@/lib/client/departments";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
-import { isStuck, modeParam, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
+import { isStuck, modeParam, parseLayout, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
 import { resolveClient } from "@/lib/client/session";
 import { readPersonTags } from "@/lib/client/views";
 import { describeFilters, parseViewFilters, parseViewId, rowSource, viewKeeps } from "@/lib/saved-views";
 import { Refusal } from "../refusal";
+import { CandidateBody } from "../candidates/[id]/view";
+import { readCandidateView } from "../candidates/[id]/read";
 import type { BoardCard, BoardColumn } from "./board-state";
+import { PersonPopup } from "./popup";
 import { PipelineView, type PipelineListProps } from "./view";
 
 // Every open job's live applications (design/tats's Pipeline), read with the
@@ -21,8 +24,10 @@ import { PipelineView, type PipelineListProps } from "./view";
 // inside it, lib/client/department-tree.ts). Across jobs it is a list that opens
 // on who is stuck (`?mode=`, lib/client/pipeline-list.ts), with a stage bar; one
 // job picked, the board, each column in its order with a dozen cards until
-// "Show all". A row or card opens the candidate page; on a job the member may
-// edit, a card also carries its real stage moves (lib/client/pipeline-moves.ts),
+// "Show all", or that job's list (`?layout=list`, the bar's switch). A row opens
+// the candidate in a pop-up (`?open=<application id>`, only ever one this read
+// holds, so a tampered id is no pop-up), a card their page; on a job the member
+// may edit, a card also carries its real stage moves (lib/client/pipeline-moves.ts),
 // which board.tsx offers by drag and keys.
 // A saved view (lib/saved-views.ts) is the same page with
 // `?stage=&source=&tag=&view=` in the URL: the filters come from there, never
@@ -66,6 +71,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   const now = new Date();
   const nowMs = now.getTime();
   const [pipeline, structure] = await Promise.all([readPipeline(db, now), readDepartments(db)]);
+  const openId = one(sp.open);
   const scope = departmentScope(structure, one(sp.department));
   const department = scope.departmentId;
   const jobs = pipeline.jobs.filter((j) => inScope(scope, j.id));
@@ -87,7 +93,9 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   const viewParams = { stage: filters.stage, source: filters.source, tag: filters.tag, view: viewId };
   const modeContext: ModeContext = { ...viewParams, all: expanded, q: q || null };
   const mode = resolveMode(one(sp.mode), modeContext);
-  const href = (next: PipelineLink) => pipelineHref({ ...viewParams, department, job, q: q || null, all: expanded, mode }, next);
+  const layout = parseLayout(one(sp.layout));
+  const onList = !job || layout === "list";
+  const href = (next: PipelineLink) => pipelineHref({ ...viewParams, department, job, q: q || null, all: expanded, mode, layout }, next);
 
   // The board has no stage bar to clear a stage picked from it, so a job drops that; a saved view's stage stays.
   const forJob = viewId ? viewed : unstaged;
@@ -120,7 +128,11 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   const list = (): PipelineListProps => {
     const matching = unstaged.filter(matches);
-    const groups = rowGroups(matching, { mode, stage: filters.stage, expanded, now: nowMs }).map((g) => ({ ...g, moreHref: g.more ? href({ all: g.more.all }) : null }));
+    const groups = rowGroups(matching, { mode, stage: filters.stage, expanded, now: nowMs }).map((g) => ({
+      ...g,
+      rows: g.rows.map((r) => ({ ...r, openHref: href({ open: r.applicationId }), active: r.applicationId === openId })),
+      moreHref: g.more ? href({ all: g.more.all }) : null,
+    }));
     const filtered = !!(needle || filters.stage || filters.source || filters.tag);
     return {
       modes: [
@@ -141,11 +153,28 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     };
   };
 
+  const opened = onList ? entries.find((e) => e.applicationId === openId) : undefined;
+  const person = opened ? await readCandidateView(gate.ctx, opened.personId, nowMs) : null;
+
   return (
     <PipelineView
       total={shown.length}
       columns={columns}
-      list={job ? null : list()}
+      list={onList ? list() : null}
+      layout={{ on: onList ? "list" : "board", list: href({ layout: "list", all: null }), board: job ? href({ layout: null, all: null, stage: jobStage }) : null }}
+      popup={
+        opened && person ? (
+          <PersonPopup
+            applicationId={opened.applicationId}
+            title={opened.personName?.trim() || "Unnamed"}
+            subject={[opened.roleTitle, PIPELINE_COLUMNS.find((c) => c.key === opened.column)?.label].filter(Boolean).join(" · ")}
+            home={href({})}
+            pageHref={`/client/candidates/${opened.personId}`}
+          >
+            <CandidateBody {...person} popup notice={null} error={null} />
+          </PersonPopup>
+        ) : null
+      }
       capped={pipeline.capped}
       departments={departmentTabs(scope, (d) => href({ department: d, job: null, all: null, leaveView: true }))}
       job={
@@ -164,7 +193,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
             }
           : null
       }
-      search={{ q, keep: { department, job, ...viewParams, mode: modeParam(mode, modeContext) } }}
+      search={{ q, keep: { department, job, ...viewParams, mode: modeParam(mode, modeContext), layout: job ? layout : null } }}
       view={
         viewId || filters.source || filters.tag
           ? {
@@ -178,7 +207,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
           ? department
             ? "Nobody is in this department's open jobs yet."
             : "Nobody is in an open job's pipeline yet."
-          : job && shown.length === 0
+          : !onList && shown.length === 0
             ? "Nobody matches."
             : null
       }

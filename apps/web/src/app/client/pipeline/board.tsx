@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { KeyList, useKeyHelp, useKeys } from "@/components/keys";
 import { Avatar } from "@/components/page";
+import { dismissToast, showToast } from "@/components/toasts";
 import { NO_DROP, type ColumnKey } from "@/lib/client/pipeline-columns";
 import type { StageMove } from "@/lib/client/pipeline-moves";
 import { isTyping, menuKey } from "@/lib/keys";
@@ -20,12 +22,8 @@ import { cssPx, cssRect } from "@/lib/ui-scale";
 // takes no drop. The card moves at once and the server's answer settles it; a
 // refusal puts it back and says why. Keys, from design/tats's Pipeline: J/K
 // walk the cards, Enter opens one, S is its stage menu, A its next stage, F or
-// / the filter. Its X, P, L and B have nothing behind them here.
+// / the filter, B the list. Its X, P and L have nothing behind them here.
 
-/** A move's confirmation stays this long; a refusal stays until dismissed or the next move. */
-const NOTICE_MS = 4000;
-
-type Notice = { text: string; error: boolean };
 type MenuAt = { card: BoardCard; rect: DOMRect };
 
 const cardEl = (id: string) => document.querySelector<HTMLElement>(`[data-card="${id}"]`);
@@ -267,37 +265,20 @@ function MoveMenu({ at, onPick, onClose }: { at: MenuAt; onPick: (move: StageMov
   );
 }
 
-/** design/tats's toast: bottom right, across the bottom on a phone. Always mounted, so a reader hears what changes in it. */
-function Toast({ notice, onDismiss }: { notice: Notice | null; onDismiss: () => void }) {
-  return (
-    <div role="status" className="fixed right-5 bottom-[60px] z-[70] max-sm:right-4 max-sm:left-4">
-      {notice ? (
-        <div className="flex max-w-[420px] items-center gap-2.5 border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)]">
-          <span className={cn("min-w-0 flex-1", notice.error && "text-negative")}>{notice.text}</span>
-          {notice.error ? (
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="rounded-full px-1.5 py-0.5 text-[12.5px] font-medium text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
-            >
-              Dismiss
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function Board({ columns }: { columns: BoardColumn[] }) {
   const [shown, shift] = useOptimistic(columns, shiftCard);
   const [pending, start] = useTransition();
-  const [notice, setNotice] = useState<Notice | null>(null);
   const [drag, setDrag] = useState<{ card: BoardCard; from: string } | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuAt | null>(null);
   // Where focus goes while a move settles: a moved card is a new element.
   const refocus = useRef<{ id: string; fallback: string | null } | null>(null);
+  // The last thing the board said: a move takes it away, a refusal left standing included.
+  const said = useRef<string | null>(null);
+  const say = (text: string, tone: "info" | "error" = "info") => {
+    if (said.current) dismissToast(said.current);
+    said.current = showToast({ text, tone });
+  };
   const movable = shown.some((c) => c.cards.some((x) => x.moves));
 
   useEffect(() => {
@@ -308,15 +289,9 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     if (!pending) refocus.current = null;
   }, [shown, pending]);
 
-  useEffect(() => {
-    if (!notice || notice.error) return;
-    const t = setTimeout(() => setNotice(null), NOTICE_MS);
-    return () => clearTimeout(t);
-  }, [notice]);
-
   const move = (card: BoardCard, to: StageMove, keepFocus: boolean) => {
     setMenu(null);
-    setNotice(null);
+    if (said.current) dismissToast(said.current);
     if (keepFocus) refocus.current = { id: card.applicationId, fallback: neighbourOf(shown, card.applicationId) };
     const form = new FormData();
     form.set("applicationId", card.applicationId);
@@ -326,8 +301,8 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     start(async () => {
       shift({ applicationId: card.applicationId, stage: to.stage, stageLabel: to.label, column: to.column });
       const result: BoardMoveResult = await moveCardAction(form).catch(() => ({ ok: false, error: "unsure" }) as const);
-      if (!result.ok) setNotice({ text: CANDIDATE_ERRORS[result.error], error: true });
-      else setNotice({ text: result.changed ? `Moved ${card.name} to ${to.label}.` : CANDIDATE_NOTICES.unchanged, error: false });
+      if (!result.ok) say(CANDIDATE_ERRORS[result.error], "error");
+      else say(result.changed ? `Moved ${card.name} to ${to.label}.` : CANDIDATE_NOTICES.unchanged);
     });
   };
 
@@ -346,7 +321,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     const stage = from.card.moves.drops[column.key as ColumnKey];
     const to = from.card.moves.stages.find((m) => m.stage === stage);
     if (to) move(from.card, to, false);
-    else setNotice({ text: NO_DROP[column.key as ColumnKey] ?? "That column means no stage for them.", error: false });
+    else say(NO_DROP[column.key as ColumnKey] ?? "That column means no stage for them.");
   };
 
   /** The card the keys act on: the one focus is in. */
@@ -417,19 +392,26 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
         </div>
       </KeyList>
       {menu ? <MoveMenu at={menu} onPick={(m) => move(menu.card, m, true)} onClose={closeMenu} /> : null}
-      <Toast notice={notice} onDismiss={() => setNotice(null)} />
     </>
   );
 }
 
 /** F or /: the name filter, which stays when the board has nobody to show. */
-export function FilterKeys() {
+export function FilterKeys({ enabled = true }: { enabled?: boolean }) {
   const focus = () => {
     const input = document.querySelector<HTMLInputElement>('form[action="/client/pipeline"] input[name="q"]');
     input?.focus();
     input?.select();
   };
-  useKeys({ f: focus, "/": focus });
+  useKeys({ f: focus, "/": focus }, enabled);
   useKeyHelp("Pipeline", [{ keys: "F or /", label: "Filter by name" }]);
+  return null;
+}
+
+/** B: the other layout. Across jobs there's no board to go to, and it says so, as design/tats. */
+export function LayoutKey({ to, refusal, enabled }: { to: string | null; refusal: string; enabled: boolean }) {
+  const router = useRouter();
+  useKeys({ b: () => (to ? router.push(to) : void showToast({ text: refusal })) }, enabled);
+  useKeyHelp("Pipeline", [{ keys: "B", label: "List or board" }]);
   return null;
 }

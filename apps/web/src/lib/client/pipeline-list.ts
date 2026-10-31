@@ -13,6 +13,16 @@ export const ROW_PREVIEW = 12;
 
 export type PipelineMode = "stuck" | "everyone";
 
+/**
+ * A board only reads for one job (design/tats's `view`), so across jobs it's the
+ * list and the switch's Board is off. With one job picked the board is where it
+ * opens, and `?layout=list` the other way; the prototype opens on the list, but
+ * everything that links a job here means its board.
+ */
+export type PipelineLayout = "list";
+
+export const parseLayout = (raw: string | undefined): PipelineLayout | null => (raw === "list" ? raw : null);
+
 /** What in a URL says someone came for particular people, so Stuck would hide what they asked for. */
 export type ModeContext = {
   stage: string | null;
@@ -41,6 +51,8 @@ export type PipelineUrl = Omit<ModeContext, "stage" | "all"> & {
   mode: PipelineMode;
   stage: ColumnKey | null;
   all: ColumnKey | null;
+  /** Only with a job picked: the list instead of its board. */
+  layout?: PipelineLayout | null;
 };
 export type PipelineLink = {
   department?: string | null;
@@ -51,6 +63,10 @@ export type PipelineLink = {
   stage?: ColumnKey | null;
   /** Off the saved view altogether, filters included: a department. */
   leaveView?: boolean;
+  /** List or board, for a job. Across jobs there is only the list, so it means nothing without one. */
+  layout?: PipelineLayout | null;
+  /** The application whose pop-up this link opens. No link carries one on: anything else closes it. */
+  open?: string;
 };
 
 /** A link from the page as it stands, changing only what `next` names. */
@@ -68,6 +84,9 @@ export function pipelineHref(cur: PipelineUrl, next: PipelineLink): string {
   if (all) params.set("all", all);
   if (m) params.set("mode", m);
   for (const [k, v] of Object.entries(onView)) if (v) params.set(k, v);
+  const layout = next.layout === undefined ? cur.layout : next.layout;
+  if (j && layout) params.set("layout", layout);
+  if (next.open) params.set("open", next.open);
   const qs = params.toString();
   return `/client/pipeline${qs ? `?${qs}` : ""}`;
 }

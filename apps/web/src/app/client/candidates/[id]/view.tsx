@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { clientTools } from "@tacit-ats/core";
+import { FlashToast } from "@/components/flash-toast";
 import { Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/components/page";
 import { FEED_MAX } from "@/lib/client/candidate";
 import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
@@ -216,7 +217,8 @@ function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewP
   );
 }
 
-export function CandidateView({ candidate, activity, owners, past, editing, notice, error, now }: CandidateViewProps) {
+/** The page's content, also what the Pipeline's pop-up holds (`popup`: its header already names them). */
+export function CandidateBody({ candidate, activity, owners, past, editing, notice, error, now, popup = false }: CandidateViewProps & { popup?: boolean }) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
@@ -244,115 +246,122 @@ export function CandidateView({ candidate, activity, owners, past, editing, noti
     contact.push(["Pools", <span className="truncate">{candidate.pools.map((p) => `${p.pool} (${p.stage.replace(/_/g, " ")})`).join(", ")}</span>]);
 
   return (
-    <Page bleed bar={<PageBar title={name} crumbs={[{ href: "/client/candidates", label: "CRM" }]} />}>
-      <div className="grid min-[1100px]:grid-cols-[minmax(0,1fr)_280px]">
-        {/* design/tats's `.detail .body`: unboxed, at most 840px, 24px between blocks */}
-        <div className="mx-auto grid w-full max-w-[840px] min-w-0 content-start gap-6 px-4 pt-8 pb-20 md:px-12">
-          {error ? <Notice tone="error">{error}</Notice> : notice ? <Notice>{notice}</Notice> : null}
-          <div className="grid gap-5">
-            <div className="flex items-center gap-3">
-              <div className="min-w-0">
-                <h1 className="m-0 text-[22px] leading-[1.25] font-semibold tracking-[-0.012em] text-balance">{name}</h1>
-                {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}
-              </div>
+    <div className="grid min-[1100px]:grid-cols-[minmax(0,1fr)_280px]">
+      {/* design/tats's `.detail .body`: unboxed, at most 840px, 24px between blocks */}
+      <div className="mx-auto grid w-full max-w-[840px] min-w-0 content-start gap-6 px-4 pt-8 pb-20 md:px-12">
+        {error ? <Notice tone="error">{error}</Notice> : notice ? <FlashToast text={notice} /> : null}
+        <div className="grid gap-5">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0">
+              {popup ? null : <h1 className="m-0 text-[22px] leading-[1.25] font-semibold tracking-[-0.012em] text-balance">{name}</h1>}
+              {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}
             </div>
-            {current.length || candidate.tags.length ? (
-              <Chips aria-label="Stage and tags">
-                {current.map((a) => (
-                  <Chip key={a.applicationId} title={a.jobTitle ?? undefined}>
-                    <i
-                      aria-hidden
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        a.stage === "hired" ? "bg-positive" : CLOSED.has(a.stage) ? "bg-[color:var(--line-strong)]" : "bg-foreground/55",
-                      )}
-                    />
-                    {stageLabel(a.stage)}
-                    {multi ? <span className="max-w-[160px] truncate text-faint">{a.jobTitle ?? "Untitled job"}</span> : null}
-                  </Chip>
-                ))}
-                {past.length ? (
-                  <Chip>
-                    <i aria-hidden className="size-1.5 rounded-full bg-[color:var(--closed)]" />
-                    Applied before
-                  </Chip>
-                ) : null}
-                {candidate.tags.map((t) => (
-                  <Chip key={`tag-${t}`}>{t}</Chip>
-                ))}
-              </Chips>
-            ) : null}
           </div>
-
-          {candidate.full ? (
-            <section aria-label="Jobs">
-              <BlockHead count={current.length}>Jobs</BlockHead>
-              <Jobs candidate={candidate} apps={current} owners={owners} editing={editing} now={now} />
-            </section>
-          ) : (
-            <p className="m-0 text-[14px] text-muted-foreground">
-              You&apos;re interviewing {name}. What you see here is your own interviews and notes; the rest of their record is the hiring team&apos;s.
-              Your interviews are on your{" "}
-              <Link href="/client" className={textLink}>
-                home page
-              </Link>
-              .
-            </p>
-          )}
-
-          {past.length ? (
-            <section aria-label="Past applications">
-              <BlockHead count={past.length}>Past applications</BlockHead>
-              <PastApplications candidate={candidate} past={past} editing={editing} now={now} />
-            </section>
+          {current.length || candidate.tags.length ? (
+            <Chips aria-label="Stage and tags">
+              {current.map((a) => (
+                <Chip key={a.applicationId} title={a.jobTitle ?? undefined}>
+                  <i
+                    aria-hidden
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      a.stage === "hired" ? "bg-positive" : CLOSED.has(a.stage) ? "bg-[color:var(--line-strong)]" : "bg-foreground/55",
+                    )}
+                  />
+                  {stageLabel(a.stage)}
+                  {multi ? <span className="max-w-[160px] truncate text-faint">{a.jobTitle ?? "Untitled job"}</span> : null}
+                </Chip>
+              ))}
+              {past.length ? (
+                <Chip>
+                  <i aria-hidden className="size-1.5 rounded-full bg-[color:var(--closed)]" />
+                  Applied before
+                </Chip>
+              ) : null}
+              {candidate.tags.map((t) => (
+                <Chip key={`tag-${t}`}>{t}</Chip>
+              ))}
+            </Chips>
           ) : null}
-
-          {candidate.summary ? (
-            <section aria-label="Profile">
-              <BlockHead>Profile</BlockHead>
-              <p className="m-0 text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/85">{candidate.summary}</p>
-            </section>
-          ) : null}
-
-          <section aria-label="Activity">
-            <BlockHead count={activity.length}>Activity</BlockHead>
-            <div className="grid gap-3">
-              {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
-              <ActivityStory entries={activity} now={now} />
-              {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
-            </div>
-          </section>
         </div>
 
-        {/* design/tats's `.props`: the rail, ruled off on the left */}
-        <aside className="grid content-start gap-4 border-t border-[color:var(--line)] px-3 pt-3.5 pb-10 min-[1100px]:border-t-0 min-[1100px]:border-l">
-          {contact.length ? (
-            <PropGroup title="Contact">
-              {contact.map(([k, v]) => (
-                <Prop key={k} k={k}>
-                  {v}
-                </Prop>
-              ))}
-            </PropGroup>
-          ) : null}
-          <PropGroup ruled={contact.length > 0} title={`Files${candidate.files.length ? ` · ${candidate.files.length}` : ""}`}>
-            {candidate.files.length === 0 ? (
-              <p className="m-0 px-2 text-[12.5px] text-faint">No files.</p>
-            ) : (
-              candidate.files.map((f) => (
-                <Prop key={f.fileId} k={f.kind === "resume" ? "Resume" : "Attachment"}>
-                  <span
-                    className="truncate"
-                    title={[f.filename, size(f.sizeBytes), f.uploadedBy, ago(f.uploadedAt, now)].filter(Boolean).join(" · ")}
-                  >
-                    {f.filename}
-                  </span>
-                </Prop>
-              ))
-            )}
-          </PropGroup>
-        </aside>
+        {candidate.full ? (
+          <section aria-label="Jobs">
+            <BlockHead count={current.length}>Jobs</BlockHead>
+            <Jobs candidate={candidate} apps={current} owners={owners} editing={editing} now={now} />
+          </section>
+        ) : (
+          <p className="m-0 text-[14px] text-muted-foreground">
+            You&apos;re interviewing {name}. What you see here is your own interviews and notes; the rest of their record is the hiring team&apos;s.
+            Your interviews are on your{" "}
+            <Link href="/client" className={textLink}>
+              home page
+            </Link>
+            .
+          </p>
+        )}
+
+        {past.length ? (
+          <section aria-label="Past applications">
+            <BlockHead count={past.length}>Past applications</BlockHead>
+            <PastApplications candidate={candidate} past={past} editing={editing} now={now} />
+          </section>
+        ) : null}
+
+        {candidate.summary ? (
+          <section aria-label="Profile">
+            <BlockHead>Profile</BlockHead>
+            <p className="m-0 text-[14px] leading-[1.55] break-words whitespace-pre-wrap text-foreground/85">{candidate.summary}</p>
+          </section>
+        ) : null}
+
+        <section aria-label="Activity">
+          <BlockHead count={activity.length}>Activity</BlockHead>
+          <div className="grid gap-3">
+            {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
+            <ActivityStory entries={activity} now={now} />
+            {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
+          </div>
+        </section>
       </div>
+
+      {/* design/tats's `.props`: the rail, ruled off on the left */}
+      <aside className="grid content-start gap-4 border-t border-[color:var(--line)] px-3 pt-3.5 pb-10 min-[1100px]:border-t-0 min-[1100px]:border-l">
+        {contact.length ? (
+          <PropGroup title="Contact">
+            {contact.map(([k, v]) => (
+              <Prop key={k} k={k}>
+                {v}
+              </Prop>
+            ))}
+          </PropGroup>
+        ) : null}
+        <PropGroup ruled={contact.length > 0} title={`Files${candidate.files.length ? ` · ${candidate.files.length}` : ""}`}>
+          {candidate.files.length === 0 ? (
+            <p className="m-0 px-2 text-[12.5px] text-faint">No files.</p>
+          ) : (
+            candidate.files.map((f) => (
+              <Prop key={f.fileId} k={f.kind === "resume" ? "Resume" : "Attachment"}>
+                <span
+                  className="truncate"
+                  title={[f.filename, size(f.sizeBytes), f.uploadedBy, ago(f.uploadedAt, now)].filter(Boolean).join(" · ")}
+                >
+                  {f.filename}
+                </span>
+              </Prop>
+            ))
+          )}
+        </PropGroup>
+      </aside>
+    </div>
+  );
+}
+
+export function CandidateView(props: CandidateViewProps) {
+  const name = props.candidate.name?.trim() || "Unnamed";
+  return (
+    <Page bleed bar={<PageBar title={name} crumbs={[{ href: "/client/candidates", label: "CRM" }]} />}>
+      <CandidateBody {...props} />
     </Page>
   );
 }

@@ -102,5 +102,7 @@ export async function addNoteAction(prev: NoteState, form: FormData): Promise<No
   }
   if (!outcome.ok) return refuse(outcome.error);
   revalidatePath(`/client/candidates/${candidateId}`);
+  // The Pipeline's pop-up holds this box too, and its feed is that page's.
+  revalidatePath("/client/pipeline");
   return { added: prev.added + 1 };
 }
