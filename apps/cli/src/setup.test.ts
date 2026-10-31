@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { run, type Installer, type Io } from "./cli.js";
 import { clientStatus, setup, SKILL } from "./setup.js";
 import { fakeTacit, memoryStore, SERVER } from "./test-helpers/fake-tacit.js";
+import { VERSION } from "./version.js";
 
 let home: string;
 const env = () => ({ HOME: home, TATS_URL: SERVER });
@@ -77,7 +78,7 @@ describe("tats agent setup", () => {
     await writeFile(skillAt(".cursor"), "mine");
     const status = await clientStatus(env());
     expect(status.map((c) => [c.client, c.detected, c.skill.state, c.skill.version])).toEqual([
-      ["claude-code", true, "installed", "0.1.0"],
+      ["claude-code", true, "installed", VERSION],
       ["codex", true, "missing", null],
       ["cursor", true, "not_tats", null],
     ]);
@@ -144,7 +145,7 @@ describe("tats agent setup, from the command line", () => {
 
   it("under npx, installs tats globally at its own version before the skill", async () => {
     expect(await run(["agent", "setup"], io({}, { fromNpx: true }))).toBe(0);
-    expect(installs).toEqual(["@tacitawareness/tats@0.1.0"]);
+    expect(installs).toEqual([`@tacitawareness/tats@${VERSION}`]);
     expect(out.join("\n")).toContain("✓ tats installed");
     expect(await readFile(skillAt(".claude"), "utf8")).toBe(SKILL);
     expect(out.at(-1)).toBe("Next: tats login");
@@ -187,7 +188,7 @@ describe("tats agent setup, from the command line", () => {
   it("previews with --dry-run", async () => {
     expect(await run(["agent", "setup", "--dry-run"], io({}, { fromNpx: true }))).toBe(0);
     expect(installs).toEqual([]);
-    expect(out.join("\n")).toContain("· would install tats for good: npm i -g @tacitawareness/tats@0.1.0");
+    expect(out.join("\n")).toContain(`· would install tats for good: npm i -g @tacitawareness/tats@${VERSION}`);
     expect(out.join("\n")).toContain("would install the skill at");
     await expect(readFile(skillAt(".claude"))).rejects.toThrow();
   });
@@ -207,7 +208,7 @@ describe("tats agent setup, from the command line", () => {
   it("--json prints the plan and changes nothing", async () => {
     expect(await run(["agent", "setup", "--json"], io({ interactive: true }, { fromNpx: true }))).toBe(0);
     const plan = JSON.parse(out.at(-1)!);
-    expect(plan).toMatchObject({ install: "npm i -g @tacitawareness/tats@0.1.0", login: "browser" });
+    expect(plan).toMatchObject({ install: `npm i -g @tacitawareness/tats@${VERSION}`, login: "browser" });
     expect(plan.skills).toEqual([expect.objectContaining({ client: "claude-code", outcome: "written" })]);
     expect(installs).toEqual([]);
     await expect(readFile(skillAt(".claude"))).rejects.toThrow();
@@ -233,7 +234,7 @@ describe("tats agent setup, from the command line", () => {
     expect(await run(["agent", "setup", "--status"], io())).toBe(0);
     expect(out.at(-1)).toContain("tats:      tats 0.1.0, on your PATH");
     expect(out.at(-1)).toContain("not signed in (tats login)");
-    expect(out.at(-1)).toMatch(/Claude Code\s+detected\s+skill installed \(tats 0\.1\.0\)/);
+    expect(out.at(-1)).toMatch(new RegExp(`Claude Code\\s+detected\\s+skill installed \\(tats ${VERSION.replaceAll(".", "\\.")}\\)`));
     expect(out.at(-1)).toMatch(/Cursor\s+not found\s+no skill/);
     expect(await run(["agent", "setup", "--status", "--json"], io())).toBe(0);
     expect(JSON.parse(out.at(-1)!).clients).toHaveLength(3);
