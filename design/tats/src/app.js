@@ -967,7 +967,7 @@ function setupPage(step) {
     <div class="su-list">${ids.map((id) => { const p = PEOPLE[id], runs = p.runs || {}; return `<div class="su-sk" data-tid="sus-${id}"><div class="su-sk-h">${personAv(id)}<span class="su-who"><b>${esc(p.name)}</b><span>${teamsOf(id).map((k) => TEAMS[k].name).join(" · ")}</span></span></div>
         <div class="su-sk-b"><div class="su-sk-l">Skills</div><div class="su-tags">${(p.focus || []).map((t) => tagChip(id, t)).join("")}<button class="su-tag add" data-act="suTagAdd" data-id="${id}">${ico("plus")}Skill</button></div>
           <div class="su-sk-l">Interviews</div><div class="su-tags">${IV_TYPES.map((t) => { const st = t in runs ? (runs[t] ? "prio" : "on") : ""; return `<button class="su-iv ${st}" data-act="suRun" data-id="${id}" data-v="${esc(t)}" title="${st === "prio" ? "Prioritized: they get this interview first" : st ? "Runs this. Click again to prioritize" : "Click if they run this"}">${st === "prio" ? "★ " : ""}${esc(t)}</button>`; }).join("")}</div></div></div>`; }).join("")}</div></div>`;
-  if (step === "process") { state.flowSeen = true; body = `<div class="su-card su-flow"><div class="su-ch"><div><h3>Design your interview process</h3><p>Draw the steps from applying to an offer, or describe them to your Grokbot and it draws them. The Grokbots use this to know who interviews next.</p></div></div>${flowCanvas()}</div>`; }
+  if (step === "process") { state.flowSeen = true; body = `<div class="su-card su-flow"><div class="su-ch"><div><h3>Design your interview process</h3><p>Draw the steps from applying to an offer. You can also ask your Grokbot in Slack or the CLI to change it, like “add a references check before the offer”. The Grokbots use this to know who interviews next.</p></div></div>${flowCanvas()}</div>`; }
   if (step === "review") { const cov = ivCoverage(), gaps = cov.filter((c) => !c.who.length); body = `<div class="su-card"><div class="su-ch"><div><h3>Ready for tATS</h3><p>Here's who the Grokbots will ask for each kind of interview.</p></div></div>
     <div class="su-sum"><div><b>${ids.length}</b><span>interviewers</span></div><div><b>${ids.filter((id) => PEOPLE[id].bot === "on").length}</b><span>Grokbots on</span></div><div><b>${Object.keys(TEAMS).length}</b><span>teams</span></div><div><b>${ids.filter((id) => teamsOf(id).length > 1).length}</b><span>multidisciplinary</span></div></div>
     <div class="su-cov">${cov.map((c) => `<div class="su-cov-r ${c.who.length ? "" : "gap"}"><span class="su-cov-t">${esc(c.t)}</span><span class="su-cov-p">${c.who.length ? c.who.sort((x, y) => (PEOPLE[y].runs[c.t] || 0) - (PEOPLE[x].runs[c.t] || 0)).map((id) => `<span class="su-cov-a ${PEOPLE[id].runs[c.t] ? "prio" : ""}" title="${esc(PEOPLE[id].name)}${PEOPLE[id].runs[c.t] ? ", prioritized" : ""}">${personAv(id)}${PEOPLE[id].runs[c.t] ? "<i>★</i>" : ""}</span>`).join("") : `<span class="su-gap">No one runs this yet</span>`}</span></div>`).join("")}</div>
@@ -1020,7 +1020,6 @@ function flowDefault() {
 try { state.flow = JSON.parse(localStorage.getItem(FLOW_KEY) || "null"); } catch {}
 if (!state.flow || !Array.isArray(state.flow.nodes) || !Array.isArray(state.flow.edges)) state.flow = flowDefault();
 state.fcView ||= { x: 40, y: 80, z: 1 };
-state.fcMsgs ||= [{ by: "bot", html: "Tell me how you interview, in order, and I'll draw it. Something like “Recruiter screen, Testbench, team interview by team, final with the CTO”." }];
 const fN = (id) => state.flow.nodes.find((n) => n.id === id);
 const fSize = (n) => FN[n.kind] || FN.stage;
 const fcUid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -1092,19 +1091,11 @@ function fcInspector() {
     ${outs.length ? `<div class="fc-f"><span>Then</span>${outs.map((e) => `<label class="fc-out">${ico("arrowR")}<span class="trunc">${esc(fN(e.to)?.label || "")}</span><input data-fcf="edge:${e.id}" value="${esc(e.label)}" placeholder="Label" autocomplete="off"></label>`).join("")}</div>` : ""}
     ${o.kind === "start" || o.kind === "end" ? "" : `<button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove ${o.kind === "route" ? "split" : "step"}</button>`}</aside>`;
 }
-function fcChatHtml() {
-  const sugs = ["Recruiter screen, Testbench, team interview by team, cross-team, final with the CTO", "Add a references check before the offer", "Remove the cross-team interview"];
-  return `<aside class="fc-chat"><div class="fc-chh">${botAv(ME)}<span class="fc-cht"><b>Your Grokbot</b><span>Describe it and it draws it</span></span><button class="icon-btn" data-act="fcChat" aria-label="Hide" title="Hide">${ico("x")}</button></div>
-    <div class="fc-msgs">${state.fcMsgs.map((m) => `<div class="fc-m ${m.by}">${m.html}</div>`).join("")}</div>
-    <div class="fc-sugs">${sugs.map((t) => `<button class="fc-sug" data-act="fcAsk" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-    <form class="fc-in" id="fcAskForm"><input id="fcAskIn" placeholder="Describe your interview process…" autocomplete="off"><button class="btn primary sm" type="submit">${ico("arrowUp")}</button></form></aside>`;
-}
-function flowInner(chat = true) {
+function flowInner() {
   const v = state.fcView;
   return `<div class="fc-vp" style="${fcVp(v)}"><div class="fc-world" style="${fcTr(v)}">${fcWorldHtml()}</div></div>
-    ${chat ? fcChatHtml() : ""}${fcInspector()}
+    ${fcInspector()}
     <div class="fc-tools">
-      ${chat ? "" : `<button class="fc-tb" data-act="fcChat">${botAv(ME)}Ask Grokbot</button><i class="fc-sep"></i>`}
       <button class="fc-tb" data-act="fcAdd" data-k="stage" title="Add a step">${ico("plus")}Step</button>
       <button class="fc-tb" data-act="fcAdd" data-k="route" title="Add a split">${ico("route")}Split</button>
       <button class="fc-tb" data-act="fcAdd" data-k="note" title="Add a note">${ico("compose")}Note</button><i class="fc-sep"></i>
@@ -1115,9 +1106,9 @@ function flowInner(chat = true) {
       <button class="fc-tb" data-act="fcReset" title="Start over from the default process">Reset</button>
     </div>`;
 }
-const flowCanvas = (chat = true) => `<div class="fc" data-mode="edit" data-chat="${chat ? 1 : 0}">${flowInner(chat)}</div>`;
+const flowCanvas = () => `<div class="fc" data-mode="edit">${flowInner()}</div>`;
 // Repaint every open editor without a full render, so typing and dragging stay smooth.
-function fcPaint() { $$('.fc[data-mode="edit"]').forEach((el) => patch(el, flowInner(el.dataset.chat !== "0"))); }
+function fcPaint() { $$('.fc[data-mode="edit"]').forEach((el) => patch(el, flowInner())); }
 function fcPaintWorld() {
   const v = state.fcView;
   $$('.fc[data-mode="edit"]').forEach((el) => { const vp = $(".fc-vp", el), w = $(".fc-world", el); vp.style.cssText = fcVp(v); w.style.cssText = fcTr(v); w.innerHTML = fcWorldHtml(); const z = $(".fc-z", el); if (z) z.textContent = `${Math.round(v.z * 100)}%`; });
@@ -1128,9 +1119,9 @@ function fcFit() {
   const ns = state.flow.nodes, r = vp.getBoundingClientRect();
   if (!ns.length || !r.width) return;
   const x0 = Math.min(...ns.map((n) => n.x)), y0 = Math.min(...ns.map((n) => n.y)), x1 = Math.max(...ns.map((n) => n.x + fSize(n)[0])), y1 = Math.max(...ns.map((n) => n.y + fSize(n)[1]));
-  const chat = vp.closest(".fc").dataset.chat === "0" ? 0 : 316, room = r.width - chat - 48;
+  const room = r.width - 48;
   const z = Math.max(0.42, Math.min(1.1, room / (x1 - x0), (r.height - 140) / (y1 - y0)));
-  state.fcView = { x: chat + 24 + (room - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - 64 - (y1 - y0) * z) / 2 - y0 * z, z };
+  state.fcView = { x: 24 + (room - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - 64 - (y1 - y0) * z) / 2 - y0 * z, z };
   fcPaintWorld();
 }
 function fcAddNode(kind, at) {
@@ -1225,15 +1216,7 @@ document.addEventListener("input", (e) => {
   else { const o = fcSelObj(); if (o) o.label = e.target.value; }
   fcSave(); fcPaintWorld();
 });
-document.addEventListener("submit", (e) => {
-  if (e.target.id !== "fcAskForm") return;
-  e.preventDefault();
-  const i = $("#fcAskIn", e.target), t = i.value.trim();
-  if (!t) return;
-  i.value = "";
-  fcAsk(t);
-});
-// The Grokbot reads a description and draws it: steps in the order you said them, a split by team when you mention one, the offer at the end.
+// The Grokbot (in Slack, the CLI, or the chat here) reads a description and draws it: steps in the order you said them, a split by team when you mention one, the offer at the end.
 // "Add X before Y", "Add X after Y" and "Remove X" change the process you already have.
 const FC_KW = [
   [/recruiter|phone screen|intro call|screening call/, { label: "Recruiter screen", type: "review", team: "you", mins: 30 }],
@@ -1308,15 +1291,11 @@ function flowFromText(raw) {
   const names = hits.map((s) => (s.route ? "a team interview, split by team" : s.label));
   return { flow: { nodes, edges }, say: `Drew it: ${names.map((n) => `<b>${esc(n)}</b>`).join(" → ")} → <b>Offer</b>. Drag anything to change it, or tell me what to change.` };
 }
-function fcAsk(text) {
-  state.fcMsgs.push({ by: "me", html: esc(text) });
+function flowAsk(text) {
   const r = flowFromText(text);
-  if (r.flow) fcCommit(() => { state.flow = r.flow; state.fcSel = null; });
-  else if (r.edit) fcCommit(() => { r.edit(); state.fcSel = null; });
-  state.fcMsgs.push({ by: "bot", html: r.say });
-  fcPaint();
-  if (r.flow || r.edit) { fcFit(); motion((g) => g.fromTo('.fc[data-mode="edit"] .fc-n', { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.18, stagger: 0.03, ease: SPRING, clearProps: "opacity,transform" })); }
-  const ms = $(".fc-msgs"); if (ms) ms.scrollTop = ms.scrollHeight;
+  if (r.flow) { fcHist.push(JSON.stringify(state.flow)); state.flow = r.flow; fcSave(); }
+  else if (r.edit) { fcHist.push(JSON.stringify(state.flow)); r.edit(); fcSave(); }
+  return r;
 }
 // The editor over the page, from the Interviews graph.
 function openFlow() {
@@ -1327,7 +1306,7 @@ function openFlow() {
   el.innerHTML = `<div class="fs-sheet fl-sheet" role="dialog" aria-label="Interview process">
     <header class="fs-h"><div class="fs-t"><b>Interview process</b><span>How candidates move from applying to an offer. The Grokbots route by this.</span></div><span class="grow"></span>
       <a class="btn sm ghost" href="#setup~process" data-close>Open in Onboarding</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
-    ${flowCanvas(false)}</div>`;
+    ${flowCanvas()}</div>`;
   $("#layer").appendChild(el);
   modal = { send: () => {} };
   el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeLayer(); });
@@ -1503,6 +1482,10 @@ function grokOwes() {
 // What the Grokbot can do from a sentence. Anything else it takes on and reports back in Grokbot Activity.
 function grokReply(text) {
   const t = text.toLowerCase();
+  if (/process|flow ?chart|interview loop/.test(t)) {
+    const r = flowAsk(text.replace(/\s+(?:in|to|from|of)\s+(?:the|our|my)\s+(?:interview\s+)?(?:process|loop|flow ?chart)\b/i, "").replace(/^(?:change|set|make|update)\s+(?:the|our|my)\s+(?:interview\s+)?process(?:\s+to)?[:,]?\s*/i, ""));
+    return { html: r.say, btns: r.flow || r.edit ? [["Open the process", "goProcess", ""]] : [] };
+  }
   if (/refer/.test(t)) { const r = parseReferral(text); return { html: r.name ? `Got it: <b>${esc(r.name)}</b> for ${esc(ROLES[r.role].title)}, referred by ${esc(PEOPLE[r.by].name)}. Want me to add them?` : "Who's the referral? Send their name, the role, and a link if you have one.", btns: r.name ? [["Add referral", "chatRef", encodeURIComponent(text)]] : [] }; }
   const nudge = t.match(/nudge (\w+)/);
   if (nudge) { const id = Object.keys(PEOPLE).find((k) => first(k).toLowerCase() === nudge[1]); const r = id && RUNS.find((x) => x.on === id && runState(x) === "stuck"); if (r) { nudgeRun(r); return { html: `Nudged <b>${esc(first(id))}</b> in Slack about ${esc(A[r.a].name)}.` }; } return { html: id ? `${esc(first(id))} doesn't owe anything overdue right now.` : "Who should I nudge?" }; }
@@ -4344,6 +4327,7 @@ const ACT = {
   toggleGroup: (el) => { if (el.dataset.closed) state.closedOpen = !state.closedOpen; else { const s = (state.shut ||= new Set()); s.has(el.dataset.k) ? s.delete(el.dataset.k) : s.add(el.dataset.k); } render(); },
   setView: (el) => { state.view = el.dataset.v; render(); },
   flowEdit: () => openFlow(),
+  goProcess: () => go("setup~process"),
   fcAdd: (el) => fcAddNode(el.dataset.k),
   fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
   fcFit: () => fcFit(),
@@ -4353,8 +4337,6 @@ const ACT = {
   fcSet: (el) => { const o = fcSelObj(), k = el.dataset.k, v = el.dataset.v; if (!o) return; fcCommit(() => { if (k === "mins") o.mins = +v; else if (k === "team") { o.team = v; o.who = []; } else o[k] = v; }); },
   fcWho: (el) => { const o = fcSelObj(); if (!o) return; fcCommit(() => { const w = new Set(o.who || []); w.has(el.dataset.id) ? w.delete(el.dataset.id) : w.add(el.dataset.id); o.who = [...w]; }); },
   fcDel: () => fcDelete(),
-  fcChat: (el) => { const fc = el.closest(".fc"); fc.dataset.chat = fc.dataset.chat === "0" ? "1" : "0"; fcPaint(); setTimeout(() => $("#fcAskIn", fc)?.focus()); },
-  fcAsk: (el) => fcAsk(el.dataset.v),
   plMode: (el) => { state.plMode = el.dataset.v; render(); },
   plStage: (el) => { state.plStage = state.plStage === el.dataset.v ? null : el.dataset.v; render(); },
   plMore: (el) => { state.plAll.add(el.dataset.k); render(); },

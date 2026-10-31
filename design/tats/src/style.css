@@ -5248,7 +5248,6 @@ i.pill-glass.press { transform-origin: center; }
 .fc-tb:hover:not([disabled]) { background: var(--hover); }
 .fc-tb[disabled] { opacity: 0.35; }
 .fc-tb .ico { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.fc-tb .bot .av { width: 18px; height: 18px; }
 .fc-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
 .fc-z { min-width: 40px; text-align: center; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .fc-insp { position: absolute; right: 12px; top: 12px; width: 272px; max-height: calc(100% - 92px); overflow: auto; display: grid; gap: 12px; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--elev-hi); user-select: text; }
@@ -5271,23 +5270,6 @@ i.pill-glass.press { transform-origin: center; }
 .fc-out .ico { width: 12px; height: 12px; color: var(--faint); }
 .fc-out input { height: 28px; font-size: 12.5px; }
 .fc-del { justify-self: start; color: var(--muted); }
-.fc-chat { position: absolute; left: 12px; top: 12px; bottom: 76px; width: 300px; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--elev-hi); user-select: text; }
-.fc-chh { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.fc-chh .fc-cht { flex: 1; display: grid; gap: 2px; }
-.fc-chh b { font-size: 14px; font-weight: 600; }
-.fc-cht span { color: var(--muted); font-size: 12px; }
-.fc-chh .bot .av { width: 24px; height: 24px; }
-.fc-msgs { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-.fc-m { max-width: 92%; padding: 8px 12px; font-size: 13px; line-height: 1.5; }
-.fc-m.bot { align-self: flex-start; background: var(--surface); border: 1px solid var(--line); }
-.fc-m.me { align-self: flex-end; background: var(--ink); color: var(--paper); }
-.fc-sugs { display: grid; gap: 4px; padding: 0 12px 8px; }
-.fc-sug { text-align: left; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px !important; background: var(--paper); color: var(--muted); font-size: 12.5px; line-height: 1.4; }
-.fc-sug:hover { color: var(--ink); background: var(--hover); }
-.fc-in { display: flex; gap: 6px; padding: 12px; border-top: 1px solid var(--line); }
-.fc-in input { flex: 1; min-width: 0; height: 34px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px !important; background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
-.fc-in input:focus { outline: none; border-color: var(--accent); }
-.fc-in .btn { width: 34px; height: 34px; padding: 0; justify-content: center; }
 .fl-sheet .fc { flex: 1; border: 0; }
 .su-wide .su { grid-template-columns: minmax(0, 1fr) !important; max-width: none !important; }
 .su-wide .su-side { display: none; }
@@ -5331,6 +5313,5 @@ i.pill-glass.press { transform-origin: center; }
 .ft-n.pre .ico { width: 13px; height: 13px; color: var(--ink); }
 .ft-n.pre b { font-size: 13px; }
 .ft-in { margin: 0; }
-.fc-m b { display: inline; font-weight: 600; }
 .fc-pill { position: absolute; right: 12px; top: 12px; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px !important; box-shadow: var(--elev); color: var(--muted); font-size: 12.5px; cursor: help; }
 .fc-q { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50% !important; background: var(--surface); border: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 600; }
