@@ -5,8 +5,8 @@ const OWN = "ats.tacitawareness.com";
 const from = (referrer: string | null) => landingChannel({}, referrer, OWN);
 
 describe("parseChannel", () => {
-  test("takes the database's four values and nothing else", () => {
-    for (const c of ["linkedin", "hackernews", "direct", "other"]) expect(parseChannel(c)).toBe(c);
+  test("takes the database's nine values and nothing else", () => {
+    for (const c of ["linkedin", "hackernews", "indeed", "wellfound", "x", "blind", "google", "direct", "other"]) expect(parseChannel(c)).toBe(c);
     for (const raw of ["", "LinkedIn", "x".repeat(5000), "toString", null, undefined, 1, ["linkedin"]]) expect(parseChannel(raw)).toBeNull();
   });
 });
@@ -24,8 +24,16 @@ describe("the Referer", () => {
     expect(from("https://www.ycombinator.com/companies")).toBe("other");
   });
 
-  test("any other site is other, a lookalike included", () => {
-    for (const r of ["https://www.google.com/", "https://t.co/abc", "https://notlinkedin.com/", "https://linkedin.com.evil.test/", "https://evil.test/linkedin.com", "https://news.ycombinator.com.evil.test/"]) {
+  test("the named boards are named, lookalikes stay other", () => {
+    expect(from("https://www.indeed.com/jobs")).toBe("indeed");
+    expect(from("https://wellfound.com/jobs/1")).toBe("wellfound");
+    expect(from("https://angel.co/jobs/1")).toBe("wellfound");
+    expect(from("https://x.com/tacit/status/1")).toBe("x");
+    expect(from("https://twitter.com/tacit")).toBe("x");
+    expect(from("https://t.co/abc")).toBe("x");
+    expect(from("https://www.teamblind.com/post/1")).toBe("blind");
+    expect(from("https://www.google.com/search?q=j")).toBe("google");
+    for (const r of ["https://notlinkedin.com/", "https://linkedin.com.evil.test/", "https://evil.test/linkedin.com", "https://news.ycombinator.com.evil.test/", "https://x.com.evil.test/"]) {
       expect(from(r)).toBe("other");
     }
   });
@@ -42,6 +50,8 @@ describe("a tag on the link", () => {
     expect(landingChannel({ utm_source: "linkedin" }, "https://t.co/x", OWN)).toBe("linkedin");
     expect(landingChannel({ ref: "hn" }, null, OWN)).toBe("hackernews");
     expect(landingChannel({ source: " Hacker News " }, null, OWN)).toBe("hackernews");
+    expect(landingChannel({ utm_source: "twitter" }, null, OWN)).toBe("x");
+    expect(landingChannel({ utm_source: "angellist" }, null, OWN)).toBe("wellfound");
     expect(landingChannel({ utm_source: "newsletter" }, null, OWN)).toBe("other");
   });
 
