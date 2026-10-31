@@ -5,7 +5,7 @@ import { CLIENT_SITE, findDocPage } from "@/lib/docs";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
 
-// The client connector's docs, for a signed-in member of a client org. The
+// The tATS documentation, for a signed-in member of a client org. The
 // pages are static, but a refused sign-in still gets the same refusal as
 // every other client page rather than a page about a workspace it cannot use.
 
