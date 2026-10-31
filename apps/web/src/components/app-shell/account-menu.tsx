@@ -146,7 +146,7 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                   <Glyph name="dark" className="text-muted-foreground" />
                   Theme
                 </span>
-                <div role="group" aria-label="Theme" className="inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
+                <div role="group" aria-label="Theme" className="pill-track inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { PillGlass } from "@/components/app-shell/pill-glass";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { START_EVENT, ShellTour } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
@@ -495,6 +496,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         <ShellTour />
       </Suspense>
       <ShellKeys go={GO} />
+      <PillGlass />
     </div>
   );
 }

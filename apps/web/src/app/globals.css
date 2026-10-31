@@ -72,6 +72,8 @@
   --soft-strong: var(--n100); /* the track of a pill group */
   --pick: var(--n900); /* the picked option in a pill track */
   --pick-ink: var(--n25);
+  --glass: rgba(118, 118, 128, 0.16); /* the pill that follows the pointer along a track */
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.06);
   --hover: oklch(var(--ink-a) / 0.04);
   --sel: var(--n100); /* a selected row */
   --scrim: oklch(var(--ink-a) / 0.3);
@@ -163,6 +165,8 @@
     --soft-strong: oklch(var(--paper-a) / 0.07);
     --pick: var(--n50);
     --pick-ink: var(--n900);
+    --glass: rgba(255, 255, 255, 0.1);
+    --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
     --hover: oklch(var(--paper-a) / 0.04);
     --sel: oklch(var(--paper-a) / 0.07);
     --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
@@ -233,6 +237,8 @@
   --soft-strong: oklch(var(--paper-a) / 0.07);
   --pick: var(--n50);
   --pick-ink: var(--n900);
+  --glass: rgba(255, 255, 255, 0.1);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
   --hover: oklch(var(--paper-a) / 0.04);
   --sel: oklch(var(--paper-a) / 0.07);
   --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
@@ -724,6 +730,40 @@ body:has(.ui-root) {
     opacity: 0;
     transform: translateY(-3px) scale(0.98);
   }
+}
+
+/* design/tats's liquid glass hover (components/app-shell/pill-glass.tsx): one pill
+   per track, under the labels and over the track, sliding with a slight spring.
+   Not in a layer, so it holds against the utilities on a track and its options. */
+.pill-track {
+  position: relative;
+  isolation: isolate;
+}
+.pill-track > :not(.pill-glass) {
+  position: relative;
+  z-index: 1;
+}
+.pill-glass {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  display: block;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--glass);
+  box-shadow: var(--glass-edge);
+  -webkit-backdrop-filter: blur(8px) saturate(1.8);
+  backdrop-filter: blur(8px) saturate(1.8);
+  transition:
+    transform 0.2s var(--spring),
+    width 0.2s var(--spring),
+    height 0.2s var(--spring),
+    opacity 0.12s ease;
+}
+.pill-glass.show {
+  opacity: 1;
 }
 
 /* design/tats's enterPage: a page comes up from 0.4. The shell's children remount
