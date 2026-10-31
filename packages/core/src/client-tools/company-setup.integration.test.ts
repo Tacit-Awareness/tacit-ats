@@ -56,7 +56,7 @@ const rex = () => [member("user_setup_rex"), ctx(REX, "elevated")] as const;
 const gus = () => [member("user_setup_gus", "org_itest_setup_globex"), ctx(GUS, "admin", GLOBEX)] as const;
 
 const audit = async (action: string) =>
-  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", action).not("after", "is", null)).data ?? [];
+  must(await db().from("audit_log").select("action, entity, entity_id, source, actor_id, before, after").eq("org_id", ACME).eq("action", action).not("after", "is", null).order("created_at")).data ?? [];
 const memberships = async () =>
   must(await db().from("department_members").select("actor_id, is_lead").eq("department_id", INFRA).order("actor_id")).data ?? [];
 const assignment = async (actorId: string, typeId: string) =>

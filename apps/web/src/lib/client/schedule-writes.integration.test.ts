@@ -83,7 +83,7 @@ const move = (over: Partial<MoveRequest> = {}): MoveRequest => ({
 const cancel = (over: Partial<CancelRequest> = {}): CancelRequest => ({ op: "cancel", confirmed: false, interviewId: ONSITE, timezone: "UTC", recordOnly: false, ...over });
 
 const row = async (id: string) => must(await db().from("interviews").select("status, starts_at, ends_at, calendar_actor_id, google_event_id, google_event_link, location_or_link, interviewer_actor_ids").eq("id", id).maybeSingle()).data;
-const audit = async (actorId: string) => must(await db().from("audit_log").select("action, source, after").eq("actor_id", actorId)).data!;
+const audit = async (actorId: string) => must(await db().from("audit_log").select("action, source, after").eq("actor_id", actorId).order("created_at")).data!;
 const finished = async (actorId: string) => (await audit(actorId)).filter((a) => a.after !== null);
 
 beforeEach(async () => {

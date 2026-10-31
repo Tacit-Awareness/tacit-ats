@@ -132,7 +132,7 @@ beforeEach(async () => {
 
 afterAll(clear);
 
-const audit = async (action: string) => (await db().from("audit_log").select("source, action, entity_id, before, after").eq("org_id", ACME).eq("action", action)).data ?? [];
+const audit = async (action: string) => (await db().from("audit_log").select("source, action, entity_id, before, after").eq("org_id", ACME).eq("action", action).order("created_at")).data ?? [];
 const stageOf = async (n: number) => must(await db().from("applications").select("stage, rejection_reason_id, rejection_note").eq("id", app(n)).single()).data!;
 const requestOf = async (id: string) => must(await db().from("approval_requests").select("status, current_step").eq("id", id).single()).data!;
 const keysFor = async (client: ReturnType<typeof token>, member: Parameters<typeof readInbox>[1]) => (await readInbox(client, member, NOW)).issues.map((i) => i.key);

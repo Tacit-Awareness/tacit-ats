@@ -43,7 +43,7 @@ const ctx = (actorId: string, accessLevel: clientTools.ClientToolCtx["accessLeve
 
 const levelOf = async (id: string) => (await db().from("actors").select("access_level").eq("id", id).single()).data?.access_level;
 const audit = async () =>
-  must(await db().from("audit_log").select("action, entity, entity_id, source, before, after").eq("org_id", ACME).eq("action", "member.access_change")).data ?? [];
+  must(await db().from("audit_log").select("action, entity, entity_id, source, before, after").eq("org_id", ACME).eq("action", "member.access_change").order("created_at")).data ?? [];
 
 beforeEach(async () => {
   await clear();
