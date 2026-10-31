@@ -100,8 +100,8 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
           <div className="absolute inset-0 grid auto-cols-fr grid-flow-col">
             {points.map((x, i) => (
               <div key={i} className="flex items-end justify-center gap-0.5 px-[18%]">
-                {compare ? <i className="max-w-[22px] flex-1 rounded-t-[4px] bg-[color:var(--soft-strong)]" style={{ height: `${((x.previous ?? 0) / top) * 100}%` }} /> : null}
-                <i className={cn("max-w-[22px] flex-1 rounded-t-[4px] bg-[color:var(--accent)]", hot === i && "opacity-80")} style={{ height: `${((x.current ?? 0) / top) * 100}%` }} />
+                {compare ? <i className="max-w-[22px] flex-1 bg-[color:var(--soft-strong)]" style={{ height: `${((x.previous ?? 0) / top) * 100}%` }} /> : null}
+                <i className={cn("max-w-[22px] flex-1 bg-[color:var(--accent)]", hot === i && "opacity-80")} style={{ height: `${((x.current ?? 0) / top) * 100}%` }} />
               </div>
             ))}
           </div>
@@ -142,7 +142,7 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
             )}
             <div
               className={cn(
-                "pointer-events-none absolute top-1 z-[3] grid gap-px rounded-lg bg-raised px-2.5 py-2 text-[12px] whitespace-nowrap shadow-[var(--pop-shadow)]",
+                "pointer-events-none absolute top-1 z-[3] grid gap-px bg-raised px-2.5 py-2 text-[12px] whitespace-nowrap shadow-[var(--pop-shadow)]",
                 hx > 70 ? "-translate-x-[calc(100%+12px)]" : "translate-x-3",
               )}
               style={{ left: `${hx}%` }}

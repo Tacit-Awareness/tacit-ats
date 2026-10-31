@@ -41,12 +41,12 @@ export function callbackErrorResponse({ error, request }: { error?: unknown; req
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · Tacit</title>
-<style>:root{color-scheme:light dark;--frame:#eef2ef;--paper:#fff;--ink:#171b18;--muted:#5c655f;--line:#e1e6e2}
-@media (prefers-color-scheme:dark){:root{--frame:#1f2421;--paper:#2a302c;--ink:#f5f5f6;--muted:#a6a6ab;--line:rgba(150,150,150,.16)}}
+<style>:root{color-scheme:light dark;--frame:#f7f8fa;--paper:#fdfdfe;--ink:#222326;--muted:#444548;--line:#eceef1}
+@media (prefers-color-scheme:dark){:root{--frame:#151518;--paper:#222326;--ink:#f4f5f8;--muted:#bcbdc1;--line:rgba(244,245,248,.07)}}
 body{font-family:Geist,ui-sans-serif,system-ui,sans-serif;margin:0;padding:16vh 1rem;background:var(--frame);color:var(--ink);-webkit-font-smoothing:antialiased}
-main{max-width:26rem;margin:0 auto;padding:1.25rem 1.25rem 1.4rem;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+main{max-width:26rem;margin:0 auto;padding:1.25rem 1.25rem 1.4rem;border:1px solid var(--line);background:var(--paper)}
 h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em}p{margin:.5rem 0 1.1rem;color:var(--muted);font-size:13.5px;line-height:1.6}
-a{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:8px;background:var(--ink);color:var(--frame);font-size:13px;font-weight:500;text-decoration:none}a:hover{opacity:.88}</style>
+a{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:var(--ink);color:var(--frame);font-size:13px;font-weight:500;text-decoration:none}a:hover{opacity:.88}</style>
 </head><body><main><h1>${title}</h1><p>${body}</p><a href="${next}">${action}</a></main></body></html>`;
   return new Response(html, {
     status: startedElsewhere ? 200 : 400,

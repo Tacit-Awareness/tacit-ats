@@ -42,7 +42,7 @@ export type Reply = {
 const LABEL: Record<ReplyKind, string> = { interview: "Interview", decline: "Decline", blank: "Blank" };
 
 const field =
-  "w-full rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-[13.5px] outline-none transition-colors placeholder:text-faint focus-visible:border-[color:var(--line-strong)]";
+  "w-full border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-[13.5px] outline-none transition-colors placeholder:text-faint focus-visible:border-[color:var(--line-strong)]";
 
 const shell = "grid gap-2 border-t border-[color:var(--line)] bg-[color:var(--paper)] px-[18px] py-3";
 
@@ -51,7 +51,7 @@ function DraftSubmit() {
   return (
     <button type="submit" disabled={pending} title="Review draft (⌘↵)" className={cn(pill, pillPrimary)}>
       {pending ? "Writing…" : "Review draft"}
-      <Kbd decorative className="border-transparent bg-white/20 text-current">
+      <Kbd decorative className="border-transparent bg-current/20 text-current">
         ⌘↵
       </Kbd>
     </button>
@@ -73,7 +73,7 @@ function DraftReview({ reply, draft, sent, change }: { reply: Reply; draft: Show
     <section aria-label="Draft reply" className={shell}>
       {sent}
       <p className="m-0 text-[12.5px] text-muted-foreground">Draft. Nothing has gone out: read it, then Send.</p>
-      <div className="grid max-h-[45vh] gap-2 overflow-y-auto rounded-lg border border-[color:var(--line)] px-3 py-2.5">
+      <div className="grid max-h-[45vh] gap-2 overflow-y-auto border border-[color:var(--line)] px-3 py-2.5">
         <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
           {reply.sender ? (
             <>

@@ -20,7 +20,7 @@ export function ExportButton({ rows, filename }: { rows: string[][]; filename: s
     <button
       type="button"
       onClick={download}
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[color:var(--line)] bg-[color:var(--paper)] px-2.5 text-[12.5px] text-foreground transition-colors hover:border-[color:var(--line-strong)]"
+      className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-2.5 text-[12.5px] text-foreground transition-colors hover:border-[color:var(--line-strong)]"
     >
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="size-[13px] text-muted-foreground" aria-hidden>
         <path d="M8 2.5v7.5M4.8 7 8 10.2 11.2 7M3 13.5h10" />

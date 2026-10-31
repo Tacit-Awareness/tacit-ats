@@ -52,12 +52,12 @@ const FIND_DAYS = 14;
 const LAST_DAY = "2200-12-31";
 
 const field =
-  "w-full rounded-lg border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
-const button = "inline-flex h-[34px] items-center justify-center gap-1.5 rounded-[17px] border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50";
+  "w-full border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
+const button = "inline-flex h-[34px] items-center justify-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50";
 const plain = "border-[color:var(--line-strong)] bg-[color:var(--paper)] text-foreground hover:bg-[color:var(--hover)]";
 const primary = "border-transparent bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-105";
 const danger = "border-[color:var(--red)] bg-[color:var(--red)] text-white hover:brightness-105";
-const pickRow = "flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-[color:var(--hover)]";
+const pickRow = "flex w-full items-center gap-2.5 border border-transparent px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-[color:var(--hover)]";
 
 async function ask(request: ScheduleRequest): Promise<ScheduleAnswer> {
   try {
@@ -89,7 +89,7 @@ const minutesOf = (value: string) => {
 
 function Err({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="m-0 mt-3 rounded-lg bg-[color:var(--red-soft)] px-3 py-2 text-[13px] break-words text-[color:var(--red)]">
+    <p role="alert" className="m-0 mt-3 bg-[color:var(--red-soft)] px-3 py-2 text-[13px] break-words text-[color:var(--red)]">
       {children}
     </p>
   );
@@ -180,7 +180,7 @@ function ConfirmCard({ c, back, backLabel, done, setBusy, reread }: { c: Confirm
           </p>
         ))}
         {state.warned.map((l) => (
-          <p key={l} className="m-0 rounded-lg bg-[color:var(--amber-soft)] px-3 py-2 break-words text-foreground">
+          <p key={l} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 break-words text-foreground">
             {l}
           </p>
         ))}
@@ -239,7 +239,7 @@ function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone:
   return (
     <div className="grid gap-1.5">
       {found.unknown.map((u) => (
-        <p key={u.name} className="m-0 rounded-lg bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
+        <p key={u.name} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
           Not checked: {u.name} {u.why}.
         </p>
       ))}
@@ -254,7 +254,7 @@ function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone:
                 onClick={() => pick(s.startsAt, s.endsAt)}
                 aria-pressed={picked === s.startsAt}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-[10px] border px-3.5 py-2.5 text-left text-[13px] transition-colors hover:bg-[color:var(--soft)]",
+                  "flex w-full items-center gap-3 border px-3.5 py-2.5 text-left text-[13px] transition-colors hover:bg-[color:var(--soft)]",
                   picked === s.startsAt ? "border-[color:var(--accent)]" : "border-[color:var(--line)] hover:border-[color:var(--line-strong)]",
                 )}
               >
@@ -476,7 +476,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
                     setLength(m);
                     setFound(null);
                   }}
-                  className={cn("h-7 rounded-2xl border px-3 text-[12.5px]", length === m ? "border-transparent bg-[color:var(--soft-strong)] font-medium" : "border-[color:var(--line-strong)] hover:bg-[color:var(--hover)]")}
+                  className={cn("h-7 rounded-full border px-3 text-[12.5px]", length === m ? "border-transparent bg-[color:var(--soft-strong)] font-medium" : "border-[color:var(--line-strong)] hover:bg-[color:var(--hover)]")}
                 >
                   {m} min
                 </button>
@@ -731,7 +731,7 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
-      className="relative m-auto max-h-[calc(100dvh-32px)] w-[min(460px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)] open:flex open:flex-col"
+      className="relative m-auto max-h-[calc(100dvh-32px)] w-[min(460px,calc(100vw-32px))] overflow-hidden border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)] open:flex open:flex-col"
     >
       <button
         type="button"

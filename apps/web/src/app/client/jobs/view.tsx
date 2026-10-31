@@ -119,7 +119,7 @@ export function JobPostingsView({
             <Link
               href="/client/jobs/new"
               data-tour="add-role"
-              className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2.5 font-medium text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+              className="ml-auto inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
             >
               <PlusIcon />
               Add a role
@@ -152,7 +152,7 @@ export function JobPostingsView({
                       href={`/client/jobs/new?department=${g.key}`}
                       aria-label={`Add a role to ${g.name}`}
                       title={`Add a role to ${g.name}`}
-                      className="ml-auto grid size-7 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+                      className="ml-auto grid size-7 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
                     >
                       <PlusIcon />
                     </Link>

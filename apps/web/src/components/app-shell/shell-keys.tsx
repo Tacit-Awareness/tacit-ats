@@ -126,14 +126,14 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) setOpen(false);
       }}
-      className="m-auto w-[min(720px,calc(100vw-32px))] rounded-xl border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(720px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
       <div className="flex items-center justify-between border-b border-[color:var(--line)] px-4 py-3">
         <h2 className="m-0 text-[14px] font-semibold">Keyboard Shortcuts</h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="rounded-md px-2 py-1 text-[12.5px] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+          className="rounded-full px-2 py-1 text-[12.5px] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
         >
           Close <Kbd decorative>esc</Kbd>
         </button>

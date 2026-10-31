@@ -57,13 +57,13 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[12vh] pb-4" onMouseDown={onClose}>
+    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[12vh] pb-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command menu"
         onMouseDown={(e) => e.stopPropagation()}
-        className="w-full max-w-[640px] overflow-hidden rounded-xl border border-[color:var(--line-strong)] bg-raised shadow-[var(--pop-shadow)]"
+        className="pop-dialog w-full max-w-[640px] overflow-hidden border border-[color:var(--line-strong)] bg-raised shadow-[var(--pop-shadow)]"
       >
         <input
           ref={input}
@@ -92,7 +92,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
                 aria-selected={i === hi}
                 onMouseMove={() => setHi(i)}
                 onClick={() => go(item)}
-                className={cn("flex h-9 cursor-default items-center rounded-md px-2.5 text-[13.5px]", i === hi && "bg-[color:var(--soft-strong)]")}
+                className={cn("flex h-9 cursor-default items-center px-2.5 text-[13.5px]", i === hi && "bg-[color:var(--soft-strong)]")}
               >
                 <span className="truncate">{item.label}</span>
               </div>

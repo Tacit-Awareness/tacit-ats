@@ -48,7 +48,7 @@ function Arrow({ href, label, dir }: { href: string | null; label: string; dir: 
       <path d={d} />
     </svg>
   );
-  const cls = "grid size-7 place-items-center rounded-md";
+  const cls = "grid size-7 place-items-center rounded-full";
   return href ? (
     <Link href={href} aria-label={label} className={cn(cls, "text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground")}>
       {icon}
@@ -132,7 +132,7 @@ export function CrmView({
         </>
       }
     >
-      <section aria-label={viewLabel} className="min-w-0 rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section aria-label={viewLabel} className="min-w-0 border border-[color:var(--line)] bg-[color:var(--paper)]">
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>
         ) : (
@@ -143,7 +143,7 @@ export function CrmView({
                 role="row"
                 className={cn(
                   GRID,
-                  "sticky top-0 z-[1] min-h-[46px] items-stretch rounded-t-[12px] border-b border-[color:var(--line)] bg-[color:var(--paper)] text-[13.5px] text-muted-foreground",
+                  "sticky top-0 z-[1] min-h-[46px] items-stretch border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[13.5px] text-muted-foreground",
                 )}
               >
                 <span role="columnheader" className={cn(CELL, "px-0")}>
@@ -178,7 +178,7 @@ export function CrmView({
                     <span role="cell" className={cn(CELL, "gap-1.5")}>
                       {r.jobs.length ? (
                         <>
-                          <span className="inline-flex h-6 min-w-0 items-center truncate rounded-md bg-[color:var(--soft)] px-[9px] text-[12.5px]">{r.jobs[0]}</span>
+                          <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-[9px] text-[12.5px]">{r.jobs[0]}</span>
                           {r.jobs.length > 1 ? (
                             <span className="text-xs text-faint" title={r.jobs.slice(1).join(", ")}>
                               +{r.jobs.length - 1}

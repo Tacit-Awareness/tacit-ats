@@ -109,7 +109,7 @@ function typing(target: EventTarget | null) {
 
 const itemCls = (active: boolean, rail: boolean, fresh = false) =>
   cn(
-    "flex h-[34px] items-center gap-2.5 rounded-lg text-[14.5px] whitespace-nowrap transition-colors duration-100",
+    "flex h-[34px] items-center gap-2.5 text-[14.5px] whitespace-nowrap transition-colors duration-100",
     rail ? "justify-center px-0" : "px-2.5",
     active ? "nav-on font-medium" : fresh ? "nav-new font-[450]" : "font-[450] hover:bg-[color:var(--hover)]",
   );
@@ -173,7 +173,7 @@ function Section({ label, open, onToggle, rail, children }: { label: string; ope
           type="button"
           onClick={onToggle}
           aria-expanded={open}
-          className="mb-1.5 flex h-[30px] items-center gap-1.5 rounded-lg px-2.5 text-left text-[13.5px] font-[450] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+          className="mb-1.5 flex h-[30px] items-center gap-1.5 px-2.5 text-left text-[13.5px] font-[450] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
         >
           {label}
           <svg viewBox="0 0 8 8" className={cn("size-2 fill-current transition-transform duration-150", !open && "-rotate-90")} aria-hidden>
@@ -193,7 +193,7 @@ function IconButton({ label, onClick, children, className }: { label: string; on
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={cn("grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground", className)}
+      className={cn("grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground", className)}
     >
       {children}
     </button>
@@ -221,10 +221,10 @@ function ThemeToggle() {
 function OrgLogo({ org, logoUrl }: { org: string; logoUrl: string | null }) {
   if (logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element -- a stored public file, not a page asset
-    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 rounded-md bg-white object-contain" />;
+    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 bg-white object-contain" />;
   }
   return (
-    <span className="grid size-[22px] shrink-0 place-items-center rounded-md bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
+    <span className="grid size-[22px] shrink-0 place-items-center bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
       {initialsOf(org).slice(0, 1)}
     </span>
   );
@@ -386,7 +386,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
             onClick={() => setMenu(true)}
             title={rail ? org : undefined}
             className={cn(
-              "flex h-[34px] min-w-0 items-center gap-[9px] rounded-lg text-[14px] font-medium transition-colors hover:bg-[color:var(--hover)]",
+              "flex h-[34px] min-w-0 items-center gap-[9px] text-[14px] font-medium transition-colors hover:bg-[color:var(--hover)]",
               rail ? "justify-center p-1" : "flex-1 px-2",
             )}
           >
@@ -446,7 +446,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
               aria-current={isActive(DOCS) ? "page" : undefined}
               title={rail ? DOCS.label : undefined}
               className={cn(
-                "flex h-8 items-center gap-2 rounded-md text-[13px] transition-colors hover:bg-[color:var(--hover)] hover:text-foreground",
+                "flex h-8 items-center gap-2 rounded-full text-[13px] transition-colors hover:bg-[color:var(--hover)] hover:text-foreground",
                 isActive(DOCS) ? "nav-on font-medium text-foreground" : "text-muted-foreground",
                 rail ? "w-8 justify-center" : "px-2",
               )}
@@ -455,10 +455,10 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
               <span className={cn(rail && "sr-only")}>{DOCS.label}</span>
             </Link>
             <span className={cn("flex", rail ? "flex-col" : "ml-auto")}>
-              <TourButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
+              <TourButton className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
                 <Icon name="tour" />
               </TourButton>
-              <KeysButton className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
+              <KeysButton className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden" />
               <ThemeToggle />
               {/* A plain form POST, so it works with JS off and can't be triggered by a GET. */}
               <form action="/client/signout" method="post">
@@ -466,7 +466,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
                   type="submit"
                   aria-label="Sign out"
                   title="Sign out"
-                  className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+                  className="grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
                 >
                   <Icon name="signout" />
                 </button>
@@ -498,7 +498,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-12 md:py-2.5 md:pr-2.5 md:pl-1.5">
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-surface md:rounded-xl md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-card md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
           <div className="shell-page mx-auto w-full max-w-7xl px-4 py-8 md:px-8">{children}</div>
         </main>
       </div>

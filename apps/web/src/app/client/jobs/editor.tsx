@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { clientTools } from "@tacit-ats/core";
 import { CopyButton } from "@/components/copy-button";
-import { Notice, Page, PageBar, Tabs, textLink, type Tab } from "@/components/page";
+import { Notice, Page, PageBar, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,8 +39,8 @@ type Status = "live" | "closed" | null;
 /** `status` is what the refused save was also doing, for "Save mine over it" to finish. */
 type Message = { notice: PostingNotice; keptOnInterviews: number } | { error: PostingError; status: Status };
 
-const select = "rounded-md border border-[color:var(--line)] bg-transparent px-1.5 py-0.5 text-[12.5px] text-muted-foreground";
-const addButton = "mt-1.5 -ml-2 inline-flex h-7 items-center gap-1.5 rounded-[7px] px-2 text-[13px] font-medium text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground";
+const select = "border border-[color:var(--line)] bg-transparent px-1.5 py-0.5 text-[12.5px] text-muted-foreground";
+const addButton = "mt-1.5 -ml-2 inline-flex h-7 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground";
 
 function Plus() {
   return (
@@ -58,7 +58,7 @@ function Remove({ label, onClick }: { label: string; onClick: () => void }) {
       aria-label={label}
       title="Remove"
       onClick={onClick}
-      className="grid size-[22px] flex-none place-items-center rounded-md text-faint opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground focus-visible:opacity-100 max-sm:opacity-100"
+      className="grid size-[22px] flex-none place-items-center rounded-full text-faint opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground focus-visible:opacity-100 max-sm:opacity-100"
     >
       <svg viewBox="0 0 16 16" className="size-3 fill-none stroke-current [stroke-width:1.5]" aria-hidden>
         <path d="M4 4l8 8M12 4l-8 8" />
@@ -99,9 +99,9 @@ function Lines({
         {lines.map((line, i) => (
           <li key={i} className={cn("group/line flex gap-2.5 text-muted-foreground", numbered ? "items-center border-b border-[color:var(--line)] py-2 text-foreground" : "items-start py-[3px]")}>
             {numbered ? (
-              <em className="grid size-5 flex-none place-items-center rounded-[5px] bg-[color:var(--soft-strong)] text-[11.5px] font-medium text-muted-foreground not-italic">{i + 1}</em>
+              <em className="grid size-5 flex-none place-items-center bg-[color:var(--soft-strong)] text-[11.5px] font-medium text-muted-foreground not-italic">{i + 1}</em>
             ) : (
-              <span className="mt-[9px] size-[5px] flex-none rounded-[1px] bg-[color:var(--faint)]" />
+              <span className="mt-[9px] size-[5px] flex-none bg-[color:var(--faint)]" />
             )}
             <Editable
               value={line}
@@ -200,7 +200,7 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
 
   return (
     <div className="text-[14px] leading-[1.55]">
-      <p className="m-0 mb-1 rounded-lg bg-[color:var(--soft)] px-3 py-2.5 text-[13px] text-muted-foreground">
+      <p className="m-0 mb-1 bg-[color:var(--soft)] px-3 py-2.5 text-[13px] text-muted-foreground">
         Name and email are on every application. Everything else here is yours to change.
       </p>
       {resume.map((q) => (
@@ -432,7 +432,7 @@ export function PostingEditor({
   const isNew = !job.id;
   const jobOpen = job.status === "open";
   const notPublishable = jobOpen ? undefined : `Its job is ${job.status.replace(/_/g, " ")}: a post goes live only on an open job.`;
-  const seg = (on: boolean) => cn("h-7 px-2.5 text-[13px] transition-colors first:rounded-l-lg last:rounded-r-lg", on ? "bg-[color:var(--sel)] font-medium text-foreground" : "text-muted-foreground hover:text-foreground");
+  
 
   const bar = (
     <PageBar crumbs={[{ href: "/client/jobs", label: "Job Postings" }]} title={draft.title.trim() || job.title}>
@@ -449,11 +449,11 @@ export function PostingEditor({
           Open the board
         </Link>
       ) : null}
-      <div role="group" aria-label="Mode" className="flex rounded-lg border border-[color:var(--line)]">
-        <button type="button" aria-pressed={!preview} className={seg(!preview)} onClick={() => setPreview(false)}>
+      <div role="group" aria-label="Mode" className={pillTrack}>
+        <button type="button" aria-pressed={!preview} className={pillOption(!preview)} onClick={() => setPreview(false)}>
           Edit
         </button>
-        <button type="button" aria-pressed={preview} className={seg(preview)} onClick={() => setPreview(true)}>
+        <button type="button" aria-pressed={preview} className={pillOption(preview)} onClick={() => setPreview(true)}>
           Preview as applicant
         </button>
       </div>
@@ -517,7 +517,7 @@ export function PostingEditor({
         </div>
         {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
-        <article className="rounded-2xl border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
+        <article className="border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
           {preview ? null : (
             <p className="m-0 mb-2.5 text-[13px] text-faint">
               This is what applicants see. Click any text to change it.
@@ -527,7 +527,7 @@ export function PostingEditor({
             {preview ? (
               draft.title
             ) : (
-              <Editable value={draft.title} onChange={(title) => setDraft((d) => ({ ...d, title }))} label="Role title" placeholder="Role title" path="title" className="-mx-2.5 -my-1 inline-block min-w-[3em] rounded-[10px] px-2.5 py-1" />
+              <Editable value={draft.title} onChange={(title) => setDraft((d) => ({ ...d, title }))} label="Role title" placeholder="Role title" path="title" className="-mx-2.5 -my-1 inline-block min-w-[3em] px-2.5 py-1" />
             )}
           </h2>
           <div className="grid gap-5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-12">
@@ -546,7 +546,7 @@ export function PostingEditor({
                   ) : (
                     <select
                       aria-label="Department"
-                      className="-mx-1.5 max-w-full rounded-md border-0 bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground hover:bg-[color:var(--hover)]"
+                      className="-mx-1.5 max-w-full border-0 bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground hover:bg-[color:var(--hover)]"
                       value={draft.departmentId}
                       onChange={(e) => setDraft((d) => ({ ...d, departmentId: e.target.value }))}
                     >
@@ -608,7 +608,7 @@ export function PostingEditor({
         </article>
 
         {preview ? null : (
-          <section className="rounded-xl border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
+          <section className="border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
             <h3 className="m-0 mb-1.5 text-xs font-medium tracking-[0.04em] text-faint uppercase">Only your team sees this</h3>
             <p className="m-0 mb-2 text-[13px] font-semibold">Hiring steps</p>
             <Lines

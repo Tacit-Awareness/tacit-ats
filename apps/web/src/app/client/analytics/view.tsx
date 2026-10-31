@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Empty, Page, PageBar, SubBar, Tabs } from "@/components/page";
+import { Empty, Page, PageBar, SubBar, Tabs, pillOption, pillTrack } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { CareersChart, type ChartPoint } from "./chart";
@@ -77,17 +77,9 @@ function Bar({ filters, tabs }: AnalyticsHeader) {
 /** design/tats's segmented control, as links. */
 function Segmented({ items, label }: { items: Link_[]; label: string }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-[9px] bg-[color:var(--soft)] p-0.5">
+    <div role="group" aria-label={label} className={pillTrack}>
       {items.map((i) => (
-        <Link
-          key={i.href}
-          href={i.href}
-          aria-current={i.active ? "true" : undefined}
-          className={cn(
-            "inline-flex h-7 items-center rounded-[7px] px-3 text-[12.5px] transition-colors",
-            i.active ? "bg-[color:var(--paper)] font-medium text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
+        <Link key={i.href} href={i.href} aria-current={i.active ? "true" : undefined} className={pillOption(i.active)}>
           {i.label}
         </Link>
       ))}
@@ -110,12 +102,12 @@ export function Ranked({ title, col, rows }: { title: string; col: string; rows:
         rows.map((r) => {
           const inner = (
             <>
-              <i className="absolute inset-y-0 left-0 rounded-lg bg-[color:var(--accent-soft)]" style={{ width: `${Math.max(4, (r.n / max) * 100)}%` }} />
+              <i className="absolute inset-y-0 left-0 bg-[color:var(--accent-soft)]" style={{ width: `${Math.max(4, (r.n / max) * 100)}%` }} />
               <span className="relative truncate">{r.label}</span>
               <b className="relative font-medium tabular-nums">{r.n.toLocaleString("en-US")}</b>
             </>
           );
-          const cls = "relative flex h-9 items-center justify-between gap-3 rounded-lg px-2.5 text-[13.5px]";
+          const cls = "relative flex h-9 items-center justify-between gap-3 px-2.5 text-[13.5px]";
           return r.href ? (
             <Link key={r.href} href={r.href} className={cn(cls, "hover:bg-[color:var(--hover)]")} title={`${r.n} applications`}>
               {inner}
@@ -140,7 +132,7 @@ const chevron = (up: boolean) => (
 export function CareersView({ header, p }: { header: AnalyticsHeader; p: CareersProps }) {
   return (
     <Page bar={<Bar {...header} />}>
-      <div className="grid gap-2 rounded-[20px] bg-[color:var(--soft)] p-2">
+      <div className="grid gap-2 bg-[color:var(--soft)] p-2">
         <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3 pb-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Careers page</h2>
           <span className="flex-1" />
@@ -156,8 +148,8 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
               aria-current={c.active ? "true" : undefined}
               title={c.def}
               className={cn(
-                "grid min-w-0 content-start justify-items-start gap-1.5 rounded-[14px] px-3 py-3 transition-[background,box-shadow] min-[768px]:px-[18px] min-[768px]:py-4",
-                c.active ? "bg-[color:var(--paper)] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--line)]" : "text-faint hover:bg-[color-mix(in_srgb,var(--paper)_55%,transparent)]",
+                "grid min-w-0 content-start justify-items-start gap-1.5 px-3 py-3 transition-[background,box-shadow] min-[768px]:px-[18px] min-[768px]:py-4",
+                c.active ? "bg-[color:var(--paper)] text-foreground shadow-[var(--shadow),0_0_0_1px_var(--line)]" : "text-faint hover:bg-[color-mix(in_srgb,var(--paper)_55%,transparent)]",
               )}
             >
               <span className={cn("text-[13px]", c.active && "text-muted-foreground")}>{c.label}</span>
@@ -165,7 +157,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
               {c.change ? (
                 <em
                   className={cn(
-                    "inline-flex h-[22px] items-center gap-[3px] rounded-[11px] pr-2 pl-1.5 text-[12px] font-medium not-italic tabular-nums",
+                    "inline-flex h-[22px] items-center gap-[3px] rounded-full pr-2 pl-1.5 text-[12px] font-medium not-italic tabular-nums",
                     !c.active ? "bg-[color:var(--soft-strong)] text-faint" : c.change.up ? "bg-[color:var(--green-soft)] text-[color:var(--green)]" : "bg-[color:var(--red-soft)] text-[color:var(--red)]",
                   )}
                 >
@@ -179,14 +171,14 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-[14px] bg-[color:var(--paper)] shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--line)]">
+        <div className="overflow-hidden bg-[color:var(--paper)] shadow-[var(--shadow),0_0_0_1px_var(--line)]">
           <div className="flex flex-wrap items-center gap-2.5 px-5 pt-4 pb-1.5">
             <span className="inline-flex items-center gap-2 text-[13.5px] font-medium">
-              <i className="block h-[3px] w-3.5 rounded-sm bg-[color:var(--accent)]" />
+              <i className="block h-[3px] w-3.5 bg-[color:var(--accent)]" />
               {p.metric}
               {p.chart.compare ? (
                 <>
-                  <i className="ml-2 block h-[3px] w-3.5 rounded-sm bg-[color:var(--faint)]" />
+                  <i className="ml-2 block h-[3px] w-3.5 bg-[color:var(--faint)]" />
                   <span className="font-normal text-faint">Period before</span>
                 </>
               ) : null}
@@ -200,8 +192,8 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
               ]}
             />
             <Link href={p.toggles.compare} role="switch" aria-checked={p.chart.compare} className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
-              <span className={cn("relative h-[18px] w-[30px] shrink-0 rounded-[9px] transition-colors", p.chart.compare ? "bg-[color:var(--accent)]" : "bg-[color:var(--soft-strong)]")}>
-                <i className={cn("absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-transform", p.chart.compare && "translate-x-3")} />
+              <span className={cn("relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors", p.chart.compare ? "bg-[color:var(--accent)]" : "bg-[color:var(--soft-strong)]")}>
+                <i className={cn("absolute top-0.5 left-0.5 size-3.5 rounded-full bg-[color:var(--n0)] shadow-[var(--shadow)] transition-transform", p.chart.compare && "translate-x-3")} />
               </span>
               <span className="max-[767px]:sr-only">Compare to previous period</span>
             </Link>
@@ -225,7 +217,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
   const fill = (j: number) => ({ background: p.segments[j].color });
   return (
     <Page bar={<Bar {...header} />}>
-      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
         <div className="flex items-baseline px-4 pt-5 min-[768px]:px-6">
           <h2 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">Pipeline</h2>
           <span className="flex-1" />
@@ -257,7 +249,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
                   <div key={r.key} className="relative flex items-end justify-center" title={`${r.label} · ${r.total} ${p.unit}`}>
                     <div className="flex w-[18px] flex-col-reverse gap-0.5" style={{ height: `${(r.total / p.top) * 100}%` }}>
                       {r.by.map((v, j) =>
-                        v ? <i key={j} className="block min-h-[3px] last:rounded-t-[4px] hover:opacity-80" style={{ flex: v, ...fill(j) }} title={`${p.segments[j].label}: ${v}`} /> : null,
+                        v ? <i key={j} className="block min-h-[3px] hover:opacity-80" style={{ flex: v, ...fill(j) }} title={`${p.segments[j].label}: ${v}`} /> : null,
                       )}
                     </div>
                   </div>
@@ -285,12 +277,12 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
             <div className="overflow-x-auto border-t border-[color:var(--line)]">
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
-                  <tr className="h-10 border-b border-[color:var(--line)] text-[12.5px] text-faint">
+                  <tr className="h-10 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[12.5px] text-faint">
                     <th className="pl-4 text-left font-normal min-[768px]:pl-6">{p.slice}</th>
                     <th className="px-2 text-right font-normal">{p.measure}</th>
                     {p.segments.map((s, j) => (
                       <th key={s.label} className="px-2 text-right font-normal whitespace-nowrap last:pr-4 min-[768px]:last:pr-6">
-                        <i className="mr-1.5 inline-block size-[9px] rounded-[2px]" style={fill(j)} />
+                        <i className="mr-1.5 inline-block size-[9px]" style={fill(j)} />
                         {s.label}
                       </th>
                     ))}
@@ -314,7 +306,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-4 pt-4 pb-5 text-[13px] text-muted-foreground min-[768px]:px-6">
               {p.segments.map((s, j) => (
                 <span key={s.label} className="inline-flex items-center">
-                  <i className="mr-1.5 inline-block size-[9px] rounded-[2px]" style={fill(j)} />
+                  <i className="mr-1.5 inline-block size-[9px]" style={fill(j)} />
                   {s.label}
                 </span>
               ))}

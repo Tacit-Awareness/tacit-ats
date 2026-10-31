@@ -91,7 +91,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
     <div role="img" aria-label={shown.map((c) => `${c.n} ${VERDICT_NAME[c.verdict]}`).join(", ")} className="grid gap-2.5 border-b border-[color:var(--line)] px-[18px] pt-3 pb-3.5">
       <div className="flex h-2 gap-0.5">
         {shown.map((c) => (
-          <i key={c.verdict} className={cn("min-w-2 rounded", DOT[c.verdict])} style={{ flex: c.n }} />
+          <i key={c.verdict} className={cn("min-w-2", DOT[c.verdict])} style={{ flex: c.n }} />
         ))}
       </div>
       <div className="flex flex-wrap gap-x-3.5 gap-y-1 text-[12.5px] text-muted-foreground">
@@ -168,8 +168,8 @@ function Loop({ reader }: { reader: Reader }) {
       className="grid gap-2.5 border-b border-[color:var(--line)] px-4 pt-5 pb-6 @2xl:grid-cols-[minmax(190px,260px)_40px_minmax(130px,180px)_28px_minmax(170px,1fr)] @2xl:gap-x-0 @2xl:px-6 @2xl:pt-[22px]"
     >
       <div className="relative z-[1] grid content-center justify-items-start gap-2 @2xl:col-start-1 @2xl:[grid-row:1/span_var(--rows)]">
-        <span className="inline-flex h-6 items-center rounded-md bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium text-muted-foreground">{reader.tag}</span>
-        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3.5">
+        <span className="inline-flex h-6 items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium text-muted-foreground">{reader.tag}</span>
+        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 border border-[color:var(--line)] bg-[color:var(--paper)] px-4 py-3.5">
           <Avatar name={reader.candidate} size="lg" candidate />
           <div className="grid min-w-0">
             <b className="truncate text-[14.5px] font-medium">{reader.candidate}</b>
@@ -188,7 +188,7 @@ function Loop({ reader }: { reader: Reader }) {
         const fade = r.place === "later" && "opacity-45";
         const round = (
           <>
-            <span className="grid size-5 flex-none place-items-center rounded-[5px] bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
+            <span className="grid size-5 flex-none place-items-center bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
             <b className="truncate font-medium">{r.name}</b>
             {cur ? (
               <em className="ml-auto text-[12.5px] text-[color:var(--accent)] not-italic">Now</em>
@@ -198,7 +198,7 @@ function Loop({ reader }: { reader: Reader }) {
           </>
         );
         const node = cn(
-          "relative z-[1] flex min-h-11 min-w-0 items-center gap-[9px] rounded-[10px] border bg-[color:var(--paper)] px-3 text-[13.5px]",
+          "relative z-[1] flex min-h-11 min-w-0 items-center gap-[9px] border bg-[color:var(--paper)] px-3 text-[13.5px]",
           cur ? "border-[color:color-mix(in_srgb,var(--accent)_50%,var(--line))] shadow-[0_6px_18px_color-mix(in_srgb,var(--accent)_14%,transparent)]" : "border-[color:var(--line)]",
           fade,
         );
@@ -287,7 +287,7 @@ function Feedback({ reader }: { reader: Reader }) {
 /** One `.rc` card: the head, the loop, the feedback, the member's Granola notes. */
 function InterviewReader({ reader, granola }: { reader: Reader; granola: React.ReactNode }) {
   return (
-    <article className="@container mx-auto max-w-[860px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+    <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
         <Link href="/client/interviews" className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
           ← Interviews

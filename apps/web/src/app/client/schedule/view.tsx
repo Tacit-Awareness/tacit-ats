@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { FilterMenu } from "@/components/filter-menu";
 import { useKeyHelp, useKeys, type KeyHandler } from "@/components/keys";
-import { Avatar, Empty, Notice, Page, PageBar, SearchBox } from "@/components/page";
+import { Avatar, Empty, Notice, Page, PageBar, SearchBox, pillOption, pillTrack } from "@/components/page";
 import {
   daysOf,
   hourSpan,
@@ -160,7 +160,7 @@ function EventBlock({ placed, clock, open, grab }: { placed: Placed<CalendarEven
       style={{ top: (start / 60) * HOUR_PX + 1, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
       className={cn(
         e.canChange && "cursor-grab touch-pan-y",
-        "absolute z-[2] flex flex-col gap-px overflow-hidden rounded-lg px-2 text-xs leading-[1.3] transition-[filter,box-shadow] hover:z-[3] hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.15)] hover:brightness-[0.98] hover:saturate-[1.15]",
+        "absolute z-[2] flex flex-col gap-px overflow-hidden px-2 text-xs leading-[1.3] transition-[filter,box-shadow] hover:z-[3] hover:shadow-[var(--shadow)] hover:brightness-[0.98] hover:saturate-[1.15]",
         tight ? "justify-center py-0.5" : "py-1.5",
         TONE[e.tone],
       )}
@@ -304,7 +304,7 @@ function TimeGrid({
               <b
                 className={cn(
                   "text-base font-medium tabular-nums",
-                  d === today && "inline-grid h-[26px] min-w-[26px] place-items-center rounded-[7px] bg-[color:var(--accent)] px-1.5 text-[color:var(--accent-ink)]",
+                  d === today && "inline-grid h-[26px] min-w-[26px] place-items-center rounded-full bg-[color:var(--accent)] px-1.5 text-[color:var(--accent-ink)]",
                 )}
               >
                 {Number(d.slice(8))}
@@ -340,7 +340,7 @@ function TimeGrid({
                 {ghost?.day === day ? (
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden rounded-lg border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
+                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
                     style={{ top: (ghost.start / 60) * HOUR_PX + 2, height: ((ghost.end - ghost.start) / 60) * HOUR_PX - 4 }}
                   >
                     <b className="truncate font-semibold">{ghost.label}</b>
@@ -395,7 +395,7 @@ function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<Ca
                 aria-current={isToday ? "date" : undefined}
                 aria-label={`${dayWords(c.day, { weekday: "long", month: "long", day: "numeric" })}, ${count} ${count === 1 ? "interview" : "interviews"}`}
                 className={cn(
-                  "justify-self-start rounded-md px-1.5 py-0.5 text-[13px] font-medium tabular-nums md:text-sm",
+                  "justify-self-start rounded-full px-1.5 py-0.5 text-[13px] font-medium tabular-nums md:text-sm",
                   isToday ? "bg-[color:var(--accent)] text-[color:var(--accent-ink)]" : "hover:bg-[color:var(--hover)]",
                   !isToday && !c.inMonth && "text-faint",
                 )}
@@ -408,9 +408,9 @@ function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<Ca
                   href={e.href}
                   onClick={opener(e, open)}
                   title={[e.candidate, `${clock(e.startsAt)} – ${clock(e.endsAt)}`, [e.step, e.job].filter(Boolean).join(" · "), e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
-                  className="flex h-[22px] min-w-0 items-center gap-[5px] rounded-[5px] px-[5px] text-[12.5px] text-foreground transition-colors hover:bg-[color:var(--hover)] max-md:hidden"
+                  className="flex h-[22px] min-w-0 items-center gap-[5px] px-[5px] text-[12.5px] text-foreground transition-colors hover:bg-[color:var(--hover)] max-md:hidden"
                 >
-                  <i aria-hidden className={cn("size-[7px] flex-none rounded-[2px]", DOT[e.tone])} />
+                  <i aria-hidden className={cn("size-[7px] flex-none", DOT[e.tone])} />
                   <span className="truncate">
                     <span className="tabular-nums">{clock(e.startsAt)}</span> {e.candidate}
                   </span>
@@ -424,7 +424,7 @@ function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<Ca
               {/* Too narrow for names on a phone: the count, and the date opens the day. */}
               {count ? (
                 <span aria-hidden className="flex items-center gap-1 px-1.5 text-[11.5px] text-faint tabular-nums md:hidden">
-                  <i className={cn("size-[7px] flex-none rounded-[2px]", DOT[c.events[0]!.tone])} />
+                  <i className={cn("size-[7px] flex-none", DOT[c.events[0]!.tone])} />
                   {count}
                 </span>
               ) : null}
@@ -443,7 +443,7 @@ function Legend({ tones, gutter }: { tones: Map<string, EventTone>; gutter: bool
     <ul aria-label="Departments" className={cn("m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--line)] py-2.5 pr-5 text-xs text-faint", gutter ? "pl-16" : "pl-5")}>
       {[...tones].map(([name, tone]) => (
         <li key={name} className="flex items-center gap-1.5">
-          <i aria-hidden className={cn("size-2.5 rounded-[3px]", DOT[tone])} />
+          <i aria-hidden className={cn("size-2.5", DOT[tone])} />
           {name}
         </li>
       ))}
@@ -456,7 +456,7 @@ function StatusPill({ past }: { past: boolean }) {
   return (
     <span
       className={cn(
-        "inline-flex h-[26px] items-center gap-1.5 rounded-[7px] border pr-[9px] pl-1 text-[13px] font-medium whitespace-nowrap",
+        "inline-flex h-[26px] items-center gap-1.5 rounded-full border pr-[9px] pl-1 text-[13px] font-medium whitespace-nowrap",
         past
           ? "border-[color:var(--line)] bg-[color:var(--soft)] text-muted-foreground"
           : "border-[color:color-mix(in_srgb,var(--green)_25%,transparent)] bg-[color:var(--green-soft)] text-positive",
@@ -651,7 +651,7 @@ export function ScheduleView({
           </div>
           {canBook ? (
             <>
-              <button type="button" onClick={() => bookAt(false)} disabled={!timeZone} title="Book an interview (N)" className={cn(cxBtn, "rounded-lg px-3 disabled:opacity-50")}>
+              <button type="button" onClick={() => bookAt(false)} disabled={!timeZone} title="Book an interview (N)" className={cn(cxBtn, "rounded-full px-3 disabled:opacity-50")}>
                 Book
               </button>
               <button
@@ -659,7 +659,7 @@ export function ScheduleView({
                 onClick={() => bookAt(true)}
                 disabled={!timeZone}
                 title="Suggests a time every interviewer is free (F)"
-                className="inline-flex h-8 items-center gap-2 rounded-lg border border-transparent bg-[color:var(--accent)] px-3 text-[13.5px] font-medium whitespace-nowrap text-[color:var(--accent-ink)] transition-[filter] hover:brightness-105 disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-2 rounded-full border border-transparent bg-[color:var(--accent)] px-3 text-[13.5px] font-medium whitespace-nowrap text-[color:var(--accent-ink)] transition-[filter] hover:brightness-105 disabled:opacity-50"
               >
                 Find a time
               </button>
@@ -674,14 +674,14 @@ export function ScheduleView({
       <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:px-5 md:py-3">
         {q ? (
           <>
-            <Link href={hrefFor(view, anchor, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Back to the calendar">
+            <Link href={hrefFor(view, anchor, dept)} className={cn(cxBtn, "rounded-full px-3")} title="Back to the calendar">
               Clear
             </Link>
             <h2 className="m-0 mr-1 ml-2 min-w-0 truncate text-[17px] font-medium tracking-[-0.014em] md:text-[19px]">Results for “{q}”</h2>
           </>
         ) : (
           <>
-            <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-lg px-3")} title="Today (.)">
+            <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-full px-3")} title="Today (.)">
               Today
             </Link>
             <span className="inline-flex">
@@ -689,7 +689,7 @@ export function ScheduleView({
                 href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"}
                 aria-label="Previous"
                 title="Previous (←)"
-                className={cn(cxBtn, "rounded-l-lg px-[11px]")}
+                className={cn(cxBtn, "rounded-l-full px-[11px]")}
               >
                 {arrow("M10 3.5 5.5 8l4.5 4.5")}
               </Link>
@@ -697,7 +697,7 @@ export function ScheduleView({
                 href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"}
                 aria-label="Next"
                 title="Next (→)"
-                className={cn(cxBtn, "-ml-px rounded-r-lg px-[11px]")}
+                className={cn(cxBtn, "-ml-px rounded-r-full px-[11px]")}
               >
                 {arrow("M6 3.5 10.5 8 6 12.5")}
               </Link>
@@ -718,19 +718,14 @@ export function ScheduleView({
             ]}
           />
         ) : null}
-        <nav aria-label="View" className="flex gap-1.5 max-md:order-last max-md:w-full">
+        <nav aria-label="View" className={cn(pillTrack, "max-md:order-last")}>
           {VIEWS.map((v) => (
             <Link
               key={v.key}
               href={hrefFor(v.key, anchor, dept)}
               aria-current={!q && v.key === view ? "page" : undefined}
               title={`${v.label} (${v.key[0]!.toUpperCase()})`}
-              className={cn(
-                "inline-flex h-8 items-center rounded-2xl border px-3.5 text-[14px] whitespace-nowrap transition-colors",
-                !q && v.key === view
-                  ? "border-transparent bg-[color:var(--soft-strong)] font-medium text-foreground"
-                  : "border-[color:var(--line-strong)] font-[450] text-foreground hover:bg-[color:var(--hover)]",
-              )}
+              className={pillOption(!q && v.key === view)}
             >
               {v.label}
             </Link>

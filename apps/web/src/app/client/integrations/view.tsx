@@ -73,7 +73,7 @@ export function IntegrationsView({
           />
           <div id="granola" className="grid scroll-mt-4">
             <ConnectorRow
-              icon={<GranolaIcon className="size-[30px] rounded-[7px]" />}
+              icon={<GranolaIcon className="size-[30px]" />}
               name="Granola"
               detail={
                 granola

@@ -60,7 +60,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                       href={`${site.basePath}/${p.slug}`}
                       aria-current={p.slug === page.slug ? "page" : undefined}
                       className={cn(
-                        "block rounded-md px-2 py-[5px] text-[13px] transition-colors",
+                        "block px-2 py-[5px] text-[13px] transition-colors",
                         p.slug === page.slug
                           ? "bg-raised text-foreground shadow-[var(--shadow),var(--active-inset)]"
                           : "text-muted-foreground hover:bg-accent hover:text-foreground",
@@ -102,7 +102,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
               ul: ({ children }) => <ul className="mt-3 mb-0 list-disc space-y-1 pl-5 marker:text-faint">{children}</ul>,
               ol: ({ children }) => <ol className="mt-3 mb-0 list-decimal space-y-1 pl-5 marker:text-faint">{children}</ol>,
               blockquote: ({ children }) => (
-                <blockquote className="mx-0 mt-3 mb-0 rounded-r-lg border-l-2 border-[color:var(--accent)] bg-[color:var(--soft)] px-4 py-0.5 text-foreground [&>p]:my-2.5">
+                <blockquote className="mx-0 mt-3 mb-0 border-l-2 border-[color:var(--accent)] bg-[color:var(--soft)] px-4 py-0.5 text-foreground [&>p]:my-2.5">
                   {children}
                 </blockquote>
               ),
@@ -124,10 +124,10 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                 className ? (
                   <code className={className}>{children}</code>
                 ) : (
-                  <code className="rounded-[5px] bg-[color:var(--soft-strong)] px-[5px] py-px font-mono text-[12.5px] text-foreground">{children}</code>
+                  <code className="bg-[color:var(--soft-strong)] px-[5px] py-px font-mono text-[12.5px] text-foreground">{children}</code>
                 ),
               pre: ({ children }) => (
-                <div className="mt-3 overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-card">
+                <div className="mt-3 overflow-hidden border border-[color:var(--line)] bg-card">
                   <div className="flex items-center justify-between border-b border-border px-3 py-0.5">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{codeLanguage(children)}</span>
                     <CopyButton value={textOf(children).replace(/\n$/, "")} label="Copy" />
@@ -136,7 +136,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                 </div>
               ),
               table: ({ children }) => (
-                <div className="mt-3 overflow-x-auto rounded-[10px] border border-[color:var(--line)] bg-card">
+                <div className="mt-3 overflow-x-auto border border-[color:var(--line)] bg-card">
                   <table className="w-full border-collapse text-left text-[13px]">{children}</table>
                 </div>
               ),
@@ -152,7 +152,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
 
         <footer className="mt-7 grid grid-cols-2 gap-4 border-t border-border pt-4">
           {previous ? (
-            <Link href={`${site.basePath}/${previous.slug}`} className="rounded-lg px-2 py-1.5 transition-colors hover:bg-accent">
+            <Link href={`${site.basePath}/${previous.slug}`} className="px-2 py-1.5 transition-colors hover:bg-accent">
               <span className="block text-xs text-faint">← Previous</span>
               <span className="text-[13.5px] font-medium text-positive">{previous.title}</span>
             </Link>
@@ -160,7 +160,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
             <span />
           )}
           {next ? (
-            <Link href={`${site.basePath}/${next.slug}`} className="rounded-lg px-2 py-1.5 text-right transition-colors hover:bg-accent">
+            <Link href={`${site.basePath}/${next.slug}`} className="px-2 py-1.5 text-right transition-colors hover:bg-accent">
               <span className="block text-xs text-faint">Next →</span>
               <span className="text-[13.5px] font-medium text-positive">{next.title}</span>
             </Link>

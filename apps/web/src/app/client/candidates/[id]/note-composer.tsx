@@ -31,7 +31,7 @@ export function NoteComposer({ candidateId, max }: { candidateId: string; max: n
     <form action={action} className="grid gap-2">
       <input type="hidden" name="candidateId" value={candidateId} />
       {refused ? <Notice tone="error">{CANDIDATE_ERRORS[refused.error]}</Notice> : null}
-      <div className="rounded-lg border border-[color:var(--line)] bg-[color:var(--paper)] transition-colors focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
+      <div className="border border-[color:var(--line)] bg-[color:var(--paper)] transition-colors focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
         <label htmlFor="candidate-note" className="sr-only">
           Add a note
         </label>
