@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 import { Notice } from "@/components/page";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   CHANNEL_LABELS,
   FOCUS_AREAS_MAX,
@@ -15,11 +14,12 @@ import {
 } from "@/lib/client/interviewer-profile";
 import { saveProfileAction } from "./actions";
 import { PROFILE_ERRORS, PROFILE_NOTICES, type ProfileAnswer } from "./messages";
+import { TagInput } from "./tag-input";
 
 // A member's interviewer profile, in a native <dialog> as the CRM's bulk
 // actions are, so keys.ts leaves it alone. Mounted only while open, so every
-// open starts from what the page last read. The fields are uncontrolled and
-// the form is submitted by hand, not through useActionState: React resets a
+// open starts from what the page last read. The fields but the tags are
+// uncontrolled and the form is submitted by hand, not through useActionState: React resets a
 // form when its action ends, and a refusal has to leave what they typed. The
 // version is the prop's, and a refused save refreshes the page, so Save again
 // replaces what someone else saved knowingly, not by accident.
@@ -38,6 +38,7 @@ function ProfileDialog({ actorId, name, self, profile, onClose }: { actorId: str
   const dialog = useRef<HTMLDialogElement>(null);
   const [pending, start] = useTransition();
   const [answer, setAnswer] = useState<Extract<ProfileAnswer, { ok: false }> | "dropped" | null>(null);
+  const [areas, setAreas] = useState(profile?.focusAreas ?? []);
 
   useEffect(() => {
     const d = dialog.current;
@@ -124,21 +125,22 @@ function ProfileDialog({ actorId, name, self, profile, onClose }: { actorId: str
             />
           </label>
         </div>
-        <label className={LABEL}>
-          Knows
-          <Textarea
+        <div className={LABEL}>
+          <span>Knows</span>
+          <TagInput
             id={FIELD_IDS.focusAreas}
             name="focusAreas"
-            rows={4}
-            defaultValue={profile?.focusAreas.join("\n") ?? ""}
-            placeholder={"Distributed systems\nDebugging"}
-            aria-invalid={invalid("focusAreas")}
-            aria-describedby="profile-focus-hint"
+            label="Knows"
+            tags={areas}
+            onChange={setAreas}
+            placeholder="Distributed systems"
+            invalid={invalid("focusAreas")}
+            describedBy="profile-focus-hint"
           />
           <span id="profile-focus-hint" className="text-xs text-faint">
-            One per line, up to {FOCUS_AREAS_MAX}, {FOCUS_AREA_MAX} characters each.
+            Enter after each one, up to {FOCUS_AREAS_MAX}, {FOCUS_AREA_MAX} characters each.
           </span>
-        </label>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <label className={LABEL}>
             Reach
