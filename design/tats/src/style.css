@@ -5449,4 +5449,3 @@ body.surface { padding: 0 !important; display: block !important; }
 .su-tog i { background: var(--n0); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); } }
 :root[data-theme="dark"] .gc { --gc-bubble: var(--n850); --gc-border: oklch(var(--paper-a) / 0.08); --gc-text: var(--n200); }
-.su-acts { display: flex; gap: var(--s2); flex-wrap: wrap; justify-content: flex-end; }
