@@ -666,7 +666,7 @@ function openHist(id) {
       ${h.score ? `<dt>Testbench</dt><dd>${h.score}/100</dd>` : ""}
       <dt>Closed</dt><dd>${fmtDate(h.closed)} · ${esc(h.outcome)}</dd></dl>
       ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
-    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
+    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in New applicants`); } });
 }
 /* ---------------- CRM: everyone the funnel has closed, as one database ---------------- */
 // One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
@@ -695,7 +695,7 @@ function crmPage() {
   const xs = crmRows().sort((x, y) => (key(x) > key(y) ? 1 : key(x) < key(y) ? -1 : 0) * sort.dir);
   const per = 50, pages = Math.max(1, Math.ceil(xs.length / per)), pg = Math.min(state.crmPg || 0, pages - 1), rows = xs.slice(pg * per, pg * per + per);
   const view = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all"));
-  return `<div class="bar"><div class="crumbs">${ico("db")}<b>CRM</b></div><span class="spacer"></span>
+  return `<div class="bar"><div class="crumbs">${ico("db")}<b>Talent pool</b></div><span class="spacer"></span>
     <label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
   <div class="crm-tabs"><div class="pills">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div></div>
   <div class="crm">
@@ -766,7 +766,7 @@ function appsByDay(days) {
 }
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
-// The company's interview process, as drawn in Onboarding: candidates' stages take the flowchart's step names, in order.
+// The company's interview process, as drawn in Setup: candidates' stages take the flowchart's step names, in order.
 // Steps side by side (one per team after a split) are one stage; Offer is the end step. Unreached stages keep these defaults.
 const PROCESS_DEFAULT = [["review", "Application review"], ["tb", "Testbench"], ["r1", "Team interview"], ["r2", "Cross-team interview"], ["r3", "Final with the CTO"], ["offer", "Offer"]];
 const PROCESS_ABBR = ["Rev", "TB", "R1", "R2", "Fin", "Off"];
@@ -819,10 +819,10 @@ function homeMetrics() {
   const apps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
   const prevApps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= prevFrom && appliedAt(a) < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= prevFrom && h.applied < from).length;
   return [
-    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
-    { k: "active", label: "Candidates in process", def: "Everyone with an open application, by stage of your interview process", v: act.length, unit: "active", act, go: ["#crm~active", "Open in CRM"] },
-    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in Applicant Tickets"] },
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review new applicants"] },
+    { k: "active", label: "Candidates in process", def: "Everyone with an open application, by stage of your interview process", v: act.length, unit: "active", act, go: ["#crm~active", "Open in Talent pool"] },
+    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Review new applicants"] },
+    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Review new applicants"] },
     { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interviews"] },
     { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Calendar"] },
   ];
@@ -887,8 +887,8 @@ function homeOverview() {
   const unsent = inboxRows().filter((x) => x.inInbox && x.iss.k === "invite" && homeScope(x.a));
   const oldest = (xs) => xs.reduce((m, a) => Math.max(m, wait(a)), 0);
   const bn = [
-    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in Applicant Tickets"] },
-    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in Applicant Tickets"] },
+    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Review new applicants"] },
+    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Review new applicants"] },
     deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
     yc.length && { k: "decide", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
   ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
@@ -946,7 +946,7 @@ function homeOverview() {
   </div></div>`;
 }
 // Home's slider switches tabs inside Home: the slider stays put, so Overview is always one click back.
-const HOME_TABS = [["overview", "Overview"], ["tickets", "Applicant Tickets"], ["interviews", "Interviews"], ["referrals", "Referrals"]];
+const HOME_TABS = [["overview", "Overview"], ["tickets", "New applicants"], ["interviews", "Feedback"], ["referrals", "Referrals"]];
 const homeNav = (on) => `<div class="hm-nav"><div class="pills" role="tablist">${HOME_TABS.map(([k, n]) => `<a class="${on === k ? "on" : ""}" href="${k === "overview" ? "#home" : `#home~${k}`}" role="tab" aria-selected="${on === k}">${n}</a>`).join("")}</div></div>`;
 function homePage(tab, key) {
   if (!HOME_TABS.some((t) => t[0] === tab) || tab === "overview") return homeOverview();
@@ -978,7 +978,7 @@ function setupPage(step) {
   const tagChip = (id, t) => `<span class="su-tag">${esc(t)}<button data-act="suTagDel" data-id="${id}" data-v="${esc(t)}" aria-label="Remove ${esc(t)}">${ico("x")}</button></span>`;
   let body = "";
   if (step === "people") body = `<div class="su-card"><div class="su-ch"><div><h3>Add your interviewers</h3><p>Everyone who interviews gets a Grokbot. It messages them in Slack or iMessage for asks, scheduling and feedback.</p></div>
-      <button class="btn sm" data-act="suImport">${CH.slack}Import from Slack</button></div>
+      <span class="su-acts"><a class="btn sm" href="#bots~people">${ico("users")}Interviewer load</a><button class="btn sm" data-act="suImport">${CH.slack}Import from Slack</button></span></div>
     <div class="su-list">${ids.map((id) => { const p = PEOPLE[id]; return `<div class="su-row" data-tid="sup-${id}">${personAv(id)}<span class="su-who"><b>${esc(p.name)}</b><span>${esc(p.role)}${teamsOf(id).length > 1 ? ` · <em class="su-multi">Multidisciplinary</em>` : ""}</span></span>
         <span class="su-bot ${p.bot}">${p.bot === "on" ? `${botAv(id)}Grokbot on ${p.ch === "slack" ? "Slack" : "iMessage"}` : p.bot === "invited" ? `${ico("clock")}Invite sent in Slack` : "No Grokbot"}</span>
         <button class="su-tog ${p.bot === "on" ? "on" : ""}" data-act="suBot" data-id="${id}" role="switch" aria-checked="${p.bot === "on"}" aria-label="Grokbot for ${esc(p.name)}"><i></i></button></div>`; }).join("")}</div>
@@ -1332,7 +1332,7 @@ function openFlow() {
   el.className = "overlay fs";
   el.innerHTML = `<div class="fs-sheet fl-sheet" role="dialog" aria-label="Interview process">
     <header class="fs-h"><div class="fs-t"><b>Interview process</b><span>How candidates move from applying to an offer. The Grokbots route by this.</span></div><span class="grow"></span>
-      <a class="btn sm ghost" href="#setup~process" data-close>Open in Onboarding</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
+      <a class="btn sm ghost" href="#setup~process" data-close>Open in Setup</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
     ${flowCanvas()}</div>`;
   $("#layer").appendChild(el);
   modal = { send: () => {} };
@@ -1408,7 +1408,7 @@ function processTree(x) {
     <div class="ft" data-act="flowEdit" role="button" tabindex="0" title="Open the interview process to edit it"><div class="ft-in" style="width:${W}px;height:${H}px"><svg class="ft-e" width="${W}" height="${H}" aria-hidden="true">${es}</svg>${cols.flat().map(node).join("")}</div></div></section>`;
 }
 
-/* ---------------- The Grokbot, live on Onboarding ---------------- */
+/* ---------------- The Grokbot, live on Setup ---------------- */
 // Ask your Grokbot in Slack or the CLI ("put Daniel on Infra, Product and Research") and its cursor comes onto this page,
 // goes to each box and makes the change, so you watch it happen. setupOps reads the request; grokDo moves the cursor.
 const IV_KW = { "Technical screen": /tech(nical)? screen/, "Systems design": /systems? design/, "GPU performance deep dive": /gpu/, "Research deep dive": /research deep dive/, "FDE customer scenario": /\bfde\b|customer scenario/, "Product and design": /product (and|&) design/, "Final with the CTO": /\bfinal\b/ };
@@ -1571,7 +1571,7 @@ function openRefForm(pre = {}) {
       if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
       const a = { id: `APP-${140 + APPLICANTS.length}`, pri: 3, labels: [], name, hl: v.link ? v.link.replace(/^https?:\/\/(www\.)?/, "") : `Referred by ${first(v.by)}`, role: v.role, src: `Referral · ${first(v.by)}`, loc: "", yrs: 0, links: v.link ? [v.link.replace(/^https?:\/\/(www\.)?/, "")] : [], state: "new", when: Date.now(), sum: v.note ? [v.note] : [], exp: [], tb: null, note: v.note ? `${v.note}\n\n${first(v.by)}` : "" };
       APPLICANTS.push(a); A[a.id] = a; seed(a); touch(a);
-      toast(`${name} is in Applicant Tickets, referred by ${first(v.by)}`);
+      toast(`${name} is in New applicants, referred by ${first(v.by)}`);
     } });
 }
 // Add with Grokbot: paste what you have (a Slack message, an email, a link) and it fills the form.
@@ -1662,10 +1662,10 @@ const TOUR = [
   ["home", ".hm-row.stuck", "Where candidates are stuck", "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it."],
   ["inbox", ".ibx", "Inbox", "What's worth your time from everything that happened: what needs you, what was decided, what got booked."],
   ["inbox", ".ibx-g.need", "Needs you", "Click a problem and it opens with the fix already drafted. Read it, edit it, send it."],
-  ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
-  ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
-  ["all", ".pl-fun", "Pipeline", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
-  ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
+  ["crm", ".crm", "Talent pool", "Everyone you've ever seen, in process or closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
+  ["triage", ".act-glow", "New applicants", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
+  ["all", ".pl-fun", "Candidates", "Everyone in your process. Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
+  ["interviews", ".pt", "Feedback", "What each interviewer thought, where the candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
   ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Open it from ⌘K. Ask, delegate and assign here or there; this dashboard is for checking in."],
 ];
@@ -1791,7 +1791,7 @@ function applicantsPage() {
       ${groups.map(({ x, xs }) => `<div class="pl-gh">${esc(x.name)}<span>${xs.length}</span></div>${xs.slice(0, cap(x.k)).map(plRow).join("")}${xs.length > cap(x.k) ? `<button class="pl-more" data-act="plMore" data-k="${x.k}">Show all ${xs.length} in ${esc(x.name)}</button>` : ""}`).join("") || `<div class="pl-zero">${ico("check")}<b>${mode === "stuck" ? "Nobody's stuck" : "No one here"}</b><span>${mode === "stuck" ? "Everyone is inside their stage's target. The Grokbots have it." : "Nothing matches these filters."}</span></div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Candidates</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
     ${view === "board" ? "" : `<div class="pills pl-mode" role="tablist">${[["stuck", "Stuck", all.filter((a) => plLate(a) > 1).length], ["all", "Everyone", all.length]].map(([k, l, n]) => `<button class="${mode === k ? "on" : ""}" data-act="plMode" data-v="${k}" role="tab" aria-selected="${mode === k}">${l}<span>${n.toLocaleString()}</span></button>`).join("")}</div>`}
     <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" ${role ? `title="Board (B)"` : `disabled title="Pick one role to see it as a board"`}>${ico("board")}</button></div>
     <a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
@@ -1799,7 +1799,7 @@ function applicantsPage() {
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
     <button class="chip pl-role ${role ? "on" : ""}" data-act="plRole">${role ? esc(ROLES[role].title) : "All roles"}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in CRM also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
+  ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in the Talent pool also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
   ${picked.size ? `<div class="bulk"><span class="n">${picked.size} selected</span>
     <button class="btn ghost sm" data-act="bulkTeam" title="Send to team (A)">Send to team…</button>
@@ -1966,7 +1966,7 @@ function nowPanel(a) {
   }
   if (s === "judgment") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>Back with you</b><span>${esc(stripTags(lastEv(a).html))}</span></div></div>
     <div class="cc-acts"><button class="btn primary" data-act="advance" data-id="${a.id}" title="Send to a team (A)">${ico("arrowR")}Send to a team</button><button class="btn" data-act="reject" data-id="${a.id}" title="Reject (R)">Reject</button></div></section>`;
-  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from Applicant Tickets. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in Applicant Tickets</a></div></section>`;
+  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from New applicants. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in New applicants</a></div></section>`;
   const c = court(a);
   if (["routing", "asked", "scheduling", "debrief"].includes(s)) {
     const r = RUNS.find((x) => x.a === a.id && !x.end);
@@ -1974,7 +1974,7 @@ function nowPanel(a) {
   }
   if (s === "scheduled") return `<section class="now-card">${personAv(a.iv, "lg")}<div class="grow"><b>Interview booked</b><span>${esc(a.at ? fmtWhen(a.at) : "")} with ${esc(PEOPLE[a.iv].name)}. Feedback is collected afterwards.</span></div>
 </section>`;
-  if (s === "testbench") return `<section class="now-card">${candAv(a, "lg")}<div class="grow"><b>With ${esc(first2(a))}</b><span>${a.tb.state === "running" ? "Working on the Testbench" : "Testbench sent, not started yet"}. It comes back to Applicant Tickets with a score.</span></div></section>`;
+  if (s === "testbench") return `<section class="now-card">${candAv(a, "lg")}<div class="grow"><b>With ${esc(first2(a))}</b><span>${a.tb.state === "running" ? "Working on the Testbench" : "Testbench sent, not started yet"}. It comes back to New applicants with a score.</span></div></section>`;
   return `<section class="now-card closed">${stIcon(s)}<div class="grow"><b>${STATES[s].name}</b><span>${esc(stripTags(lastEv(a).html))}</span></div></section>`;
 }
 const prop = (k, v) => `<div class="prop"><span class="k">${k}</span><span class="v">${v}</span></div>`;
@@ -1984,7 +1984,7 @@ function ticketPage(id) {
   const c = court(a);
   const team = a.team && TEAMS[a.team];
   const back = state.backTo && !state.backTo.startsWith("t~") && !state.backTo.startsWith("run~") ? state.backTo : "all";
-  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Calendar" : back === "jobs" ? "Job Postings" : back === "triage" ? "Applicant Tickets" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Analytics" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Pipeline";
+  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Calendar" : back === "jobs" ? "Jobs" : back === "triage" ? "New applicants" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Jobs" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Candidates";
   const pos = state.lastList.indexOf(id);
   return `<div class="bar"><div class="crumbs"><a href="#${back}">${esc(backName)}</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>${esc(a.name)}</b></div><span class="spacer"></span>
     ${pos >= 0 ? `<span class="faint pos">${pos + 1} / ${state.lastList.length}</span>` : ""}
@@ -2663,7 +2663,7 @@ const EX_MEASURES = {
 };
 const EX_SLICES = {
   stage: { name: "Stage", groups: () => [
-    ["new", "Applicant Tickets", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
+    ["new", "New applicants", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
     ["routing", "With Grokbots", (a) => ["routing", "asked", "scheduling"].includes(a.state)], ["scheduled", "Interview booked", (a) => a.state === "scheduled"],
     ["debrief", "Getting the read", (a) => a.state === "debrief"], ["judgment", "Your call", (a) => a.state === "judgment"],
     ["offer", "Offer", (a) => a.state === "offer"], ["rejected", "Closed", (a) => a.state === "passed" || a.state === "rejected"],
@@ -2692,7 +2692,7 @@ function pipelineExplorer() {
   const top = most <= 40 ? Math.ceil(most / 4) * 4 : niceMax(most);
   const pick = (which, label, val) => `<label class="ex-f"><span>${label}</span><button class="ex-sel" data-act="exMenu" data-v="${which}">${esc(val)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button></label>`;
   return `<div class="ex">
-    <div class="ex-top"><h2>Pipeline</h2><span class="grow"></span><span class="ex-total"><b>${total}</b> ${M.unit}</span></div>
+    <div class="ex-top"><h2>Funnel</h2><span class="grow"></span><span class="ex-total"><b>${total}</b> ${M.unit}</span></div>
     <div class="ex-picks">${pick("measure", "Measure", M.name)}${pick("slice", "Slice", S.name)}${pick("segment", "Segment", G.name)}</div>
     <div class="ex-chart">
       <div class="ex-plot" style="--n:${rows.length}">${[0.25, 0.5, 0.75, 1].map((f) => `<i class="ex-grid" style="bottom:${f * 100}%"></i>`).join("")}
@@ -2708,8 +2708,8 @@ function pipelineExplorer() {
   </div>`;
 }
 function analyticsPage(tab = "posts") {
-  return `<div class="bar cx-bar"><h1 class="cx-title">Analytics</h1>
-    <div class="cx-seg"><a class="${tab === "posts" ? "on" : ""}" href="#analytics">Job Postings</a><a class="${tab === "pipeline" ? "on" : ""}" href="#analytics~pipeline">Pipeline</a></div><span class="spacer"></span></div>
+  return `<div class="bar cx-bar"><h1 class="cx-title">Jobs</h1>
+    <div class="cx-seg"><a href="#jobs">Postings</a><a class="${tab === "posts" ? "on" : ""}" href="#analytics">Performance</a><a class="${tab === "pipeline" ? "on" : ""}" href="#analytics~pipeline">Funnel</a></div><span class="spacer"></span></div>
   <div class="scroll" id="scroller"><div class="page anapage">${tab === "posts" ? postsAnalytics() : pipelineExplorer()}</div></div>`;
 }
 // One tooltip for every chart mark: the value first, then the label.
@@ -2780,7 +2780,7 @@ function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); 
 // Pages you visit now and then. Pin the ones you use to the sidebar.
 const PAGE_VIEWS = [
   { id: "calendar", name: "Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
-  { id: "interviewers", name: "Interviewers", icon: "users", href: "#bots~people", desc: "Who interviews, their load, and their Grokbot" },
+  { id: "interviewers", name: "Interviewer load", icon: "users", href: "#bots~people", desc: "Who interviews, their load, and their Grokbot" },
 ];
 // Saved Pipeline filters.
 const SAVED_VIEWS = [
@@ -2821,7 +2821,7 @@ function viewsPage() {
 function openNewView() {
   const opt = (name, pairs) => `<select name="${name}">${pairs.map(([v, n]) => `<option value="${v}">${n}</option>`).join("")}</select>`;
   openForm({
-    title: "New view", sub: "A saved filter on the Pipeline.", submit: "Create view",
+    title: "New view", sub: "A saved filter on Candidates.", submit: "Create view",
     body: `<label class="fm-f"><span>Name</span><input name="name" placeholder="Strong infra referrals" required></label>
       <div class="fm-row"><label class="fm-f"><span>Team</span>${opt("team", [["", "Any team"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])])}</label>
       <label class="fm-f"><span>Stage</span>${opt("stage", [["", "Any stage"], ["you", "With you"], ["bots", "With Grokbots"], ["booked", "Interview booked"], ["closed", "Closed"]])}</label></div>
@@ -2867,23 +2867,21 @@ function renderSide() {
     <nav class="sb-group" aria-label="Inbox">
       ${item("#home", ico("home"), "Home", r.name === "home")}
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", sbNew("inbox"), "", "New in your Inbox")}
-      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
+      ${item("#crm", ico("db"), "Talent pool", r.name === "crm")}
     </nav>
-    <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
-      ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
-      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
-      ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
-    </nav>
-    <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
-      ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
-      ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
-      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
-      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+    <nav class="sb-group ${shut("top")}" aria-label="Applicants">${sec("top", "Applicants")}
+      ${item("#jobs", ico("brief"), "Jobs", r.name === "jobs" || r.name === "analytics")}
+      ${item("#triage", ico("ticket"), "New applicants", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
     </nav>
-    <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
-      ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
+    <nav class="sb-group ${shut("rt")}" aria-label="Interviewing">${sec("rt", "Interviewing")}
+      ${item("#all", ico("people"), "Candidates", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
+      ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
+      ${item("#interviews", ico("mic"), "Feedback", r.name === "interviews")}
+      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
+    </nav>
+    <nav class="sb-group ${shut("ob")}" aria-label="Setup">${sec("ob", "Setup")}
+      ${item("#setup~people", ico("users"), "Team", (r.name === "setup" && r.id !== "process") || (r.name === "bots" && r.id === "people"))}
       ${item("#setup~process", ico("route"), "Interview process", r.name === "setup" && r.id === "process")}
     </nav>
     <button class="sb-acct" data-act="acct" aria-haspopup="menu" title="Account, theme and sign out"><span class="trunc">${PEOPLE[ME].name}</span><svg class="chev" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
@@ -2894,7 +2892,7 @@ function renderSide() {
 /* ---------------- moves: what you can do with an applicant, as buttons or a menu ---------------- */
 function statusMoves(a) {
   const m = [];
-  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to Applicant Tickets", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); toast(`${a.name} is back in Applicant Tickets`); } });
+  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to New applicants", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to New applicants"); touch(a); toast(`${a.name} is back in New applicants`); } });
   if (!a.tb && isOpen(a)) m.push({ k: "testbench", label: "Send Testbench", icon: stIcon("testbench"), run: () => { const undo = sendTB(a); render(); toast(`Testbench sent to ${a.name}`, { undo }); } });
   if (isOpen(a)) m.push({ k: "team", label: a.state === "judgment" ? "Next round…" : "Send to a team…", icon: stIcon("routing"), primary: a.state === "judgment", run: (el) => teamPick(el, [a.id]) });
   if (a.state === "judgment") m.push({ k: "offer", label: "Move to offer…", icon: stIcon("offer"), run: () => openOffer(a) });
@@ -2908,7 +2906,7 @@ const moveButtons = (a, only) => statusMoves(a).filter((m) => !only || only.incl
 /* ---------------- Inbox: one row per applicant, newest first, read like email ---------------- */
 const seen = new Map(), archived = new Map();
 const attnRun = (a) => RUNS.find((r) => r.a === a.id && needsAttention(r));
-// Only a decision or a stuck Grokbot needs you. New applicants have their own page, Applicant Tickets.
+// Only a decision or a stuck Grokbot needs you. New applicants have their own page.
 const needsYou = (a) => a.state === "judgment" || !!attnRun(a);
 // The Inbox is a queue of operational issues, not of applicants. An applicant has at most one open
 // issue: a Grokbot that broke, an invite drafted but not sent, someone who hasn't answered, or a
@@ -3253,7 +3251,7 @@ function ibDone(id) {
   toast(`Dismissed: ${A[id].name}`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
 }
 
-/* ---------------- Applicant Tickets: one email each, a reply ready ---------------- */
+/* ---------------- New applicants: one email each, a reply ready ---------------- */
 const MODES = [["interview", "Interview", "I"], ["testbench", "Testbench", "T"], ["decline", "Decline", "D"]];
 function suggestMode(a) {
   if (!a.tb) return "testbench";
@@ -3353,7 +3351,7 @@ function triagePage() {
   const q = queue();
   const t = triState(q);
   const a = A[t.sel];
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Applicant Tickets</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">New applicants</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
   if (!a) return `${head}<div class="scroll"><div class="tri-done">${ico("check", "ico big")}<h2>No new applicants</h2><p>Every applicant ticket has been answered.</p><a class="btn" href="#inbox">Back to Inbox</a></div></div>`;
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
@@ -3515,9 +3513,9 @@ function jobsPage() {
   const applied = (k) => APPLICANTS.filter((a) => a.role === k).length;
   const row = ([k, r]) => `<button class="jp-row ${r.status === "paused" ? "paused" : ""}" data-act="editJob" data-k="${k}">
       ${ico("file")}<span class="jp-t"><b>${esc(r.title)}</b><span>${r.status === "paused" ? "Paused" : esc(r.where || "On-site")}</span>${r.posted ? `<span class="jp-new">New</span>` : ""}</span>
-      <span class="jp-n">${applied(k) ? `${applied(k)} in pipeline` : ""}</span>
+      <span class="jp-n">${applied(k) ? `${applied(k)} in process` : ""}</span>
       <span class="jp-loc">${esc(r.loc || "San Francisco")}</span><span class="jp-edit">Edit</span></button>`;
-  return `<div class="bar cx-bar"><h1 class="cx-title">Job Postings</h1><span class="faint tk-count">${live} live</span><span class="spacer"></span>
+  return `<div class="bar cx-bar"><h1 class="cx-title">Jobs</h1><div class="cx-seg"><a class="on" href="#jobs">Postings</a><a class="" href="#analytics">Performance</a><a class="" href="#analytics~pipeline">Funnel</a></div><span class="faint tk-count">${live} live</span><span class="spacer"></span>
     <button class="cx-btn" data-act="careersSite">${ico("arrowUR")}<span class="hide-sm">Careers page</span></button>
     <button class="icon-btn round jp-plus" data-act="newJob" title="New Job Posting" aria-label="New Job Posting">${ico("plus")}</button></div>
   <div class="scroll" id="scroller"><div class="jp">
@@ -3584,7 +3582,7 @@ function jobEditor(k) {
       <button class="je-submit" disabled>Submit application</button>
     </div>`;
   const isNew = k === "new";
-  return `<div class="bar je-bar"><div class="crumbs"><a href="#jobs">Job Postings</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b class="je-crumb">${esc(d.title || "New role")}</b></div><span class="spacer"></span>
+  return `<div class="bar je-bar"><div class="crumbs"><a href="#jobs">Jobs</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b class="je-crumb">${esc(d.title || "New role")}</b></div><span class="spacer"></span>
     <div class="cx-seg sm" role="tablist" aria-label="Mode">${[["edit", "Edit"], ["preview", "Preview as applicant"]].map(([v, n]) => `<button class="${(v === "preview") === pv ? "on" : ""}" data-act="jePreview" data-v="${v}">${n}</button>`).join("")}</div>
     <button class="chip je-status" data-act="jeStatus" title="${d.status === "paused" ? "Hidden from the careers page" : "Shown on the careers page"}"><i class="ldot" style="background:${d.status === "paused" ? "var(--faint)" : "var(--green, #3fa66b)"}"></i>${d.status === "paused" ? "Paused" : "Live"}</button>
     <button class="cx-primary je-save" data-act="jeSave">${isNew ? "Post the job" : "Save"}</button></div>
@@ -3774,7 +3772,7 @@ function interviewsPage(selKey) {
   const xs = ivList();
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">Feedback</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
   return `${head}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
     <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
@@ -4125,7 +4123,7 @@ function botsPage(tab = "runs") {
         <div class="lrow pol"><span class="grow"><b>Nobody on the team can take it</b><span>Returned to your Inbox</span></span></div>
       </section>`;
   }
-  const title = tab === "people" ? "Interviewers" : tab === "rules" ? "Settings" : "Grokbot Activity";
+  const title = tab === "people" ? "Interviewer load" : tab === "rules" ? "Settings" : "Grokbot Activity";
   if (tab === "checks") tab = "runs";
   if (tab === "rules") body = `<a class="set-link" href="#setup~people">${ico("users")}<span><b>People &amp; teams</b><span>Add interviewers and their Grokbots, move people between teams, and set what each person interviews for</span></span>${ico("arrowR")}</a>
     <a class="set-link" href="#setup~process">${ico("route")}<span><b>Interview process</b><span>Draw the steps from applying to an offer, who runs each one and how long it takes. The Grokbots route by it</span></span>${ico("arrowR")}</a>
@@ -4281,7 +4279,7 @@ function setTheme(t) {
 function openAcct(anchor) {
   closeLayer();
   const me = PEOPLE[ME], kb = (k) => `<span class="acct-kb">${k}</span>`;
-  const items = [["setup", "sliders", "Onboarding", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
+  const items = [["setup", "sliders", "Setup", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
   const el = document.createElement("div");
   el.className = "menu acct";
   el.setAttribute("role", "menu");
@@ -4358,16 +4356,16 @@ function openPalette(ctx) {
     ...acts,
     { sec: "Go to", label: "Chat with your Grokbot", icon: botAv(ME), run: () => go("chat") },
     { sec: "Go to", label: "Inbox", sub: `${unreadCount()} unread`, icon: ico("inbox"), hint: "G I", run: () => go("inbox") },
-    { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
-    { sec: "Go to", label: "Pipeline", icon: ico("people"), hint: "G A", run: () => go("all") },
-    { sec: "Go to", label: "Job Postings", icon: ico("brief"), hint: "G J", run: () => go("jobs") },
+    { sec: "Go to", label: "New applicants", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
+    { sec: "Go to", label: "Candidates", icon: ico("people"), hint: "G A", run: () => go("all") },
+    { sec: "Go to", label: "Jobs", icon: ico("brief"), hint: "G J", run: () => go("jobs") },
     { sec: "Do", label: "New Job Posting", icon: ico("plus"), run: () => newJob() },
     { sec: "Do", label: "Add a Grokbot", icon: ico("plus"), run: () => openAddBot() },
     { sec: "Do", label: "Set up people and teams", icon: ico("users"), run: () => go("setup~people") },
     { sec: "Go to", label: "Applicants board", icon: ico("board"), run: () => { state.view = "board"; go("all"); } },
     { sec: "Go to", label: "Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
-    { sec: "Go to", label: "Analytics", icon: ico("chart"), run: () => go("analytics") },
-    { sec: "Go to", label: "Interviews", icon: ico("mic"), run: () => go("interviews") },
+    { sec: "Go to", label: "Job performance", icon: ico("chart"), run: () => go("analytics") },
+    { sec: "Go to", label: "Feedback", icon: ico("mic"), run: () => go("interviews") },
     { sec: "Go to", label: "Settings", icon: ico("gear"), run: () => go("settings") },
     { sec: "Go to", label: "Views", icon: ico("layers"), hint: "G V", run: () => go("views") },
     { sec: "Do", label: "New view", icon: ico("plus"), run: () => openNewView() },
@@ -4398,9 +4396,9 @@ function openPalette(ctx) {
 function openHelp() {
   closeLayer();
   const rows = [
-    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, Applicant Tickets, Views"], ["G then A / J", "Pipeline, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
+    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, New applicants, Views"], ["G then A / J", "Candidates, Jobs"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
     ["Inbox", [["J / K", "Next, previous"], ["E", "Done: clear it from your Inbox"], ["U", "Mark unread"], ["↵", "Open the ticket"], ["Esc", "Close the reader"]]],
-    ["Applicant Tickets", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
+    ["New applicants", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
     ["Applicants", [["J / K", "Move"], ["X", "Select"], ["↵", "Open"], ["A", "Send to a team"], ["P", "Priority"], ["S", "Status"], ["L", "Labels"], ["F", "Filter"], ["B", "List or board"]]],
     ["Calendar", [["← / →", "Previous, next"], ["D / W / M", "Day, week, month"], ["Drag", "Add an interview, or move one"], [".", "Today"]]],
     ["An applicant", [["A", "Send to a team, or next round"], ["O", "Move to offer"], ["R", "Reject"], ["C", "Comment"], ["Esc", "Back"]]],
@@ -4682,7 +4680,7 @@ document.addEventListener("drop", (e) => {
   const a = A[dragged]; dragged = null;
   const at = { left: e.clientX, top: e.clientY, bottom: e.clientY, width: 0 };
   const k = col.dataset.drop;
-  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); }
+  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to New applicants"); touch(a); }
   else if (k === "testbench") { if (!a.tb) { sendTB(a); touch(a); } else toast(`${a.name} already took the Testbench`); }
   else if (k === "bots") teamPick(at, [a.id]);
   else if (k === "closed") openMenu(at, [{ id: "pass", label: "Pass", icon: stIcon("passed") }, { id: "reject", label: "Reject…", icon: stIcon("rejected") }], (o) => (o.id === "pass" ? openPass(a) : openReject(a)), { title: "Close as" });
