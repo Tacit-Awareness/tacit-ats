@@ -383,7 +383,7 @@ function names(graph: ProcessDoc, push: (p: Problem) => void) {
 /** Every department's way through: it reaches the end, in at most 15 steps, none named twice. */
 function paths(graph: ProcessDoc, departments: DepartmentNode[], push: (p: Problem) => void) {
   const live = departments.filter((d) => !d.archived);
-  const required = live.length ? live.map((d) => d.id) : [null];
+  const required: Array<string | null> = live.length ? live.map((d) => d.id) : [null];
   // Who else can be on a path: a job in no department, and any team named on a branch, archived or not.
   const scopes = [...new Set<string | null>([...required, null, ...graph.edges.flatMap((e) => e.department ?? [])])];
   const nameOf = (id: string | null) => departments.find((d) => d.id === id)?.name ?? "a job with no team";

@@ -1,0 +1,10 @@
+/* Onboarding's own pieces, on the --n* tokens and globals.css's role tokens, from
+   design/tats's .fc and .su. Imported by the steps that use them. */
+
+.proc-gap { color: var(--amber); }
+.proc-level { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.proc-level:first-child { border-top: 0; }
+.proc-path { display: grid; grid-template-columns: minmax(96px, 200px) minmax(0, 1fr); gap: 2px 12px; }
+@media (max-width: 899px) {
+  .proc-path { grid-template-columns: minmax(0, 1fr); }
+}

@@ -8,7 +8,6 @@ import { resolveClient } from "@/lib/client/session";
 // already reads the real tables, so what the company has is counted either way.
 
 const COMING = {
-  process: { title: "Design your interview process", body: "Draw the steps from applying to an offer." },
   review: { title: "Review", body: "See who would be asked for each kind of interview, and which ones have nobody." },
 } as const;
 
