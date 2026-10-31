@@ -7275,7 +7275,7 @@ function grokOwes() {
   const deb = everyone().filter((a) => a.state === "debrief").sort((x, y) => x.when - y.when).slice(0, 4);
   return `${deb.length ? `Oldest first: ${deb.map((a) => `<b>${esc(first(a.iv))}</b> for ${esc(a.name)} (${dur(Date.now() - a.when)})`).join(", ")}. Say "nudge" and a name and I'll remind them.` : "Every scorecard is in."}`;
 }
-// What the Grokbot can do from a sentence. Anything else it takes on and reports back in Grokbot Activity.
+// What the Grokbot can do from a sentence. Anything else it takes on and reports back in Slack; anything it gets stuck on comes to the Inbox.
 function grokReply(text) {
   const t = text.toLowerCase();
   { const so = setupOps(text); if (so.ops.length && !/process|flow ?chart|interview loop/.test(t)) { so.ops.forEach((o) => o.apply()); return { html: esc(typeof so.say === "function" ? so.say() : so.say), btns: [["Open Onboarding", "goSetup", so.ops[0].step]] }; } }
@@ -7295,7 +7295,7 @@ function grokReply(text) {
     return { html: `${xs.length.toLocaleString()} ${CRM_VIEWS.find((v) => v[0] === view)[1].toLowerCase()}${team ? ` on ${TEAMS[team].name}` : ""}, best Testbench first:`, list: xs.slice(0, 5).map((h) => `<b>${esc(h.name)}</b> · ${esc(ROLES[h.role].title)}${h.score ? ` · ${h.score}/100` : ""}`), btns: [["Post to #hiring", "chatPost", String(xs.length)], ["Open CRM", "goCrm", ""]] };
   }
   if (/stuck|need|today|status|morning|what/.test(t)) { const iss = inboxRows().filter((x) => x.inInbox); return { html: iss.length ? `${iss.length} open:` : "Nothing needs you right now.", list: iss.slice(0, 5).map((x) => `<b>${esc(x.iss.what)}</b> · ${esc(x.a.name)}`), btns: iss.length ? [["Open Inbox", "goInbox", ""]] : [] }; }
-  return { html: "On it. I'll post here when it's done, and it'll show in Grokbot Activity." };
+  return { html: "On it. I'll post here when it's done." };
 }
 function chatPage() {
   const msgs = chatSeed();
@@ -7337,7 +7337,6 @@ const TOUR = [
   ["all", ".pl-fun", "Pipeline", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
   ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
-  ["activity", ".af-todo", "Grokbot Activity", "What the Grokbots did, and the few things they couldn't finish without you."],
   ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Open it from ⌘K. Ask, delegate and assign here or there; this dashboard is for checking in."],
 ];
 let tour = null;
@@ -8452,7 +8451,6 @@ function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); 
 const PAGE_VIEWS = [
   { id: "calendar", name: "Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
   { id: "interviewers", name: "Interviewers", icon: "users", href: "#bots~people", desc: "Who interviews, their load, and their Grokbot" },
-  { id: "activity", name: "Grokbot Activity", icon: "route", href: "#activity", desc: "Anything that needs you, then a log of what the Grokbots did" },
 ];
 // Saved Pipeline filters.
 const SAVED_VIEWS = [
@@ -8553,7 +8551,6 @@ function renderSide() {
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
       ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
-      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
     <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
       ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
@@ -9793,8 +9790,8 @@ function botsPage(tab = "runs") {
       ${POLICY.map((p) => `<div class="lrow pol"><span class="grow"><b>${p.name}</b><span>${p.d}</span></span><button class="switch ${p.off ? "" : "on"}" data-act="policy" data-k="${p.k}" role="switch" aria-checked="${!p.off}" aria-label="${p.name}"><i></i></button></div>`).join("")}
       </section>
       <section class="cardbox"><div class="cardbox-head">Escalation</div>
-        <div class="lrow pol"><span class="grow"><b>No reply in 24 hours</b><span>One automatic reminder, then flagged in Grokbot Activity</span></span></div>
-        <div class="lrow pol"><span class="grow"><b>A tool fails</b><span>Gmail, Slack or Calendar access lost. The run stops and can be retried</span></span></div>
+        <div class="lrow pol"><span class="grow"><b>No reply in 24 hours</b><span>One automatic reminder, then it comes to your Inbox</span></span></div>
+        <div class="lrow pol"><span class="grow"><b>A tool fails</b><span>Gmail, Slack or Calendar access lost. The run stops and comes to your Inbox with the fix</span></span></div>
         <div class="lrow pol"><span class="grow"><b>Nobody on the team can take it</b><span>Returned to your Inbox</span></span></div>
       </section>`;
   }
@@ -9832,11 +9829,12 @@ function parseHash() {
   if (name === "chat") return { name };
   if (name === "setup") return { name, id: a || "people" };
   if (name === "bots" && a === "rules") return { name: "settings" };
-  if (name === "bots") return { name, id: a === "people" ? a : "runs" };
-  if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks"))) return { name: "bots", id: a === "checks" ? "checks" : "runs" };
+  if (name === "bots" && a === "people") return { name, id: a };
+  if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks")) || name === "bots") { location.replace("#inbox"); return { name: "inbox" }; }
   if (name === "interviews") { if (a && recByKey(a)) return { name, id: a }; return { name }; }
   if (name === "settings") return { name };
-  if (name === "run" && RUNS.some((r) => r.id === a)) { state.runSel = a; return { name: "bots", id: "runs" }; }
+  // a Grokbot run opens over its candidate's ticket
+  if (name === "run" && RUNS.some((r) => r.id === a)) { state.runSel = a; return { name: "t", id: RUNS.find((r) => r.id === a).a, run: a }; }
   if (name === "analytics") return { name, id: a === "pipeline" || a === "interviews" ? "pipeline" : "posts" };
   if (name === "jobs") return { name, id: a === "new" || ROLES[a] ? a : undefined };
   if (["triage", "calendar"].includes(name)) return { name };
@@ -9864,7 +9862,7 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) + (r.run ? runDrawer(RUNS.find((x) => x.id === r.run)) : "") : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420); ftFit();
@@ -10039,7 +10037,6 @@ function openPalette(ctx) {
     { sec: "Go to", label: "Applicants board", icon: ico("board"), run: () => { state.view = "board"; go("all"); } },
     { sec: "Go to", label: "Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
     { sec: "Go to", label: "Analytics", icon: ico("chart"), run: () => go("analytics") },
-    { sec: "Go to", label: "Grokbot Activity", icon: ico("route"), hint: "G B", run: () => go("activity") },
     { sec: "Go to", label: "Interviews", icon: ico("mic"), run: () => go("interviews") },
     { sec: "Go to", label: "Settings", icon: ico("gear"), run: () => go("settings") },
     { sec: "Go to", label: "Views", icon: ico("layers"), hint: "G V", run: () => go("views") },
@@ -10071,7 +10068,7 @@ function openPalette(ctx) {
 function openHelp() {
   closeLayer();
   const rows = [
-    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, Applicant Tickets, Views"], ["G then A / B / J", "Pipeline, Grokbot Activity, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
+    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, Applicant Tickets, Views"], ["G then A / J", "Pipeline, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
     ["Inbox", [["J / K", "Next, previous"], ["E", "Done: clear it from your Inbox"], ["U", "Mark unread"], ["↵", "Open the ticket"], ["Esc", "Close the reader"]]],
     ["Applicant Tickets", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
     ["Applicants", [["J / K", "Move"], ["X", "Select"], ["↵", "Open"], ["A", "Send to a team"], ["P", "Priority"], ["S", "Status"], ["L", "Labels"], ["F", "Filter"], ["B", "List or board"]]],
@@ -10170,7 +10167,7 @@ const ACT = {
   comment: (el) => comment(el.dataset.id),
   step: (el) => stepTicket(+el.dataset.d),
   openRun: (el) => { state.runSel = state.runSel === el.dataset.id ? null : el.dataset.id; render(); },
-  closeRun: () => { state.runSel = null; render(); },
+  closeRun: () => { state.runSel = null; if (state.route.run) go(`t~${state.route.id}`); else render(); },
   runFilter: (el) => { state.runFilter = el.dataset.v; render(); },
   runBotMenu: (el) => openMenu(el, [{ id: "all", label: "All Grokbots" }, ...Object.keys(PEOPLE).filter((k) => PEOPLE[k].team || k === ME).map((k) => ({ id: k, label: k === ME ? "Your Grokbot" : `${first(k)}'s Grokbot`, icon: botAv(k), checked: state.runBot === k }))], (o) => { state.runBot = o.id; render(); }),
   retryRun: (el) => retryRun(RUNS.find((r) => r.id === el.dataset.id)),
@@ -10412,7 +10409,7 @@ document.addEventListener("keydown", (e) => {
   if (mod) return;
   if (gPending && Date.now() - gPending < 900) {
     gPending = 0;
-    const to = { i: "inbox", v: "views", t: "triage", a: "all", l: "calendar", b: "activity", j: "jobs" }[lk];
+    const to = { i: "inbox", v: "views", t: "triage", a: "all", l: "calendar", j: "jobs" }[lk];
     if (to) { e.preventDefault(); go(to); return; }
   }
   if (lk === "g") { gPending = Date.now(); return; }
