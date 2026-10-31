@@ -33,6 +33,27 @@ export async function readProcess(db: Db, ctx: clientTools.ClientToolCtx): Promi
   return { graph: readGraph(saved.graph), drawn: true, updatedAt: saved.updatedAt, lookup };
 }
 
+export type DrawnProcess = { graph: ProcessDoc; lookup: ProcessLookup };
+
+/**
+ * The process for a page that only dresses itself with it: stage names, the routing
+ * graph, a new job's first plan. Null for anyone who may not read it, with nothing to
+ * read, or when the read fails, and the page keeps today's labels. An interviewer is
+ * turned away before any query, so their token never touches the table; an external
+ * recruiter by core's own check.
+ */
+export async function readDrawnProcess(db: Db, ctx: clientTools.ClientToolCtx): Promise<DrawnProcess | null> {
+  if (ctx.accessLevel === "limited") return null;
+  try {
+    if (!(await clientTools.seesCompanySetup(db, ctx))) return null;
+    const read = await readProcess(db, ctx);
+    return read.drawn ? { graph: read.graph, lookup: read.lookup } : null;
+  } catch (err) {
+    console.error("[client-process] reading the process failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 const SAVE_REFUSALS: Partial<Record<clientTools.ClientToolErrorCode, SaveError>> = {
   forbidden: "forbidden",
   invalid: "invalid",

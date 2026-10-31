@@ -1,5 +1,6 @@
 import type { clientTools } from "@tacit-ats/core";
 import { parsePostText, serializePostText, type PostBlock } from "../public/post-text";
+import type { StepSeeds } from "./process-stages";
 
 // The posting editor's state (design/tats's jobDraft), pure and with no runtime
 // import from core, so the client component can use it. What the prototype
@@ -111,8 +112,18 @@ export function defaultQuestions(): DraftQuestion[] {
   return [...fixed, ...asked].map(([type, label, required], n) => question({ type, label, required }, n));
 }
 
-export function newRoleDraft(departmentId: string | null): EditorDraft {
-  return { title: "", location: "", departmentId: departmentId ?? "", blocks: editorBlocks(null), steps: [], questions: defaultQuestions() };
+/** The steps the company's process gives a new job in this department. */
+export const seededSteps = (seeds: StepSeeds | null, departmentId: string | null): string[] =>
+  !seeds ? [] : [...((departmentId ? seeds.byDepartment[departmentId] : null) ?? seeds.none)];
+
+/** `seeds` is the company's process, when it has a sound one the member may read. */
+export function newRoleDraft(departmentId: string | null, seeds: StepSeeds | null = null): EditorDraft {
+  return { title: "", location: "", departmentId: departmentId ?? "", blocks: editorBlocks(null), steps: seededSteps(seeds, departmentId), questions: defaultQuestions() };
+}
+
+/** A new role moved to another department follows that department's way through, until the member has made the steps their own. */
+export function withDepartment(d: EditorDraft, departmentId: string, seeds: StepSeeds | null, stepsEdited: boolean): EditorDraft {
+  return { ...d, departmentId, steps: seeds && !stepsEdited ? seededSteps(seeds, departmentId || null) : d.steps };
 }
 
 export function draftPayload(d: EditorDraft): DraftPayload {

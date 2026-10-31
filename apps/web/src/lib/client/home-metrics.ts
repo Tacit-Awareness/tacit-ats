@@ -1,5 +1,6 @@
 import { ACTIVE_STAGES } from "@tacit/core";
 import { PIPELINE_COLUMNS, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
+import type { StageName } from "./process-stages";
 
 // Home's arithmetic (design/tats's Recruiting Overview): the period and its
 // comparison, applications per day or week, how long the people in each
@@ -117,7 +118,19 @@ export const WAIT_SEGMENTS = [
   { label: "Over 3 days", lo: 72, hi: Infinity },
 ] as const;
 
-export type Waiting = { applicationId: string; personId: string; roleId: string; roleTitle: string; personName: string; column: ColumnKey; hours: number; stalled: boolean; lastTouchAt: string };
+export type Waiting = {
+  applicationId: string;
+  personId: string;
+  roleId: string;
+  roleTitle: string;
+  personName: string;
+  column: ColumnKey;
+  /** The company's name for where they are; null on a job that does not follow the process. */
+  stage?: StageName | null;
+  hours: number;
+  stalled: boolean;
+  lastTouchAt: string;
+};
 
 export type StageRow = {
   key: ColumnKey;
@@ -130,21 +143,43 @@ export type StageRow = {
   longestHours: number | null;
 };
 
+function waitRow(waiting: Waiting[]): Omit<StageRow, "key" | "label"> {
+  const people = [...waiting].sort((a, b) => b.hours - a.hours);
+  const hours = people.map((p) => p.hours);
+  return {
+    people,
+    segments: WAIT_SEGMENTS.map((s) => hours.filter((h) => h >= s.lo && h < s.hi).length),
+    medianHours: median(hours),
+    longestHours: people[0]?.hours ?? null,
+  };
+}
+
 /** One row per board column, in board order, every column present. */
 export function stageRows(waiting: Waiting[]): StageRow[] {
-  return PIPELINE_COLUMNS.map(({ key, label }) => {
-    const people = waiting.filter((w) => w.column === key).sort((a, b) => b.hours - a.hours);
-    const hours = people.map((p) => p.hours);
-    return {
-      key,
-      label,
-      people,
-      segments: WAIT_SEGMENTS.map((s) => hours.filter((h) => h >= s.lo && h < s.hi).length),
-      medianHours: median(hours),
-      longestHours: people[0]?.hours ?? null,
-    };
-  });
+  return PIPELINE_COLUMNS.map(({ key, label }) => ({ key, label, ...waitRow(waiting.filter((w) => w.column === key)) }));
 }
+
+export type TimeRow = Omit<StageRow, "key"> & {
+  key: string;
+  /** The board column it is, for a link to it. Null for a stage of the process, which can span columns. */
+  column: ColumnKey | null;
+};
+
+/**
+ * Time in stage's rows. With a process, one row per stage of it, every stage
+ * present, then a board column for anyone on a job that does not follow the
+ * process, only where there is someone: they keep today's labels, and the rows
+ * still add up to everyone active. With none, the board's columns.
+ */
+export function timeRows(waiting: Waiting[], stages: StageName[] | null): TimeRow[] {
+  if (!stages) return stageRows(waiting).map((r) => ({ ...r, column: r.key }));
+  const named = stages.map(({ name, order }) => ({ key: `stage-${order}`, label: name, column: null, ...waitRow(waiting.filter((w) => w.stage?.order === order)) }));
+  const rest = stageRows(waiting.filter((w) => !w.stage)).filter((r) => r.people.length);
+  return [...named, ...rest.map((r) => ({ ...r, column: r.key }))];
+}
+
+/** A chart's short label for a stage: its first word, as design/tats's procAbbr. */
+export const stageAbbr = (name: string) => name.split(/[\s/]+/)[0].slice(0, 5);
 
 // ---------------------------------------------------------------------------
 // Bottlenecks

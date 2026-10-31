@@ -28,7 +28,7 @@ export const NO_DROP: Partial<Record<ColumnKey, string>> = {
 };
 
 /** One of an application's interviews, as the board needs it. */
-export type InterviewTimes = { startsAt: string; endsAt: string; status: string };
+export type InterviewTimes = { startsAt: string; endsAt: string; status: string; /** The plan step it names, where the read asks for it. */ step?: string | null };
 
 /** A scheduled interview that has not ended yet (one under way counts). */
 const upcoming = (i: InterviewTimes, now: number) => i.status === "scheduled" && Date.parse(i.endsAt) > now;

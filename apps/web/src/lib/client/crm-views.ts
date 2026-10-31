@@ -74,8 +74,12 @@ export type CrmRow = {
   jobs: { jobId: string; title: string }[];
   /** The open applications among them: what a bulk reject on this row would close. */
   openApps: { applicationId: string; jobTitle: string; stage: string }[];
-  /** The lead application's stage; null for a prospect, in no job the member can see. */
+  /** The lead application's stage; null for a prospect, in no job the member can see. Sorting is by this, whatever it is called. */
   stage: string | null;
+  /** The lead application, for naming its stage. */
+  lead: { applicationId: string; jobId: string } | null;
+  /** What the company's process calls that stage: set on the page in view only (withStageNames). */
+  stageName?: string | null;
   ownerName: string | null;
   /** The newest touch on any of their applications, or when they were added. */
   lastTouchAt: string;
@@ -109,6 +113,7 @@ export function rowFor(c: CrmCandidate, view: CrmView): CrmRow | null {
     jobs,
     openApps: shown.filter((a) => LIVE.has(a.stage)).map((a) => ({ applicationId: a.applicationId, jobTitle: a.jobTitle ?? "Untitled job", stage: a.stage })),
     stage: lead?.stage ?? null,
+    lead: lead ? { applicationId: lead.applicationId, jobId: lead.jobId } : null,
     ownerName: lead?.ownerName ?? null,
     lastTouchAt: touches.length ? new Date(Math.max(...touches)).toISOString() : c.addedAt,
   };
@@ -191,6 +196,10 @@ export function inJobs(candidates: CrmCandidate[], jobIds: ReadonlySet<string>):
   }
   return out;
 }
+
+/** A stage's name is one read per job and per candidate, so only the rows in view ask: `crm.ts`'s readStageNames. */
+export const withStageNames = (rows: CrmRow[], names: ReadonlyMap<string, string>): CrmRow[] =>
+  rows.map((r) => ({ ...r, stageName: (r.lead && names.get(r.lead.applicationId)) ?? null }));
 
 export type CrmTable = {
   /** Candidates in each view, after the search. */

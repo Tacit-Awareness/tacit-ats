@@ -28,6 +28,7 @@ function entry(over: Partial<PipelineEntry> = {}): PipelineEntry {
     roleId: "role-1",
     roleTitle: "Staff Engineer",
     column: "screening",
+    stageName: null,
     interviews: [],
     editable: true,
     ...over,
@@ -234,5 +235,12 @@ describe("a row", () => {
     expect(shortSpan(new Date(NOW - 20 * 60_000).toISOString(), NOW)).toBe("<1h");
     expect(shortSpan(new Date(NOW - 5 * 3_600_000).toISOString(), NOW)).toBe("5h");
     expect(shortSpan(daysAgo(3), NOW)).toBe("3d");
+  });
+});
+
+describe("a row's stage name", () => {
+  it("the process's name sits after the job, and none adds nothing", () => {
+    expect(factsOf(entry({ stageName: { name: "Testbench", order: 1 } })).slice(0, 2)).toEqual(["Staff Engineer", "Testbench"]);
+    expect(factsOf(entry())).toEqual(["Staff Engineer"]);
   });
 });

@@ -145,6 +145,7 @@ export function factsOf(e: PipelineEntry): string[] {
   const group = rowSource(e);
   return [
     e.roleTitle,
+    e.stageName?.name ?? null,
     ...e.stalled.map((r) => STALLED_COPY[r] ?? null),
     e.ownerName,
     group === "other" ? null : (SOURCE_GROUPS.find((s) => s.key === group)?.label ?? null),

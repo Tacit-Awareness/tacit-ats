@@ -1,7 +1,10 @@
 import type { Db } from "@tacit/db";
 import { ACTIVE_STAGES, getRolePipeline, type PipelineCard } from "@tacit/core";
+import { clientTools } from "@tacit-ats/core";
 import { editableRoles } from "./candidate-edits";
 import { columnOf, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
+import { readDrawnProcess } from "./process";
+import { jobStages, nextPlanStep, processStages, stageList, stageNameFor, type JobStages, type ProcessStages, type StageName } from "./process-stages";
 
 // The Pipeline board's read, on the member's OWN client (never a privileged
 // one): every open job through core's getRolePipeline, as the job page reads
@@ -25,12 +28,22 @@ const IDS_PER_READ = 150;
  */
 const ROLE_ROWS_MAX = 1000;
 
-export type PipelineEntry = PipelineCard & { roleId: string; roleTitle: string; column: ColumnKey; interviews: InterviewTimes[]; editable: boolean };
+export type PipelineEntry = PipelineCard & {
+  roleId: string;
+  roleTitle: string;
+  column: ColumnKey;
+  interviews: InterviewTimes[];
+  editable: boolean;
+  /** What the company's process calls this stage on this job; null keeps today's label. Only when the read was given a ctx. */
+  stageName: StageName | null;
+};
 export type PipelineRead = {
   jobs: { id: string; title: string }[];
   entries: PipelineEntry[];
   /** A job reached ROLE_ROWS_MAX, so the people touched most recently may be missing from it. */
   capped: boolean;
+  /** The process's stages in order, when the read was given a ctx and the member may read one. */
+  stages: StageName[] | null;
 };
 
 async function interviewsFor(db: Db, applicationIds: string[]) {
@@ -41,7 +54,7 @@ async function interviewsFor(db: Db, applicationIds: string[]) {
     starts.map((i) =>
       db
         .from("interviews")
-        .select("application_id, starts_at, ends_at, status")
+        .select("application_id, starts_at, ends_at, status, step")
         .in("application_id", applicationIds.slice(i, i + IDS_PER_READ))
         .neq("status", "cancelled"),
     ),
@@ -51,32 +64,49 @@ async function interviewsFor(db: Db, applicationIds: string[]) {
     for (const row of data ?? []) {
       if (!row.application_id) continue;
       const list = byApp.get(row.application_id) ?? [];
-      list.push({ startsAt: row.starts_at, endsAt: row.ends_at, status: row.status });
+      list.push({ startsAt: row.starts_at, endsAt: row.ends_at, status: row.status, step: row.step });
       byApp.set(row.application_id, list);
     }
   }
   return byApp;
 }
 
-/** Every open job the member can see, and each live application in it with its column. */
-export async function readPipeline(db: Db, now: Date): Promise<PipelineRead> {
-  const { data: roles, error } = await db.from("roles").select("id, title").eq("status", "open").order("created_at", { ascending: false });
+/**
+ * Every open job the member can see, and each live application in it with its
+ * column. With `naming` the page wants stage names too, so the process is read, for
+ * whoever may (lib/client/process.ts); the pages that only count leave it out.
+ */
+export async function readPipeline(db: Db, now: Date, naming?: clientTools.ClientToolCtx): Promise<PipelineRead> {
+  const { data: roles, error } = await db.from("roles").select("id, title, department_id, interview_steps").eq("status", "open").order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   const pipelines = (await Promise.all(roles.map((r) => getRolePipeline(db, r.id, now)))).filter((p) => p !== null);
 
   const live = pipelines.flatMap((p) =>
     p.cards.filter((c) => (ACTIVE_STAGES as readonly string[]).includes(c.stage)).map((c) => ({ ...c, roleId: p.roleId, roleTitle: p.roleTitle })),
   );
-  const [interviews, editable] = await Promise.all([
+  const [interviews, editable, drawn] = await Promise.all([
     live.length ? interviewsFor(db, live.map((c) => c.applicationId)) : new Map<string, InterviewTimes[]>(),
     editableRoles(db, live.map((c) => c.roleId)),
+    naming ? readDrawnProcess(db, naming) : null,
   ]);
+  const process: ProcessStages | null = drawn ? processStages(drawn.graph, drawn.lookup.departments) : null;
+  const plans = new Map(roles.map((r) => [r.id, clientTools.stepsOf(r.interview_steps)]));
+  const stagesOf = new Map<string, JobStages | null>(
+    process ? roles.map((r) => [r.id, jobStages(process, { departmentId: r.department_id, steps: plans.get(r.id) ?? [] })]) : [],
+  );
 
   const entries: PipelineEntry[] = [];
   for (const card of live) {
     const ivs = interviews.get(card.applicationId) ?? [];
     const column = columnOf(card.stage, ivs, now.getTime());
-    if (column) entries.push({ ...card, column, interviews: ivs, editable: editable.has(card.roleId) });
+    if (!column) continue;
+    const stageName = stageNameFor(stagesOf.get(card.roleId) ?? null, card.stage, nextPlanStep(plans.get(card.roleId) ?? [], ivs));
+    entries.push({ ...card, column, interviews: ivs, editable: editable.has(card.roleId), stageName });
   }
-  return { jobs: pipelines.map((p) => ({ id: p.roleId, title: p.roleTitle })), entries, capped: pipelines.some((p) => p.cards.length >= ROLE_ROWS_MAX) };
+  return {
+    jobs: pipelines.map((p) => ({ id: p.roleId, title: p.roleTitle })),
+    entries,
+    capped: pipelines.some((p) => p.cards.length >= ROLE_ROWS_MAX),
+    stages: process ? stageList(process) : null,
+  };
 }

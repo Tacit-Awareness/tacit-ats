@@ -18,6 +18,7 @@ const read = (over: Partial<HomeRead> = {}): HomeRead => ({
   jobId: null,
   applications: { current: 10, previous: 5, change: 1, bins: [] },
   waiting: [],
+  stages: null,
   stays: [],
   interviews: [],
   names: {},
@@ -120,5 +121,35 @@ describe("the bottlenecks", () => {
     expect(row(withTargets({ feedback: 24 }, { feedback, outstanding }), "feedback")?.over).toBe(true);
     expect(row(withTargets({ feedback: 40 }, { feedback, outstanding }), "feedback")?.over).toBe(false);
     expect(row(withTargets({}, { feedback, outstanding }), "feedback")?.over).toBe(false);
+  });
+});
+
+describe("stages from the process", () => {
+  const stages = [{ name: "Application review", order: 0 }, { name: "Team interview", order: 1 }, { name: "Offer", order: 2 }];
+
+  test("with none, the board's columns and their own short labels", () => {
+    const p = props({ waiting: [waiter(5, "new")] });
+    expect(p.stages.map((s) => s.label)).toEqual(["New", "Screening", "Scheduling", "Interview booked", "Your call", "Offer"]);
+    expect(p.inProcess.bars[0].label).toBe("New");
+    expect(p.inProcess.byProcess).toBe(false);
+  });
+
+  test("with one, its stages, a job off the process on a column of its own, and everyone counted", () => {
+    const named = { ...waiter(5, "new", "a"), stage: stages[0] };
+    const p = props({ stages, waiting: [named, waiter(9, "scheduling", "b")] });
+    expect(p.stages.map((s) => [s.label, s.n])).toEqual([["Application review", 1], ["Team interview", 0], ["Offer", 0], ["Scheduling", 1]]);
+    expect(p.inProcess.bars.map((b) => b.label)).toEqual(["Appli", "Team", "Offer", "Sched"]);
+    expect(p.inProcess.value).toBe(2);
+    expect(p.inProcess.byProcess).toBe(true);
+  });
+
+  test("the review and scheduling cards stay on the board's columns", () => {
+    const p = props({ stages, waiting: [{ ...waiter(5, "new", "a"), stage: stages[0] }] });
+    expect(p.review.waiting).toBe(1);
+  });
+
+  test("only an admin is offered Edit stages", () => {
+    expect(props({}).editStages).toBe("/client/onboarding/process");
+    expect(props({}, false).editStages).toBeNull();
   });
 });

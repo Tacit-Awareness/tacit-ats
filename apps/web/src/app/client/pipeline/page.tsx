@@ -8,6 +8,7 @@ import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
 import { isStuck, modeParam, parseLayout, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
 import { resolveClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import { readPersonTags } from "@/lib/client/views";
 import { describeFilters, parseViewFilters, parseViewId, rowSource, viewKeeps } from "@/lib/saved-views";
 import { Refusal } from "../refusal";
@@ -70,7 +71,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   const now = new Date();
   const nowMs = now.getTime();
-  const [pipeline, structure] = await Promise.all([readPipeline(db, now), readDepartments(db)]);
+  const [pipeline, structure] = await Promise.all([readPipeline(db, now, toolCtx(gate.ctx)), readDepartments(db)]);
   const openId = one(sp.open);
   const scope = departmentScope(structure, one(sp.department));
   const department = scope.departmentId;
@@ -114,7 +115,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
       ownerName: e.ownerName,
       stalled: e.stalled.length > 0,
       stage: e.stage,
-      stageLabel: stageLabel(e.stage),
+      stageLabel: e.stageName?.name ?? stageLabel(e.stage),
       moves: e.editable ? movesFor(e.stage, e.interviews, nowMs) : null,
     }));
     return {

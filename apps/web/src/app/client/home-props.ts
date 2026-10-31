@@ -1,9 +1,8 @@
 import { clientTools } from "@tacit-ats/core";
 import { OUTSTANDING_PREVIEW, type HomeRead } from "@/lib/client/home";
 import { departmentTabs } from "@/lib/client/department-tree";
-import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
+import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageAbbr, stageRows, timeRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
 import { isOffTarget, targetField, targetRule, targetWords, type TargetMetric } from "@/lib/client/home-target-rules";
-import { PIPELINE_COLUMNS } from "@/lib/client/pipeline-columns";
 import type { TargetChipProps } from "./home-target";
 import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 
@@ -101,6 +100,7 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
   };
 
   const rows = stageRows(read.waiting);
+  const stages = timeRows(read.waiting, read.stages);
   const waitCard = (column: "new" | "scheduling", metric: "review" | "schedule"): WaitCard => {
     const row = rows.find((r) => r.key === column)!;
     const set = read.targets?.[metric];
@@ -156,7 +156,8 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
     newApps: { value: read.applications.current, change: read.applications.change, bars, target: target("new_applications", read.applications.current) },
     inProcess: {
       value: read.waiting.length,
-      bars: rows.map((r) => ({ n: r.people.length, label: SHORT[r.key], title: `${r.people.length} in ${r.label}` })),
+      bars: stages.map((r) => ({ n: r.people.length, label: r.column ? SHORT[r.column] : stageAbbr(r.label), title: `${r.people.length} in ${r.label}` })),
+      byProcess: read.stages !== null,
     },
     review: waitCard("new", "review"),
     schedule: waitCard("scheduling", "schedule"),
@@ -211,9 +212,10 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
       })),
       more: fb.outstanding > OUTSTANDING_PREVIEW ? { href: "/client/interviews", label: `All ${fb.outstanding} in Interviews` } : null,
     },
-    stages: rows.map((r) => ({
+    editStages: canEditTargets ? "/client/onboarding/process" : null,
+    stages: stages.map((r) => ({
       key: r.key,
-      label: PIPELINE_COLUMNS.find((c) => c.key === r.key)!.label,
+      label: r.label,
       n: r.people.length,
       segments: r.segments,
       typical: r.medianHours === null ? null : fmtHours(r.medianHours),
@@ -225,7 +227,7 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
         wait: fmtHours(x.hours),
         href: `/client/candidates/${x.personId}`,
       })),
-      more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.key), label: `All ${r.people.length} in Pipeline` } : null,
+      more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.column ?? undefined), label: `All ${r.people.length} in Pipeline` } : null,
     })),
     active: read.waiting.length,
     stays: read.stays.map((s) => ({ label: STAGE_NAMES[s.stage] ?? s.stage, avgDays: s.avgDays, stays: s.stays })),

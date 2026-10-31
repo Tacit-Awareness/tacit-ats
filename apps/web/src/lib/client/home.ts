@@ -6,6 +6,7 @@ import { readDepartments } from "./departments";
 import { readHomeTargets } from "./home-targets";
 import type { HomeTargets } from "./home-target-rules";
 import { readPipeline } from "./pipeline";
+import type { StageName } from "./process-stages";
 import {
   bins,
   mergeStays,
@@ -55,6 +56,8 @@ export type HomeRead = {
   jobId: string | null;
   applications: PeriodCount & { bins: Bin[] };
   waiting: Waiting[];
+  /** The stages of the company's process, in order; null with none, or for a member who may not read it. */
+  stages: StageName[] | null;
   /** Average days in each stage over stays that ended, applications added in the period (pipelineReport). */
   stays: { stage: string; avgDays: number | null; stays: number }[];
   interviews: WorkloadInterview[];
@@ -147,7 +150,7 @@ export async function readHome(
   const nowMs = now.getTime();
   // The reports never write an audit row, so the source is never read.
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [pipeline, structure] = await Promise.all([readPipeline(db, now), readDepartments(db)]);
+  const [pipeline, structure] = await Promise.all([readPipeline(db, now, ctx), readDepartments(db)]);
   const scope = departmentScope(structure, input.departmentId);
   const jobs = pipeline.jobs.filter((j) => inScope(scope, j.id));
   const jobId = input.jobId && jobs.some((j) => j.id === input.jobId) ? input.jobId : null;
@@ -206,6 +209,7 @@ export async function readHome(
     roleTitle: e.roleTitle,
     personName: e.personName,
     column: e.column,
+    stage: e.stageName,
     stalled: e.stalled.length > 0,
     lastTouchAt: e.lastTouchAt,
     hours: Math.max(0, nowMs - Date.parse(waitingSince(e, moves.get(e.applicationId) ?? [], nowMs))) / 3_600_000,
@@ -229,6 +233,7 @@ export async function readHome(
     jobId,
     applications: { ...periodCount(createdAts, input.days, nowMs), bins: bins(createdAts, input.days, nowMs) },
     waiting,
+    stages: pipeline.stages,
     stays: mergeStays(reports),
     interviews,
     names,

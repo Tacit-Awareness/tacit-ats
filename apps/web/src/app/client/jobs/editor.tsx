@@ -10,7 +10,9 @@ import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   CUSTOM_KINDS, OPTIONAL_BUILT_INS, carryOn, draftPayload, leavesPage, previewQuestions, tooBigToSend, type DraftPayload, type DraftQuestion, type EditorDraft, type Made,
+  withDepartment,
 } from "@/lib/client/posting-draft";
+import type { StepSeeds } from "@/lib/client/process-stages";
 import type { SaveResult } from "@/lib/client/posting-edits";
 import type { DepartmentChoice } from "@/lib/client/postings";
 import type { PostBlock } from "@/lib/public/post-text";
@@ -308,6 +310,7 @@ export function PostingEditor({
   link,
   tab: firstTab,
   notice,
+  seeds = null,
 }: {
   /** `id` is null for a role not made yet. */
   job: { id: string | null; title: string; status: string };
@@ -318,10 +321,14 @@ export function PostingEditor({
   link: { path: string; url: string } | null;
   tab: "overview" | "application";
   notice: PostingNotice | null;
+  /** On a new role: each department's way through the company's process. */
+  seeds?: StepSeeds | null;
 }) {
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState(initial);
+  // A new role's steps follow its department until the member changes one of them.
+  const [stepsEdited, setStepsEdited] = useState(false);
   const [baseline, setBaseline] = useState(() => JSON.stringify(draftPayload(initial)));
   const [preview, setPreview] = useState(false);
   const [tab, setTab] = useState(firstTab);
@@ -548,7 +555,7 @@ export function PostingEditor({
                       aria-label="Department"
                       className="-mx-1.5 max-w-full border-0 bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground hover:bg-[color:var(--hover)]"
                       value={draft.departmentId}
-                      onChange={(e) => setDraft((d) => ({ ...d, departmentId: e.target.value }))}
+                      onChange={(e) => setDraft((d) => withDepartment(d, e.target.value, jobId ? null : seeds, stepsEdited))}
                     >
                       <option value="">None</option>
                       {departments.map((d) => (
@@ -613,7 +620,10 @@ export function PostingEditor({
             <p className="m-0 mb-2 text-[13px] font-semibold">Hiring steps</p>
             <Lines
               lines={draft.steps}
-              onChange={(steps) => setDraft((d) => ({ ...d, steps }))}
+              onChange={(steps) => {
+                setStepsEdited(true);
+                setDraft((d) => ({ ...d, steps }));
+              }}
               path="step"
               noun="Step"
               placeholder="A step"
