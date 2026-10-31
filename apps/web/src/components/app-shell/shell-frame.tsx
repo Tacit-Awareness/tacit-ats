@@ -10,6 +10,7 @@ import { PillGlass } from "@/components/app-shell/pill-glass";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { START_EVENT, ShellTour } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
+import { Toaster } from "@/components/toasts";
 import { modalOpen } from "@/lib/keys";
 import { cssPx, cssRect, setUiScale } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
@@ -497,6 +498,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
       </Suspense>
       <ShellKeys go={GO} />
       <PillGlass />
+      <Toaster />
     </div>
   );
 }

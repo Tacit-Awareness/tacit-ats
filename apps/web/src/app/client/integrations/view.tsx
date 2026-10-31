@@ -1,4 +1,5 @@
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
+import { FlashToast } from "@/components/flash-toast";
 import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
@@ -45,7 +46,7 @@ export function IntegrationsView({
   return (
     <Page bar={<PageBar title="Integrations" />}>
       {errorText ? <Notice tone="error">{errorText}</Notice> : null}
-      {noticeText ? <Notice>{noticeText}</Notice> : null}
+      {noticeText ? <FlashToast text={noticeText} /> : null}
 
       <Section flush title="Connectors">
         <Rows ruled>

@@ -732,6 +732,13 @@ body:has(.ui-root) {
   }
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
 /* design/tats's liquid glass hover (components/app-shell/pill-glass.tsx): one pill
    per track, under the labels and over the track, sliding with a slight spring.
    Not in a layer, so it holds against the utilities on a track and its options. */
@@ -788,6 +795,9 @@ body:has(.ui-root) {
   }
   [role="menu"] {
     animation: menu-in 0.15s var(--spring);
+  }
+  .toast {
+    animation: toast-in 0.2s var(--spring);
   }
 }
 
