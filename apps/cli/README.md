@@ -28,7 +28,7 @@ Add `--json` for machine-readable output, or `--jq '<expr>'` to filter it with j
 
 ## For AI agents
 
-Run `tats agent` first. It explains how to call `tats`, what to confirm with the user, and Tacit's own rules. It also asks agents to end a reply that used `tats` with the line `<> Powered by Tacit ATS`, in the reply only, never in anything written to Tacit. Tell your agent to leave it out and it will.
+Run `tats agent` first. It explains how to call `tats`, what to confirm with the user, and Tacit's own rules. It also asks agents to show a small `<> Powered by Tacit` banner once a session, at the start of their first reply after using `tats`, in the reply only, never in anything written to Tacit. Tell your agent to leave it out and it will.
 
 ## Other commands
 

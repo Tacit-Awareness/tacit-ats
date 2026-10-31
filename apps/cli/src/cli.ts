@@ -1,3 +1,4 @@
+import { BANNER } from "./banner.js";
 import { agentGuide, mainHelp, needsConfirm, toolHelp, toolList } from "./guide.js";
 import { booleanFlags, describeFlags, normalize, parseArgv, toolArguments, UsageError, type ArgsDeps, type Parsed } from "./flags.js";
 import { AuthRequired, login, type AuthDeps } from "./oauth.js";
@@ -68,6 +69,7 @@ export async function run(argv: string[], io: Io): Promise<number> {
     }
     if (!command || command === "help" || (flag(first, "help") && !command)) {
       if (command === "help" && rest[0]) return await help(rest[0], server, deps, io);
+      if (io.interactive) io.out(`${BANNER}\n`);
       io.out(mainHelp(server, (await io.store.session(server)) !== null));
       return EXIT.ok;
     }

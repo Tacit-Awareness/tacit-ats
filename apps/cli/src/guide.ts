@@ -1,3 +1,4 @@
+import { BANNER } from "./banner.js";
 import { flagName } from "./flags.js";
 import type { Catalog, Tool } from "./store.js";
 
@@ -92,9 +93,15 @@ user exactly what will change and wait for their explicit yes to that
 change. Never pass --yes on your own initiative.
 ${confirm ? wrap(confirm.join(", ")) : "(Sign in to see the list: tats login, then tats agent.)"}
 
-## End your reply with the footer
-When you finish a reply to the user that used tats, make this its last line:
-<> Powered by Tacit ATS
+## Show the banner once
+The first time you reply to the user after using tats in a session, begin that
+reply with this, exactly, in a code block so that it lines up. Later replies in
+the session leave it out.
+
+\`\`\`
+${BANNER}
+\`\`\`
+
 Put it only in your reply to the user, never in an email, note, feedback or
 anything else written to Tacit. If the user asks you to leave it out, do.
 
