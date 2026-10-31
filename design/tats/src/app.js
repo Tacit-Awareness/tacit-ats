@@ -1141,7 +1141,7 @@ const TOUR = [
   ["inbox", ".ibx-g.need", "Needs you", "Click a problem and it opens with the fix already drafted. Read it, edit it, send it."],
   ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
   ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
-  ["all", ".board", "Pipeline", "Every open candidate, by stage."],
+  ["all", ".pl-fun", "Pipeline", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
   ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
   ["activity", ".af-todo", "Grokbot Activity", "What the Grokbots did, and the few things they couldn't finish without you."],
@@ -1193,10 +1193,67 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); if (tour.i === TOUR.length - 1) return tourEnd(); tour.i++; tourShow(); }
   if (e.key === "ArrowLeft" && tour.i) { e.preventDefault(); e.stopImmediatePropagation(); tour.i--; tourShow(); }
 }, true);
+// Pipeline at scale: open on who's stuck, not on everyone. A stage bar on top filters; one line per person.
+// Each stage has a target; "stuck" is past it. In stage counts from the last move (a.when).
+const PL_STAGES = [
+  { k: "new", name: "New", target: 24, f: COLS[0].f },
+  { k: "testbench", name: "Testbench", target: 72, f: COLS[1].f },
+  { k: "bots", name: "With Grokbots", target: 72, f: COLS[2].f },
+  { k: "iv", name: "Interview booked", target: 192, f: COLS[3].f },
+  { k: "judgment", name: "Your call", target: 48, f: COLS[4].f },
+];
+const plStage = (a) => PL_STAGES.find((x) => x.f(a)) || PL_STAGES[0];
+// A booked interview that's still ahead isn't stuck: it's waiting on the calendar.
+const plLate = (a) => (a.state === "scheduled" && a.at > Date.now() ? 0 : (Date.now() - a.when) / HR / plStage(a).target);
+const plDur = (h) => (h < 1 ? "<1h" : h < 48 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`);
+function plFunnel(all, on) {
+  return `<div class="pl-fun" role="tablist" aria-label="Filter by stage">${PL_STAGES.map((x) => {
+    const xs = all.filter(x.f), late = xs.filter((a) => plLate(a) > 1).length;
+    return `<button class="pl-seg ${on === x.k ? "on" : ""}" style="flex-grow:${Math.max(xs.length, 1)}" data-act="plStage" data-v="${x.k}" role="tab" aria-selected="${on === x.k}" title="${esc(x.name)}: ${xs.length} in this stage, ${late} past the ${plDur(x.target)} target">
+      <span class="pl-sn">${esc(x.name)}</span><span class="pl-sc"><b>${xs.length}</b>${late ? `<em>${late} stuck</em>` : ""}</span>
+      <i class="pl-sbar"><i style="width:${xs.length ? Math.round((late / xs.length) * 100) : 0}%"></i></i></button>`; }).join("")}</div>`;
+}
+// Each row reads like an email: who, their team, the one thing that's happening in bold, the facts that matter in grey,
+// the next move as a tag, and how long they've been in this stage (red once it's past the target).
+function plMsg(a) {
+  const iv = a.iv && first(a.iv), when = a.at ? `${WD[new Date(a.at).getDay()].slice(0, 3)} ${fmtTime(a.at)}` : "";
+  return {
+    new: [a.tb && a.tb.state === "done" ? `Testbench back, ${tbScore(a)}` : "New application", "Review it"],
+    testbench: [a.tb && a.tb.state === "running" ? "Working on the Testbench" : "Hasn't started the Testbench", "Send a reminder"],
+    routing: ["No interviewer yet", "Pick an interviewer"],
+    asked: [`Waiting on ${iv} to say yes`, `Nudge ${iv}`],
+    scheduling: [`Invite drafted in ${possessive(iv)} Gmail, not sent`, "Send the invite"],
+    scheduled: [`Interview ${when ? `${when} ` : ""}with ${iv}`, "Send the brief"],
+    debrief: [`Waiting on ${possessive(iv)} read`, `Nudge ${iv}`],
+    judgment: [a.read ? `${first(a.read.by)} read them as ${a.read.verdict.toLowerCase()}` : "Your call", "Decide"],
+  }[a.state] || [doing(a), ""];
+}
+function plFacts(a) {
+  const f = [ROLES[a.role].title];
+  if (!["new", "testbench"].includes(a.state)) f.push(`Round ${roundOf(a)}`);
+  if (a.tb && a.tb.state === "done" && a.state !== "new") f.push(`Testbench ${tbScore(a)}`);
+  f.push(srcLong(a));
+  return f.filter(Boolean).join(" · ");
+}
+function plRow(a) {
+  const x = plStage(a), h = (Date.now() - a.when) / HR, late = plLate(a) > 1, [subj, next] = plMsg(a), t = TEAMS[a.team || ROLES[a.role].team];
+  return `<div class="pl-r ${late ? "late" : ""} ${state.focus === a.id ? "focus" : ""} ${picked.has(a.id) ? "picked" : ""}" data-tid="${a.id}" data-ctx="${a.id}" data-act="plOpen" data-id="${a.id}" tabindex="-1" aria-label="${esc(a.name)}: ${esc(subj)}">
+    <i class="pl-dot" title="${late ? `Past the ${plDur(x.target)} target for ${esc(x.name)}` : ""}"></i>
+    <b class="pl-nm trunc" data-hc="a:${a.id}">${esc(a.name)}</b>
+    <span class="pl-tag"><i style="background:${t.color}"></i>${esc(t.name)}</span>
+    <span class="pl-msg trunc"><b>${esc(subj)}</b><span>${esc(plFacts(a))}</span></span>
+    ${next ? `<span class="pl-next"><i></i>${esc(next)}</span>` : "<span></span>"}
+    <span class="pl-t2" title="${plDur(h)} in ${esc(x.name)}; the target is ${plDur(x.target)}">${plDur(h)}</span>
+  </div>`;
+}
 function applicantsPage() {
   const tk = state.team;
-  const list = scoped();
-  const view = state.view || "board", by = state.groupBy || "court";
+  const role = state.plRole && ROLES[state.plRole] ? state.plRole : null;
+  const all = scoped().filter((a) => !role || a.role === role);
+  // A board only reads when it's one role; across every role it's a list.
+  const view = role && state.view === "board" ? "board" : "list";
+  const mode = state.plMode || "stuck", stg = state.plStage && PL_STAGES.some((x) => x.k === state.plStage) ? state.plStage : null;
+  const list = view === "board" ? all : all.filter((a) => (mode !== "stuck" || plLate(a) > 1) && (!stg || plStage(a).k === stg)).sort((x, y) => plLate(y) - plLate(x));
   const team = TEAMS[tk];
   let body;
   if (view === "board") {
@@ -1204,20 +1261,21 @@ function applicantsPage() {
     const more = (state.colAll ||= new Set());
     body = `<div class="scroll" id="scroller"><div class="board">${COLS.filter((c) => c.k !== "closed").map((col) => { const items = list.filter(col.f), cap = more.has(col.k) ? items.length : 12; return `<div class="col" data-drop="${col.k}"><div class="col-head">${col.name}<span class="n">${items.length}</span></div>${items.slice(0, cap).map(card).join("")}${items.length > cap ? `<button class="col-more" data-act="colAll" data-k="${col.k}">Show all ${items.length}</button>` : ""}</div>`; }).join("")}</div></div>`;
   } else {
-    const groups = GROUPINGS[by].filter((g) => !g.closed).map((g) => ({ ...g, items: list.filter(g.f) })).filter((g) => g.items.length);
-    const more = (state.grpAll ||= new Set());
-    const open = (g) => (g.closed ? state.closedOpen : !(state.shut || new Set()).has(`${by}:${g.k}`));
-    state.lastList = groups.filter(open).flatMap((g) => g.items.map((a) => a.id));
-    body = `<div class="scroll" id="scroller"><div class="list">${groups.map((g) => `
-      <div class="group-head ${open(g) ? "" : "collapsed"}"><button class="toggle" data-act="toggleGroup" data-k="${by}:${g.k}" data-closed="${g.closed ? 1 : ""}"${g.desc ? ` title="${esc(g.desc)}"` : ""}><svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg>${g.icon || ""}${esc(g.name)}<span class="n">${g.items.length}</span></button></div>
-      ${open(g) ? g.items.slice(0, more.has(g.k) ? g.items.length : 25).map(arow).join("") + (g.items.length > 25 && !more.has(g.k) ? `<button class="grp-more" data-act="grpAll" data-k="${g.k}">Show ${g.items.length - 25} more</button>` : "") : ""}`).join("") || `<div class="empty">No applicants match</div>`}</div></div>`;
+    // Stuck shows everyone who's stuck; Everyone shows 12 per stage, each with its own "Show all".
+    const more = (state.plAll ||= new Set()), cap = (k) => (mode === "stuck" || more.has(k) ? Infinity : 12);
+    const groups = PL_STAGES.map((x) => ({ x, xs: list.filter(x.f) })).filter((g) => g.xs.length);
+    state.lastList = groups.flatMap((g) => g.xs.slice(0, cap(g.x.k))).map((a) => a.id);
+    body = `<div class="scroll" id="scroller">${plFunnel(all, stg)}<div class="pl-t">
+      ${groups.map(({ x, xs }) => `<div class="pl-gh">${esc(x.name)}<span>${xs.length}</span></div>${xs.slice(0, cap(x.k)).map(plRow).join("")}${xs.length > cap(x.k) ? `<button class="pl-more" data-act="plMore" data-k="${x.k}">Show all ${xs.length} in ${esc(x.name)}</button>` : ""}`).join("") || `<div class="pl-zero">${ico("check")}<b>${mode === "stuck" ? "Nobody's stuck" : "No one here"}</b><span>${mode === "stuck" ? "Everyone is inside their stage's target. The Grokbots have it." : "Nothing matches these filters."}</span></div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${list.length.toLocaleString()}</span></div><span class="spacer"></span>
-    <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" title="Board (B)">${ico("board")}</button></div>
-    <a class="btn ghost sm" href="#views">${ico("layers")}Views</a><button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
+    ${view === "board" ? "" : `<div class="pills pl-mode" role="tablist">${[["stuck", "Stuck", all.filter((a) => plLate(a) > 1).length], ["all", "Everyone", all.length]].map(([k, l, n]) => `<button class="${mode === k ? "on" : ""}" data-act="plMode" data-v="${k}" role="tab" aria-selected="${mode === k}">${l}<span>${n.toLocaleString()}</span></button>`).join("")}</div>`}
+    <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" ${role ? `title="Board (B)"` : `disabled title="Pick one role to see it as a board"`}>${ico("board")}</button></div>
+    <a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
+    <button class="chip pl-role ${role ? "on" : ""}" data-act="plRole">${role ? esc(ROLES[role].title) : "All roles"}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
   ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in CRM also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
@@ -3700,6 +3758,22 @@ function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   menu.hl();
   el.addEventListener("click", (e) => { const b = e.target.closest(".opt"); if (!b) return; menu.restore = null; closeLayer(); onPick(items[+b.dataset.i]); });
 }
+// Liquid glass: one grey glass pill per option group slides under whatever you point at and springs into place.
+const PILL_TRACKS = ".pills, .seg, .ibx-seg, .cx-seg, .fm-seg, .tabs";
+document.addEventListener("pointerover", (e) => {
+  const item = e.target.closest && e.target.closest(`:is(${PILL_TRACKS}) > :not(.pill-glass)`);
+  if (!item || item.disabled) return;
+  const track = item.parentElement;
+  let g = track.querySelector(":scope > .pill-glass");
+  if (!g) { g = document.createElement("i"); g.className = "pill-glass"; g.setAttribute("aria-hidden", "true"); track.prepend(g); }
+  const place = () => { g.style.width = item.offsetWidth + "px"; g.style.height = item.offsetHeight + "px"; g.style.transform = `translate(${item.offsetLeft}px, ${item.offsetTop}px)`; };
+  if (!g.classList.contains("show")) { g.style.transition = "none"; place(); void g.offsetWidth; g.style.transition = ""; } else place();
+  g.classList.add("show");
+});
+document.addEventListener("pointerout", (e) => {
+  const track = e.target.closest && e.target.closest(PILL_TRACKS);
+  if (track && !track.contains(e.relatedTarget)) track.querySelector(":scope > .pill-glass")?.classList.remove("show");
+});
 // The account menu: who you are, Team setup, Settings, Tutorial, theme, sign out.
 const THEMES = [["light", "sun", "Light"], ["dark", "moon", "Dark"], ["system", "monitor", "Match the system"]];
 const themeNow = () => document.documentElement.dataset.theme || "system";
@@ -3879,6 +3953,11 @@ const ACT = {
   triOpen: (el) => { state.tri = { sel: el.dataset.id }; go("triage"); },
   toggleGroup: (el) => { if (el.dataset.closed) state.closedOpen = !state.closedOpen; else { const s = (state.shut ||= new Set()); s.has(el.dataset.k) ? s.delete(el.dataset.k) : s.add(el.dataset.k); } render(); },
   setView: (el) => { state.view = el.dataset.v; render(); },
+  plMode: (el) => { state.plMode = el.dataset.v; render(); },
+  plStage: (el) => { state.plStage = state.plStage === el.dataset.v ? null : el.dataset.v; render(); },
+  plMore: (el) => { state.plAll.add(el.dataset.k); render(); },
+  plOpen: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; openFull(el.dataset.id); },
+  plRole: (el) => openMenu(el, [{ id: "", label: "All roles", checked: !state.plRole }, ...Object.entries(ROLES).map(([k, r]) => ({ id: k, label: r.title, checked: state.plRole === k }))], (o) => { state.plRole = o.id || null; if (!o.id && state.view === "board") state.view = "list"; render(); }, { title: "Role" }),
   display: (el) => openMenu(el, [{ sec: "Layout" }, { id: "v:list", label: "List", icon: ico("list"), checked: (state.view || "board") === "list" }, { id: "v:board", label: "Board", icon: ico("board"), checked: (state.view || "board") === "board" }, { sec: "Group the list by" }, ...[["court", "Court"], ["team", "Team"], ["priority", "Priority"], ["role", "Role"]].map(([k, n]) => ({ id: `g:${k}`, label: n, checked: (state.groupBy || "court") === k }))], (o) => { const [t, v] = o.id.split(":"); if (t === "v") state.view = v; else { state.groupBy = v; state.view = "list"; } render(); }),
   pick: (el) => { const id = el.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); render(); },
   clearPick: () => { picked.clear(); render(); },
@@ -4190,7 +4269,7 @@ document.addEventListener("keydown", (e) => {
     if (lk === "j" || k === "ArrowDown") { e.preventDefault(); stepTicket(1); return; }
     if (lk === "k" || k === "ArrowUp") { e.preventDefault(); stepTicket(-1); return; }
     if (lk === "f" || k === "/") { e.preventDefault(); $("#filter")?.focus(); return; }
-    if (lk === "b") { e.preventDefault(); state.view = (state.view || "board") === "board" ? "list" : "board"; render(); return; }
+    if (lk === "b") { e.preventDefault(); if (!state.plRole) return toast("Pick one role to see it as a board"); state.view = state.view === "board" ? "list" : "board"; render(); return; }
     if (k === "Escape" && picked.size) { picked.clear(); render(); return; }
     const a = A[state.focus];
     if (!a) return;
