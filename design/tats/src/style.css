@@ -5127,3 +5127,24 @@ a.pth-s:hover { box-shadow: var(--elev-hi); }
 .ibx.is-thinking .ibx-g, .ibx.is-thinking .ibx-zero, .ibx.is-thinking .ibx-all { display: none; }
 .ibx.is-thinking .ibx-h p { color: var(--muted); }
 .ibx-stop { min-width: 120px; justify-content: center; }
+
+/* v76 account: the name alone as a quiet button; its menu holds you, Team setup, Settings, Tutorial, theme and sign out */
+.sb-acct { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; height: 32px; padding: 0 12px; margin-left: 2px; margin-bottom: 4px; border-radius: 999px !important; color: var(--ink); font-size: 13.5px; font-weight: 500; }
+.sb-acct:hover, .sb-acct[aria-expanded="true"] { background: var(--hover); }
+.sb-acct .chev { width: 12px; height: 12px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sb-collapsed .sb-acct { display: none; }
+.menu.acct { width: 280px; padding: 0; overflow: hidden; }
+.acct-h { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; padding: var(--s4) var(--s4) var(--s3); }
+.acct-h b { font-size: 14.5px; font-weight: 600; }
+.acct-role { justify-self: start; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px !important; background: var(--surface); color: var(--muted); font-size: 12px; }
+.acct-mail { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+.acct-g { padding: 4px; border-top: 1px solid var(--line); }
+.menu.acct .opt { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; font-size: 13.5px; }
+.menu.acct .opt .ico { width: 15px; height: 15px; color: var(--muted); }
+.acct-kb { color: var(--faint); font-size: 12px; letter-spacing: 0.06em; }
+.acct-th { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 6px 16px; }
+.acct-tl { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.acct-tl .ico { width: 15px; height: 15px; color: var(--muted); }
+.acct-pills { display: inline-flex; }
+.acct-pills button { display: grid; place-items: center; width: 34px; height: 28px; padding: 0; }
+.acct-pills button .ico { width: 15px; height: 15px; }

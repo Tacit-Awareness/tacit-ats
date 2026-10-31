@@ -46,6 +46,11 @@ function ago(ms) {
 
 /* ---------------- icons ---------------- */
 const P = {
+  sun: "M8 5.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6ZM8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9",
+  moon: "M13.2 9.6A5.5 5.5 0 0 1 6.4 2.8a5.5 5.5 0 1 0 6.8 6.8Z",
+  monitor: "M2.5 3h11v7.5h-11ZM6 13.5h4M8 10.5v3",
+  logout: "M6.5 2.5H3v11h3.5M10 5l3 3-3 3M13 8H6.5",
+  user: "M8 2.5a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4ZM3 13.5c.6-2.4 2.6-3.8 5-3.8s4.4 1.4 5 3.8",
   court: "M8 2.5v11M5 13.5h6M3 5.5h10M4.5 5.5 2.5 10a2 2 0 0 0 4 0Zm7 0-2 4.5a2 2 0 0 0 4 0Z",
   triage: "M2.5 4.5h11M2.5 8h7M2.5 11.5h4M11.5 9.5l2 2-2 2",
   people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
@@ -2296,10 +2301,11 @@ function renderSide() {
       ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
       ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
       ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#setup", ico("sliders"), "Team setup", r.name === "setup")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
       ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
-    <div class="sb-me">${personAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
+    <button class="sb-acct" data-act="acct" aria-haspopup="menu" title="Account, theme and sign out"><span class="trunc">${PEOPLE[ME].name}</span><svg class="chev" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
     <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
   </div>`);
 }
@@ -3694,6 +3700,41 @@ function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   menu.hl();
   el.addEventListener("click", (e) => { const b = e.target.closest(".opt"); if (!b) return; menu.restore = null; closeLayer(); onPick(items[+b.dataset.i]); });
 }
+// The account menu: who you are, Team setup, Settings, Tutorial, theme, sign out.
+const THEMES = [["light", "sun", "Light"], ["dark", "moon", "Dark"], ["system", "monitor", "Match the system"]];
+const themeNow = () => document.documentElement.dataset.theme || "system";
+function setTheme(t) {
+  if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { t === "system" ? localStorage.removeItem("tats-theme") : localStorage.setItem("tats-theme", t); } catch {}
+}
+function openAcct(anchor) {
+  closeLayer();
+  const me = PEOPLE[ME], kb = (k) => `<span class="acct-kb">${k}</span>`;
+  const items = [["setup", "sliders", "Team setup", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
+  const el = document.createElement("div");
+  el.className = "menu acct";
+  el.setAttribute("role", "menu");
+  el.innerHTML = `<div class="acct-h"><b>${esc(me.name)}</b><span class="acct-role">${esc(me.role)}</span><span class="acct-mail">${esc(first(ME).toLowerCase())}@meridian.com</span></div>
+    <div class="acct-g">${items.map(([k, ic, l, h]) => `<button class="opt" role="menuitem" data-k="${k}">${ico(ic)}<span class="grow">${l}</span>${h}</button>`).join("")}</div>
+    <div class="acct-g acct-th"><span class="acct-tl">${ico("moon")}Theme</span><div class="pills acct-pills" role="radiogroup" aria-label="Theme">${THEMES.map(([k, ic, l]) => `<button class="${themeNow() === k ? "on" : ""}" data-theme="${k}" role="radio" aria-checked="${themeNow() === k}" title="${l}" aria-label="${l}">${ico(ic)}</button>`).join("")}</div></div>
+    <div class="acct-g"><button class="opt" role="menuitem" data-k="out">${ico("logout")}<span class="grow">Sign out</span>${kb("⇧ ⌘ Q")}</button></div>`;
+  $("#layer").appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.max(8, r.left) + "px";
+  el.style.top = Math.max(12, r.top - el.offsetHeight - 6) + "px";
+  const opts = $$(".opt", el);
+  menu = { el, opts, hi: 0 };
+  menu.hl = () => opts.forEach((b, k) => b.classList.toggle("hi", k === menu.hi));
+  el.addEventListener("click", (e) => {
+    const th = e.target.closest("[data-theme]");
+    if (th) { setTheme(th.dataset.theme); $$("[data-theme]", el).forEach((b) => { b.classList.toggle("on", b === th); b.setAttribute("aria-checked", b === th); }); return; }
+    const b = e.target.closest(".opt");
+    if (!b) return;
+    closeLayer();
+    const k = b.dataset.k;
+    if (k === "setup") go("setup~people"); else if (k === "settings") go("settings"); else if (k === "tour") startTour(); else toast("Signed out (in the real app)");
+  });
+}
 function closeLayer() {
   const r = menu && menu.restore;
   if (pop && pop.ghost) pop.ghost.remove();
@@ -3934,6 +3975,7 @@ const ACT = {
   usePal: (el) => { setPal(el.dataset.v); toast(el.dataset.v === "prev" ? "Using the previous palette with refined shading" : "Using the current styling"); go("home"); },
   procName: () => {},
   tour: () => startTour(),
+  acct: (el) => (menu && menu.el.classList.contains("acct") ? closeLayer() : openAcct(el)),
   chatRef: (el) => openRefForm(parseReferral(decodeURIComponent(el.dataset.id))),
   chatPost: (el) => toast(`Posted ${(+el.dataset.id).toLocaleString()} candidates to #hiring`),
   refTab: (el) => { state.refTab = el.dataset.v; state.refPg = 0; render(); },
@@ -4076,6 +4118,7 @@ document.addEventListener("keydown", (e) => {
   const k = e.key, lk = k.toLowerCase();
   const mod = e.metaKey || e.ctrlKey;
   if (mod && lk === "k") { e.preventDefault(); palette ? closeLayer() : openPalette(); return; }
+  if (mod && k === ",") { e.preventDefault(); closeLayer(); go("settings"); return; }
   if (menu) {
     if (k === "Escape") { e.preventDefault(); const r = closeLayer(); if (r) r(); return; }
     if (k === "ArrowDown" || k === "ArrowUp" || (!mod && (lk === "j" || lk === "k"))) { e.preventDefault(); const dn = k === "ArrowDown" || lk === "j"; menu.hi = (menu.hi + (dn ? 1 : -1) + menu.opts.length) % menu.opts.length; menu.hl(); return; }
