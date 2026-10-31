@@ -3,11 +3,12 @@
 import { useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import type { ReadMark } from "@/lib/client/inbox-digest";
 import type { IssueInstance } from "@/lib/client/inbox-issues";
 import { rowSelector } from "@/lib/client/inbox-popup";
 import { isShown, onePress } from "@/lib/keys";
 import { cn } from "@/lib/utils";
-import { dismissIssueAction, restoreIssueAction } from "./actions";
+import { dismissIssueAction, markDigestReadAction, restoreIssueAction } from "./actions";
 import { button, plain } from "./buttons";
 
 // Setting an issue aside (design/tats's E, `ibDone`) and getting it back. E
@@ -33,7 +34,7 @@ function DismissSubmit({ refFn }: { refFn: (b: HTMLButtonElement | null) => void
 }
 
 /** Inside the fix and decision bars, whichever the issue has. Fields are `issue*` because a decision's form has a `reason` of its own. */
-export function DismissButton({ instance, next }: { instance: IssueInstance; next: string | null }) {
+export function DismissButton({ instance, next, range }: { instance: IssueInstance; next: string | null; range: number }) {
   const form = useRef<HTMLFormElement>(null);
   const submit = useRef<HTMLButtonElement | null>(null);
   useKeyHelp("Inbox", [{ keys: "E", label: "Dismiss, to Done" }]);
@@ -43,6 +44,7 @@ export function DismissButton({ instance, next }: { instance: IssueInstance; nex
       <input type="hidden" name="issueKey" value={instance.key} />
       <input type="hidden" name="issueReason" value={instance.reason} />
       <input type="hidden" name="issueAt" value={instance.at} />
+      <input type="hidden" name="range" value={range} />
       {next ? <input type="hidden" name="next" value={next} /> : null}
       <DismissSubmit refFn={(b) => void (submit.current = b)} />
     </form>
@@ -60,12 +62,8 @@ function RowCheck({ what, className }: { what: string; className: string }) {
   );
 }
 
-/**
- * The check on a row of the card: the same action as the reader's Dismiss,
- * `from=row` keeping the member on the card. It goes with its row, so focus
- * moves to the row below rather than falling to the page.
- */
-export function RowDismiss({ instance, what, next, range, className }: { instance: IssueInstance; what: string; next: string | null; range: number; className: string }) {
+/** A row's check goes with its row, so focus moves to the row after it rather than falling to the page, and J carries on from there. */
+function useFocusAfter(next: string | null): () => void {
   const posted = useRef(false);
   const toNext = useRef(next);
   toNext.current = next;
@@ -77,8 +75,42 @@ export function RowDismiss({ instance, what, next, range, className }: { instanc
     },
     [],
   );
+  return () => void (posted.current = true);
+}
+
+/** The check on a line of what happened: the member's own read mark. */
+function RowReadCheck({ what, className }: { what: string; className: string }) {
+  const { pending } = useFormStatus();
   return (
-    <form action={dismissIssueAction} onSubmit={() => void (posted.current = true)} className="contents">
+    <button type="submit" disabled={pending} title="Mark read (E)" aria-label={`Mark read: ${what}`} aria-keyshortcuts="E" className={className}>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+        <path d="m3.5 8.5 3 3 6-7" />
+      </svg>
+    </button>
+  );
+}
+
+export function RowMarkRead({ mark, what, next, range, className }: { mark: ReadMark; what: string; next: string | null; range: number; className: string }) {
+  const posted = useFocusAfter(next);
+  return (
+    <form action={markDigestReadAction} onSubmit={posted} className="contents">
+      <input type="hidden" name="markKey" value={mark.key} />
+      <input type="hidden" name="markReason" value={mark.reason} />
+      <input type="hidden" name="markAt" value={mark.at} />
+      <input type="hidden" name="range" value={range} />
+      <RowReadCheck what={what} className={className} />
+    </form>
+  );
+}
+
+/**
+ * The check on a row of the card: the same action as the reader's Dismiss,
+ * `from=row` keeping the member on the card.
+ */
+export function RowDismiss({ instance, what, next, range, className }: { instance: IssueInstance; what: string; next: string | null; range: number; className: string }) {
+  const posted = useFocusAfter(next);
+  return (
+    <form action={dismissIssueAction} onSubmit={posted} className="contents">
       <input type="hidden" name="issueKey" value={instance.key} />
       <input type="hidden" name="issueReason" value={instance.reason} />
       <input type="hidden" name="issueAt" value={instance.at} />
@@ -97,7 +129,7 @@ export function RowKeys() {
       if (submit && !submit.disabled) submit.click();
     }),
   });
-  useKeyHelp("Inbox", [{ keys: "E", label: "Dismiss the row you're on, to Done" }]);
+  useKeyHelp("Inbox", [{ keys: "E", label: "Dismiss the row you're on, or mark it read" }]);
   return null;
 }
 
@@ -119,13 +151,14 @@ function UndoSubmit({ refFn }: { refFn: (b: HTMLButtonElement | null) => void })
 }
 
 /** The toast's Undo after a dismiss. Z works for as long as the toast is up, wherever the member has gone. */
-export function UndoToast({ id }: { id: string }) {
+export function UndoToast({ id, range }: { id: string; range: number }) {
   const form = useRef<HTMLFormElement>(null);
   const submit = useRef<HTMLButtonElement | null>(null);
   return (
     <form ref={form} action={restoreIssueAction} className="flex-none">
       <ZKey press={() => void (submit.current && isShown(form.current) && form.current?.requestSubmit(submit.current))} />
       <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="range" value={range} />
       <UndoSubmit refFn={(b) => void (submit.current = b)} />
     </form>
   );

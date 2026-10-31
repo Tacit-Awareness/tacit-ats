@@ -96,6 +96,12 @@ export function loopRounds(
   }));
 }
 
+/** The last interview held, or null with none: the round a decision comes after. */
+export function lastHeld(progress: clientTools.PlanProgress, now: number): string | null {
+  const held = [...progress.steps.flatMap((s) => s.interviews), ...progress.offPlan].filter((i) => isHeld(i, now));
+  return held.length ? held.reduce((a, b) => (Date.parse(b.startsAt) > Date.parse(a.startsAt) ? b : a)).interviewId : null;
+}
+
 /** Interviewers on this interview whose feedback the member cannot see. */
 export function hiddenOn(progress: clientTools.PlanProgress, interviewId: string): number {
   const all = [...progress.steps.flatMap((s) => s.interviews), ...progress.offPlan];

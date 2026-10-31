@@ -1,5 +1,4 @@
 import type { Db } from "@tacit/db";
-import { ACTIVE_STAGES, type ApplicationStage } from "@tacit/core";
 import { buildDigest, DIGEST_REASONS, markId, rangeStart, type Digest, type DigestInput, type DigestRange, type DigestReason, type DigestSubject, type ReadMark } from "./inbox-digest";
 
 // The Inbox digest's reads and its read marks, on the member's OWN client (never
@@ -18,14 +17,13 @@ const IDS_A_READ = 150;
 const UNIQUE_MARK = "actor_id,issue_key,reason,issue_at";
 const REFUSED = "42501";
 
-const SUBJECT = "applications!inner(id, person_id, stage, people(display_name), roles(title, status))";
+const SUBJECT = "applications!inner(id, person_id, people(display_name), roles(title))";
 
 type SubjectRow = {
   id: string;
   person_id: string;
-  stage: string;
   people: { display_name: string | null } | null;
-  roles: { title: string; status: string } | null;
+  roles: { title: string } | null;
 };
 type EventRow = { id: string; actor_id: string | null; to_stage: string | null; created_at: string; applications: SubjectRow };
 type InterviewRow = { id: string; interviewer_actor_ids: string[]; starts_at: string; created_at: string; applications: SubjectRow };
@@ -38,7 +36,6 @@ const subject = (a: SubjectRow): DigestSubject => ({
   personId: a.person_id,
   personName: a.people?.display_name ?? null,
   jobTitle: a.roles?.title ?? null,
-  live: a.roles?.status === "open" && ACTIVE_STAGES.includes(a.stage as ApplicationStage),
 });
 
 async function memberNames(db: Db, ids: string[]): Promise<Map<string, string>> {

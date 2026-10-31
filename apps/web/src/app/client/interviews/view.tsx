@@ -63,6 +63,9 @@ export type Reader = {
   feedbackNote: string | null;
 };
 
+/** What the loop draws from, also the Inbox's whole ticket for a decision. */
+export type LoopProps = Pick<Reader, "candidate" | "tag" | "loopLine" | "rounds" | "route" | "editProcess" | "partial">;
+
 const VERDICT_NAME: Record<Verdict, string> = { pass: "Pass", mixed: "Mixed", fail: "Fail", pending: "Read pending" };
 
 const DOT: Record<GroupKey, string> = {
@@ -317,7 +320,7 @@ function Route({ route }: { route: RouteView<LoopRound> }) {
  * each state is in words on the card, not only in its colour. The row scrolls
  * sideways inside itself (LoopRow) and never widens the page.
  */
-export function Loop({ reader }: { reader: Reader }) {
+export function Loop({ reader }: { reader: LoopProps }) {
   const { route } = reader;
   const rows = route ? route.offPlan : reader.rounds;
   return (
@@ -351,7 +354,7 @@ export function Loop({ reader }: { reader: Reader }) {
   );
 }
 
-function Feedback({ reader }: { reader: Reader }) {
+export function Feedback({ reader }: { reader: Pick<Reader, "feedback" | "feedbackNote"> }) {
   return (
     <section aria-label="Feedback" className="grid gap-3.5 px-4 pt-5 pb-[22px] @2xl:px-[26px]">
       <div className="flex items-baseline justify-between gap-3 text-[14.5px]">

@@ -37,7 +37,7 @@ function Buttons({ cancel, cancelRef }: { cancel: () => void; cancelRef: React.R
   );
 }
 
-function SendDialog({ draftId, draft, instance, next, close }: { draftId: string; draft: SendProps; instance: IssueInstance; next: string | null; close: () => void }) {
+function SendDialog({ draftId, draft, instance, next, range, close }: { draftId: string; draft: SendProps; instance: IssueInstance; next: string | null; range: number; close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -78,6 +78,7 @@ function SendDialog({ draftId, draft, instance, next, close }: { draftId: string
         <input type="hidden" name="draftId" value={draftId} />
         <input type="hidden" name="issueReason" value={instance.reason} />
         <input type="hidden" name="issueAt" value={instance.at} />
+        <input type="hidden" name="range" value={range} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <h2 id="send-title" className="m-0 text-[15px] font-semibold break-words">
           Send this to {draft.to}?
@@ -115,12 +116,14 @@ export function SendBar({
   draft,
   instance,
   next,
+  range,
   secondary,
 }: {
   fix: Extract<IssueFix, { type: "send" }>;
   draft: SendProps;
   instance: IssueInstance;
   next: string | null;
+  range: number;
   secondary: { label: string; href: string } | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -137,13 +140,13 @@ export function SendBar({
           </Kbd>
         ) : null}
       </button>
-      <DismissButton instance={instance} next={next} />
+      <DismissButton instance={instance} next={next} range={range} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}
         </Link>
       ) : null}
-      {open ? <SendDialog draftId={fix.draftId} draft={draft} instance={instance} next={next} close={() => setOpen(false)} /> : null}
+      {open ? <SendDialog draftId={fix.draftId} draft={draft} instance={instance} next={next} range={range} close={() => setOpen(false)} /> : null}
     </div>
   );
 }

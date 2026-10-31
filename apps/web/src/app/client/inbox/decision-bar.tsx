@@ -112,6 +112,7 @@ function ConfirmDialog({
   instance,
   terms,
   next,
+  range,
   close,
 }: {
   mode: ConfirmMode;
@@ -120,6 +121,7 @@ function ConfirmDialog({
   instance: IssueInstance;
   terms: TermLine[] | null;
   next: string | null;
+  range: number;
   close: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -168,6 +170,7 @@ function ConfirmDialog({
         <input type="hidden" name="decision" value={mode} />
         <input type="hidden" name="issueReason" value={instance.reason} />
         <input type="hidden" name="issueAt" value={instance.at} />
+        <input type="hidden" name="range" value={range} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <h2 id="decision-title" className="m-0 text-[15px] font-semibold break-words">
           {copy.title}
@@ -198,12 +201,14 @@ export function DecisionBar({
   instance,
   terms,
   next,
+  range,
   secondary,
 }: {
   decision: DecisionProps;
   instance: IssueInstance;
   terms: TermLine[] | null;
   next: string | null;
+  range: number;
   secondary: { label: string; href: string } | null;
 }) {
   const [open, setOpen] = useState<Extract<DecisionAction, { mode: ConfirmMode }> | null>(null);
@@ -230,13 +235,13 @@ export function DecisionBar({
           </button>
         ),
       )}
-      <DismissButton instance={instance} next={next} />
+      <DismissButton instance={instance} next={next} range={range} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>
           {secondary.label}
         </Link>
       ) : null}
-      {open ? <ConfirmDialog mode={open.mode} copy={open.copy} decision={decision} instance={instance} terms={terms} next={next} close={() => setOpen(null)} /> : null}
+      {open ? <ConfirmDialog mode={open.mode} copy={open.copy} decision={decision} instance={instance} terms={terms} next={next} range={range} close={() => setOpen(null)} /> : null}
     </div>
   );
 }

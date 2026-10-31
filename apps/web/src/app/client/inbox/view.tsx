@@ -7,28 +7,31 @@ import type { DecisionProps, TermLine } from "@/lib/client/inbox-decisions";
 import type { IssueFix, IssueInstance, IssueKind } from "@/lib/client/inbox-issues";
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
-import { LocalDay } from "../candidates/local-day";
-import { markAllDigestReadAction, markDigestReadAction } from "./actions";
+import { LocalForEnd, LocalWhen } from "../candidates/local-day";
+import { Feedback, Loop, type LoopProps, type Reader as InterviewReader } from "../interviews/view";
+import { markAllDigestReadAction } from "./actions";
 import { button, plain } from "./buttons";
 import { DecisionBar, OfferTerms } from "./decision-bar";
 import { FixBar } from "./fix-bar";
 import { IssuePopup } from "./popup";
 import { SendBar, type SendProps } from "./send-bar";
-import { RowDismiss, RowKeys } from "./set-aside";
+import { RowDismiss, RowKeys, RowMarkRead } from "./set-aside";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
 // #inbox as a digest, one centred card (`.ibx`): Welcome back with what's worth
-// the member's time, the Open and Done pills, how far back to look, and Needs
-// you, a row each saying what is wrong, who it is about and its age, and beside
-// the row's link its own two buttons, the page and Dismiss (design/tats's
-// `.ibx-acts`). Under it Decisions made, Booked and FYI, with Mark read in
-// Dismiss's place, then Mark all as read. Needs you's row opens that
-// issue in a pop-up (popup.tsx) holding the reader: the same heading, the one fix (fix-bar.tsx,
-// key F), Send here on an unsent draft (send-bar.tsx, key F, after a dialog) or
-// the decision (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E),
-// the card saying what is waiting, an offer's terms for the approver reading it,
-// then the candidate's story. done-view.tsx is Done. Everything a member or a
-// candidate wrote renders as text.
+// the member's time, how far back to look, and Needs you, a row each saying what
+// is wrong, who it is about and its age, and beside the row's link its own two
+// buttons, the page and Dismiss (design/tats's `.ibx-acts`). Under it Decisions
+// made, Booked and FYI, with Mark read in Dismiss's place, then Done and Mark all
+// as read. Needs you's row opens that issue in a pop-up (popup.tsx) holding the
+// reader: the same heading, the one fix (fix-bar.tsx, key F), Send here on an
+// unsent draft (send-bar.tsx, key F, after a dialog) or the decision
+// (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E), the card
+// saying what is waiting, an offer's terms for the approver reading it, then the
+// candidate's story. A decision on a candidate has the whole ticket instead of
+// the story: the loop, the read and the candidate. The rows under Needs you open
+// that whole candidate over the card (`?open=`). done-view.tsx is Done.
+// Everything a member or a candidate wrote renders as text.
 
 export type IssueRow = {
   key: string;
@@ -43,9 +46,12 @@ export type IssueRow = {
   instance?: IssueInstance;
   /** The page this is about. Null when a row can't tell the member can open it. */
   page?: string | null;
-  /** The row below, for focus once this one has gone. */
+  /** The row that takes focus once this one has gone, across Needs you and the groups. */
   next?: string | null;
 };
+
+/** A decision's loop and read, as far as this member may read them. */
+export type TicketLoop = LoopProps & Pick<InterviewReader, "feedback" | "feedbackNote">;
 
 export type IssueReaderProps = {
   kind: IssueKind;
@@ -67,8 +73,13 @@ export type IssueReaderProps = {
   page: string | null;
   /** Null for an issue with no candidate (a job's approval), or one the member can't read (an approver not on the job). */
   story: clientTools.ActivityEntry[] | null;
+  /** A decision: the whole candidate, under the loop and the read, in the story's place. Null where they can't be read. */
+  ticket?: { loop: TicketLoop | null; body: React.ReactNode } | null;
   now: number;
 };
+
+/** The whole candidate over the card, from a row under Needs you. */
+export type PersonPopupProps = { key: string; title: string; subject: string; page: string; body: React.ReactNode };
 
 const ICON: Record<IssueKind, string> = {
   draft: "M2.5 4h11v8.5h-11ZM2.5 4.5 8 8.8l5.5-4.3",
@@ -120,15 +131,14 @@ export type DigestProps = {
   range: DigestRange;
   /** When the page was read: Mark all as read covers no more than this. */
   asOf: string;
-  now: number;
   total: number;
   shown: number;
   unread: number;
   capped: boolean;
-  groups: { key: DigestGroupKey; label: string; rows: (DigestRow & { age: string })[] }[];
+  groups: { key: DigestGroupKey; label: string; rows: (DigestRow & { age: string; active: boolean; next: string | null })[] }[];
 };
 
-const NO_DIGEST: Omit<DigestProps, "total" | "shown"> = { range: DEFAULT_RANGE, asOf: "", now: 0, unread: 0, capped: false, groups: [] };
+const NO_DIGEST: Omit<DigestProps, "total" | "shown"> = { range: DEFAULT_RANGE, asOf: "", unread: 0, capped: false, groups: [] };
 
 const GROUP_ICON: Record<DigestGroupKey, string> = {
   decided: ICON.decide,
@@ -140,23 +150,12 @@ function RangeTabs({ range }: { range: DigestRange }) {
   return <Tabs label="How far back" tabs={DIGEST_RANGES.map((r) => ({ label: r.label, href: inboxHref(r.days), active: r.days === range }))} />;
 }
 
-function InboxTabs({ tab, openCount, className }: { tab: "open" | "done"; openCount: number; className?: string }) {
-  return (
-    <Tabs
-      label="Inbox"
-      className={className}
-      tabs={[
-        { label: "Open", href: "/client/inbox", active: tab === "open", ...(openCount ? { count: openCount } : {}) },
-        { label: "Done", href: "/client/inbox?tab=done", active: tab === "done" },
-      ]}
-    />
-  );
+/** Done's bar: the crumb is the way back to the Inbox. */
+export function DoneBar() {
+  return <PageBar title="Done" crumbs={[{ href: "/client/inbox", label: "Inbox" }]} />;
 }
 
-/** Done's bar: the same pills beside the title. Open has them in its card. */
-export function InboxBar({ tab, openCount }: { tab: "open" | "done"; openCount: number }) {
-  return <PageBar title="Inbox" lead={<InboxTabs tab={tab} openCount={openCount} className="ml-1" />} />;
-}
+const DONE_HREF = "/client/inbox?tab=done";
 
 /** The page and Dismiss: on a hover or with focus in the row, in the age's place; always on a touch screen, beside it. */
 const ROW_ACTIONS =
@@ -218,11 +217,9 @@ function CapNotes({ truncated, draftsCapped }: { truncated: boolean; draftsCappe
   );
 }
 
-/** J and K: over the card they move focus and Enter opens, since a key shouldn't throw up a pop-up; in the pop-up they walk the queue, as they walked the reader. */
-function NeedsYou({ rows, popup, range, truncated, draftsCapped }: { rows: IssueRow[]; popup: boolean; range: DigestRange; truncated: boolean; draftsCapped: boolean }) {
+function NeedsYou({ rows, range, truncated, draftsCapped }: { rows: IssueRow[]; range: DigestRange; truncated: boolean; draftsCapped: boolean }) {
   return (
-    <KeyList title="Inbox" next="Next issue" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start">
-      {popup ? null : <RowKeys />}
+    <div className="grid grid-cols-[minmax(0,1fr)] content-start">
       <section aria-labelledby="inbox-needs-you" className="grid grid-cols-[minmax(0,1fr)]">
         <h2 id="inbox-needs-you" className={GROUP_HEAD}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0" aria-hidden>
@@ -236,30 +233,39 @@ function NeedsYou({ rows, popup, range, truncated, draftsCapped }: { rows: Issue
         ))}
       </section>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
-    </KeyList>
+    </div>
   );
 }
 
-/** A line of what happened: the row goes to the Pipeline's pop-up or the candidate, with the page and Mark read beside it. Everything in it renders as text. */
-function InfoRow({ r, range, now }: { r: DigestProps["groups"][number]["rows"][number]; range: DigestRange; now: number }) {
+/**
+ * A line of what happened: the row opens the whole candidate in the pop-up, with
+ * the page and Mark read beside it, and says who, the job and when (`.ibx-meta`).
+ * `what` reads the same to a screen reader as it does on the row, its time aside,
+ * which only the browser can word. Everything in it renders as text.
+ */
+function InfoRow({ r, range }: { r: DigestProps["groups"][number]["rows"][number]; range: DigestRange }) {
   return (
-    <div className="group relative -mx-3 flex min-w-0 items-stretch transition-colors hover:bg-[color:var(--hover)]">
-      <Link href={r.href} className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 px-3 py-3">
-        <span className="grid min-w-0 gap-1">
-          <span className="text-[15.5px] leading-[1.45] break-words">{r.what}</span>
-          <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
-            {r.who ? <Avatar name={r.who} size="xs" /> : null}
-            <span className="min-w-0 break-words">
-              {r.meta}
-              {r.interviewAt ? (
-                <>
-                  {r.meta ? " · " : ""}Interview <LocalDay iso={r.interviewAt} fallback={Date.parse(r.interviewAt) >= now ? "coming up" : "held"} />
-                </>
-              ) : null}
+    <div data-key-row className="group relative -mx-3 flex min-w-0 items-stretch transition-colors hover:bg-[color:var(--hover)]">
+      <Link
+        href={r.href}
+        scroll={false}
+        data-key-item
+        data-issue-row={r.id}
+        aria-current={r.active ? "true" : undefined}
+        aria-haspopup="dialog"
+        className="grid min-w-0 flex-1 gap-1 px-3 py-3 [@media(hover:hover)]:pr-20"
+      >
+        <span className="text-[15.5px] leading-[1.45] break-words">{r.interviewAt ? <>{r.what.replace(/\.$/, "")}<LocalForEnd iso={r.interviewAt} /></> : r.what}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground">
+          {r.who ? <Avatar name={r.who} size="xs" /> : null}
+          <span className="min-w-0 break-words">
+            {r.meta}
+            {r.meta ? " · " : ""}
+            <span className="tabular-nums">
+              <LocalWhen iso={r.at} fallback={r.age} />
             </span>
           </span>
         </span>
-        <span className="pt-0.5 text-[12.5px] whitespace-nowrap text-faint tabular-nums [@media(hover:hover)]:group-focus-within:invisible [@media(hover:hover)]:group-hover:invisible">{r.age}</span>
       </Link>
       <span className={ROW_ACTIONS}>
         <Link href={r.page} title="Open as a page" aria-label={`Open as a page: ${r.what}`} className={ROW_ACTION}>
@@ -267,17 +273,7 @@ function InfoRow({ r, range, now }: { r: DigestProps["groups"][number]["rows"][n
             <path d="M5 11l6-6M6 5h5v5" />
           </svg>
         </Link>
-        <form action={markDigestReadAction} className="contents">
-          <input type="hidden" name="markKey" value={r.mark.key} />
-          <input type="hidden" name="markReason" value={r.mark.reason} />
-          <input type="hidden" name="markAt" value={r.mark.at} />
-          <input type="hidden" name="range" value={range} />
-          <button type="submit" title="Mark read" aria-label={`Mark read: ${r.what}`} className={ROW_ACTION}>
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
-              <path d="m3.5 8.5 3 3 6-7" />
-            </svg>
-          </button>
-        </form>
+        <RowMarkRead mark={r.mark} what={r.what} next={r.next} range={range} className={ROW_ACTION} />
       </span>
     </div>
   );
@@ -294,27 +290,31 @@ function DigestGroups({ digest }: { digest: DigestProps }) {
         <span className="font-normal text-faint tabular-nums">{g.rows.length}</span>
       </h2>
       {g.rows.map((r) => (
-        <InfoRow key={r.id} r={r} range={digest.range} now={digest.now} />
+        <InfoRow key={r.id} r={r} range={digest.range} />
       ))}
     </section>
   ));
 }
 
 function DigestFoot({ digest, needs }: { digest: DigestProps; needs: number }) {
-  if (!digest.unread && !digest.capped) return null;
   return (
     <footer className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:flex sm:items-center sm:justify-between">
       <p className="m-0 text-[12.5px] text-faint">{digest.capped ? "A lot happened in this period, so only the newest updates are listed." : null}</p>
-      {digest.unread ? (
-        <form action={markAllDigestReadAction} className="grid sm:block">
-          <input type="hidden" name="range" value={digest.range} />
-          <input type="hidden" name="asOf" value={digest.asOf} />
-          <input type="hidden" name="needs" value={needs ? "1" : "0"} />
-          <button type="submit" className={cn(button, plain, "justify-center")}>
-            Mark all as read
-          </button>
-        </form>
-      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Link href={DONE_HREF} className="text-[13px] text-muted-foreground transition-colors hover:text-foreground">
+          Done
+        </Link>
+        {digest.unread ? (
+          <form action={markAllDigestReadAction}>
+            <input type="hidden" name="range" value={digest.range} />
+            <input type="hidden" name="asOf" value={digest.asOf} />
+            <input type="hidden" name="needs" value={needs ? "1" : "0"} />
+            <button type="submit" className={cn(button, plain, "justify-center")}>
+              Mark all as read
+            </button>
+          </form>
+        ) : null}
+      </div>
     </footer>
   );
 }
@@ -329,8 +329,8 @@ function CaughtUp({ range, truncated, draftsCapped }: { range: DigestRange; trun
       <p className="m-0 text-[13px] text-muted-foreground">Nothing new in the last {rangeLabel(range)}.</p>
       <CapNotes truncated={truncated} draftsCapped={draftsCapped} />
       <div className="mt-1 flex items-center gap-3">
-        <Link href="/client/inbox?tab=done" className={textLink}>
-          See Done
+        <Link href={DONE_HREF} className={textLink}>
+          Done
         </Link>
         <Link href="/client/pipeline" className={textLink}>
           Open Pipeline
@@ -358,15 +358,15 @@ function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   );
 }
 
-function Reader({ issue }: { issue: IssueReaderProps }) {
+function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   return (
     <article className="mx-auto grid w-[760px] max-w-full content-start">
       {issue.decision ? (
-        <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} secondary={issue.secondary} />
+        <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} range={range} secondary={issue.secondary} />
       ) : issue.fix.type === "send" && issue.draft ? (
-        <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
+        <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />
       ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
-        <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} secondary={issue.secondary} />
+        <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />
       ) : null}
       <section className="mt-5 border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
         <div className="flex items-center gap-3">
@@ -383,7 +383,7 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
           </div>
         ) : null}
       </section>
-      {issue.story ? (
+      {issue.story && !issue.ticket ? (
         <section aria-label="Activity" className="mt-7">
           <h2 className="m-0 mb-1 text-[13px] font-medium">Activity</h2>
           <ActivityStory entries={issue.story} now={issue.now} />
@@ -393,9 +393,22 @@ function Reader({ issue }: { issue: IssueReaderProps }) {
   );
 }
 
+/** The path through the loop and the read, the Interviews reader's own two blocks, over the candidate. */
+function LoopAndRead({ loop }: { loop: TicketLoop }) {
+  return (
+    <div className="px-4 pt-3 md:px-6">
+      <article className="@container mx-auto w-[760px] max-w-full overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+        <Loop reader={loop} />
+        <Feedback reader={loop} />
+      </article>
+    </div>
+  );
+}
+
 export function InboxView({
   rows,
   issue,
+  person = null,
   flash,
   home = "/client/inbox",
   truncated,
@@ -405,6 +418,8 @@ export function InboxView({
   rows: IssueRow[];
   /** The issue `?i=` opened, read in full. Null is the card alone. */
   issue: IssueReaderProps | null;
+  /** The digest row `?open=` opened. */
+  person?: PersonPopupProps | null;
   flash: React.ReactNode;
   /** Where closing the pop-up lands. */
   home?: string;
@@ -414,6 +429,8 @@ export function InboxView({
   digest?: DigestProps;
 }) {
   const digest = given ?? { ...NO_DIGEST, total: rows.length, shown: rows.length };
+  const popup = issue !== null || person !== null;
+  const any = rows.length > 0 || digest.groups.length > 0;
   return (
     <div className="list-reader flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-[color:var(--frame)] px-4 py-6 md:py-12">
@@ -432,22 +449,34 @@ export function InboxView({
               <p className="m-0 text-[14.5px] text-muted-foreground">{worthLine(digest.shown, digest.total)}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <InboxTabs tab="open" openCount={rows.length} />
               <RangeTabs range={digest.range} />
             </div>
           </header>
-          {!issue ? flash : null}
-          {rows.length ? <NeedsYou rows={rows} popup={issue !== null} range={digest.range} truncated={truncated} draftsCapped={draftsCapped} /> : null}
-          <DigestGroups digest={digest} />
-          {rows.length || digest.groups.length ? <DigestFoot digest={digest} needs={rows.length} /> : <CaughtUp range={digest.range} truncated={truncated} draftsCapped={draftsCapped} />}
+          {!popup ? flash : null}
+          {any ? (
+            // J and K walk every row, Needs you first: over the card they move focus and Enter opens, since a key shouldn't throw up a pop-up; in a pop-up they open the next one.
+            <KeyList title="Inbox" next="Next row" mode={popup ? "select" : "focus"} className="grid grid-cols-[minmax(0,1fr)] content-start gap-5">
+              {popup ? null : <RowKeys />}
+              {rows.length ? <NeedsYou rows={rows} range={digest.range} truncated={truncated} draftsCapped={draftsCapped} /> : null}
+              <DigestGroups digest={digest} />
+            </KeyList>
+          ) : null}
+          {any ? <DigestFoot digest={digest} needs={rows.length} /> : <CaughtUp range={digest.range} truncated={truncated} draftsCapped={draftsCapped} />}
         </section>
       </div>
       {issue ? (
         <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home} pageHref={issue.page}>
-          <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 pb-10 md:px-6">
+          <div className={cn("grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 md:px-6", !issue.ticket && "pb-10")}>
             {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
-            <Reader issue={issue} />
+            <Reader issue={issue} range={digest.range} />
           </div>
+          {issue.ticket?.loop ? <LoopAndRead loop={issue.ticket.loop} /> : null}
+          {issue.ticket?.body}
+        </IssuePopup>
+      ) : person ? (
+        <IssuePopup issueKey={person.key} title={person.title} subject={person.subject} home={home} pageHref={person.page}>
+          {flash ? <div className="px-4 pt-3 md:px-6">{flash}</div> : null}
+          {person.body}
         </IssuePopup>
       ) : null}
     </div>

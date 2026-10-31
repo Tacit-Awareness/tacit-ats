@@ -54,10 +54,20 @@ describe("the digest card", () => {
     expect(view()).toContain('data-issue-row="j"');
   });
 
-  test("Open and Done are one pill group, Open picked and counted", () => {
+  test("has no Open and Done tabs: Done is a quiet link in the footer", () => {
     const html = view();
-    expect(html).toMatch(/<nav aria-label="Inbox"[^>]*><a aria-current="page"[^>]*href="\/client\/inbox"/);
-    expect(html).toContain('href="/client/inbox?tab=done"');
+    expect(html).not.toContain('aria-label="Inbox"');
+    const foot = html.slice(html.indexOf("<footer"));
+    expect(foot).toContain('href="/client/inbox?tab=done"');
+    expect(foot).toContain(">Done<");
+  });
+
+  test("J and K walk every row: the rows under Needs you are key items too", () => {
+    const info = { id: "e1", mark: { key: "evt-x", reason: "decided" as const, at: "2026-10-31T10:00:00Z" }, what: "Sam moves to an offer.", who: null, meta: "", at: "2026-10-31T10:00:00Z", interviewAt: null, candidate: { id: "p", name: "Sam" }, applicationId: "a", jobTitle: "Job", href: "/client/inbox?open=e1", page: "/client/candidates/p", age: "2h ago", active: false, next: "j" };
+    const html = view({ digest: { range: 1, asOf: "2026-10-31T12:00:00.000Z", total: 3, shown: 3, unread: 1, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] } });
+    expect(html.match(/data-key-item/g)).toHaveLength(3);
+    expect(html.match(/data-key-row/g)).toHaveLength(3);
+    expect(html).toContain('data-issue-row="e1"');
   });
 
   test("nothing opened is no pop-up, and the notice reads on the card", () => {
@@ -158,20 +168,79 @@ describe("the pop-up", () => {
     expect(view()).not.toContain("$200,000");
     expect(opened({ issue: { ...issue, terms } })).toContain("$200,000");
   });
+
+  test("every form in it posts the range it opened from", () => {
+    const html = opened({ issue: { ...issue, fix: { type: "write", write: "touch", label: "Log a touch", applicationId: "a", nextAction: null } }, digest: { range: 3, asOf: "2026-10-31T12:00:00.000Z", total: 2, shown: 2, unread: 0, capped: false, groups: [] } });
+    const sheet = html.slice(html.indexOf('role="dialog"'));
+    expect(sheet.match(/name="range" value="3"/g)).toHaveLength(2);
+  });
 });
 
-test("Done: the reader's column holds to the pane, as it did", () => {
-  const html = renderToStaticMarkup(
-    <DoneView
-      rows={[row]}
-      item={{ id: "i", what: "Nobody had been in touch", subject: "Sam", how: "Dismissed today", since: null, canMoveBack: false, candidateHref: null, story: null, now: 0 }}
-      flash={null}
-      open
-      openCount={1}
-      capped={false}
-    />,
-  );
-  expect(html).toContain(FRAME);
+describe("a decision's whole ticket", () => {
+  const loop = { candidate: "Sam", tag: "Round 1 of 2", loopLine: "Staff Engineer · 1 of 2 rounds held", rounds: [], route: null, editProcess: null, partial: false, feedback: [], feedbackNote: null };
+  const story = [{ at: "2026-10-20T10:00:00Z", kind: "note", title: "A short story", detail: null, actor: null }] as unknown as IssueReaderProps["story"];
+
+  test("has the bar and the card, then the loop and the read, then the candidate, and no thin story", () => {
+    const html = opened({ issue: { ...issue, story, ticket: { loop, body: <p>The whole candidate</p> } } });
+    const sheet = html.slice(html.indexOf('role="dialog"'));
+    expect(sheet.indexOf("Dismiss")).toBeLessThan(sheet.indexOf("Interview loop"));
+    expect(sheet.indexOf("Interview loop")).toBeLessThan(sheet.indexOf('aria-label="Feedback"'));
+    expect(sheet.indexOf('aria-label="Feedback"')).toBeLessThan(sheet.indexOf("The whole candidate"));
+    expect(sheet).not.toContain("A short story");
+  });
+
+  test("with no loop to show it still has the candidate", () => {
+    const html = opened({ issue: { ...issue, ticket: { loop: null, body: <p>The whole candidate</p> } } });
+    expect(html).toContain("The whole candidate");
+    expect(html).not.toContain("Interview loop");
+  });
+
+  test("an issue with no ticket keeps the reader as it was: a job's approval, an approver not on the job", () => {
+    expect(opened({ issue: { ...issue, story: null, ticket: null } })).not.toContain("Interview loop");
+  });
+});
+
+describe("a digest row's pop-up", () => {
+  const person = { key: "e1", title: "Sam Lee", subject: "Staff Engineer · Offer", page: "/client/candidates/p", body: <p>The whole candidate</p> };
+
+  test("holds the whole candidate over the card, and closes back to the range", () => {
+    const html = view({ person, home: "/client/inbox?range=3" });
+    const sheet = html.slice(html.indexOf('role="dialog"'));
+    expect(sheet).toContain("Sam Lee");
+    expect(sheet).toContain("Staff Engineer · Offer");
+    expect(sheet).toContain("The whole candidate");
+    expect(sheet).toMatch(/aria-label="Close"[^>]*href="\/client\/inbox\?range=3"/);
+    expect(sheet).toContain('aria-label="Open as a page"');
+  });
+
+  test("none open is none drawn", () => {
+    expect(view()).not.toContain('role="dialog"');
+  });
+});
+
+describe("Done", () => {
+  const done = (over: Partial<React.ComponentProps<typeof DoneView>> = {}) =>
+    renderToStaticMarkup(
+      <DoneView
+        rows={[row]}
+        item={{ id: "i", what: "Nobody had been in touch", subject: "Sam", how: "Dismissed today", since: null, canMoveBack: false, candidateHref: null, story: null, now: 0 }}
+        flash={null}
+        open
+        capped={false}
+        {...over}
+      />,
+    );
+
+  test("the reader's column holds to the pane, as it did", () => {
+    expect(done()).toContain(FRAME);
+  });
+
+  test("has no tabs, and its bar is the way back to the Inbox, empty or not", () => {
+    for (const html of [done(), done({ rows: [], item: null, open: false })]) {
+      expect(html).not.toContain('aria-label="Inbox"');
+      expect(html).toContain('href="/client/inbox"');
+    }
+  });
 });
 
 // "You're all caught up" is a claim about everything, and the reads have caps:
@@ -192,6 +261,10 @@ describe("all caught up", () => {
     expect(html).not.toContain("Showing your newest");
     expect(html).not.toContain("may not be listed");
   });
+
+  test("still reaches Done, the only way back once a toast's Undo has gone", () => {
+    expect(empty({ truncated: false, draftsCapped: false })).toContain('href="/client/inbox?tab=done"');
+  });
 });
 
 describe("what happened lately", () => {
@@ -203,23 +276,33 @@ describe("what happened lately", () => {
     meta: "Ada Admin · Staff Engineer",
     at: "2026-10-31T10:00:00.123456+00:00",
     interviewAt: null,
-    href: "/client/pipeline?open=a1",
+    candidate: { id: "p1", name: "Sam" },
+    applicationId: "a1",
+    jobTitle: "Staff Engineer",
+    href: "/client/inbox?range=3&open=e1",
     page: "/client/candidates/p1",
     age: "today",
+    active: false,
+    next: null,
   };
-  const digest: DigestProps = { range: 3, asOf: "2026-10-31T12:00:00.000Z", now: 0, total: 9, shown: 3, unread: 7, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] };
+  const digest: DigestProps = { range: 3, asOf: "2026-10-31T12:00:00.000Z", total: 9, shown: 3, unread: 7, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] };
 
   test("sits under Needs you, with the range and its own row", () => {
     const html = view({ digest });
     expect(html).toContain("3 worth your time, from 9 updates");
     expect(html.indexOf("Needs you")).toBeLessThan(html.indexOf("Decisions made"));
-    expect(html).toContain('href="/client/pipeline?open=a1"');
+    expect(html).toContain('href="/client/inbox?range=3&amp;open=e1"');
     expect(html).toContain('href="/client/candidates/p1"');
     expect(html).toContain('aria-label="Mark read: Sam moves to an offer."');
     expect(html).toContain('value="2026-10-31T10:00:00.123456+00:00"');
   });
 
-  test("the range is three links, the one picked marked, and Open and Done stay", () => {
+  test("a row says who, the job and when, the server's when being relative", () => {
+    expect(view({ digest })).toContain("Ada Admin · Staff Engineer · ");
+    expect(view({ digest })).toMatch(/tabular-nums">today</);
+  });
+
+  test("the range is three links, the one picked marked, and Done stays", () => {
     const html = view({ digest });
     expect(html).toMatch(/<nav aria-label="How far back"/);
     expect(html).toMatch(/aria-current="page"[^>]*href="\/client\/inbox\?range=3"/);
@@ -247,9 +330,10 @@ describe("what happened lately", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  test("a booking words its day in the browser, and the server names none", () => {
-    const html = view({ digest: { ...digest, now: Date.parse("2026-11-01T00:00:00Z"), groups: [{ key: "booked", label: "Booked", rows: [{ ...info, interviewAt: "2026-11-03T09:00:00Z" }] }] } });
-    expect(html).toContain("Interview coming up");
+  test("a booking words its time in the browser, and the server names none", () => {
+    const html = view({ digest: { ...digest, groups: [{ key: "booked", label: "Booked", rows: [{ ...info, what: "Sam is booked with Dana.", interviewAt: "2026-11-03T09:00:00Z" }] }] } });
+    expect(html).toContain("Sam is booked with Dana.");
+    expect(html).not.toContain("Nov 3");
   });
 
   test("a cut-off read says so", () => {

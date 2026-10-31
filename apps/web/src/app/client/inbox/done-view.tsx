@@ -6,12 +6,13 @@ import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
 import { button, plain } from "./buttons";
 import { MoveBackButton } from "./set-aside";
-import { InboxBar, Row, type IssueRow } from "./view";
+import { DoneBar, Row, type IssueRow } from "./view";
 
-// The Done tab's markup, props only: design/tats's Done list and reader, a flat
-// list newest first, and the same reader with a line saying how it left. Nothing
-// here acts on the issue but moving it back. Its fix and an offer's terms stay
-// on the Open tab, while it is still there to be dealt with.
+// Done's markup, props only: design/tats's Done list and reader, a flat list
+// newest first, and the same reader with a line saying how it left. Reached from
+// the Inbox card's footer, and its bar goes back there. Nothing here acts on the
+// issue but moving it back. Its fix and an offer's terms stay in the Inbox, while
+// it is still there to be dealt with.
 
 export type DoneReaderProps = {
   id: string;
@@ -67,20 +68,18 @@ export function DoneView({
   item,
   flash,
   open,
-  openCount,
   capped,
 }: {
   rows: IssueRow[];
   item: DoneReaderProps | null;
   flash: React.ReactNode;
   open: boolean;
-  openCount: number;
   capped: boolean;
 }) {
   if (!item) {
     return (
       <div className="list-reader flex min-h-0 flex-1 flex-col">
-        <InboxBar tab="done" openCount={openCount} />
+        <DoneBar />
         <div className="grid flex-1 content-center justify-items-center gap-2 p-6 text-center">
           {flash}
           <p className="m-0 text-[13px] text-muted-foreground">Nothing here yet.</p>
@@ -93,7 +92,7 @@ export function DoneView({
       listLabel="Done"
       readerLabel="Done item"
       open={open}
-      bar={<InboxBar tab="done" openCount={openCount} />}
+      bar={<DoneBar />}
       list={
         <KeyList title="Inbox" next="Next item" mode="select" className="grid content-start gap-0.5">
           {rows.map((r) => (
