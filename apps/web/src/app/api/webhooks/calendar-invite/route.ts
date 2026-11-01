@@ -111,9 +111,9 @@ export async function POST(request: Request): Promise<Response> {
   // ORGANIZER, not ATTENDEE, so matching guests alone misses them).
   const memberMails = ev.organizer ? [...mails, ev.organizer] : mails;
   const { data: actors } = await db
-    .from("org_members").select("id, email")
+    .from("actors").select("id, email")
     .eq("org_id", person.org_id).in("email", memberMails);
-  const interviewerIds = ((actors ?? []) as { id: string }[]).map((a) => a.id);
+  const interviewerIds = ((actors ?? []) as { id: string }[]).map((a) => a.id); // actors.id is what interviewer_actor_ids expects
   if (!ev.startsAt) return Response.json({ ok: true, skipped: "no_time" });
 
   const status = ev.status === "cancelled" ? "cancelled" : "scheduled";
