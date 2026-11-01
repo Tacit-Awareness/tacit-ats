@@ -213,7 +213,6 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`J\` / \`K\` | Next, previous |
 | \`I\` | Pick Interview |
 | \`T\` | Pick Testbench |
-| \`S\` | Pick Screening |
 | \`D\` | Pick Decline, then choose a reason from your company's list |
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |

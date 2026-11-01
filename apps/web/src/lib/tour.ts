@@ -55,7 +55,7 @@ export const TOUR: TourStep[] = [
     href: "/client/applicants",
     targets: ['[data-tour="route"]', '[data-tour="tickets"]'],
     title: "New Applicants",
-    body: "New applicants, read like email. R writes a reply: you read the draft, then Send. Pick Interview, Screening or Decline, then press the button beside it, or Enter after a key, and the next one opens.",
+    body: "New applicants, read like email. R writes a reply: you read the draft, then Send. Pick Interview or Decline, then press the button beside it, or Enter after a key, and the next one opens.",
   },
   {
     href: "/client/pipeline",
