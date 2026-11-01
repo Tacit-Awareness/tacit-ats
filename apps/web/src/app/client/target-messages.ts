@@ -26,6 +26,6 @@ export const TARGET_ERRORS: Record<TargetError, string> = {
   too_big: "That's over the limit of 1,000,000 hours or applications.",
   too_small: "That's too small to keep. Enter at least 0.01, or 0.",
   forbidden: "Only an admin at your company can change targets.",
-  rate_limited: "Your team has hit its limit of changes for this hour. Try again later.",
+  rate_limited: "You've made 300 changes in the last hour, the limit. Try again later.",
   failed: "That didn't save, and it may not have gone through. Reload the page to check.",
 };

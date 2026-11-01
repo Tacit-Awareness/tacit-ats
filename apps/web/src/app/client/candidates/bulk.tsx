@@ -126,7 +126,7 @@ function Report({ action, summary, onClose }: { action: BulkAction; summary: Bul
   return (
     <div className="grid gap-3 p-4">
       <p className="m-0 text-[13.5px]" role="status">
-        {[summary.done ? DONE[action](summary.done) : `Nothing was changed.`, summary.unchanged ? UNCHANGED[action](summary.unchanged) : null].filter(Boolean).join(" ")}
+        {[summary.done ? DONE[action](summary.done) : "No candidates were changed.", summary.unchanged ? UNCHANGED[action](summary.unchanged) : null].filter(Boolean).join(" ")}
       </p>
       {summary.problems.length ? (
         <div className="grid gap-1.5">
