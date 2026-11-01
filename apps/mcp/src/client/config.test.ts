@@ -9,7 +9,12 @@ describe("clientMailer", () => {
   });
 
   test("without a Resend key, drafts work and nothing can be sent", () => {
-    expect(clientMailer({})).toEqual({ send: null, fromAddress: DEFAULT_CLIENT_EMAIL_FROM });
+    expect(clientMailer({})).toEqual({ send: null, fromAddress: DEFAULT_CLIENT_EMAIL_FROM, replyDomain: null });
+  });
+
+  test("CLIENT_EMAIL_REPLY_DOMAIN turns on receiving replies, and a bad one leaves it off", () => {
+    expect(clientMailer({ CLIENT_EMAIL_REPLY_DOMAIN: " In.Tacit.Test " })?.replyDomain).toBe("in.tacit.test");
+    expect(clientMailer({ CLIENT_EMAIL_REPLY_DOMAIN: "not a domain" })?.replyDomain).toBeNull();
   });
 
   test("with a key, From is CLIENT_EMAIL_FROM, or Tacit's default", () => {

@@ -1,9 +1,10 @@
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 
+import { keepReply } from "../inbound/email-reply";
 import { draftReply, readReply, readSender, sendDraft } from "./email";
-import { readInbox } from "./inbox";
+import { readInbox, readIssue } from "./inbox";
 
 /**
  * Candidate email from the web app against the local stack, on members' own
@@ -352,5 +353,79 @@ describe("the Inbox's unsent drafts", () => {
     await drafted();
     await drafted({ subject: "Lee's" }, asLee(), lee);
     expect((await unsent(later())).map((i) => i.draft?.subject)).toEqual([reply.subject]);
+  });
+});
+
+describe("a candidate's reply", () => {
+  const forward = () => {
+    const send = vi.fn(async (_: { from: string; replyTo?: string; to: string; subject: string; text: string; idempotencyKey?: string }) => ({ id: "re_forward" }));
+    return { send, fromAddress: "hiring@example.test" };
+  };
+  const sent = async () => {
+    const id = await drafted();
+    const { send, mailer } = fakeMailer();
+    expect(await sendDraft(asAda(), ada, { ...mailer, replyDomain: "in.example.test" }, id)).toEqual({ ok: true });
+    return { id, replyTo: send.mock.calls[0]![0].replyTo! };
+  };
+  const arrives = (replyTo: string, providerId = "em_1", f: ReturnType<typeof forward> | null = null) =>
+    keepReply(db(), { providerId, from: "Cam <Cam@Cand.test>", to: [replyTo], subject: "Re: Your application", text: "Yes, Tuesday works.\n" }, f);
+  const inbox = async () => (await readInbox(asAda(), ada, new Date())).issues.filter((i) => i.reason === "reply");
+
+  test("goes out on the email's own address, lands in the author's Inbox and reaches their own mail, once", async () => {
+    const { id, replyTo } = await sent();
+    expect(replyTo).toBe(`reply+${id}@in.example.test`);
+    const f = forward();
+    expect(await arrives(replyTo, "em_1", f)).toBe("forwarded");
+    expect(await arrives(replyTo, "em_1", f)).toBe("duplicate");
+    expect(f.send).toHaveBeenCalledTimes(1);
+    expect(f.send.mock.calls[0]![0]).toMatchObject({ to: "ada@em.test", replyTo: "cam@cand.test" });
+
+    const [issue, ...rest] = await inbox();
+    expect(rest).toEqual([]);
+    expect(issue).toMatchObject({ kind: "reply", why: "Re: Your application", reply: { fromEmail: "cam@cand.test", applicationId: app(1) } });
+    expect(JSON.stringify(issue)).not.toContain("Tuesday");
+    expect((await readIssue(asAda(), { actorId: ADMIN, orgId: ACME, accessLevel: "admin" }, issue!)).replyBody).toBe("Yes, Tuesday works.");
+    const activity = await clientTools.getActivity(asAda(), ada, { candidateId: person(1) });
+    expect(activity.entries.find((e) => e.kind === "email.reply")).toMatchObject({ text: "Re: Your application", applicationId: app(1) });
+  });
+
+  test("writing to them again clears it, and a later reply brings it back", async () => {
+    const { replyTo } = await sent();
+    await arrives(replyTo);
+    expect(await inbox()).toHaveLength(1);
+    await sent();
+    expect(await inbox()).toEqual([]);
+    await arrives(replyTo, "em_2");
+    expect(await inbox()).toHaveLength(1);
+  });
+
+  test("is read with the email: not by an interviewer or another company, and not in a teammate's queue", async () => {
+    const { replyTo } = await sent();
+    await arrives(replyTo);
+    expect((await asLee().from("candidate_email_replies").select("id")).data).toHaveLength(1);
+    expect((await readInbox(asLee(), lee, new Date())).issues.filter((i) => i.reason === "reply")).toEqual([]);
+    expect((await token("user_em_ivan").from("candidate_email_replies").select("id")).data).toEqual([]);
+    expect((await token("user_em_out", GLOBEX_WORKOS).from("candidate_email_replies").select("id")).data).toEqual([]);
+  });
+
+  test("a member cannot write one", async () => {
+    const { id } = await sent();
+    const { error } = await asAda().from("candidate_email_replies").insert({ email_id: id, from_email: "x@y.test", provider_id: "forged" });
+    expect(error?.code).toBe("42501");
+  });
+
+  test("an address naming no sent email keeps nothing", async () => {
+    const draft = await drafted();
+    expect(await arrives(`reply+${draft}@in.example.test`)).toBe("no_email");
+    expect(await arrives("reply+00000000-0000-4000-8000-000000000000@in.example.test")).toBe("no_email");
+    expect(await arrives("calendar@in.example.test")).toBe("not_a_reply");
+    expect((await db().from("candidate_email_replies").select("id").eq("org_id", ACME)).data).toEqual([]);
+  });
+
+  test("goes with the email when the candidate is erased", async () => {
+    const { id, replyTo } = await sent();
+    await arrives(replyTo);
+    must(await db().from("candidate_emails").delete().eq("id", id));
+    expect((await db().from("candidate_email_replies").select("id").eq("org_id", ACME)).data).toEqual([]);
   });
 });

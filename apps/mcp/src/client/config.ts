@@ -1,5 +1,5 @@
 import { connector } from "@tacit/core";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
 
 /**
@@ -71,7 +71,8 @@ const PLAIN_EMAIL = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
  * work. Without RESEND_API_KEY drafts are written and send_email says sending
  * is not set up. Every email is From CLIENT_EMAIL_FROM (a Tacit-controlled
  * address, since a client's own domain is not one Tacit can send from) under
- * the member's name, with Reply-To the member's own address.
+ * the member's name, with Reply-To the member's own address, or with
+ * CLIENT_EMAIL_REPLY_DOMAIN set that email's own address for replies.
  */
 export function clientMailer(env: Record<string, string | undefined> = process.env): clientTools.ClientMailer | null {
   if (env.CLIENT_EMAIL_DISABLED?.trim()) return null;
@@ -81,7 +82,7 @@ export function clientMailer(env: Record<string, string | undefined> = process.e
     return null;
   }
   const apiKey = env.RESEND_API_KEY?.trim();
-  return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress };
+  return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress, replyDomain: clientTools.parseReplyDomain(env.CLIENT_EMAIL_REPLY_DOMAIN) };
 }
 
 /** Where a member connects Granola (apps/web /client/settings), from CLIENT_JOBS_ORIGIN, apps/web's origin. */

@@ -63,6 +63,8 @@ export type IssueReaderProps = {
   card: { title: string; detail: string };
   /** An unsent draft, for its author's eyes. */
   draft: SendProps | null;
+  /** A candidate's reply: their words, shown as text. */
+  reply: { subject: string; body: string } | null;
   fix: IssueFix;
   /** The buttons and what they confirm, when the fix is a decision. */
   decision: DecisionProps | null;
@@ -83,12 +85,14 @@ export type IssueReaderProps = {
 export type PersonPopupProps = { key: string; title: string; subject: string; page: string; body: React.ReactNode };
 
 const ICON: Record<IssueKind, string> = {
+  reply: "M6.5 3.5 2.5 7.5l4 4M2.5 7.5H10a3.5 3.5 0 0 1 3.5 3.5v1.5",
   draft: "M2.5 4h11v8.5h-11ZM2.5 4.5 8 8.8l5.5-4.3",
   late: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 4.8V8l2.2 1.3",
   decide: "M3.5 14V2.5M3.5 3h8.5l-2 3 2 3H3.5",
 };
 
 const TONE: Record<IssueKind, string> = {
+  reply: "bg-[color:var(--sel)] text-[color:var(--accent)]",
   draft: "bg-[color:var(--sel)] text-[color:var(--accent)]",
   late: "bg-[color:var(--amber-soft)] text-[color:var(--amber)]",
   decide: "bg-[color:var(--soft)] text-muted-foreground",
@@ -360,6 +364,15 @@ function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   );
 }
 
+function Reply({ reply }: { reply: NonNullable<IssueReaderProps["reply"]> }) {
+  return (
+    <div data-untrusted="candidate-email" className="mt-3 border-t border-[color:var(--line)] pt-3 text-[13px]">
+      {reply.subject ? <p className="m-0 mb-2 font-medium break-words">{reply.subject}</p> : null}
+      <p className="m-0 break-words whitespace-pre-wrap">{reply.body || "The email had no text."}</p>
+    </div>
+  );
+}
+
 function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   return (
     <article className="mx-auto grid w-[760px] max-w-full content-start">
@@ -379,6 +392,7 @@ function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange 
           </div>
         </div>
         {issue.draft ? <Draft draft={issue.draft} /> : null}
+        {issue.reply ? <Reply reply={issue.reply} /> : null}
         {issue.terms ? (
           <div className="mt-3 border-t border-[color:var(--line)] pt-3">
             <OfferTerms lines={issue.terms} />

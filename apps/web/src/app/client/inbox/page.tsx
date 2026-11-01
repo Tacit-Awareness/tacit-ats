@@ -51,6 +51,8 @@ function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
       };
     case "approval":
       return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
+    case "reply":
+      return { title: "They wrote back", detail: `From ${i.reply?.fromEmail ?? "the candidate"}. It's also forwarded to your own email. Writing to them again clears this.` };
     case "draft":
       return {
         title: "Not sent",
@@ -222,6 +224,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
                 card: card(open, fix),
                 draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body, from: sender?.from ?? null, replyTo: sender?.replyTo ?? null } : null,
+                reply: open.reply ? { subject: open.reply.subject, body: detail?.replyBody ?? "" } : null,
                 fix,
                 decision,
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,

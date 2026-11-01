@@ -3,7 +3,7 @@ import { clientTools } from "@tacit-ats/core";
 import type { MoveInput } from "./candidate-edit-rules";
 import { type CloseReason, type EditOutcome, logCandidateTouch, moveCandidate, setCandidateNextAction } from "./candidate-edits";
 import { doneItems, type Dismissal, type DoneItem, type DoneSubject } from "./inbox-done";
-import { DRAFT_LATE_MS, currentDrafts, inboxIssues, instanceId, isIssueReason, standingIssues, type InboxDraft, type InboxInput, type InboxOutstanding, type Issue, type IssueInstance, type LaterEmail } from "./inbox-issues";
+import { DRAFT_LATE_MS, currentDrafts, unansweredReplies, inboxIssues, instanceId, isIssueReason, standingIssues, type InboxDraft, type InboxInput, type InboxOutstanding, type InboxReply, type Issue, type IssueInstance, type LaterEmail } from "./inbox-issues";
 import { readInterviewRoute, type InterviewRoute } from "./interviews";
 import { readPipeline } from "./pipeline";
 
@@ -35,6 +35,9 @@ const DRAFT_SCAN_MAX = 1000;
  */
 const FEEDBACK_WINDOW_DAYS = 90;
 const DAY = 86_400_000;
+/** How far back a candidate's reply still waits, and how many are read. */
+const REPLY_WINDOW_DAYS = 30;
+const REPLIES_MAX = 200;
 /** Entries in the reader's activity story. */
 const STORY_MAX = 12;
 /** Rows on the Done tab, newest first; the list says when it stops here. */
@@ -134,6 +137,53 @@ async function readDrafts(db: Db, actorId: string, now: Date): Promise<{ drafts:
   return { drafts, capped };
 }
 
+type ReplyRow = {
+  id: string;
+  from_email: string;
+  subject: string;
+  received_at: string;
+  candidate_emails: { person_id: string; application_id: string | null; people: { display_name: string | null } | null; applications: { roles: { title: string } | null } | null };
+};
+
+/**
+ * Replies to the member's own emails, as their own unsent drafts are: another
+ * member's correspondence shows on the candidate, not in this queue. Never the
+ * words, which readIssue reads for the one open.
+ */
+async function readReplies(db: Db, actorId: string, now: Date): Promise<InboxReply[]> {
+  const since = new Date(now.getTime() - REPLY_WINDOW_DAYS * DAY).toISOString();
+  const { data, error } = await db
+    .from("candidate_email_replies")
+    .select("id, from_email, subject, received_at, candidate_emails!inner(person_id, application_id, people(display_name), applications(roles(title)))")
+    .eq("candidate_emails.author_actor_id", actorId)
+    .gte("received_at", since)
+    .order("received_at", { ascending: false })
+    .limit(REPLIES_MAX)
+    .overrideTypes<ReplyRow[], { merge: false }>();
+  if (error) throw new Error(error.message);
+  const replies = (data ?? []).map((r) => ({
+    replyId: r.id,
+    personId: r.candidate_emails.person_id,
+    personName: r.candidate_emails.people?.display_name ?? r.from_email,
+    jobTitle: r.candidate_emails.applications?.roles?.title ?? null,
+    applicationId: r.candidate_emails.application_id,
+    fromEmail: r.from_email,
+    subject: r.subject,
+    receivedAt: r.received_at,
+  }));
+  if (!replies.length) return [];
+  const { data: sent, error: sentError } = await db
+    .from("candidate_emails")
+    .select("person_id, sent_at")
+    .eq("author_actor_id", actorId)
+    .eq("status", "sent")
+    .gte("sent_at", since)
+    .order("sent_at", { ascending: false })
+    .limit(DRAFT_SCAN_MAX);
+  if (sentError) throw new Error(sentError.message);
+  return unansweredReplies(replies, (sent ?? []).flatMap((s) => (s.sent_at ? [{ personId: s.person_id, sentAt: s.sent_at }] : [])));
+}
+
 /**
  * Which of what stands the member has set aside. Asked by key, so the read is
  * as long as the queue and not every dismissal they ever made. Only `dismissed`
@@ -166,7 +216,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
   if (member.accessLevel === "limited") throw new clientTools.ClientToolError("forbidden", "An interviewer's work is on their home page.");
   // The reports never write an audit row, so the source is never read.
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
-  const [pipeline, activity, approvals, { drafts, capped }] = await Promise.all([
+  const [pipeline, activity, approvals, { drafts, capped }, replies] = await Promise.all([
     readPipeline(db, now),
     clientTools.interviewerActivity(db, ctx, { since: new Date(now.getTime() - FEEDBACK_WINDOW_DAYS * DAY).toISOString().slice(0, 10) }).catch((err: unknown) => {
       // Someone who manages no job: whether anyone filed is not theirs to see.
@@ -175,6 +225,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
     }),
     clientTools.listMyApprovals(db, ctx),
     readDrafts(db, member.actorId, now),
+    readReplies(db, member.actorId, now),
   ]);
 
   const names = new Map((activity?.interviewers ?? []).map((i) => [i.userId, i.name]));
@@ -203,6 +254,7 @@ export async function readInbox(db: Db, member: Omit<clientTools.ClientToolCtx, 
       steps: a.steps,
     })),
     drafts,
+    replies,
   };
   const standing = standingIssues(input, now.getTime());
   return {
@@ -223,6 +275,13 @@ const readStory = (db: Db, ctx: clientTools.ClientToolCtx, candidateId: string) 
     },
   );
 
+/** The words of the reply open, on the member's own token. The candidate's text: the page shows it as text. */
+const readReplyBody = async (db: Db, replyId: string) => {
+  const { data, error } = await db.from("candidate_email_replies").select("body").eq("id", replyId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.body ?? null;
+};
+
 /**
  * What the reader adds for the issue open: the candidate's story, whether the
  * member may edit the job, the reasons a rejection can give, and an offer's
@@ -235,7 +294,7 @@ const readStory = (db: Db, ctx: clientTools.ClientToolCtx, candidateId: string) 
 export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, "source">, issue: Issue) {
   const ctx: clientTools.ClientToolCtx = { ...member, source: "claude" };
   const offerRequest = issue.approval?.kind === "offer" ? issue.approval.requestId : null;
-  const [story, canEdit, terms, reasons, jobSeen] = await Promise.all([
+  const [story, canEdit, terms, reasons, jobSeen, replyBody] = await Promise.all([
     issue.candidate ? readStory(db, ctx, issue.candidate.id) : [],
     issue.applicationId && issue.job.id
       ? db.rpc("can_on_role", { p_role: issue.job.id, perm: "can_edit_pipeline" }).then((r) => {
@@ -253,8 +312,9 @@ export async function readIssue(db: Db, member: Omit<clientTools.ClientToolCtx, 
           return r.data !== null;
         })
       : true,
+    issue.reply ? readReplyBody(db, issue.reply.replyId) : null,
   ]);
-  return { story, canEdit, terms, reasons, canOpen: story !== null && jobSeen };
+  return { story, canEdit, terms, reasons, replyBody, canOpen: story !== null && jobSeen };
 }
 
 export type DecisionLoop = { plan: clientTools.InterviewPlan; progress: clientTools.PlanProgress; feedback: clientTools.FeedbackSummary | null; stage: string | null; routing: InterviewRoute | null };
@@ -308,6 +368,7 @@ export async function readIssueName(db: Db, actorId: string, key: string, standi
 
 type DoneApplication = { id: string; person_id: string; role_id: string; people: { display_name: string | null } | null; roles: { title: string } | null };
 type DoneApproval = { id: string; kind: string; role_id: string; roles: { title: string } | null };
+type DoneReply = { id: string; from_email: string; candidate_emails: { person_id: string; people: { display_name: string | null } | null; applications: { roles: { title: string } | null } | null } };
 type DoneDraft = { id: string; person_id: string; to_email: string; people: { display_name: string | null } | null; applications: { roles: { title: string } | null } | null };
 
 /** Names for what no longer stands, on the member's own reads: what they can't read has no name, and drops off Done. */
@@ -316,7 +377,7 @@ async function readDoneSubjects(db: Db, actorId: string, keys: string[]): Promis
   const failed = (r: { error: { message: string } | null }) => {
     if (r.error) throw new Error(r.error.message);
   };
-  const [applications, approvals, drafts] = await Promise.all([
+  const [applications, approvals, drafts, replies] = await Promise.all([
     Promise.all(
       chunks(ids("app")).map((part) =>
         db.from("applications").select("id, person_id, role_id, people(display_name), roles(title)").in("id", part).is("merged_into_id", null).overrideTypes<DoneApplication[], { merge: false }>(),
@@ -326,6 +387,11 @@ async function readDoneSubjects(db: Db, actorId: string, keys: string[]): Promis
     Promise.all(
       chunks(ids("draft")).map((part) =>
         db.from("candidate_emails").select("id, person_id, to_email, people(display_name), applications(roles(title))").in("id", part).eq("author_actor_id", actorId).overrideTypes<DoneDraft[], { merge: false }>(),
+      ),
+    ),
+    Promise.all(
+      chunks(ids("reply")).map((part) =>
+        db.from("candidate_email_replies").select("id, from_email, candidate_emails!inner(person_id, people(display_name), applications(roles(title)))").in("id", part).overrideTypes<DoneReply[], { merge: false }>(),
       ),
     ),
   ]);
@@ -341,6 +407,13 @@ async function readDoneSubjects(db: Db, actorId: string, keys: string[]): Promis
   for (const r of drafts) {
     failed(r);
     for (const d of r.data ?? []) subjects.set(`draft-${d.id}`, { candidate: { id: d.person_id, name: d.people?.display_name ?? d.to_email }, jobId: null, jobTitle: d.applications?.roles?.title ?? null, approvalKind: null });
+  }
+  for (const r of replies) {
+    failed(r);
+    for (const d of r.data ?? []) {
+      const e = d.candidate_emails;
+      subjects.set(`reply-${d.id}`, { candidate: { id: e.person_id, name: e.people?.display_name ?? d.from_email }, jobId: null, jobTitle: e.applications?.roles?.title ?? null, approvalKind: null });
+    }
   }
   return subjects;
 }
