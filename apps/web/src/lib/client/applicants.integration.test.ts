@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
-import { readApplicantQueue, readRouting, routeApplicant, type QueueReader } from "./applicants";
+import { readApplicantQueue, readApplicationNotes, readRouting, routeApplicant, type QueueReader } from "./applicants";
 
 /**
  * Applicant Tickets against the local stack, on members' own tokens: the
@@ -84,13 +84,14 @@ beforeEach(async () => {
     { id: WITHDREW_REASON, org_id: ACME, kind: "withdrew", name: "Took another offer" },
   ]));
 
-  // 1, 2: engineer applicants from the board; 3: designer; 4: the board, but already screening; 5: sourced by hand.
+  // 1, 2: engineer applicants from the board; 3: designer; 4: the board, but already screening; 5: sourced by hand; 6: a referral.
   const apps = [
     [1, ENGINEER, "sourced", "job_board", -1],
     [2, ENGINEER, "sourced", "job_board", -5],
     [3, DESIGNER, "sourced", "job_board", -3],
     [4, ENGINEER, "screening", "job_board", -2],
     [5, ENGINEER, "sourced", "sourced", -1],
+    [6, DESIGNER, "sourced", "referral", -4],
   ] as const;
   must(await db().from("people").insert([
     ...apps.map(([n]) => ({ id: person(n), org_id: ACME, display_name: `Applicant ${n}`, email: `a${n}@ap.test` })),
@@ -98,7 +99,7 @@ beforeEach(async () => {
   ]));
   must(await db().from("applications").insert([
     ...apps.map(([n, role, stage, source, h]) => ({
-      id: app(n), org_id: ACME, person_id: person(n), role_id: role, stage, source, source_detail: "Careers page", created_at: at(h),
+      id: app(n), org_id: ACME, person_id: person(n), role_id: role, stage, source, source_detail: source === "referral" ? "Priya Shah" : "Careers page", created_at: at(h),
     })),
     { id: GLOBEX_APP, org_id: GLOBEX, person_id: GLOBEX_PERSON, role_id: GLOBEX_ROLE, stage: "sourced", source: "job_board", created_at: at(0) },
   ]));
@@ -115,11 +116,21 @@ beforeEach(async () => {
 afterAll(clear);
 
 describe("Applicant Tickets", () => {
-  test("an admin sees every job-board applicant still at the first stage, newest first, with their answers", async () => {
+  test("an admin sees every applicant and referral still at the first stage, newest first, with their answers", async () => {
     const queue = await readApplicantQueue(member("user_ap_ada"), reader(ADMIN, "admin"));
-    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(3), app(2)]);
+    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(3), app(6), app(2)]);
     expect(queue[0]).toMatchObject({ jobId: ENGINEER, jobTitle: "Founding Engineer", name: "Applicant 1", post: "Careers page" });
     expect(queue[0]!.answers.map((a) => a.value)).toEqual(["Applicant 1", "linkedin.com/in/applicant1"]);
+  });
+
+  test("a referral is a ticket: who referred them, the note, and routing takes it out", async () => {
+    const ada = member("user_ap_ada");
+    must(await db().from("application_events").insert({ org_id: ACME, application_id: app(6), kind: "note", detail: "Worked with her at Stripe.", actor_id: ADMIN }));
+    const entry = (await readApplicantQueue(ada, reader(ADMIN, "admin"))).find((e) => e.applicationId === app(6));
+    expect(entry).toMatchObject({ source: "referral", referredBy: "Priya Shah", post: null, answers: [] });
+    expect(await readApplicationNotes(ada, app(6))).toEqual(["Worked with her at Stripe."]);
+    expect(await routeApplicant(ada, ADMIN, { applicationId: app(6), route: "screening" })).toEqual({ ok: true, route: "screening" });
+    expect((await readApplicantQueue(ada, reader(ADMIN, "admin"))).map((e) => e.applicationId)).not.toContain(app(6));
   });
 
   test("a hiring manager sees only their job's applicants", async () => {

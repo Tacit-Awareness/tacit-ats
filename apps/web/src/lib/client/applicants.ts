@@ -6,9 +6,9 @@ import type { QueueEntry } from "./applicant-queue";
 
 // Applicant Tickets' read and its one write, on the member's OWN client (never
 // a privileged one). The queue is core's listApplicationsInbox, the client
-// connector's list_applications_inbox: job-board applications still at the
-// first stage, with their answers, exactly the ones the policies let the
-// member read. Routing one is core's moveStage, as the job board's actions,
+// connector's list_applications_inbox: job-board applications and referrals
+// still at the first stage, with their answers, exactly the ones the policies
+// let the member read. Routing one is core's moveStage, as the job board's actions,
 // so the policies decide again; the checks before it only answer with a code.
 
 /** Who is reading, as listApplicationsInbox needs it. */
@@ -18,6 +18,18 @@ export async function readApplicantQueue(db: Db, who: QueueReader): Promise<Queu
   // `source` names the caller in audit rows; a read writes none.
   const ctx: clientTools.ClientToolCtx = { ...who, source: "claude" };
   return clientTools.listApplicationsInbox(db, ctx, { limit: clientTools.LIST_MAX });
+}
+
+/** Notes kept on one application, as many as a ticket shows. */
+const NOTES_MAX = 20;
+
+/** The team's notes on an application, oldest first: a referral's note is the first of them. */
+export async function readApplicationNotes(db: Db, applicationId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from("application_events").select("detail").eq("application_id", applicationId).eq("kind", "note")
+    .order("created_at").limit(NOTES_MAX);
+  if (error) throw new Error(error.message);
+  return (data ?? []).flatMap((e) => (e.detail ? [e.detail] : []));
 }
 
 export type RejectReason = { reasonId: string; name: string };
