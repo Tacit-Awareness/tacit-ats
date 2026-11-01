@@ -1,7 +1,8 @@
 import { clientTools } from "@tacit-ats/core";
-import { OUTSTANDING_PREVIEW, type HomeRead } from "@/lib/client/home";
+import { HIRE_WEEKS, OFFER_PREVIEW, OUTSTANDING_PREVIEW, type HomeRead } from "@/lib/client/home";
+import { SOURCE_GROUPS } from "@/lib/client/analytics-metrics";
 import { departmentTabs } from "@/lib/client/department-tree";
-import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageAbbr, stageRows, timeRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
+import { ageBuckets, bottlenecks, feedbackSummary, fmtHours, stageRows, timeRows, workload, HOME_PERIODS, type Bottleneck, type BottleneckKey } from "@/lib/client/home-metrics";
 import { isOffTarget, targetField, targetRule, targetWords, type TargetMetric } from "@/lib/client/home-target-rules";
 import type { TargetChipProps } from "./home-target";
 import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
@@ -13,7 +14,6 @@ import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 const STAGE_PREVIEW = 8;
 /** Bars the workload card shows, most hours first. */
 const LOAD_ROWS = 6;
-const SHORT: Record<string, string> = { new: "New", screening: "Screen", scheduling: "Sched", booked: "Booked", decide: "Call", offer: "Offer" };
 const STAGE_NAMES: Record<string, string> = { sourced: "Sourced", contacted: "Contacted", screening: "Screening", interviewing: "Interviewing", offer: "Offer" };
 
 const hoursLabel = (h: number) => `${Math.round(h * 10) / 10}h`;
@@ -133,6 +133,10 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
     title: b.toDaysAgo === 0 ? `${b.n} in the last ${weekly ? "week" : "day"}` : `${b.n} from ${b.fromDaysAgo} to ${b.toDaysAgo} days ago`,
   }));
 
+  const half = read.daily.length / 2;
+  const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  const lastHires = read.hires.slice(HIRE_WEEKS);
+
   const menu = (label: string, options: { href: string; label: string; active: boolean }[]) => {
     const picked = options.find((o) => o.active) ?? options[0];
     return { label, value: picked.label, on: picked !== options[0], options };
@@ -159,9 +163,24 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
     filters,
     pipelineHref: pipeline(),
     newApps: { value: read.applications.current, change: read.applications.change, bars, target: target("new_applications", read.applications.current) },
+    trend: { current: read.daily.slice(half), previous: read.daily.slice(0, half), total: total(read.daily.slice(half)), before: total(read.daily.slice(0, half)) },
+    hires: { weeks: lastHires, total: total(lastHires), before: total(read.hires.slice(0, HIRE_WEEKS)) },
+    sources: SOURCE_GROUPS.filter((g) => read.sources[g.key] > 0).map((g) => ({ label: g.label, n: read.sources[g.key] })),
+    offers: {
+      total: read.offers.length,
+      rows: read.offers.slice(0, OFFER_PREVIEW).map((o) => ({
+        id: o.requestId,
+        candidate: o.candidateName ?? "A candidate",
+        line: [o.jobTitle, o.requestedBy ? `from ${o.requestedBy}` : null].filter(Boolean).join(" · "),
+        requestedBy: o.requestedBy,
+        wait: fmtHours(Math.max(0, now - Date.parse(o.requestedAt)) / 3_600_000),
+        href: `/client/inbox?i=appr-${o.requestId}`,
+      })),
+      more: read.offers.length > OFFER_PREVIEW ? { href: "/client/inbox", label: `All ${read.offers.length} in the Inbox` } : null,
+    },
     inProcess: {
       value: read.waiting.length,
-      bars: stages.map((r) => ({ n: r.people.length, label: r.column ? SHORT[r.column] : stageAbbr(r.label), title: `${r.people.length} in ${r.label}` })),
+      parts: stages.map((r) => ({ label: r.label, n: r.people.length })),
       byProcess: read.stages !== null,
     },
     review: waitCard("new", "review"),

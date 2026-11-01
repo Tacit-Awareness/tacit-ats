@@ -3,6 +3,7 @@ import { clientTools } from "@tacit-ats/core";
 import type { AccessLevel } from "./session";
 import { departmentScope, inScope, type DepartmentOption } from "./department-tree";
 import { readDepartments } from "./departments";
+import { SOURCE_GROUPS, sourceGroup, type SourceGroup } from "./analytics-metrics";
 import { readHomeTargets } from "./home-targets";
 import type { HomeTargets } from "./home-target-rules";
 import { readPipeline } from "./pipeline";
@@ -15,6 +16,7 @@ import {
   interviewEfficiency,
   mergeStays,
   periodCount,
+  stretches,
   waitingSince,
   type Bin,
   type ClosedApplication,
@@ -51,6 +53,10 @@ const SCAN_MAX = 5000;
 const DAY = 86_400_000;
 /** Outstanding feedback the card lists, oldest first, before "All in Interviews". */
 export const OUTSTANDING_PREVIEW = 5;
+/** The hires widget's weeks; the same again before them is what it compares with. */
+export const HIRE_WEEKS = 12;
+/** Offers the widget lists before "All in the Inbox". */
+export const OFFER_PREVIEW = 5;
 
 export type HomeRead = {
   /** The live departments to filter by; empty for an org with none, which shows no filter. */
@@ -62,6 +68,14 @@ export type HomeRead = {
   /** The job picked, when the member can see it; null is every job. */
   jobId: string | null;
   applications: PeriodCount & { bins: Bin[] };
+  /** Applications per day over two periods, oldest first, so its second half is this period. */
+  daily: number[];
+  /** Where this period's applications came from. */
+  sources: Record<SourceGroup, number>;
+  /** Hires per week over HIRE_WEEKS twice, oldest first, so its second half is the last 12 weeks. */
+  hires: number[];
+  /** Offers waiting on this member's own sign-off, oldest first: who and for which job, never the terms. */
+  offers: OfferWaiting[];
   waiting: Waiting[];
   /** The stages of the company's process, in order; null with none, or for a member who may not read it. */
   stages: StageName[] | null;
@@ -83,6 +97,8 @@ export type HomeRead = {
   /** A read stopped at its cap, so a number is a floor. */
   truncated: boolean;
 };
+
+export type OfferWaiting = { requestId: string; candidateName: string | null; jobTitle: string; requestedBy: string | null; requestedAt: string };
 
 export type OutstandingRow = {
   interviewId: string;
@@ -147,7 +163,7 @@ async function movesFor(db: Db, applicationIds: string[]) {
   return byApp;
 }
 
-type ClosingRow = { application_id: string; to_stage: string; applications: { stage: string; role_id: string } };
+type ClosingRow = { application_id: string; to_stage: string; created_at: string; applications: { stage: string; role_id: string } };
 
 /**
  * Everything interviewEfficiency counts for these applications: their
@@ -198,12 +214,12 @@ export async function readHome(
 
   const prevFrom = new Date(nowMs - 2 * input.days * DAY).toISOString();
   const since = sinceDay(now, input.days);
-  const [moves, apps, ivs, activity, targets, closings] = await Promise.all([
+  const [moves, apps, ivs, activity, targets, closings, approvals] = await Promise.all([
     movesFor(db, entries.map((e) => e.applicationId)),
     // A department is narrowed here, after the read, so a long list of job ids never rides in the URL.
-    scanRows<{ created_at: string; role_id: string }>((from, to) => {
+    scanRows<{ created_at: string; role_id: string; source: string; source_detail: string | null }>((from, to) => {
       // A merged application is the same candidate counted twice: only live ones count.
-      let q = db.from("applications").select("created_at, role_id").is("merged_into_id", null).gte("created_at", prevFrom);
+      let q = db.from("applications").select("created_at, role_id, source, source_detail").is("merged_into_id", null).gte("created_at", prevFrom);
       if (jobId) q = q.eq("role_id", jobId);
       return q.order("created_at", { ascending: false }).order("id").range(from, to);
     }),
@@ -232,7 +248,7 @@ export async function readHome(
     scanRows<ClosingRow>((from, to) => {
       let q = db
         .from("application_events")
-        .select("application_id, to_stage, applications!inner(stage, role_id, merged_into_id)")
+        .select("application_id, to_stage, created_at, applications!inner(stage, role_id, merged_into_id)")
         .in("to_stage", [...CLOSED])
         .is("applications.merged_into_id", null)
         .in("applications.stage", [...CLOSED])
@@ -240,6 +256,7 @@ export async function readHome(
       if (jobId) q = q.eq("applications.role_id", jobId);
       return q.order("created_at", { ascending: false }).order("id").range(from, to).overrideTypes<ClosingRow[], { merge: false }>();
     }),
+    clientTools.listMyApprovals(db, ctx),
   ]);
 
   const appRows = apps.rows.filter((a) => counts(a.role_id));
@@ -287,12 +304,28 @@ export async function readHome(
 
   const outstanding = activity ? await outstandingRows(db, activity) : [];
   const createdAts = appRows.map((a) => a.created_at);
+  const periodFrom = nowMs - input.days * DAY;
+  const sources = Object.fromEntries(SOURCE_GROUPS.map((g) => [g.key, 0])) as Record<SourceGroup, number>;
+  for (const a of appRows) if (Date.parse(a.created_at) >= periodFrom) sources[sourceGroup(a.source, a.source_detail)] += 1;
+  // Newest first, so someone hired twice over counts at their last hire.
+  const hiredAt = new Map<string, string>();
+  for (const m of closings.rows) {
+    if (m.to_stage === "hired" && m.applications.stage === "hired" && counts(m.applications.role_id) && !hiredAt.has(m.application_id)) hiredAt.set(m.application_id, m.created_at);
+  }
+  const offers = approvals
+    .filter((a) => a.kind === "offer" && counts(a.jobId))
+    .sort((a, b) => a.requestedAt.localeCompare(b.requestedAt))
+    .map((a) => ({ requestId: a.requestId, candidateName: a.candidateName, jobTitle: a.jobTitle, requestedBy: a.requestedBy, requestedAt: a.requestedAt }));
   return {
     departments: scope.options,
     departmentId: scope.departmentId,
     jobs,
     jobId,
     applications: { ...periodCount(createdAts, input.days, nowMs), bins: bins(createdAts, input.days, nowMs) },
+    daily: stretches(createdAts, 1, input.days * 2, nowMs),
+    sources,
+    hires: stretches([...hiredAt.values()], 7, HIRE_WEEKS * 2, nowMs),
+    offers,
     waiting,
     stages: pipeline.stages,
     stays: mergeStays(reports),

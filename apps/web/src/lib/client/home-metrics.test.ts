@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   ageBuckets,
   bins,
+  stretches,
   bottlenecks,
   feedbackSummary,
   fmtHours,
@@ -343,5 +344,17 @@ describe("interview efficiency", () => {
       { id: "a", roleId: "j1", stage: "withdrawn" },
       { id: "b", roleId: "j1", stage: "hired" },
     ]);
+  });
+});
+
+describe("stretches", () => {
+  const ago = (d: number) => new Date(NOW - d * 86_400_000).toISOString();
+
+  test("oldest first, the last ending now", () => {
+    expect(stretches([ago(0.5), ago(0.6), ago(2.5)], 1, 3, NOW)).toEqual([1, 0, 2]);
+  });
+
+  test("weeks, and what falls outside is left out", () => {
+    expect(stretches([ago(1), ago(8), ago(15), ago(-1)], 7, 2, NOW)).toEqual([1, 1]);
   });
 });
