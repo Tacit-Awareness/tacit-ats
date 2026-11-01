@@ -18,7 +18,8 @@
 
    Structure is square and anything you press is a pill: --radius is 0, and a
    pill says rounded-full. A set of options is one grey pill track with the
-   picked one dark (`pillTrack` and `pillOption` in components/page.tsx).
+   picked one dark (`pillTrack` and `pillOption` in components/page.tsx). A
+   sidebar row is the exception, 8px (.sb-item).
 
    Until 2026-10-29 these were tacit-internal's apps/internal tokens (its
    green-black Overseer skin); the names stayed, so the components did not
@@ -487,10 +488,13 @@ body:has(.ui-root) {
   white-space: nowrap;
 }
 
+/* a row's selected, marked and hover blocks are soft-cornered, tacit-internal's
+   sidebar's rounded-md: the one rounded box in square structure */
 .sb-item {
   height: var(--sb-item-h);
   min-width: 0;
   overflow: clip;
+  border-radius: 8px;
 }
 
 .sb-sub {
