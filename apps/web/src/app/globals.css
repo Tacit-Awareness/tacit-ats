@@ -520,8 +520,13 @@ body:has(.ui-root) {
   display: flex;
   flex-direction: column;
   gap: var(--sb-sec-gap);
+  /* A short window scrolls the sections under it, so your name, Tutorial and Settings stay on screen. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   margin-top: auto;
   padding-top: var(--sb-group-gap);
+  background: var(--frame);
 }
 
 /* design/tats's account: the name alone, as a quiet pill */
@@ -547,6 +552,16 @@ body:has(.ui-root) {
 
 .sb-acct-glyph {
   display: none;
+}
+
+/* design/tats's foot: Tutorial and Settings, each spelled out, under the name */
+.sb-tools {
+  display: flex;
+  gap: 2px;
+}
+
+.sb-tools > .sb-item {
+  flex: 1 1 0;
 }
 
 .sb-dragging,
@@ -612,6 +627,14 @@ body:has(.ui-root) {
 
   .sb-rail .sb-acct-glyph {
     display: block;
+  }
+
+  .sb-rail .sb-tools {
+    flex-direction: column;
+  }
+
+  .sb-rail .sb-tools > .sb-item {
+    flex: none;
   }
 }
 

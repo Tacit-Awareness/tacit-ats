@@ -33,7 +33,7 @@ describe("memberCalendar", () => {
 
   test("hands core a function, and builds no client until it is called", () => {
     const calendar = memberCalendar("https://ats.test", ENV)!;
-    expect(calendar).toMatchObject({ google: { clientId: "cid", clientSecret: "secret" }, connectUrl: "https://ats.test/client/integrations" });
+    expect(calendar).toMatchObject({ google: { clientId: "cid", clientSecret: "secret" }, connectUrl: "https://ats.test/client/settings" });
     expect(getSupabaseServiceClient).not.toHaveBeenCalled();
   });
 

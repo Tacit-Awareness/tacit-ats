@@ -4,19 +4,19 @@ import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/comp
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
-import { disconnectGranolaAction } from "./actions";
-import { BotSection, type CompanyBot } from "./bot";
+import { disconnectGranolaAction } from "../integrations/actions";
+import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
-} from "./messages";
+} from "../integrations/messages";
 
-// /client/integrations, design/tats's settings cards (`.cardbox` around
+// /client/settings, design/tats's settings cards (`.cardbox` around
 // `.lrow.pol`): one ruled row per connector, Connect or its connected state,
 // the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
 // (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
 // Props only, so page.tsx does every read.
-export function IntegrationsView({
+export function SettingsView({
   calendar,
   granola,
   calendarConfigured,
@@ -47,11 +47,11 @@ export function IntegrationsView({
       : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
-    <Page bar={<PageBar title="Integrations" />}>
+    <Page bar={<PageBar title="Settings" />}>
       {errorText ? <Notice tone="error">{errorText}</Notice> : null}
       {noticeText ? <FlashToast text={noticeText} /> : null}
 
-      <Section flush title="Connectors">
+      <Section flush title="Integrations">
         <Rows ruled>
           <ConnectorRow
             icon={

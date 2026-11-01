@@ -45,11 +45,11 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 
 ## Where to begin
 
-- **Interviewer**: open **Interviews**, connect your calendar on **Integrations**, and read [Access levels](/docs/access) to see what you can reach.
+- **Interviewer**: open **Interviews**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Pipeline & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
-New to the app? **Tutorial**, in the menu under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
+New to the app? **Tutorial**, under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
   },
   {
     slug: "access",
@@ -364,7 +364,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `**Integrations** is at the bottom of the sidebar. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
@@ -404,11 +404,11 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant T
 
 ## Tutorial
 
-**Tutorial**, at the bottom of the sidebar and in the menu under your name, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
   },
   {
     slug: "connect",
@@ -571,7 +571,7 @@ You need:
 
 - **Admin access** in Tacit, to set your company's bot.
 - **A Grok bot connected to your Slack workspace**, able to look people up by email and send them direct messages. Interviewers are matched by the email they use in Tacit, so their Slack accounts should use the same address.
-- **Google Calendar connected** (on **Integrations**) by whoever books interviews, so a move or deletion in their calendar reaches Tacit, and the bot.
+- **Google Calendar connected** (in **Settings**) by whoever books interviews, so a move or deletion in their calendar reaches Tacit, and the bot.
 
 ## 1. Create the routine
 
@@ -624,7 +624,7 @@ Save the routine.
 
 ## 3. Connect it in Tacit
 
-On **Integrations**, under **Your team's bot** (admins only):
+In **Settings**, under **Your team's bot** (admins only):
 
 1. **Your bot's address**: the routine's webhook URL.
 2. **Your bot's key**: the key from the routine's webhook panel. Tacit sends it with every event and never shows it again.
@@ -646,7 +646,7 @@ Moving the interview (in Tacit, or by dragging it in Google Calendar) moves the 
 
 ## If nothing arrives
 
-- **Not verified**: on **Integrations**, the bot must say **Verified**. Press **Verify** again after any change of address or key.
+- **Not verified**: in **Settings**, the bot must say **Verified**. Press **Verify** again after any change of address or key.
 - **No DM but the routine ran**: the interviewer's Slack email must match their email in Tacit.
 - **Booked less than about seven minutes ahead**: the hello still comes, but up to two minutes late.
 - **The check-in never came**: it is only sent while the interviewer has not filed feedback.`,
@@ -668,7 +668,7 @@ The reminder goes at exactly five minutes before. An interview moved or deleted 
 
 ## Setting it up
 
-An admin sets it once, for the whole company, on **Integrations**:
+An admin sets it once, for the whole company, in **Settings**:
 
 1. Enter your bot's **https** address. If your bot's platform gives its webhook a key (a Grok routine's "Authorization: Bearer" key), paste it as **Your bot's key**: Tacit sends it with every event and never shows it again. Otherwise leave it empty, and Tacit makes a **secret** and shows it once: put it in your bot.
 2. Press **Verify**. Tacit sends your bot a signed \`{"event": "url_verification", "challenge": "..."}\`. Any success answer (2xx) verifies it; a bot that can answer may echo \`{"challenge": "<the same>"}\`, and a different challenge back fails. Nothing else is sent until it is verified.
@@ -878,7 +878,7 @@ A job's **interview plan** is its interview steps in order, such as *Recruiter s
 
 \`schedule_interview\` schedules an interview on one application with your company's interviewers. Times include their timezone offset.
 
-**With a Google Calendar connected** (an interviewer's or yours, on the Integrations page here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on an interviewer's calendar, so the interviewer is its organizer: yours if you are interviewing, else the first interviewer you named who has connected. Google sends the other interviewers and the candidate (at their email on file) their invitations, and a Google Meet link is added unless you give a place. Moving or cancelling the interview updates everyone on the invite. When no interviewer has connected, the event goes on your calendar instead.
+**With a Google Calendar connected** (an interviewer's or yours, in Settings here, once), Tacit first checks the interviewers' calendars. If anyone is busy, nothing is booked and Claude tells you who; you can pick another time or book anyway. Otherwise the event goes on an interviewer's calendar, so the interviewer is its organizer: yours if you are interviewing, else the first interviewer you named who has connected. Google sends the other interviewers and the candidate (at their email on file) their invitations, and a Google Meet link is added unless you give a place. Moving or cancelling the interview updates everyone on the invite. When no interviewer has connected, the event goes on your calendar instead.
 
 **With no calendar connected**, neither yours nor an interviewer's, it is recorded in Tacit only, and nobody is invited.
 
@@ -930,7 +930,7 @@ Filing again replaces your earlier feedback, ratings included.
 
 ## Your Granola notes
 
-If you take interview notes in Granola, click **Connect** next to Granola on the **Integrations** page and sign in to Granola. Then your own notes show on **Interviews** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
+If you take interview notes in Granola, click **Connect** next to Granola in **Settings** and sign in to Granola. Then your own notes show on **Interviews** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
 
 The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Tacit says which. When nothing matches, you get the notes you took around then to pick from. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
   },

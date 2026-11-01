@@ -84,10 +84,10 @@ export function clientMailer(env: Record<string, string | undefined> = process.e
   return { send: apiKey ? connector.makeResendSender({ apiKey }) : null, fromAddress };
 }
 
-/** Where a member connects Granola (apps/web /client/integrations), from CLIENT_JOBS_ORIGIN, apps/web's origin. */
+/** Where a member connects Granola (apps/web /client/settings), from CLIENT_JOBS_ORIGIN, apps/web's origin. */
 export function granolaConnectUrl(env: Record<string, string | undefined> = process.env): string | null {
   const origin = env.CLIENT_JOBS_ORIGIN?.trim();
-  return origin ? `${trimSlash(origin)}/client/integrations` : null;
+  return origin ? `${trimSlash(origin)}/client/settings` : null;
 }
 
 /**

@@ -1147,7 +1147,7 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
             "Your own Granola notes from an interview you were an interviewer on (interview_id from " +
             "list_my_interviews): Granola's text for the meeting (its attendees, the notes you typed and " +
             "Granola's AI summary), and with include_transcript the transcript (paid Granola plans). Needs " +
-            "your Granola connected on Tacit's Integrations page. The meeting is found by the calendar event " +
+            "your Granola connected on Tacit's Settings page. The meeting is found by the calendar event " +
             "Tacit booked, the candidate's email, or being the one meeting during the interview (matched_by " +
             "says which; when it is only the time, say so). When none matches, the meetings around then are " +
             "listed: ask the user which one and call again with its note_id. Use it to help the user write " +

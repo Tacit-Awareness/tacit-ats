@@ -15,5 +15,5 @@ export async function disconnectGranolaAction(): Promise<void> {
     ? { error: "failed" }
     : { notice: "granola_disconnected" };
   if (error) console.error("[client-granola] disconnect failed:", error.message);
-  redirect(`/client/integrations?${new URLSearchParams(params)}`);
+  redirect(`/client/settings?${new URLSearchParams(params)}`);
 }

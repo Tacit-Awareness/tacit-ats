@@ -11,7 +11,7 @@ import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // design/tats's account menu: your name alone as a quiet button at the bottom
-// of the sidebar, opening who you are, Onboarding, Tutorial, the theme and Sign out. On the
+// of the sidebar, opening who you are, Onboarding, Settings, Tutorial, the theme and Sign out. On the
 // rail the name has no room, so a person glyph opens the same menu: the theme
 // and Sign out stay a click away. The menu is portalled to <body>: the sidebar
 // clips, and on a phone its transform would trap a fixed box.
@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 const GLYPHS = {
   person: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
   sliders: "M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6M10 3.5v3M6 9.5v3",
+  gear: "M8 10.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4ZM8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3",
   tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
   light: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1",
@@ -142,6 +143,10 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                 <Link href="/client/onboarding/people" role="menuitem" onClick={close} className={optionCls}>
                   <Glyph name="sliders" className="text-muted-foreground" />
                   Onboarding
+                </Link>
+                <Link href="/client/settings" role="menuitem" onClick={close} className={optionCls}>
+                  <Glyph name="gear" className="text-muted-foreground" />
+                  Settings
                 </Link>
                 <TourButton role="menuitem" onClick={close} className={optionCls}>
                   <Glyph name="tour" className="text-muted-foreground" />
