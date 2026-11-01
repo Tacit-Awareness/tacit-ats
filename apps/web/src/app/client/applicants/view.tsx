@@ -8,7 +8,7 @@ import { ControlPanel } from "./control-panel";
 import type { Reply } from "./reply-box";
 import type { Routing } from "./routing-bar";
 
-// Applicant Tickets' markup, props only (page.tsx does the reads): the queue
+// New Applicants' markup, props only (page.tsx does the reads): the queue
 // grouped by team on the left (a fixed 340px list), the open application as
 // one white page on the right, and design/tats's control panel under it
 // (control-panel.tsx). J/K walk the tickets (components/keys.tsx). Everything an
@@ -39,7 +39,7 @@ export type Ticket = {
 
 function TicketList({ groups }: { groups: TicketGroup[] }) {
   return (
-    <KeyList title="Applicant Tickets" next="Next ticket" mode="select" className="grid content-start gap-0.5" data-tour="tickets">
+    <KeyList title="New Applicants" next="Next applicant" mode="select" className="grid content-start gap-0.5" data-tour="tickets">
       {groups.length === 0 ? <p className="m-0 px-3 pt-1 text-[13px] text-faint">No new applicants.</p> : null}
       {groups.map((g, i) => (
         <section key={g.key} aria-label={g.title} className="grid gap-0.5">
@@ -56,7 +56,7 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
               data-key-item
               aria-current={r.active ? "true" : undefined}
               className={cn(
-                "grid grid-cols-[minmax(0,1fr)] gap-y-0.5 px-4 py-3 transition-colors",
+                "grid grid-cols-[minmax(0,1fr)] gap-y-0.5 rounded-[10px] px-4 py-3 transition-colors",
                 r.active ? "bg-[color:var(--sel)] shadow-[inset_2px_0_0_var(--ink)]" : "hover:bg-[color:var(--hover)]",
               )}
             >
@@ -76,9 +76,9 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
 /** The application as one white page (design/tats's `.pg`), the same in both themes, like a document. */
 function Paper({ ticket }: { ticket: Ticket }) {
   const source = ticket.post ? `Job board · ${ticket.post}` : "Job board";
-  const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[color:var(--n800)]";
+  const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[color:var(--accent)]";
   return (
-    <article className="relative mx-auto w-[640px] max-w-full bg-[color:var(--n0)] px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[color:var(--n900)] [color-scheme:light] shadow-[0_1px_3px_oklch(var(--ink-a)/0.08),0_8px_24px_-12px_oklch(var(--ink-a)/0.16)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
+    <article className="relative mx-auto w-[640px] max-w-full rounded-[3px] bg-[color:var(--n0)] px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[color:var(--n900)] [color-scheme:light] shadow-[0_0_0_1px_oklch(var(--ink-a)/0.09),0_1px_2px_oklch(var(--ink-a)/0.04),0_4px_12px_-6px_oklch(var(--ink-a)/0.07)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
       <header className="mb-[18px] border-b border-[color:var(--n150)] pb-3.5">
         <h1 className="m-0 text-[22px] leading-tight font-semibold tracking-[-0.015em] break-words">{ticket.name}</h1>
         <p className="m-0 mt-1 flex flex-wrap gap-x-3 text-[12px] text-[color:var(--n700)]">
@@ -152,7 +152,7 @@ export function ApplicantsView({
       narrowList
       flushReader
       // design/tats shows no bar while a ticket is open; the empty queue gets one, so the page still says where you are.
-      bar={ticket || home ? undefined : <PageBar title="Applicant Tickets" count={total} />}
+      bar={ticket || home ? undefined : <PageBar title="New Applicants" count={total} />}
       list={<TicketList groups={groups} />}
       reader={
         ticket ? (
@@ -172,6 +172,9 @@ export function ApplicantsView({
             <div className="grid place-items-center gap-1 py-24 text-center">
               <h2 className="m-0 text-[15px] font-medium">No new applicants</h2>
               <p className="m-0 text-[13px] text-muted-foreground">Everyone who applied through a job post has been routed.</p>
+              <Link href="/client/inbox" className={cn(textLink, "mt-2 text-[13px]")}>
+                Back to Inbox
+              </Link>
             </div>
           </div>
         )

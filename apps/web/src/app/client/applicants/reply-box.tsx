@@ -147,7 +147,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
     setOpen(true);
   };
   useKeys({ r: start }, canWrite && !open);
-  useKeyHelp("Applicant Tickets", canWrite ? [{ keys: "R", label: "Write a reply" }, { keys: "⌘↵", label: "Review the draft" }] : []);
+  useKeyHelp("New Applicants", canWrite ? [{ keys: "R", label: "Write a reply" }, { keys: "⌘↵", label: "Review the draft" }] : []);
 
   useEffect(() => {
     if (open && pressed.current) area.current?.focus();

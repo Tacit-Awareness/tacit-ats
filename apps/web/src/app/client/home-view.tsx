@@ -10,7 +10,7 @@ import { TargetChip, type TargetChipProps } from "./home-target";
 
 // Home's markup (design/tats's Recruiting Overview), props only: page.tsx
 // does the reads and the counting. The prototype's bar (the crumb, then the
-// period, department and job chips) and its Overview / Applicant Tickets /
+// period, department and job chips) and its Overview / New Applicants /
 // Interviews / Referrals tabs, then the Overview as widgets, each drawn here
 // and placed by home-board.tsx from the member's own layout: a rounded panel
 // with the number first, a quiet label under it, the change or the count on
@@ -117,7 +117,7 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
 /** The tabs under the bar: Home's own and the pages its numbers lead to. */
 const NAV: { sub: HomeSub | null; href: string; label: string }[] = [
   { sub: null, href: "/client", label: "Overview" },
-  { sub: "tickets", href: homeSubBase("tickets"), label: "Applicant Tickets" },
+  { sub: "tickets", href: homeSubBase("tickets"), label: "New Applicants" },
   { sub: "interviews", href: homeSubBase("interviews"), label: "Interviews" },
   { sub: "referrals", href: homeSubBase("referrals"), label: "Referrals" },
 ];

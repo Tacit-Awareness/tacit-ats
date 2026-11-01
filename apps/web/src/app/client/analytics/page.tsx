@@ -27,7 +27,7 @@ import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
 import { CareersView, ExplorerView, type AnalyticsHeader } from "./view";
 
-// design/tats's Analytics (#analytics, under Applicant Tickets in Top of
+// design/tats's Analytics (#analytics, under New Applicants in Top of
 // Funnel): two tabs. Job Postings (the default) is the careers page's views
 // and applications: the range (?range=week|month|quarter), the metric charted
 // (?metric=), line or bars (?chart=bar) and the period before (?compare=1).

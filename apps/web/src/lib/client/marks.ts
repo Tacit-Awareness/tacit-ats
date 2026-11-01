@@ -5,7 +5,7 @@ import { readApplicantQueue } from "./applicants";
 import { readInbox } from "./inbox";
 
 // What the sidebar's marks compare against what you last saw: the ids on the
-// Inbox and on Applicant Tickets, the pages' own reads on the member's OWN
+// Inbox and on New Applicants, the pages' own reads on the member's OWN
 // client. Ids only. One that fails answers null and the link keeps what it
 // knew: a mark must never take a page down. An interviewer has neither page.
 

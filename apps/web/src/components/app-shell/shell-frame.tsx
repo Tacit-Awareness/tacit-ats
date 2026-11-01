@@ -26,7 +26,7 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 // edge to open it again), ⌘K opens the command menu. The sidebar is for getting
 // around, not a report, so there is one count, what's open in the Inbox, which
 // has no other place now its card has no tabs. The one signal is design/tats's
-// mark, a faint red tint on Inbox or Applicant Tickets when something arrived
+// mark, a faint red tint on Inbox or New Applicants when something arrived
 // since you last opened it (shell-memory.tsx, which holds both).
 // Saved views you pin sit under Pipeline.
 // Client only for what the server cannot know: which link is active, the
@@ -78,7 +78,7 @@ const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
 const INBOX: NavLink = { href: "/client/inbox", label: "Inbox", icon: "inbox" };
 const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
 const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
-const APPLICANTS: NavLink = { href: "/client/applicants", label: "Applicant Tickets", icon: "ticket" };
+const APPLICANTS: NavLink = { href: "/client/applicants", label: "New Applicants", icon: "ticket" };
 const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people", activeUnder: ["/client/views"] };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };

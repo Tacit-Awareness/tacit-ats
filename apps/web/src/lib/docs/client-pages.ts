@@ -129,7 +129,7 @@ Interview workload is split by the job's department, or by interviewer if those 
 
 Admins can set a target on any card except candidates in process, using **Set a target** at the foot of the card. The whole team sees it. A card past its target shows a red dot, and bottlenecks over target come first. A target belongs to the company, so it stays the same number whichever period or department you are looking at.
 
-The tabs under the bar open Applicant Tickets, Interviews and Referrals inside Home, so Overview stays one click away. Each is also its own page in the sidebar.
+The tabs under the bar open New Applicants, Interviews and Referrals inside Home, so Overview stays one click away. Each is also its own page in the sidebar.
 
 Interviewers get a simpler Home: the people they interview, the jobs they can see and the team.
 
@@ -204,9 +204,9 @@ Anyone with the link can read these, with no sign-in:
 
 Applicants can answer voluntary US equal-opportunity questions. Nobody at your company can read one person's answers ([EEOC](/docs/client-tools#eeoc)). Applicants cannot upload a resume yet, so the resume question takes a link.
 
-## Applicant Tickets
+## New Applicants
 
-**Applicant Tickets** holds new job-board applicants, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application. Pick the next step in the panel under it, then press the button beside it:
+**New Applicants** holds job-board applicants, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application. Pick the next step in the panel under it, then press the button beside it:
 
 | Key | What it does |
 | --- | --- |
@@ -217,7 +217,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-Picking a step moves nobody; the button does, then the next ticket opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
@@ -406,7 +406,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`G\` then \`H\` | Home |
 | \`G\` then \`C\` | CRM |
 | \`G\` then \`J\` | Job Postings |
-| \`G\` then \`T\` | Applicant Tickets |
+| \`G\` then \`T\` | New Applicants |
 | \`G\` then \`A\` | Pipeline |
 | \`G\` then \`I\` | Interviews |
 | \`[\` | Collapse or expand the sidebar |
@@ -415,15 +415,15 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 
 ## On each page
 
-Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [Applicant Tickets](/docs/app-postings#applicant-tickets), [Pipeline](/docs/app-candidates#pipeline) and [Calendar](/docs/app-interviews#calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
+Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Calendar](/docs/app-interviews#calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
 
 ## Tutorial
 
-**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, Applicant Tickets, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **Applicant Tickets** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
   },
   {
     slug: "connect",
@@ -840,7 +840,7 @@ Files cannot be replaced or deleted through Claude. To correct one, add the righ
 
 The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
 
-You can do the same in Tacit itself: **Reply** on an Applicant Ticket writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
+You can do the same in Tacit itself: **Reply** on a new applicant writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
 
 Drafting and sending need the right to change the candidate. Interviewers cannot email candidates.
 

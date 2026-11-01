@@ -16,7 +16,7 @@ import { Refusal } from "../refusal";
 import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "./messages";
 import { ApplicantsView, type Ticket } from "./view";
 
-// Applicant Tickets (design/tats's #triage): new job-board applicants, read
+// New Applicants (design/tats's #triage): new job-board applicants, read
 // like email. The list is core's listApplicationsInbox on the member's own
 // token (lib/client/applicants.ts), grouped by team (by job in an org with no
 // departments), newest first; `?a=` picks the one the reader shows. The control
@@ -32,7 +32,7 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
 
   if (accessLevel === "limited") {
     return (
-      <Page bar={<PageBar title="Applicant Tickets" />}>
+      <Page bar={<PageBar title="New Applicants" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}

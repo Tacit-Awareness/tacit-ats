@@ -4,7 +4,7 @@ import { clientTools } from "@tacit-ats/core";
 import type { AccessLevel } from "./session";
 import type { QueueEntry } from "./applicant-queue";
 
-// Applicant Tickets' read and its one write, on the member's OWN client (never
+// New Applicants' read and its one write, on the member's OWN client (never
 // a privileged one). The queue is core's listApplicationsInbox, the client
 // connector's list_applications_inbox: job-board applications still at the
 // first stage, with their answers, exactly the ones the policies let the

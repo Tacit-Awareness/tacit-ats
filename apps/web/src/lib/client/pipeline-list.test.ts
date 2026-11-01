@@ -201,7 +201,7 @@ describe("rowGroups", () => {
 });
 
 describe("a row with no name", () => {
-  it("says Unnamed, as Applicant Tickets do", () => {
+  it("says Unnamed, as New Applicants do", () => {
     expect(toRow(entry({ personName: "   " }), NOW).name).toBe("Unnamed");
     expect(toRow(entry({ personName: "" }), NOW).name).toBe("Unnamed");
   });
