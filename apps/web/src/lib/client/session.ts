@@ -35,6 +35,16 @@ export type ClientGate =
 
 const isAccessLevel = (v: unknown): v is AccessLevel => v === "limited" || v === "elevated" || v === "admin";
 
+/**
+ * Only a 401 or 403 is the database refusing this token. Anything else is the
+ * database not answering, an outage and no fault in anyone's sign-in, so it
+ * throws to the error screen, which offers a retry, and not to the refusal, which
+ * tells them to contact Tacit.
+ */
+function unlessRefused(status: number): void {
+  if (status !== 401 && status !== 403) throw new Error(`the database did not answer (${status})`);
+}
+
 // Cached per request: the client layout's sidebar and the page both ask, and
 // a first sign-in must bind once.
 export const resolveClient = cache(async (): Promise<ClientGate> => {
@@ -50,6 +60,7 @@ export const resolveClient = cache(async (): Promise<ClientGate> => {
   let who = await db.rpc("current_actor_id");
   if (who.error) {
     console.error("[client] the database refused the access token:", who.error.message);
+    unlessRefused(who.status);
     return { status: "forbidden", reason: "token_rejected" };
   }
   if (!who.data) {
@@ -73,6 +84,8 @@ export const resolveClient = cache(async (): Promise<ClientGate> => {
   ]);
   // The database matched the token's org claim to get this far, so it is set;
   // checked anyway, since an invitation is sent into it.
+  if (level.error) unlessRefused(level.status);
+  if (org.error) unlessRefused(org.status);
   if (level.error || org.error || !org.data || !isAccessLevel(level.data) || !workosOrgId) {
     return { status: "forbidden", reason: "token_rejected" };
   }
