@@ -2864,11 +2864,12 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
       server.registerTool(
         "list_applications_inbox",
         {
-          title: "New applicants from job posts",
+          title: "New applicants and referrals",
           description:
-            "People who applied through a job post and are still at the first stage, newest first " +
-            "(job_id narrows to one job), each with candidate_id, application_id, the post they applied " +
-            "through and their answers. Moving them on with update_stage takes them out of the inbox. " +
+            "People who applied through a job post or were referred and are still at the first stage, newest first " +
+            "(job_id narrows to one job), each with candidate_id, application_id, their source, the post they " +
+            "applied through and their answers, or who referred them. Moving them on with update_stage takes " +
+            "them out of the inbox. " +
             "Not available to interviewers.",
           inputSchema: z.object({
             job_id: uuid("job_id").optional(),
@@ -2884,7 +2885,8 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
               data: {
                 applicants: inbox.map((e) => ({
                   application_id: e.applicationId, candidate_id: e.candidateId, name: named(e.name), email: e.email,
-                  job_id: e.jobId, job: e.jobTitle, stage: e.stage, post: fence("source", e.post), applied_at: e.appliedAt,
+                  job_id: e.jobId, job: e.jobTitle, stage: e.stage, source: e.source, post: fence("source", e.post), referred_by: fence("source", e.referredBy),
+                  applied_at: e.appliedAt,
                   answers: answersOut(e.answers),
                 })),
               },

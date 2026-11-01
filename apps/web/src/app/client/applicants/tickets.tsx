@@ -3,8 +3,8 @@ import { clientTools } from "@tacit-ats/core";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
-import { groupByTeam, inOrder, neighbour, readerAnswers, selected } from "@/lib/client/applicant-queue";
-import { readApplicantQueue, readRouting } from "@/lib/client/applicants";
+import { groupByTeam, inOrder, isReferral, neighbour, readerAnswers, selected, sourceWords } from "@/lib/client/applicant-queue";
+import { readApplicantQueue, readApplicationNotes, readRouting } from "@/lib/client/applicants";
 import { readDepartments } from "@/lib/client/departments";
 import { readReply } from "@/lib/client/email";
 import { webMailer } from "@/lib/client/mailer";
@@ -16,8 +16,8 @@ import { Refusal } from "../refusal";
 import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "./messages";
 import { ApplicantsView, type Ticket } from "./view";
 
-// Applicant Tickets (design/tats's #triage): new job-board applicants, read
-// like email. The list is core's listApplicationsInbox on the member's own
+// Applicant Tickets (design/tats's #triage): new job-board applicants and
+// referrals, read like email. The list is core's listApplicationsInbox on the member's own
 // token (lib/client/applicants.ts), grouped by team (by job in an org with no
 // departments), newest first; `?a=` picks the one the reader shows. The control
 // panel under it offers the next step only when can_on_role says the member may
@@ -57,13 +57,19 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
   const order = inOrder(groups);
   const open = selected(order, one(sp.a));
   const mailer = webMailer();
-  const [routing, reply] = open
-    ? await Promise.all([readRouting(db, open.jobId), readReply(db, toolCtx(gate.ctx), mailer, { candidateId: open.candidateId, applicationId: open.applicationId })])
-    : [null, null];
+  const referral = open !== null && isReferral(open);
+  const [routing, reply, notes] = open
+    ? await Promise.all([
+        readRouting(db, open.jobId),
+        readReply(db, toolCtx(gate.ctx), mailer, { candidateId: open.candidateId, applicationId: open.applicationId }),
+        // A referral has no form to read; what the referrer said is its note.
+        referral ? readApplicationNotes(db, open.applicationId) : [],
+      ])
+    : [null, null, []];
 
   let ticket: Ticket | null = null;
   if (open) {
-    const { phone, answers } = readerAnswers(open.answers);
+    const { phone, answers } = readerAnswers(open.answers, open.linkedinUrl);
     const group = groups.find((g) => g.entries.includes(open));
     ticket = {
       applicationId: open.applicationId,
@@ -73,7 +79,9 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
       jobTitle: open.jobTitle ?? "Untitled job",
       jobHref: `/client/jobs/${open.jobId}`,
       applied: ago(open.appliedAt, now),
-      post: open.post,
+      referral,
+      source: sourceWords(open),
+      notes,
       team: group?.isTeam ? group.title : null,
       answers,
       routing: routing?.canEdit
@@ -111,7 +119,7 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
             href: hrefAt(base, new URLSearchParams({ a: e.applicationId })),
             name: e.name ?? "Unnamed applicant",
             // Under a team the row has to name the job; under a job it says where they applied.
-            line: g.isTeam ? (e.jobTitle ?? "Untitled job") : (e.post ?? e.email ?? "Job board"),
+            line: g.isTeam ? (e.jobTitle ?? "Untitled job") : isReferral(e) ? sourceWords(e) : (e.post ?? e.email ?? "Job board"),
             when: ago(e.appliedAt, now),
             active: e.applicationId === open?.applicationId,
           })),

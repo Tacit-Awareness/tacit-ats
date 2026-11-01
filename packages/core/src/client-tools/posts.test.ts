@@ -199,25 +199,30 @@ describe("listApplicationsInbox", () => {
     expect(fake.calls).toEqual([]);
   });
 
-  test("job-board applicants at the first stage, newest first, with their answers", async () => {
+  test("applicants and referrals at the first stage, newest first, with their answers", async () => {
     const fake = new FakeSupabase([
       { data: { id: JOB.id } },
       {
         data: [{
-          id: "app-1", person_id: "p-1", role_id: JOB.id, stage: "sourced", source_detail: "Founding Engineer",
-          created_at: "2026-10-15T01:00:00Z", people: { display_name: "Nia", email: "nia@x.test" }, roles: { title: JOB.title },
+          id: "app-1", person_id: "p-1", role_id: JOB.id, stage: "sourced", source: "job_board", source_detail: "Founding Engineer",
+          created_at: "2026-10-15T01:00:00Z", people: { display_name: "Nia", email: "nia@x.test", linkedin_url: null }, roles: { title: JOB.title },
+        }, {
+          id: "app-2", person_id: "p-2", role_id: JOB.id, stage: "sourced", source: "referral", source_detail: "Priya Shah",
+          created_at: "2026-10-14T01:00:00Z", people: { display_name: "Rita", email: null, linkedin_url: "https://linkedin.com/in/rita" }, roles: { title: JOB.title },
         }],
       },
       { data: [ANSWER_ROW] },
     ]);
-    const [e] = await listApplicationsInbox(fake.asDb(), ctx("elevated"), { jobId: JOB.id });
+    const [e, referral] = await listApplicationsInbox(fake.asDb(), ctx("elevated"), { jobId: JOB.id });
     expect(e).toEqual({
       applicationId: "app-1", candidateId: "p-1", name: "Nia", email: "nia@x.test", jobId: JOB.id, jobTitle: JOB.title,
-      stage: "sourced", post: "Founding Engineer", appliedAt: "2026-10-15T01:00:00Z",
+      stage: "sourced", source: "job_board", post: "Founding Engineer", referredBy: null, linkedinUrl: null, appliedAt: "2026-10-15T01:00:00Z",
       answers: [{ questionId: "q_why12", type: "long_text", label: "Why us?", value: "Hard problems." }],
     });
+    // A referral's source_detail is who referred them, never a post.
+    expect(referral).toMatchObject({ source: "referral", post: null, referredBy: "Priya Shah", linkedinUrl: "https://linkedin.com/in/rita", answers: [] });
     expect(fake.calls[1].filters).toEqual([
-      { method: "eq", column: "source", value: "job_board" },
+      { method: "in", column: "source", value: ["job_board", "referral"] },
       { method: "in", column: "stage", value: ["applied", "sourced"] },
       { method: "eq", column: "role_id", value: JOB.id },
     ]);

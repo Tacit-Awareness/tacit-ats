@@ -27,7 +27,11 @@ export type Ticket = {
   jobTitle: string;
   jobHref: string;
   applied: string;
-  post: string | null;
+  referral: boolean;
+  /** Where they came from, in words. */
+  source: string;
+  /** The team's notes; only a referral's are read. */
+  notes: string[];
   /** The job's team, or null when the list isn't by team. */
   team: string | null;
   answers: ReaderAnswer[];
@@ -75,7 +79,6 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
 
 /** The application as one white page (design/tats's `.pg`), the same in both themes, like a document. */
 function Paper({ ticket }: { ticket: Ticket }) {
-  const source = ticket.post ? `Job board · ${ticket.post}` : "Job board";
   const h2 = "m-0 mt-5 mb-2 text-[11.5px] font-semibold tracking-[0.02em] text-[color:var(--n800)]";
   return (
     <article className="relative mx-auto w-[640px] max-w-full bg-[color:var(--n0)] px-[26px] pt-8 pb-9 text-[12.5px] leading-[1.6] text-[color:var(--n900)] [color-scheme:light] shadow-[0_1px_3px_oklch(var(--ink-a)/0.08),0_8px_24px_-12px_oklch(var(--ink-a)/0.16)] md:min-h-[828px] md:px-14 md:pt-[52px] md:pb-10">
@@ -95,8 +98,8 @@ function Paper({ ticket }: { ticket: Ticket }) {
                 {ticket.jobTitle}
               </Link>,
             ],
-            ["Applied", ticket.applied],
-            ["Source", source],
+            [ticket.referral ? "Referred" : "Applied", ticket.applied],
+            ["Source", ticket.source],
           ] as const
         ).map(([k, v]) => (
           <div key={k} className="grid gap-0 py-[3px] md:grid-cols-[150px_minmax(0,1fr)] md:gap-3">
@@ -105,7 +108,7 @@ function Paper({ ticket }: { ticket: Ticket }) {
           </div>
         ))}
       </dl>
-      {ticket.answers.length === 0 ? <p className="m-0 mt-5 text-[color:var(--n700)]">No other answers.</p> : null}
+      {ticket.answers.length === 0 && !ticket.referral ? <p className="m-0 mt-5 text-[color:var(--n700)]">No other answers.</p> : null}
       {ticket.answers.map((a) => (
         <section key={a.questionId}>
           <h2 className={h2}>{a.label}</h2>
@@ -118,6 +121,16 @@ function Paper({ ticket }: { ticket: Ticket }) {
           )}
         </section>
       ))}
+      {ticket.notes.length > 0 ? (
+        <section>
+          <h2 className={h2}>Notes</h2>
+          {ticket.notes.map((n, i) => (
+            <p key={i} className="m-0 mb-2 break-words whitespace-pre-wrap">
+              {n}
+            </p>
+          ))}
+        </section>
+      ) : null}
     </article>
   );
 }
@@ -171,7 +184,7 @@ export function ApplicantsView({
             {flash}
             <div className="grid place-items-center gap-1 py-24 text-center">
               <h2 className="m-0 text-[15px] font-medium">No new applicants</h2>
-              <p className="m-0 text-[13px] text-muted-foreground">Everyone who applied through a job post has been routed.</p>
+              <p className="m-0 text-[13px] text-muted-foreground">Everyone who applied or was referred has been routed.</p>
             </div>
           </div>
         )

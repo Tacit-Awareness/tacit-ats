@@ -46,6 +46,7 @@ export async function addReferralAction(form: FormData): Promise<void> {
   if (!outcome.ok) return back({ error: outcome.error });
 
   revalidatePath("/client/referrals");
+  revalidatePath("/client/applicants");
   revalidatePath("/client/pipeline");
   revalidatePath(`/client/jobs/${jobId}`);
   return back({ notice: outcome.status });

@@ -124,7 +124,7 @@ export type {
   AddProspectResult, CandidatePool, ConvertResult, CreatePoolResult, Pool, PoolMember, PoolResult, PoolStage, PoolView,
 } from "./pools.js";
 export {
-  INBOX_STAGES, JOB_POST_STATUSES, QUESTIONS_MAX, QUESTION_LABEL_MAX, QUESTION_TYPES,
+  INBOX_SOURCES, INBOX_STAGES, JOB_POST_STATUSES, QUESTIONS_MAX, QUESTION_LABEL_MAX, QUESTION_TYPES,
   buildQuestions, createJobPost, jobPostUrl, listApplicationsInbox, listJobPosts, setJobPostStatus, updateJobPost,
 } from "./posts.js";
 export type {
