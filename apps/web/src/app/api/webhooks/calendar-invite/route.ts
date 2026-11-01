@@ -34,25 +34,50 @@ function svixOk(req: Request, raw: string): boolean {
   });
 }
 
-async function resendGet(path: string) {
+async function resendGet(path: string): Promise<{ status: number; body: unknown } | null> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return null;
   const res = await fetch(`${RESEND}${path}`, { headers: { authorization: `Bearer ${key}` } });
-  return res.ok ? res.json() : null;
+  return { status: res.status, body: await res.json().catch(() => null) };
 }
 
-type Att = { filename?: string; content_type?: string; download_url?: string; content_disposition?: string };
+type Att = { id?: string; filename?: string; content_type?: string; download_url?: string; content_disposition?: string };
 
-async function fetchIcs(emailId: string): Promise<string | null> {
-  const atts = (await resendGet(`/emails/receiving/${emailId}/attachments`)) as { data?: Att[] } | null;
-  for (const a of atts?.data ?? []) {
-    const isIcs = /text\/calendar|\.ics$/i.test(`${a.content_type ?? ""} ${a.filename ?? ""}`);
-    if (isIcs && a.download_url) {
-      const res = await fetch(a.download_url);
-      if (res.ok) return res.text();
+const isIcs = (a: Att) => /text\/calendar|application\/ics|\.ics$/i.test(`${a.content_type ?? ""} ${a.filename ?? ""}`);
+
+// Resend's received-email API returns attachment metadata with a temporary
+// download_url; the shape differs by version, so try the field, then a
+// per-attachment GET, then an inline VEVENT in the email body.
+async function fetchIcs(emailId: string): Promise<{ ics: string | null; diag: string }> {
+  const list = await resendGet(`/emails/receiving/${emailId}/attachments`);
+  if (!list) return { ics: null, diag: "no_api_key" };
+  if (list.status !== 200) return { ics: null, diag: `list_${list.status}` };
+  const atts = ((list.body as { data?: Att[]; attachments?: Att[] })?.data
+    ?? (list.body as { attachments?: Att[] })?.attachments
+    ?? (Array.isArray(list.body) ? (list.body as Att[]) : [])) as Att[];
+  const ics = atts.find(isIcs) ?? atts[0];
+  if (!ics) return { ics: null, diag: "no_attachments" };
+  if (ics.download_url) {
+    const res = await fetch(ics.download_url);
+    if (res.ok) return { ics: await res.text(), diag: "download_url" };
+  }
+  if (ics.id) {
+    const att = await resendGet(`/emails/receiving/${emailId}/attachments/${ics.id}`);
+    if (att && att.status === 200 && att.body) {
+      const b = att.body as Record<string, unknown>;
+      const content = (b.content ?? b.data ?? b.download_url) as string | undefined;
+      if (typeof content === "string" && content.startsWith("http")) {
+        const res = await fetch(content);
+        if (res.ok) return { ics: await res.text(), diag: "attachment_get_url" };
+      }
+      if (typeof content === "string" && content.includes("BEGIN:VCALENDAR")) return { ics: content, diag: "attachment_get_body" };
+      return { ics: null, diag: `att_keys_${Object.keys(b).join("|")}` };
     }
   }
-  return null;
+  const mail = await resendGet(`/emails/receiving/${emailId}`);
+  const body = (mail?.body as { text?: string })?.text ?? "";
+  const inline = body.match(/BEGIN:VCALENDAR[\s\S]*END:VCALENDAR/)?.[0];
+  return { ics: inline ?? null, diag: inline ? "inline" : "none" };
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -61,9 +86,9 @@ export async function POST(request: Request): Promise<Response> {
   const event = JSON.parse(raw) as { type?: string; data?: { email_id?: string } };
   if (event.type !== "email.received" || !event.data?.email_id) return Response.json({});
 
-  const ics = await fetchIcs(event.data.email_id);
+  const { ics, diag } = await fetchIcs(event.data.email_id);
   const ev = ics ? parseIcs(ics) : null;
-  if (!ev) return Response.json({ ok: true, skipped: "no_invite" }); // a normal email, not an invite: done
+  if (!ev) return Response.json({ ok: true, skipped: "no_invite", diag }); // a normal email, not an invite: done
 
   const db = getSupabaseServiceClient();
   // The candidate: an attendee whose address is a person identifier. Org follows the person.
