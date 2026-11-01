@@ -31,7 +31,7 @@ const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
 function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
   const { pending } = useFormStatus();
   useKeys({ i: () => pick("interview"), s: () => pick("screening"), d: () => pick("decline") }, !pending);
-  useKeyHelp("Applicant Tickets", [
+  useKeyHelp("New Applicants", [
     { keys: "I", label: "Pick Interview" },
     { keys: "S", label: "Pick Screening" },
     { keys: "D", label: "Pick Decline, then its reason" },

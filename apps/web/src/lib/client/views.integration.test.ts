@@ -148,7 +148,7 @@ describe("readPersonTags", () => {
 });
 
 describe("readMarks", () => {
-  test("the ids on the Inbox and on Applicant Tickets, of what the member can read", async () => {
+  test("the ids on the Inbox and on New Applicants, of what the member can read", async () => {
     const admin = await readMarks(adminDb(), asAdmin, new Date());
     expect([...(admin.tickets ?? [])].sort()).toEqual([app(2), app(3)]);
     expect(admin.inbox).toEqual(expect.any(Array));

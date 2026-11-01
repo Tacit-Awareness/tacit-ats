@@ -1,4 +1,4 @@
-// Home's tabs (design/tats's `#home~tickets`): Applicant Tickets, Interviews and
+// Home's tabs (design/tats's `#home~tickets`): New Applicants, Interviews and
 // Referrals draw inside Home under `?sub=`, and their own routes stay. A page
 // drawn in either place builds its links from a base, so a link or a redirect
 // never drops a member out of the tab. Pure, unit-tested.

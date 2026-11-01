@@ -1,6 +1,6 @@
 import { departmentOptions, type DepartmentsRead } from "./department-tree";
 
-// Applicant Tickets' arrangement of the queue (design/tats's #triage): the
+// New Applicants' arrangement of the queue (design/tats's #triage): the
 // applicants and referrals core's listApplicationsInbox returns, grouped by team
 // (the data model's teams are departments), and each application's answers
 // split into contact and the rest. Pure: the page reads, this arranges. Every

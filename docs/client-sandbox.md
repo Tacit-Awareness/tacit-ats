@@ -38,7 +38,7 @@ and its interviews are real events on Ryan's calendar.
 ten teammates who never sign in (Priya the talent engineer, Daniel, Sam, ...),
 six jobs in three departments with hiring teams, interview plans and job
 board posts, and 43 fictional candidates across every stage. That includes 12
-unrouted job board applicants for Applicant Tickets, with their answers, and
+unrouted job board applicants for New Applicants, with their answers, and
 past interviews with feedback, so Pipeline's Your call column and Interviews
 have something to show. Emails are `@example.com`. It makes no upcoming
 interviews, because the company's bot is real and would get a reminder for
@@ -98,7 +98,7 @@ Tickets has something in it.
 
 Roles in short: **Admin** and **Hiring team** see the pages below; a Hiring
 team member sees only the jobs they are on. An **Interviewer** (limited) gets
-a pointer back to Home on Pipeline, CRM and Applicant Tickets, because their
+a pointer back to Home on Pipeline, CRM and New Applicants, because their
 token cannot read applications.
 
 ### Home: the Recruiting Overview (`/client`)
@@ -139,7 +139,7 @@ token cannot read applications.
   (names only), the Grokbot "court", Testbench and sentiment. Nothing here
   edits a candidate.
 
-### Applicant Tickets (`/client/applicants`) (this one moves stages)
+### New Applicants (`/client/applicants`) (this one moves stages)
 
 - [ ] Admin: new job-board applicants (source job board, still at the first
   stage) grouped by job, newest first. Open one: name, email and phone, every

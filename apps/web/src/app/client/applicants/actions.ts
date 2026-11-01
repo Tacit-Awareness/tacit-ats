@@ -10,7 +10,7 @@ import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { ApplicantError, ApplicantNotice, ReplyState } from "./messages";
 
-// Applicant Tickets' routing bar: screening, interview, or decline with a
+// New Applicants' routing bar: screening, interview, or decline with a
 // reason. lib/client/applicants.ts's routeApplicant runs core's moveStage on
 // the signed-in member's own client, so the policies decide whether it lands
 // (can_edit_pipeline on the job). Posted fields are request data, so every id

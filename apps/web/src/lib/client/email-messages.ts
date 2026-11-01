@@ -1,5 +1,5 @@
 // What a member reads when an email doesn't go out, shared by the two pages
-// that send (Applicant Tickets and the Inbox). Pure. The actions redirect with
+// that send (New Applicants and the Inbox). Pure. The actions redirect with
 // a code and the page looks the sentence up here, so no name or message rides
 // in a URL.
 export const SEND_ERRORS = {

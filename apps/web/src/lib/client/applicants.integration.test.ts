@@ -4,7 +4,7 @@ import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } fro
 import { readApplicantQueue, readApplicationNotes, readRouting, routeApplicant, type QueueReader } from "./applicants";
 
 /**
- * Applicant Tickets against the local stack, on members' own tokens: the
+ * New Applicants against the local stack, on members' own tokens: the
  * policies decide whose applicants come back and whether a ticket can be
  * routed, and a routed one leaves its event in application_events. The member
  * token is signed with the stack's JWT secret, as in pipeline.integration.test.ts.
@@ -115,7 +115,7 @@ beforeEach(async () => {
 
 afterAll(clear);
 
-describe("Applicant Tickets", () => {
+describe("New Applicants", () => {
   test("an admin sees every applicant and referral still at the first stage, newest first, with their answers", async () => {
     const queue = await readApplicantQueue(member("user_ap_ada"), reader(ADMIN, "admin"));
     expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(3), app(6), app(2)]);

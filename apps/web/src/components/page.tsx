@@ -321,7 +321,7 @@ export function Split({ main, side }: { main: React.ReactNode; side: React.React
 }
 
 /**
- * design/tats's list-and-reader page (Inbox, Applicant Tickets, Interviews):
+ * design/tats's list-and-reader page (Inbox, New Applicants, Interviews):
  * a list on the left, the open item in a reader one shade down. Render it as
  * the page itself, not inside `Page`: it fills the panel edge to edge (the
  * shell drops its padding around it, `.shell-page:has(> .list-reader)` in
@@ -346,7 +346,7 @@ export function ListReader({
   readerLabel: string;
   /** A `PageBar` across both panes. */
   bar?: React.ReactNode;
-  /** design/tats's fixed 340px list (Applicant Tickets) instead of 42%. */
+  /** design/tats's fixed 340px list (New Applicants) instead of 42%. */
   narrowList?: boolean;
   /** design/tats's `.ivw-list`: 360px, 280px in a window up to 1280px. */
   interviewList?: boolean;

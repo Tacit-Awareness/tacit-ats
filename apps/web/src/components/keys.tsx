@@ -95,8 +95,8 @@ export function Kbd({ children, className, decorative = false }: { children: Rea
 }
 
 /**
- * J/K through a list of links. `select` (a list beside a reader: Applicant
- * Tickets, Interviews) follows the next link, so the URL (`?a=`, `?i=`)
+ * J/K through a list of links. `select` (a list beside a reader: New
+ * Applicants, Interviews) follows the next link, so the URL (`?a=`, `?i=`)
  * moves; `focus` (a table: the CRM) only moves focus, and Enter opens the
  * focused link as it always does. The focused row is the highlighted one,
  * so it shows with the focus ring. Items are the elements matching `items`
@@ -116,7 +116,7 @@ export function KeyList({
 }: {
   /** The `?` sheet's heading for these keys: the page's name. */
   title: string;
-  /** What J does, for the sheet: "Next ticket". */
+  /** What J does, for the sheet: "Next applicant". */
   next: string;
   mode: "select" | "focus";
   items?: string;
