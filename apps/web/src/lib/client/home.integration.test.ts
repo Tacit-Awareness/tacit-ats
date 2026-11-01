@@ -122,6 +122,14 @@ describe("Home's read", () => {
     expect(read.applications).toMatchObject({ current: 5, previous: 2, change: 1.5 });
     expect(read.applications.bins.reduce((n, b) => n + b.n, 0)).toBe(5);
 
+    // The widgets': two weeks a day at a time, this week's sources, 24 weeks of hires.
+    expect(read.daily).toHaveLength(14);
+    expect(read.daily.slice(7).reduce((a, b) => a + b, 0)).toBe(5);
+    expect(read.daily.slice(0, 7).reduce((a, b) => a + b, 0)).toBe(2);
+    expect(Object.values(read.sources).reduce((a, b) => a + b, 0)).toBe(5);
+    expect(read.hires).toHaveLength(24);
+    expect(read.offers).toEqual([]);
+
     expect(column(read)).toEqual({ [app(1)]: "new", [app(2)]: "scheduling", [app(3)]: "decide", [app(4)]: "screening", [app(7)]: "booked" });
     expect(hoursOf(read, 1)).toBeCloseTo(48, 0); // since added
     expect(hoursOf(read, 2)).toBeCloseTo(72, 0); // since the move to interviewing
@@ -205,6 +213,16 @@ describe("Home's read", () => {
         interviewsPerHire: 2,
         hoursPerHire: 2.5,
       });
+    });
+
+    test("hires come by the week they happened: 5 at 20 days, 11 at 40, and a filter narrows them", async () => {
+      await closures();
+      const read = await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: null }, new Date(NOW));
+      expect(read.hires.reduce((a, b) => a + b, 0)).toBe(2);
+      expect(read.hires[23 - 2]).toBe(1);
+      expect(read.hires[23 - 5]).toBe(1);
+      const one = await readHome(member("user_hm_ada"), as(ADMIN, "admin"), { days: 7, jobId: DESIGNER }, new Date(NOW));
+      expect(one.hires.reduce((a, b) => a + b, 0)).toBe(1);
     });
 
     test("too few closed says so, and a hiring manager's are only their job's", async () => {

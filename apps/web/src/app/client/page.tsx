@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { Avatar, Empty, Glyph, Page, PageHeader, Row, Rows, Section, Split, StatStrip, textLink, type Stat } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { readHome } from "@/lib/client/home";
 import { parseHomeSub } from "@/lib/client/home-tabs";
+import { WIDGETS_COOKIE, parseWidgets } from "@/lib/client/home-widgets";
 import { parsePeriod } from "@/lib/client/home-metrics";
 import { LEVELS, levelName } from "@/lib/client/levels";
 import { resolveClient, type ClientContext } from "@/lib/client/session";
@@ -17,7 +19,7 @@ import { Refusal } from "./refusal";
 // The client area's home. For admins and the hiring team, design/tats's
 // Recruiting Overview: where are candidates getting stuck? (lib/client/home.ts
 // reads, lib/client/home-metrics.ts counts, home-props.ts words it,
-// home-view.tsx draws), with the period (?days=7|30|90), the department
+// home-view.tsx draws, home-board.tsx arranges), with the period (?days=7|30|90), the department
 // (?department=, none for an org without departments) and the job (?job=)
 // in the URL. `?sub=` draws a tab's page under Home's bar (lib/client/home-tabs.ts). An admin sets each card's target from the card; the hiring team
 // sees them. An interviewer keeps the page they had: the people they
@@ -43,13 +45,16 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
   }
   const days = parsePeriod(one(sp.days));
   const now = new Date();
-  const read = await readHome(
-    ctx.db,
-    { actorId: ctx.actorId, orgId: ctx.org.id, accessLevel: ctx.accessLevel },
-    { days, jobId: one(sp.job) || null, departmentId: one(sp.department) || null },
-    now,
-  );
-  return <HomeView {...overviewProps(read, days, now.getTime(), ctx.accessLevel === "admin")} />;
+  const [read, jar] = await Promise.all([
+    readHome(
+      ctx.db,
+      { actorId: ctx.actorId, orgId: ctx.org.id, accessLevel: ctx.accessLevel },
+      { days, jobId: one(sp.job) || null, departmentId: one(sp.department) || null },
+      now,
+    ),
+    cookies(),
+  ]);
+  return <HomeView {...overviewProps(read, days, now.getTime(), ctx.accessLevel === "admin")} layout={parseWidgets(jar.get(WIDGETS_COOKIE)?.value)} />;
 }
 
 /** An interviewer's home: the people they interview, the jobs they can see, the team. */

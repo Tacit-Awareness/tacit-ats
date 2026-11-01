@@ -99,10 +99,25 @@ Your company has one setting for when interviewers can read each other's feedbac
 
 Home is the Recruiting Overview: it answers *where are candidates getting stuck?* Choose a period (7, 30 or 90 days), a department and a job at the top; every number follows.
 
+The Overview is a grid of widgets that fills one screen. The default is the six cards below, **Applications over time** and **Hires**:
+
 - **Cards**: new applications against the period before, candidates in process, how long people wait for review and for scheduling, interviewer feedback on time, and interview workload.
-- **Bottlenecks**: each one links to the page that clears it, with the longest waits listed under time in stage.
-- **Feedback**: time to feedback by interviewer and the oldest outstanding feedback. The average stay in each stage sits under time in stage.
+- **Applications over time**: this period against the last, day by day.
+- **Hires**: the last 12 weeks against the 12 before.
+
+These are in the gallery, to add when you want them:
+
+- **Bottlenecks**: each one links to the page that clears it. **Time in stage** lists the longest waits, and **Average stay in each stage** how long people spent in each.
+- **Feedback**: time to feedback by interviewer and the oldest outstanding feedback.
 - **Interview efficiency**: from applications closed in the last 12 months, whatever period is picked: how many got from each round to the next, interviews per hire and interviewer time per hire, counting every closed application's interviews. A round is a step's position in the job's interview plan, so jobs with different plans add up. Until enough have closed it says so, rather than show a percentage of two people.
+- **Where applicants come from**: this period's applications by source.
+- **Offers awaiting approval**: offers waiting on your own sign-off, each opening in the Inbox. Terms stay in the Inbox.
+
+### Edit widgets
+
+**Edit widgets** in the bar lets you arrange the Overview: drag a widget to move it (or focus it and use the arrow keys), **−** removes it, its size pill cycles Small, Wide and Full, and **Add widget** opens the gallery with a live preview of each. **Reset to the default layout** is at the foot of the gallery. **Done** or \`Esc\` ends it. Your layout is your own and is saved in this browser, so it doesn't follow you to another computer.
+
+**Present** shows the Overview alone, full screen, for a projector or a TV. \`Esc\` leaves.
 
 Once your company has drawn its [interview process](/docs/app-interviews#interview-process), candidates in process and time in stage use the stages you named. Steps side by side after a split count as one stage. A job whose plan doesn't match the process keeps the usual labels, and so does anyone who can't read the process. Admins change the stages from **Edit stages**. The stage a candidate is in is worked out each time: nothing about them changes when you rename a step.
 

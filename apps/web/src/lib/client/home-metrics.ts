@@ -66,6 +66,19 @@ export function bins(createdAts: string[], days: number, now: number): Bin[] {
   return out;
 }
 
+/**
+ * How many fell in each `size`-day stretch, `count` of them ending now, oldest
+ * first (the trend's days and the hires' weeks). Relative to `now`, as `bins`.
+ */
+export function stretches(dates: string[], size: number, count: number, now: number): number[] {
+  const out: number[] = Array.from({ length: count }, () => 0);
+  for (const iso of dates) {
+    const ago = Math.floor((now - Date.parse(iso)) / (size * DAY));
+    if (ago >= 0 && ago < count) out[count - 1 - ago] += 1;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Waiting: how long each live candidate has been where they are
 // ---------------------------------------------------------------------------
@@ -178,8 +191,6 @@ export function timeRows(waiting: Waiting[], stages: StageName[] | null): TimeRo
   return [...named, ...rest.map((r) => ({ ...r, column: r.key }))];
 }
 
-/** A chart's short label for a stage: its first word, as design/tats's procAbbr. */
-export const stageAbbr = (name: string) => name.split(/[\s/]+/)[0].slice(0, 5);
 
 // ---------------------------------------------------------------------------
 // Bottlenecks

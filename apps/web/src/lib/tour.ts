@@ -29,9 +29,9 @@ export const TOUR: TourStep[] = [
   },
   {
     href: "/client",
-    targets: ['[data-tour="stuck"]'],
-    title: "Where candidates are stuck",
-    body: "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it.",
+    targets: ['[data-tour="edit-widgets"]'],
+    title: "Make it yours",
+    body: "Edit widgets lets you drag, resize and remove these, or add more, like Bottlenecks and Time in stage to see where candidates are stuck. Present puts it on a big screen.",
   },
   {
     href: "/client/inbox",

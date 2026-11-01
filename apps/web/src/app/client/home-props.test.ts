@@ -17,6 +17,10 @@ const read = (over: Partial<HomeRead> = {}): HomeRead => ({
   jobs: [],
   jobId: null,
   applications: { current: 10, previous: 5, change: 1, bins: [] },
+  daily: [1, 2, 3, 4],
+  sources: { referral: 2, tacit: 0, careers: 5, sourced: 0, agency: 0, event: 0, other: 0 },
+  hires: Array.from({ length: 24 }, (_, i) => (i < 12 ? 1 : 2)),
+  offers: [],
   waiting: [],
   stages: null,
   stays: [],
@@ -131,7 +135,7 @@ describe("stages from the process", () => {
   test("with none, the board's columns and their own short labels", () => {
     const p = props({ waiting: [waiter(5, "new")] });
     expect(p.stages.map((s) => s.label)).toEqual(["New", "Screening", "Scheduling", "Interview booked", "Your call", "Offer"]);
-    expect(p.inProcess.bars[0].label).toBe("New");
+    expect(p.inProcess.parts[0].label).toBe("New");
     expect(p.inProcess.byProcess).toBe(false);
   });
 
@@ -139,7 +143,7 @@ describe("stages from the process", () => {
     const named = { ...waiter(5, "new", "a"), stage: stages[0] };
     const p = props({ stages, waiting: [named, waiter(9, "scheduling", "b")] });
     expect(p.stages.map((s) => [s.label, s.n])).toEqual([["Application review", 1], ["Team interview", 0], ["Offer", 0], ["Scheduling", 1]]);
-    expect(p.inProcess.bars.map((b) => b.label)).toEqual(["Appli", "Team", "Offer", "Sched"]);
+    expect(p.inProcess.parts.map((b) => b.label)).toEqual(["Application review", "Team interview", "Offer", "Scheduling"]);
     expect(p.inProcess.value).toBe(2);
     expect(p.inProcess.byProcess).toBe(true);
   });
@@ -176,5 +180,36 @@ describe("stages from the process", () => {
   test("only an admin is offered Edit stages", () => {
     expect(props({}).editStages).toBe("/client/onboarding/process");
     expect(props({}, false).editStages).toBeNull();
+  });
+});
+
+describe("the widgets' numbers", () => {
+  test("the trend's two periods, the older half first", () => {
+    expect(props({}).trend).toEqual({ current: [3, 4], previous: [1, 2], total: 7, before: 3 });
+  });
+
+  test("hires are the last 12 weeks against the 12 before", () => {
+    expect(props({}).hires).toMatchObject({ total: 24, before: 12 });
+    expect(props({}).hires.weeks).toHaveLength(12);
+  });
+
+  test("only the sources something came from", () => {
+    expect(props({}).sources).toEqual([{ label: "Referred", n: 2 }, { label: "Careers page", n: 5 }]);
+  });
+
+  test("an offer opens its approval in the Inbox and carries no terms", () => {
+    const offer = { requestId: "r1", candidateName: "Ada", jobTitle: "Engineer", requestedBy: "Lin", requestedAt: new Date(NOW - 3_600_000).toISOString() };
+    const p = props({ offers: [offer] }).offers;
+    expect(p.total).toBe(1);
+    expect(p.rows[0]).toMatchObject({ candidate: "Ada", line: "Engineer · from Lin", href: "/client/inbox?i=appr-r1" });
+    expect(JSON.stringify(p)).not.toMatch(/salary|terms|equity/);
+  });
+
+  test("past the preview, a link to the rest", () => {
+    const offers = Array.from({ length: 6 }, (_, i) => ({ requestId: `r${i}`, candidateName: null, jobTitle: "Engineer", requestedBy: null, requestedAt: new Date(NOW).toISOString() }));
+    const p = props({ offers }).offers;
+    expect(p.rows).toHaveLength(5);
+    expect(p.rows[0].candidate).toBe("A candidate");
+    expect(p.more?.label).toBe("All 6 in the Inbox");
   });
 });
