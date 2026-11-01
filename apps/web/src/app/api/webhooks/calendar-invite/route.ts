@@ -81,30 +81,31 @@ export async function POST(request: Request): Promise<Response> {
 
   // The interviewer: an attendee who is a member actor of that org.
   const { data: actors } = await db
-    .from("org_members").select("actor_id, actors!inner(email)")
-    .eq("org_id", person.org_id).in("actors.email", mails);
-  const interviewerIds = ((actors ?? []) as { actor_id: string }[]).map((a) => a.actor_id);
+    .from("org_members").select("id, email")
+    .eq("org_id", person.org_id).in("email", mails);
+  const interviewerIds = ((actors ?? []) as { id: string }[]).map((a) => a.id);
+  if (!ev.startsAt) return Response.json({ ok: true, skipped: "no_time" });
 
   const status = ev.status === "cancelled" ? "cancelled" : "scheduled";
-  const row = {
-    org_id: person.org_id,
-    application_id: app.id,
-    google_event_id: ev.uid,
-    title: ev.summary ?? "Interview",
-    starts_at: ev.startsAt,
-    ends_at: ev.endsAt,
-    status,
-    interviewer_actor_ids: interviewerIds,
-    mode: "video",
-  };
+  const endsAt = ev.endsAt ?? ev.startsAt;
   const { data: existing } = await db
-    .from("interviews").select("id, created_by_actor_id").eq("org_id", person.org_id).eq("google_event_id", ev.uid).maybeSingle();
+    .from("interviews").select("id").eq("org_id", person.org_id).eq("google_event_id", ev.uid).maybeSingle();
   if (existing) {
-    await db.from("interviews").update({ starts_at: ev.startsAt, ends_at: ev.endsAt, status, title: row.title }).eq("id", existing.id);
+    await db.from("interviews").update({ starts_at: ev.startsAt, ends_at: endsAt, status }).eq("id", existing.id);
     return Response.json({ ok: true, interview: existing.id, updated: true });
   }
   const { data: made, error } = await db.from("interviews")
-    .insert({ ...row, id: crypto.randomUUID(), calendar_actor_id: interviewerIds[0] ?? null }).select("id").single();
+    .insert({
+      id: crypto.randomUUID(),
+      org_id: person.org_id,
+      application_id: app.id,
+      google_event_id: ev.uid,
+      starts_at: ev.startsAt,
+      ends_at: endsAt,
+      status,
+      interviewer_actor_ids: interviewerIds,
+      calendar_actor_id: interviewerIds[0] ?? null,
+    }).select("id").single();
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true, interview: made?.id });
 }
