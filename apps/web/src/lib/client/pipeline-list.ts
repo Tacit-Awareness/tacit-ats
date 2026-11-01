@@ -21,6 +21,11 @@ export type PipelineMode = "stuck" | "everyone";
  */
 export type PipelineLayout = "list";
 
+/** Whole characters of a name search kept: the past candidates' count puts it in a URL, and one too long for that took the page down. */
+export const NAME_SEARCH_MAX = 100;
+
+export const parseNameSearch = (raw: string): string => Array.from(raw.trim()).slice(0, NAME_SEARCH_MAX).join("").trim();
+
 export const parseLayout = (raw: string | undefined): PipelineLayout | null => (raw === "list" ? raw : null);
 
 /** What in a URL says someone came for particular people, so Stuck would hide what they asked for. */

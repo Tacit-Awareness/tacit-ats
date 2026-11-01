@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { mayLeave } from "@/lib/leave-guard";
 import { useEffect, useRef, useState } from "react";
 import { Kbd, usePageKeyHelp, type KeyHelpSection } from "@/components/keys";
 import { SIGN_OUT_KEYS, chord, ignoreKey, isSignOutKey, modalOpen } from "@/lib/keys";
@@ -97,7 +98,7 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
         // The letter is G's either way: G then K is not a page's K.
         const to = goRef.current.find((g) => g.key === step.then);
         if (to || step.then.length === 1) e.preventDefault();
-        if (to) router.push(to.href);
+        if (to && mayLeave()) router.push(to.href);
       } else if (step.pending === null && (e.key === "?" || (e.key === "/" && e.shiftKey))) {
         e.preventDefault();
         setOpen(true);

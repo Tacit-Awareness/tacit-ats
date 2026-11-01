@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 // phone, rising in and gone after six seconds. lib/toasts.ts is the store.
 //
 // `Toaster` is mounted once, in the shell, always there so a screen reader hears
-// what lands in it. `data-toasts` keeps it out of inertOutside, so a toast and its
+// what lands in it. Only a toast's buttons take the pointer, so one over a page's Save
+// doesn't swallow the click. `data-toasts` keeps it out of inertOutside, so a toast and its
 // Undo work over a pop-up. A native modal <dialog> sits above it, on purpose.
 //
 // `Flash` (through flash-toast.tsx, on a server page) says what a redirect's
@@ -26,9 +27,9 @@ const serverToasts = () => noToasts;
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, currentToasts, serverToasts);
   return (
-    <div data-toasts role="status" aria-live="polite" className="fixed right-5 bottom-[60px] z-[70] grid justify-items-end gap-2 max-sm:right-4 max-sm:left-4 max-sm:justify-items-stretch">
+    <div data-toasts role="status" aria-live="polite" className="pointer-events-none fixed right-5 bottom-[60px] z-[70] grid justify-items-end gap-2 max-sm:right-4 max-sm:left-4 max-sm:justify-items-stretch">
       {toasts.map((t) => (
-        <div key={t.id} className="toast flex max-w-[420px] items-center gap-2.5 border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)] max-sm:max-w-none">
+        <div key={t.id} className="toast flex max-w-[420px] [&_a]:pointer-events-auto [&_button]:pointer-events-auto items-center gap-2.5 border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)] max-sm:max-w-none">
           <span className={cn("min-w-0 flex-1 break-words", t.tone === "error" && "text-negative")}>{t.text}</span>
           {t.action as React.ReactNode}
           {t.tone === "error" ? (

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PipelineEntry } from "./pipeline";
-import { ROW_PREVIEW, defaultMode, factsOf, modeParam, parseLayout, pipelineHref, resolveMode, rowGroups, shortSpan, stageCounts, statusOf, toRow, type ModeContext, type PipelineUrl } from "./pipeline-list";
+import { NAME_SEARCH_MAX, ROW_PREVIEW, defaultMode, factsOf, modeParam, parseLayout, parseNameSearch, pipelineHref, resolveMode, rowGroups, shortSpan, stageCounts, statusOf, toRow, type ModeContext, type PipelineUrl } from "./pipeline-list";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const daysAgo = (d: number) => new Date(NOW - d * 86_400_000).toISOString();
@@ -243,5 +243,13 @@ describe("a row's stage name", () => {
   it("the process's name sits after the job, and none adds nothing", () => {
     expect(factsOf(entry({ stageName: { name: "Testbench", order: 1 } })).slice(0, 2)).toEqual(["Staff Engineer", "Testbench"]);
     expect(factsOf(entry())).toEqual(["Staff Engineer"]);
+  });
+});
+
+describe("parseNameSearch", () => {
+  it("keeps a search short enough to go in a URL, in whole characters", () => {
+    expect(parseNameSearch("  Ada ")).toBe("Ada");
+    expect(parseNameSearch("a".repeat(5000))).toHaveLength(NAME_SEARCH_MAX);
+    expect(parseNameSearch("🧠".repeat(200))).toBe("🧠".repeat(NAME_SEARCH_MAX));
   });
 });

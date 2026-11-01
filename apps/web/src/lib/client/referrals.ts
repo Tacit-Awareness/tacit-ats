@@ -98,7 +98,7 @@ export type ReferralInput = {
 };
 
 export type AddReferralOutcome =
-  | { ok: true; status: "added" | "added_existing" | "exists"; applicationId: string; personId: string }
+  | { ok: true; status: "added" | "added_existing" | "added_no_note" | "exists"; applicationId: string; personId: string }
   | { ok: false; error: "forbidden" | "rate_limited" | "invalid_name" | "invalid_email" | "invalid_linkedin" | "invalid_referrer" };
 
 const INVALID_FIELD = { name: "invalid_name", email: "invalid_email", linkedin: "invalid_linkedin" } as const;
@@ -137,6 +137,15 @@ export async function addReferral(db: Db, ctx: clientTools.ClientToolCtx, input:
   const { applicationId, candidateId: personId } = added;
   if (added.outcome === "already_in_pipeline") return { ok: true, status: "exists", applicationId, personId };
 
-  if (input.note) await logTouch(db, { applicationId, actorId: ctx.actorId, note: input.note });
+  const note = input.note?.replaceAll("\0", "");
+  if (note) {
+    // They're in by now, so a note that fails can't say nobody was added.
+    try {
+      await logTouch(db, { applicationId, actorId: ctx.actorId, note });
+    } catch (err) {
+      console.error("[client-referrals] the note failed:", err instanceof Error ? err.message : err);
+      return { ok: true, status: "added_no_note", applicationId, personId };
+    }
+  }
   return { ok: true, status: added.newCandidate ? "added" : "added_existing", applicationId, personId };
 }

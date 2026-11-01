@@ -27,6 +27,17 @@ const MENU_WIDTH = 220;
 const MENU_ITEM =
   "flex h-8 w-full items-center gap-2 px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
 
+/** The menu shuts on the first click, so a double-click's second would land on whatever is under it. */
+function ignoreDoubleClick() {
+  const stop = (e: MouseEvent) => {
+    if (e.detail < 2) return;
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  document.addEventListener("click", stop, true);
+  setTimeout(() => document.removeEventListener("click", stop, true), 500);
+}
+
 export function MoveMenu({ at, onPick, onClose, focusRow }: { at: MenuAt; onPick: (move: StageMove) => void; onClose: () => void; focusRow: (applicationId: string) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const moves = at.card.moves?.stages ?? [];
@@ -100,7 +111,10 @@ export function MoveMenu({ at, onPick, onClose, focusRow }: { at: MenuAt; onPick
       ) : null}
       <p className="m-0 truncate px-2 py-1 text-[12px] text-faint">{at.card.stageLabel} · move to</p>
       {moves.map((m, i) => (
-        <button key={m.stage} type="button" role="menuitem" tabIndex={-1} onClick={() => onPick(m)} className={MENU_ITEM}>
+        <button key={m.stage} type="button" role="menuitem" tabIndex={-1} onClick={() => {
+            ignoreDoubleClick();
+            onPick(m);
+          }} className={MENU_ITEM}>
           <span className="min-w-0 flex-1 truncate">{m.label}</span>
           <span aria-hidden className="text-[11.5px] text-faint tabular-nums">
             {i + 1}

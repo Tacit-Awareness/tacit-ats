@@ -8,6 +8,7 @@ import { CopyButton } from "@/components/copy-button";
 import { Notice, Page, PageBar, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { holdLeave } from "@/lib/leave-guard";
 import {
   CUSTOM_KINDS, OPTIONAL_BUILT_INS, carryOn, draftPayload, leavesPage, previewQuestions, tooBigToSend, type DraftPayload, type DraftQuestion, type EditorDraft, type Made,
   withDepartment,
@@ -355,7 +356,7 @@ export function PostingEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
-  // Closing the tab, and a link in the app, which changes page with no `beforeunload`. The G keys go round this.
+  // Closing the tab, and a link in the app, which changes page with no `beforeunload`. The G keys and ⌘K ask through holdLeave.
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -368,7 +369,9 @@ export function PostingEditor({
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", onClick, true);
+    const release = holdLeave();
     return () => {
+      release();
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", onClick, true);
     };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { mayLeave } from "@/lib/leave-guard";
 import { useEffect, useId, useRef, useState } from "react";
 import { useCurrentCommandContext, type CommandContext } from "@/components/app-shell/command-context";
 import { cn } from "@/lib/utils";
@@ -92,7 +93,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
   const go = (item: CommandItem | undefined) => {
     if (!item) return;
     onClose();
-    if (item.href) router.push(item.href);
+    if (item.href && mayLeave()) router.push(item.href);
     // After focus has gone back: an action moves it on.
     else if (item.run) requestAnimationFrame(item.run);
   };

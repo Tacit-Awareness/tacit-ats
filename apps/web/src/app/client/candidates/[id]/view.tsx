@@ -108,6 +108,7 @@ function Controls({ candidate, applicationId, editing }: Pick<CandidateViewProps
   if (!edit || !editing || !a) return null;
   return (
     <JobControls
+      key={`${applicationId}-${a.stage}`}
       e={{
         candidateId: candidate.candidateId,
         applicationId,
@@ -326,7 +327,7 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
         <section aria-label="Activity">
           <BlockHead count={activity.length}>Activity</BlockHead>
           <div className="grid gap-3">
-            {noteable(candidate.name) ? <NoteComposer candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
+            {noteable(candidate.name) ? <NoteComposer key={candidate.candidateId} candidateId={candidate.candidateId} max={CANDIDATE_NOTE_MAX} /> : null}
             <ActivityStory entries={activity} now={now} />
             {activity.length >= FEED_MAX ? <p className="m-0 text-[12.5px] text-faint">The latest {FEED_MAX}. Older activity isn&apos;t shown here.</p> : null}
           </div>

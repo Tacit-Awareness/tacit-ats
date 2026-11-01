@@ -46,22 +46,32 @@ export type PipelineRead = {
   stages: StageName[] | null;
 };
 
+const INTERVIEWS_PER_PAGE = 1000;
+
 async function interviewsFor(db: Db, applicationIds: string[]) {
   const byApp = new Map<string, InterviewTimes[]>();
   const starts = Array.from({ length: Math.ceil(applicationIds.length / IDS_PER_READ) }, (_, n) => n * IDS_PER_READ);
   // At once: this is every live card now, on Home, Inbox and Analytics as well as the board.
   const reads = await Promise.all(
-    starts.map((i) =>
-      db
-        .from("interviews")
-        .select("application_id, starts_at, ends_at, status, step")
-        .in("application_id", applicationIds.slice(i, i + IDS_PER_READ))
-        .neq("status", "cancelled"),
-    ),
+    starts.map(async (i) => {
+      // A request brings back 1,000 rows at most, and 150 applications can have more.
+      const rows = [];
+      for (let from = 0; ; from += INTERVIEWS_PER_PAGE) {
+        const { data, error } = await db
+          .from("interviews")
+          .select("id, application_id, starts_at, ends_at, status, step")
+          .in("application_id", applicationIds.slice(i, i + IDS_PER_READ))
+          .neq("status", "cancelled")
+          .order("id")
+          .range(from, from + INTERVIEWS_PER_PAGE - 1);
+        if (error) throw new Error(error.message);
+        rows.push(...(data ?? []));
+        if ((data ?? []).length < INTERVIEWS_PER_PAGE) return rows;
+      }
+    }),
   );
-  for (const { data, error } of reads) {
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) {
+  for (const rows of reads) {
+    for (const row of rows) {
       if (!row.application_id) continue;
       const list = byApp.get(row.application_id) ?? [];
       list.push({ startsAt: row.starts_at, endsAt: row.ends_at, status: row.status, step: row.step });

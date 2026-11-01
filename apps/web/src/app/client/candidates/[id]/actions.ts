@@ -102,7 +102,8 @@ export async function setLabelAction(form: FormData): Promise<LabelResult> {
     console.error("[client-candidate] label failed:", err instanceof Error ? err.message : err);
     return { ok: false, error: "failed" };
   }
-  if (outcome.ok && outcome.changed) {
+  // Even with nothing changed: a teammate got there first, and the page should show it.
+  if (outcome.ok) {
     revalidatePath(`/client/candidates/${input.candidateId}`);
     revalidatePath("/client/candidates");
     revalidatePath("/client/pipeline");

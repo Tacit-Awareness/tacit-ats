@@ -46,9 +46,10 @@ export function inertOutside(root: PopupNode): () => void {
 /**
  * A write under way in the pop-up: the fix and Dismiss turn their submit off
  * while posting. Closing then would hide it, as Esc mid-post would in a
- * confirmation, and a navigation discards the action's answer.
+ * confirmation, and a navigation discards the action's answer. `data-off` is a
+ * button that is off for good, such as a reject with no reasons set up.
  */
-export const writeInFlight = (sheet: { querySelector(selector: string): unknown } | null): boolean => !!sheet?.querySelector('form button[type="submit"]:disabled');
+export const writeInFlight = (sheet: { querySelector(selector: string): unknown } | null): boolean => !!sheet?.querySelector('form button[type="submit"]:disabled:not([data-off])');
 
 /** The row an issue key names. The key came through the URL, so it is quoted. */
 export const rowSelector = (key: string) => `[data-issue-row="${key.replace(/["\\]/g, "\\$&")}"]`;

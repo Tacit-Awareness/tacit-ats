@@ -11,7 +11,7 @@ export function SubmitButton({
 }: ButtonProps & { pendingLabel?: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending || disabled} {...props}>
+    <Button type="submit" disabled={pending || disabled} data-off={disabled ? "" : undefined} {...props}>
       {pending ? (pendingLabel ?? "Saving…") : children}
     </Button>
   );

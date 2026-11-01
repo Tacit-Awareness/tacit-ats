@@ -62,10 +62,10 @@ describe("setLabelAction", () => {
     expect(tagCandidate).not.toHaveBeenCalled();
   });
 
-  test("the same answer twice changes nothing and re-reads nothing", async () => {
+  test("the same answer twice changes nothing, and re-reads: a teammate got there first", async () => {
     tagCandidate.mockResolvedValue({ outcome: "already_tagged", tagId: TAG, tag: "Gold" });
     expect(await setLabelAction(on)).toEqual({ ok: true, changed: false });
-    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalled();
   });
 
   test("each refusal is its own code", async () => {

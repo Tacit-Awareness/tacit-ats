@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
 import type { ReadMark } from "@/lib/client/inbox-digest";
@@ -140,26 +140,41 @@ function ZKey({ press }: { press: () => void }) {
   return null;
 }
 
-function UndoSubmit({ refFn }: { refFn: (b: HTMLButtonElement | null) => void }) {
+function UndoSubmit({ used }: { used: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="Z" className="inline-flex flex-none items-center gap-1.5 font-medium text-foreground underline-offset-2 hover:underline disabled:opacity-60">
+    <button type="submit" disabled={pending} hidden={used} aria-keyshortcuts="Z" className="inline-flex flex-none items-center gap-1.5 font-medium text-foreground underline-offset-2 hover:underline disabled:opacity-60">
       Undo
       <Kbd decorative>Z</Kbd>
     </button>
   );
 }
 
-/** The toast's Undo after a dismiss. Z works for as long as the toast is up, wherever the member has gone. */
+/** Undos already pressed: the redirect can redraw a toast, and with it any state it held. */
+const undone = new Set<string>();
+
+/**
+ * The toast's Undo after a dismiss. Z works for as long as the toast is up,
+ * wherever the member has gone, and with several up it means the newest. One
+ * that was used stays mounted for its post, with nothing left to press.
+ */
 export function UndoToast({ id, range }: { id: string; range: number }) {
-  const form = useRef<HTMLFormElement>(null);
-  const submit = useRef<HTMLButtonElement | null>(null);
+  const [used, setUsed] = useState(false);
+  // Every toast listens, and the first to hear a press handles it for the rest: useKeys skips an event already handled.
+  const press = () => {
+    const newest = [...document.querySelectorAll<HTMLFormElement>("[data-undo]")].filter((f) => !undone.has(f.dataset.undo ?? "")).at(-1);
+    const button = newest?.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (newest && button && isShown(newest)) newest.requestSubmit(button);
+  };
   return (
-    <form ref={form} action={restoreIssueAction} className="flex-none">
-      <ZKey press={() => void (submit.current && isShown(form.current) && form.current?.requestSubmit(submit.current))} />
+    <form action={restoreIssueAction} onSubmit={() => {
+        undone.add(id);
+        setUsed(true);
+      }} data-undo={id} className="flex-none">
+      {used ? null : <ZKey press={press} />}
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="range" value={range} />
-      <UndoSubmit refFn={(b) => void (submit.current = b)} />
+      <UndoSubmit used={used} />
     </form>
   );
 }

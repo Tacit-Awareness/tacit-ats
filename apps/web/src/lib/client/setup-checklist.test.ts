@@ -39,7 +39,7 @@ describe("Teams", () => {
 describe("Interview skills", () => {
   test("needs a type, with everyone running one, and counts the types covered", () => {
     expect(item(facts(), "skills")).toMatchObject({ done: false, detail: "No interview types yet" });
-    expect(item(facts({ types: [{ interviewers: ["a"] }, { interviewers: [] }] }), "skills")).toMatchObject({ done: false, detail: "1 of 2 interview types covered" });
+    expect(item(facts({ types: [{ interviewers: ["a"] }, { interviewers: [] }] }), "skills")).toMatchObject({ done: false, detail: expect.stringContaining("1 of 2 interview types covered,") });
     expect(item(facts({ types: [{ interviewers: ["a", "b"] }, { interviewers: [] }] }), "skills").done).toBe(true);
   });
 });

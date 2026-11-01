@@ -59,7 +59,7 @@ function Buttons({ copy, blocked, cancel, confirmRef }: { copy: ConfirmCopy; blo
         Cancel
         <Kbd decorative>esc</Kbd>
       </button>
-      <button ref={confirmRef} type="submit" disabled={pending || blocked} className={cn(button, copy.danger ? danger : primary)}>
+      <button ref={confirmRef} type="submit" disabled={pending || blocked} data-off={blocked ? "" : undefined} className={cn(button, copy.danger ? danger : primary)}>
         {copy.confirm}
       </button>
     </div>

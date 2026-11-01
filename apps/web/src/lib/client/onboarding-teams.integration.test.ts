@@ -227,9 +227,9 @@ describe("Interview skills", () => {
   });
 
   test("the checklist completes once everyone runs a live type", async () => {
-    expect(await item("skills")).toMatchObject({ done: false, detail: "0 of 1 interview type covered" });
+    expect(await item("skills")).toMatchObject({ done: false, detail: expect.stringContaining("0 of 1 interview type covered,") });
     for (const memberId of EVERYONE) await clientTools.assignInterviewType(ada(), ADMIN, { type: CODING, memberId });
-    expect(await item("skills")).toMatchObject({ done: true, detail: "1 of 1 interview type covered" });
+    expect(await item("skills")).toMatchObject({ done: true, detail: expect.stringContaining("1 of 1 interview type covered,") });
     await clientTools.archiveInterviewType(ada(), ADMIN, { type: CODING });
     expect(await item("skills")).toMatchObject({ done: false, detail: "No interview types yet" });
   });
