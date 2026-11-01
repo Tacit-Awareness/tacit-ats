@@ -434,6 +434,31 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
       );
 
       server.registerTool(
+        "add_contact",
+        {
+          title: "Add contact info to a candidate",
+          description:
+            "Attach an email, phone number or LinkedIn url to a candidate already on file -- the way to " +
+            "put a contact detail on an existing record rather than adding them again. Needs edit access " +
+            "to the candidate; a value already on file is answered with, not duplicated.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            kind: z.enum(["email", "phone", "linkedin"]),
+            value: z.string().min(1).max(320),
+          }),
+        },
+        (args) =>
+          run("add_contact", "write", { ...args, value: undefined }, async () => {
+            const r = await clientTools.addCandidateContact(db, ctx, { candidateId: args.candidate_id, kind: args.kind, value: args.value });
+            return {
+              summary: r.added ? `Added the ${r.kind} to them.` : `That ${r.kind} is already on their record. Nothing changed.`,
+              data: r,
+              candidateIds: [r.candidateId],
+            };
+          }),
+      );
+
+      server.registerTool(
         "update_stage",
         {
           title: "Move a candidate to another stage",
