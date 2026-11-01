@@ -3,7 +3,7 @@ import { clientTools } from "@tacit-ats/core";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
-import { groupByTeam, inOrder, isReferral, neighbour, readerAnswers, selected, sourceWords } from "@/lib/client/applicant-queue";
+import { groupByTeam, inOrder, isReferral, neighbour, readerAnswers, selected, referralTag, sourceWords } from "@/lib/client/applicant-queue";
 import { readApplicantQueue, readApplicationNotes, readRouting } from "@/lib/client/applicants";
 import { readDepartments } from "@/lib/client/departments";
 import { readReply } from "@/lib/client/email";
@@ -118,8 +118,9 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
             applicationId: e.applicationId,
             href: hrefAt(base, new URLSearchParams({ a: e.applicationId })),
             name: e.name ?? "Unnamed applicant",
-            // Under a team the row has to name the job; under a job it says where they applied.
-            line: g.isTeam ? (e.jobTitle ?? "Untitled job") : isReferral(e) ? sourceWords(e) : (e.post ?? e.email ?? "Job board"),
+            tag: referralTag(e),
+            // Under a team the row has to name the job; under a job it says where they applied, or the tag does.
+            line: g.isTeam ? (e.jobTitle ?? "Untitled job") : isReferral(e) ? (e.email ?? "") : (e.post ?? e.email ?? "Job board"),
             when: ago(e.appliedAt, now),
             active: e.applicationId === open?.applicationId,
           })),

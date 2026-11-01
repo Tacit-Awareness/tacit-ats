@@ -129,7 +129,7 @@ describe("New Applicants", () => {
     const entry = (await readApplicantQueue(ada, reader(ADMIN, "admin"))).find((e) => e.applicationId === app(6));
     expect(entry).toMatchObject({ source: "referral", referredBy: "Priya Shah", post: null, answers: [] });
     expect(await readApplicationNotes(ada, app(6))).toEqual(["Worked with her at Stripe."]);
-    expect(await routeApplicant(ada, ADMIN, { applicationId: app(6), route: "screening" })).toEqual({ ok: true, route: "screening" });
+    expect(await routeApplicant(ada, ADMIN, { applicationId: app(6), route: "interview" })).toEqual({ ok: true, route: "interview" });
     expect((await readApplicantQueue(ada, reader(ADMIN, "admin"))).map((e) => e.applicationId)).not.toContain(app(6));
   });
 
@@ -143,13 +143,13 @@ describe("New Applicants", () => {
   test("an interviewer is refused", async () => {
     await expect(readApplicantQueue(member("user_ap_ivan"), reader(INTERVIEWER, "limited"))).rejects.toMatchObject({ code: "forbidden" });
     // and cannot route one either
-    expect(await routeApplicant(member("user_ap_ivan"), INTERVIEWER, { applicationId: app(1), route: "screening" })).toMatchObject({ ok: false });
+    expect(await routeApplicant(member("user_ap_ivan"), INTERVIEWER, { applicationId: app(1), route: "interview" })).toMatchObject({ ok: false });
   });
 
   test("another company's applicants never appear, and cannot be routed", async () => {
     const queue = await readApplicantQueue(member("user_ap_ada"), reader(ADMIN, "admin"));
     expect(queue.map((e) => e.applicationId)).not.toContain(GLOBEX_APP);
-    expect(await routeApplicant(member("user_ap_ada"), ADMIN, { applicationId: GLOBEX_APP, route: "screening" })).toEqual({ ok: false, error: "not_found" });
+    expect(await routeApplicant(member("user_ap_ada"), ADMIN, { applicationId: GLOBEX_APP, route: "interview" })).toEqual({ ok: false, error: "not_found" });
   });
 
   test("routing moves the stage, lands in application_events, and only once", async () => {
@@ -159,7 +159,7 @@ describe("New Applicants", () => {
     expect(events).toEqual([{ kind: "stage_changed", from_stage: "sourced", to_stage: "interviewing", actor_id: ADMIN }]);
     // out of the queue, and a second click changes nothing
     expect((await readApplicantQueue(ada, reader(ADMIN, "admin"))).map((e) => e.applicationId)).not.toContain(app(1));
-    expect(await routeApplicant(ada, ADMIN, { applicationId: app(1), route: "screening" })).toEqual({ ok: false, error: "changed" });
+    expect(await routeApplicant(ada, ADMIN, { applicationId: app(1), route: "interview" })).toEqual({ ok: false, error: "changed" });
   });
 
   test("declining needs one of the org's rejected reasons", async () => {
@@ -181,6 +181,6 @@ describe("New Applicants", () => {
 
   test("a hiring manager cannot route an applicant in a job they are not on", async () => {
     // Lee cannot even read the designer's application, so it is not found.
-    expect(await routeApplicant(member("user_ap_lee"), LEAD, { applicationId: app(3), route: "screening" })).toEqual({ ok: false, error: "not_found" });
+    expect(await routeApplicant(member("user_ap_lee"), LEAD, { applicationId: app(3), route: "interview" })).toEqual({ ok: false, error: "not_found" });
   });
 });

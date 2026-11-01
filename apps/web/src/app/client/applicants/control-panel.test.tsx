@@ -21,7 +21,7 @@ const reply: Reply = {
   sender: null,
   failed: null,
   sent: null,
-  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", decline: "Hi Nia, no", blank: "Hi Nia," } },
+  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", decline: "Hi Nia, no", blank: "Hi Nia," }, testbench: "Hi Nia, try it" },
   subjectMax: 300,
   bodyMax: 20000,
 };
@@ -38,11 +38,12 @@ describe("the control panel", () => {
     expect(out).toContain("Not a fit");
   });
 
-  test("the next step is three pills, with interview picked first, and no Testbench", () => {
+  test("the next step is three pills, with interview picked first, and Testbench sends nothing", () => {
     const out = html();
-    expect(out.match(/aria-pressed="true"[^>]*aria-keyshortcuts="[ISD]"/g)).toEqual(['aria-pressed="true" aria-keyshortcuts="I"']);
-    expect(out.match(/aria-pressed="false"[^>]*aria-keyshortcuts="[ISD]"/g)).toHaveLength(2);
-    expect(out).not.toContain("Testbench");
+    expect(out.match(/aria-pressed="true"[^>]*aria-keyshortcuts="[ITD]"/g)).toEqual(['aria-pressed="true" aria-keyshortcuts="I"']);
+    expect(out.match(/aria-pressed="false"[^>]*aria-keyshortcuts="[ITD]"/g)).toHaveLength(2);
+    expect(out).not.toContain('value="testbench"');
+    expect(out).not.toContain("Send Testbench");
   });
 
   test("only the picked move can be posted: Enter in the reason submits the form's first button", () => {

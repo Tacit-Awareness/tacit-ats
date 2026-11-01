@@ -46,7 +46,7 @@ export async function readRouting(db: Db, jobId: string): Promise<{ canEdit: boo
 }
 
 /** Where the routing bar sends someone. */
-export const ROUTES = { screening: "screening", interview: "interviewing", decline: "rejected" } as const;
+export const ROUTES = { interview: "interviewing", decline: "rejected" } as const;
 export type Route = keyof typeof ROUTES;
 export const isRoute = (v: unknown): v is Route => typeof v === "string" && Object.hasOwn(ROUTES, v);
 
@@ -55,9 +55,9 @@ export type RouteOutcome =
   | { ok: false; error: "not_found" | "forbidden" | "changed" | "reason_required" };
 
 /**
- * Moves a queued applicant on: screening, interviewing, or rejected with one
- * of the org's rejected reasons. Only from the stage the queue showed them at,
- * so a ticket someone else already routed is not moved twice.
+ * Moves a queued applicant on: interviewing, or rejected with one of the org's
+ * rejected reasons. Only from the stage the queue showed them at, so a ticket
+ * someone else already routed is not moved twice.
  */
 export async function routeApplicant(
   db: Db,

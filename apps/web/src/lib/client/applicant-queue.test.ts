@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { DepartmentsRead } from "./department-tree";
-import { groupByJob, groupByTeam, inOrder, neighbour, readerAnswers, safeHref, selected, sourceWords, type QueueEntry } from "./applicant-queue";
+import { groupByJob, groupByTeam, inOrder, neighbour, readerAnswers, referralTag, safeHref, selected, sourceWords, type QueueEntry } from "./applicant-queue";
 
 const entry = (id: string, jobId: string, appliedAt: string, over: Partial<QueueEntry> = {}): QueueEntry => ({
   applicationId: id,
@@ -17,6 +17,14 @@ const entry = (id: string, jobId: string, appliedAt: string, over: Partial<Queue
   appliedAt,
   answers: [],
   ...over,
+});
+
+describe("referralTag", () => {
+  test("names who referred them, and nobody else gets one", () => {
+    expect(referralTag({ source: "referral", referredBy: "Sam" })).toEqual({ text: "Referral · Sam", title: "Referred by Sam" });
+    expect(referralTag({ source: "referral", referredBy: null })).toEqual({ text: "Referral", title: "Referred" });
+    expect(referralTag({ source: "job_board", referredBy: null })).toBeNull();
+  });
 });
 
 describe("sourceWords", () => {

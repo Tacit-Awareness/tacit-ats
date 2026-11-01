@@ -213,12 +213,12 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | --- | --- |
 | \`J\` / \`K\` | Next, previous |
 | \`I\` | Pick Interview |
-| \`S\` | Pick Screening |
+| \`T\` | Pick Testbench |
 | \`D\` | Pick Decline, then choose a reason from your company's list |
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Testbench isn't connected yet: picking it shows the message, and nothing goes out. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
@@ -380,7 +380,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams and Interview process, and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |

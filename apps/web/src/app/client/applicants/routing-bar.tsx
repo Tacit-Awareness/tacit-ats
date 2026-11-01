@@ -12,28 +12,29 @@ import { routeApplicantAction } from "./actions";
 // pills, the team, and the button that moves them. Pressing a pill only picks
 // the move, as in the prototype, and picks the reply's starter with it; the
 // button at the end of the row says the move and posts it. The keys pick too:
-// I interviews, S screening, D declines, then that button takes focus, so Enter
-// posts it and no single key moves anyone. D with no reason picked focuses the
-// reason instead, since a decline needs one.
-// design/tats's T (Testbench) is left out: nothing sends one. The team is
-// read-only: a route takes no team, the job already has one.
+// I interviews, D declines, then that button takes focus, so Enter posts it and
+// no single key moves anyone. D with no reason picked focuses the reason
+// instead, since a decline needs one.
+// T picks design/tats's Testbench, which has no backend yet: it moves nobody,
+// so it has no button here and control-panel.tsx shows its message unsendable.
+// The team is read-only: a route takes no team, the job already has one.
 
 export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[]; /** Drawn in Home's tab, so the post comes back there. */ home?: boolean };
-export type MoveKey = "interview" | "screening" | "decline";
+export type MoveKey = "interview" | "testbench" | "decline";
 
 const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
   { key: "interview", keyName: "I", pick: "Interview", act: "Move to interviewing" },
-  { key: "screening", keyName: "S", pick: "Screening", act: "Move to screening" },
+  { key: "testbench", keyName: "T", pick: "Testbench", act: "" },
   { key: "decline", keyName: "D", pick: "Decline", act: "Decline" },
 ];
 
 /** The keys, inside the form so a key does nothing while a route is in flight. */
 function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
   const { pending } = useFormStatus();
-  useKeys({ i: () => pick("interview"), s: () => pick("screening"), d: () => pick("decline") }, !pending);
+  useKeys({ i: () => pick("interview"), t: () => pick("testbench"), d: () => pick("decline") }, !pending);
   useKeyHelp("New Applicants", [
     { keys: "I", label: "Pick Interview" },
-    { keys: "S", label: "Pick Screening" },
+    { keys: "T", label: "Pick Testbench" },
     { keys: "D", label: "Pick Decline, then its reason" },
     { keys: "Enter", label: "Post the picked move" },
   ]);
@@ -141,7 +142,7 @@ export function RoutingBar({
   }, [keyed]);
   const keyPick = (m: MoveKey) => {
     pick(m);
-    if (m !== "decline" || !noReason()) setKeyed({ move: m });
+    if (m !== "testbench" && (m !== "decline" || !noReason())) setKeyed({ move: m });
   };
 
   return (
@@ -187,7 +188,7 @@ export function RoutingBar({
       {team ? <TeamField team={team} /> : null}
       <span className="md:ml-auto">
         {/* Only the picked one is in the form: Enter in the reason submits the form's first button, which must be this. */}
-        {MOVES.filter((m) => m.key === move).map((m) => (
+        {MOVES.filter((m) => m.key === move && m.act).map((m) => (
           <Route
             key={m.key}
             value={m.key}

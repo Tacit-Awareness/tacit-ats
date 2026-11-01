@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
 import { FlashToast } from "@/components/flash-toast";
 import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/components/page";
@@ -9,12 +10,14 @@ import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
 } from "../integrations/messages";
+import { RoutingRules } from "./routing-rules";
 
 // /client/settings, design/tats's settings cards (`.cardbox` around
 // `.lrow.pol`): one ruled row per connector, Connect or its connected state,
 // the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
 // (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
+// Above them, design/tats's `.set-link`s to Onboarding and its Routing Rules.
 // Props only, so page.tsx does every read.
 export function SettingsView({
   calendar,
@@ -47,9 +50,23 @@ export function SettingsView({
       : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
-    <Page bar={<PageBar title="Settings" />}>
+    <Page narrow bar={<PageBar title="Settings" />}>
       {errorText ? <Notice tone="error">{errorText}</Notice> : null}
       {noticeText ? <FlashToast text={noticeText} /> : null}
+
+      <SetLink
+        href="/client/onboarding/people"
+        icon={USERS}
+        title="People & teams"
+        sub="Add interviewers and their Grokbots, move people between teams, and set what each person interviews for"
+      />
+      <SetLink
+        href="/client/onboarding/process"
+        icon={ROUTE}
+        title="Interview process"
+        sub="Draw the steps from applying to an offer, who runs each one and how long it takes. The Grokbots route by it"
+      />
+      <RoutingRules />
 
       <Section flush title="Integrations">
         <Rows ruled>
@@ -97,6 +114,35 @@ export function SettingsView({
       </Section>
       {bot || botConnected !== undefined ? <BotSection bot={bot ? bot.set : null} connected={botConnected} callbackUrl={botCallbackUrl} /> : null}
     </Page>
+  );
+}
+
+const USERS = "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2";
+const ROUTE = "M3 2.5h4v3.5H3ZM9 10h4v3.5H9ZM5 6v3a2 2 0 0 0 2 2h2";
+const ARROW = "M3 8h10M9 4l4 4-4 4";
+
+function LinkIcon({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-4 text-muted-foreground" aria-hidden>
+      <path d={path} />
+    </svg>
+  );
+}
+
+/** design/tats's `.set-link`: a card that goes to the page where this is set. */
+function SetLink({ href, icon, title, sub }: { href: string; icon: string; title: string; sub: string }) {
+  return (
+    <Link
+      href={href}
+      className="grid grid-cols-[20px_minmax(0,1fr)_16px] items-center gap-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--raised)] p-4 transition-colors hover:border-[color:var(--line-strong)]"
+    >
+      <LinkIcon path={icon} />
+      <span>
+        <b className="block text-[14.5px] font-medium">{title}</b>
+        <span className="text-[13px] text-muted-foreground">{sub}</span>
+      </span>
+      <LinkIcon path={ARROW} />
+    </Link>
   );
 }
 
