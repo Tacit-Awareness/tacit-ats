@@ -21,7 +21,9 @@ function svixOk(req: Request, raw: string): boolean {
   const ts = req.headers.get("svix-timestamp") ?? "";
   const sigs = req.headers.get("svix-signature") ?? "";
   if (!id || !ts || !sigs) return false;
-  const expected = createHmac("sha256", secret.replace(/^whsec_/, "")).update(`${id}.${ts}.${raw}`).digest("base64");
+  // svix secrets are whsec_<base64>; the key is the decoded bytes.
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const expected = createHmac("sha256", key).update(`${id}.${ts}.${raw}`).digest("base64");
   return sigs.split(" ").some((s) => {
     const v = s.split(",")[1] ?? "";
     try {
