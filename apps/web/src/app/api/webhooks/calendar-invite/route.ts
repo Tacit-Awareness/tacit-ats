@@ -106,10 +106,13 @@ export async function POST(request: Request): Promise<Response> {
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
   if (!app) return Response.json({ ok: true, skipped: "no_application" });
 
-  // The interviewer: an attendee who is a member actor of that org.
+  // The interviewers: members of that org on the guest list, plus the
+  // event's organizer (the member who booked it -- Google puts them in
+  // ORGANIZER, not ATTENDEE, so matching guests alone misses them).
+  const memberMails = ev.organizer ? [...mails, ev.organizer] : mails;
   const { data: actors } = await db
     .from("org_members").select("id, email")
-    .eq("org_id", person.org_id).in("email", mails);
+    .eq("org_id", person.org_id).in("email", memberMails);
   const interviewerIds = ((actors ?? []) as { id: string }[]).map((a) => a.id);
   if (!ev.startsAt) return Response.json({ ok: true, skipped: "no_time" });
 
