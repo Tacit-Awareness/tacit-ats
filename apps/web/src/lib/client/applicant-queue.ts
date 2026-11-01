@@ -72,6 +72,12 @@ export function sourceWords(e: Pick<QueueEntry, "source" | "post" | "referredBy"
   return e.post ? `Job board · ${e.post}` : "Job board";
 }
 
+/** A referral's tag in the list, who referred them first; null for anyone else. */
+export function referralTag(e: Pick<QueueEntry, "source" | "referredBy">): { text: string; title: string } | null {
+  if (!isReferral(e)) return null;
+  return e.referredBy ? { text: `Referral · ${e.referredBy}`, title: `Referred by ${e.referredBy}` } : { text: "Referral", title: "Referred" };
+}
+
 /** The list in reading order, as the groups show it. */
 export const inOrder = (groups: QueueGroup[]): QueueEntry[] => groups.flatMap((g) => g.entries);
 

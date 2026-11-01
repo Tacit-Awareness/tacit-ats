@@ -15,7 +15,16 @@ import type { Routing } from "./routing-bar";
 // applicant typed is rendered as text; React escapes it, and only an http(s)
 // URL becomes a link (applicant-queue.ts's safeHref).
 
-export type TicketRow = { applicationId: string; href: string; name: string; line: string; when: string; active: boolean };
+export type TicketRow = {
+  applicationId: string;
+  href: string;
+  name: string;
+  /** design/tats's `.m-src`: "Referral · Sam", with the sentence as its title. */
+  tag: { text: string; title: string } | null;
+  line: string;
+  when: string;
+  active: boolean;
+};
 /** `title` is a team's path, or a job's title in an org with no departments. */
 export type TicketGroup = { key: string; title: string; rows: TicketRow[] };
 
@@ -68,7 +77,14 @@ function TicketList({ groups }: { groups: TicketGroup[] }) {
                 <b className="flex-1 truncate text-[14.5px] font-medium">{r.name}</b>
                 <span className="flex-none text-xs text-faint">{r.when}</span>
               </span>
-              <span className="truncate text-[13px] text-muted-foreground">{r.line}</span>
+              <span className="truncate text-[13px] text-muted-foreground">
+                {r.tag ? (
+                  <span title={r.tag.title} className="mr-1.5 inline-block rounded-[5px] bg-[color:var(--accent-soft)] px-1.5 align-px text-[11.5px] leading-[18px] font-medium text-[color:var(--accent)]">
+                    {r.tag.text}
+                  </span>
+                ) : null}
+                {r.line}
+              </span>
             </Link>
           ))}
         </section>

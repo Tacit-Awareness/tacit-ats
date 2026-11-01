@@ -17,7 +17,7 @@ const reply = (over: Partial<Reply> = {}): Reply => ({
   sender: { from: '"Ada at Acme" <hiring@example.test>', replyTo: "ada@acme.test" },
   failed: null,
   sent: null,
-  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", decline: "Hi Nia, no", blank: "Hi Nia," } },
+  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", decline: "Hi Nia, no", blank: "Hi Nia," }, testbench: "Hi Nia, try it" },
   subjectMax: 300,
   bodyMax: 20000,
   ...over,
@@ -76,7 +76,7 @@ describe("the reply box", () => {
   });
 
   test("the preview is text: markup in a starter is never markup", () => {
-    const out = html({ starters: { subject: "s", bodies: { interview: "<img src=x onerror=alert(1)>", decline: "d", blank: "b" } } });
+    const out = html({ starters: { subject: "s", bodies: { interview: "<img src=x onerror=alert(1)>", decline: "d", blank: "b" }, testbench: "t" } });
     expect(out).not.toContain("<img");
     expect(out).toContain("&lt;img");
   });

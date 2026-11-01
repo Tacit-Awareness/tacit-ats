@@ -11,6 +11,7 @@ describe("replyStarters", () => {
     expect(s.bodies.interview.endsWith("\n\nAda")).toBe(true);
     expect(s.bodies.decline).toContain("your interest in Acme");
     expect(s.bodies.blank).toBe("Hi Nia,\n\nAda");
+    expect(s.testbench).toMatch(/^Hi Nia,\n\nThanks for applying for the Founding Engineer role\. Before we talk/);
   });
 
   test("no name on the application says Hi, not Hi undefined", () => {
