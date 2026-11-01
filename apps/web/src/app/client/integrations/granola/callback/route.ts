@@ -11,7 +11,7 @@ import type { IntegrationError, IntegrationNotice } from "../../messages";
 // own token, which writes only the caller's row.
 export async function GET(request: NextRequest): Promise<Response> {
   const back = (params: { notice?: IntegrationNotice; error?: IntegrationError }) => {
-    const response = NextResponse.redirect(new URL(`/client/integrations?${new URLSearchParams(params)}`, request.url));
+    const response = NextResponse.redirect(new URL(`/client/settings?${new URLSearchParams(params)}`, request.url));
     response.cookies.set(GRANOLA_STATE_COOKIE, "", { path: GRANOLA_CALLBACK_PATH, maxAge: 0 });
     return response;
   };

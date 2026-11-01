@@ -10,9 +10,9 @@ tests are what run on a PR.
 | --- | --- |
 | Company | **Tacit Test Co**, created 2026-10-28 with the staff connector's `recruit_company` (company id `fc931289-fbe4-4165-9b7d-2f972f104139`) |
 | Admin | Ryan Huang, ryan@tacitawareness.com (the same person as his Tacit staff actor, a separate actor in this org) |
-| Organizer's calendar | Ryan's Google Calendar, connected on Integrations |
+| Organizer's calendar | Ryan's Google Calendar, connected in Settings |
 | Candidate address | rhuang53jp@gmail.com (Google sends it real invites) |
-| The company's bot | Ryan's Grok bot, installed in a test Slack workspace, set on Integrations > Your team's bot |
+| The company's bot | Ryan's Grok bot, installed in a test Slack workspace, set in Settings > Your team's bot |
 
 Treat it as a real client's workspace: it shows in ATS Admin's company list,
 and its interviews are real events on Ryan's calendar.
@@ -21,10 +21,10 @@ and its interviews are real events on Ryan's calendar.
 
 1. Accept the WorkOS invitation and sign in at https://ats.tacitawareness.com.
    If AuthKit asks which organization, choose Tacit Test Co.
-2. **Integrations**: connect Google Calendar.
+2. **Settings**: connect Google Calendar.
 3. Create a job (in the client area or with the client connector's
    `create_job`) and add rhuang53jp@gmail.com as a candidate.
-4. **Integrations > Your team's bot**: the Grok routine's webhook URL and, as
+4. **Settings > Your team's bot**: the Grok routine's webhook URL and, as
    **Your bot's key**, the key from the routine's webhook panel (the Bearer key
    Grok checks). Save, then **Verify**: a success answer from Grok verifies it.
    (The routine's instruction and the steps: the client docs page "Set up a
@@ -193,6 +193,6 @@ token cannot read applications.
   that has started: **Your Granola notes** fills in after the rest of the page,
   says how it matched, and **Show the transcript** adds the transcript (or says
   it needs a paid plan). The rest of the reader never waits on it.
-- [ ] Not connected: a line pointing at Integrations. No match: the meetings
+- [ ] Not connected: a line pointing at Settings. No match: the meetings
   around then, each with **Use this one**.
 - [ ] As Admin on an interview you did not sit on: no Granola section at all.

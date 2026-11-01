@@ -20,7 +20,7 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking) and Onboarding, with Integrations, Documentation, Tutorial, the keys and your name at the bottom.
+// sections (Top of Funnel, Routing & Tracking) and Onboarding, with Documentation, the keys, your name, then Tutorial and Settings at the bottom.
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
 // edge to open it again), ⌘K opens the command menu. The sidebar is for getting
@@ -39,7 +39,7 @@ const ICONS = {
   people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
   team: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2",
   db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
-  integrations: "M6 10 4.6 11.4a2.1 2.1 0 0 1-3-3L3 7M10 6l1.4-1.4a2.1 2.1 0 0 1 3 3L13 9M6 10l4-4",
+  gear: "M8 10.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4ZM8 1.8v1.8M8 12.4v1.8M1.8 8h1.8M12.4 8h1.8M3.6 3.6l1.3 1.3M11.1 11.1l1.3 1.3M3.6 12.4l1.3-1.3M11.1 4.9l1.3-1.3",
   help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
   search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
   sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
@@ -93,9 +93,7 @@ const TEAM: NavLink = {
   activeUnder: ["/client/onboarding/teams", "/client/onboarding/skills", "/client/onboarding/review"],
 };
 const PROCESS: NavLink = { href: "/client/onboarding/process", label: "Interview process", icon: "route" };
-const SETTINGS: NavLink[] = [
-  { href: "/client/integrations", label: "Integrations", icon: "integrations", activeUnder: ["/client/calendar"] },
-];
+const SETTINGS: NavLink = { href: "/client/settings", label: "Settings", icon: "gear" };
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
 // G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
 const GO: GoKey[] = [
@@ -394,7 +392,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
     { group: "Go to", label: "Onboarding", href: TEAM.href },
     { group: "Go to", label: PROCESS.label, href: PROCESS.href },
-    ...SETTINGS.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
+    { group: "Go to", label: SETTINGS.label, href: SETTINGS.href },
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
     ...allViews(views.state).map((v) => ({ group: "Views", label: v.name, href: viewHref(v) })),
@@ -476,22 +474,23 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         </Section>
 
         <div className="sb-foot">
-          <nav className="sb-group" aria-label="Settings">
-            {SETTINGS.map((link) => (
-              <NavItem key={link.href} link={link} active={isActive(link)} rail={rail} />
-            ))}
+          <nav className="sb-group" aria-label="Help">
             <NavItem link={DOCS} active={isActive(DOCS)} rail={rail} />
+            <KeysButton className={cn(itemCls(false), "max-md:hidden")}>
+              <span className="sb-label">Keyboard shortcuts</span>
+            </KeysButton>
+          </nav>
+          <AccountMenu user={user} rail={rail} pathname={pathname} />
+          {/* design/tats's foot: Tutorial and Settings side by side under your name. */}
+          <div className="sb-tools">
             <TourButton title={rail ? "Tutorial" : undefined} aria-label={rail ? "Tutorial" : undefined} className={itemCls(false)}>
               <span className="grid size-5 shrink-0 place-items-center">
                 <Icon name="tour" />
               </span>
               <span className="sb-label">Tutorial</span>
             </TourButton>
-            <KeysButton className={cn(itemCls(false), "max-md:hidden")}>
-              <span className="sb-label">Keyboard shortcuts</span>
-            </KeysButton>
-          </nav>
-          <AccountMenu user={user} rail={rail} pathname={pathname} />
+            <NavItem link={SETTINGS} active={isActive(SETTINGS)} rail={rail} />
+          </div>
         </div>
       </aside>
 

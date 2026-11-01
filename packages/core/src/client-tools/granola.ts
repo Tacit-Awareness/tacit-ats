@@ -4,7 +4,7 @@ import { ClientToolError, type ClientToolCtx } from "./context.js";
 
 /**
  * An interviewer's own Granola notes on an interview, for the client
- * connector. A member connects Granola on apps/web's /client/integrations
+ * connector. A member connects Granola on apps/web's /client/settings
  * with one button: they sign in to Granola, and the OAuth grant for
  * Granola's MCP server (mcp.granola.ai) is stored in granola_connections
  * (20261019200000). No member token can read it, so the access token arrives
@@ -152,7 +152,7 @@ export async function granolaGrantAccess(
 export type ClientGranola = {
   /** The member's current Granola access token, refreshed if it had expired. Asked only for the caller. */
   accessToken: (orgId: string, actorId: string) => Promise<GranolaAccess>;
-  /** Where a member connects Granola (apps/web /client/integrations), for the sentences. Null = not said. */
+  /** Where a member connects Granola (apps/web /client/settings), for the sentences. Null = not said. */
   connectUrl: string | null;
   fetch?: typeof fetch;
 };
@@ -258,7 +258,7 @@ export function granolaMcp(token: string, fetchImpl: typeof fetch = fetch) {
 }
 
 function connectHint(deps: ClientGranola | null): string {
-  return deps?.connectUrl ? `Connect it at ${deps.connectUrl}.` : "Connect it on the Integrations page of Tacit's member area.";
+  return deps?.connectUrl ? `Connect it at ${deps.connectUrl}.` : "Connect it on the Settings page of Tacit's member area.";
 }
 
 const clip = (text: string | null | undefined, max: number): { text: string | null; cut: boolean } => {

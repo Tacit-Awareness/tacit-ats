@@ -1,4 +1,4 @@
-// What /client/integrations says after connecting or disconnecting Granola.
+// What /client/settings says after connecting or disconnecting Granola.
 // The routes and actions redirect with a code and the page looks the sentence
 // up here, so nothing else (least of all a token) rides in a URL.
 export const INTEGRATION_NOTICES = {

@@ -16,12 +16,19 @@ const shell = (collapsed: boolean) =>
   );
 
 describe("the sidebar's foot", () => {
-  test("has Tutorial, a button, between Documentation and the keys", () => {
+  test("has Tutorial, a button, and Settings, a link, side by side under your name", () => {
     const html = shell(false);
     const foot = html.slice(html.indexOf('class="sb-foot"'));
-    expect(foot).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Tutorial<\/span><\/button>/);
-    expect(foot.indexOf("Documentation")).toBeLessThan(foot.indexOf("Tutorial"));
-    expect(foot.indexOf("Tutorial")).toBeLessThan(foot.indexOf("Keyboard shortcuts"));
+    const tools = foot.slice(foot.indexOf('class="sb-tools"'));
+    expect(tools).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Tutorial<\/span><\/button>/);
+    expect(tools).toContain('href="/client/settings"');
+    expect(tools.indexOf("Tutorial")).toBeLessThan(tools.indexOf("Settings"));
+    expect(foot.indexOf("Account: Sam")).toBeLessThan(foot.indexOf('class="sb-tools"'));
+    expect(foot.indexOf("Keyboard shortcuts")).toBeLessThan(foot.indexOf("Account: Sam"));
+  });
+
+  test("has no Integrations link: its panels are in Settings", () => {
+    expect(shell(false)).not.toContain("/client/integrations");
   });
 
   test("on the rail the label has gone, so the button names itself", () => {

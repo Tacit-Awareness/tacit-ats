@@ -49,7 +49,7 @@ function Frame({ children, line }: { children: React.ReactNode; line?: string | 
   );
 }
 
-const INTEGRATIONS = "/client/integrations#granola";
+const INTEGRATIONS = "/client/settings#granola";
 const quiet = "text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground";
 
 export function GranolaLoading() {

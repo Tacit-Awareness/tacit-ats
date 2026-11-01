@@ -76,7 +76,7 @@ describe("the panel", () => {
   });
 
   test("not connected, or dropped, points at Integrations", () => {
-    expect(render({ status: "not_connected" })).toContain('href="/client/integrations#granola"');
+    expect(render({ status: "not_connected" })).toContain('href="/client/settings#granola"');
     expect(render({ status: "reconnect" })).toContain("Connect again");
   });
 

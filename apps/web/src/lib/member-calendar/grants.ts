@@ -28,7 +28,7 @@ export function memberCalendar(origin: string, env: Record<string, string | unde
   if (!google || !env.SUPABASE_URL?.trim() || !env.SUPABASE_SECRET_KEY?.trim()) return null;
   return {
     google,
-    connectUrl: `${origin}/client/integrations`,
+    connectUrl: `${origin}/client/settings`,
     connections: async (orgId, actorIds) => {
       const ids = [...new Set(actorIds)];
       if (!ids.length) return new Map();

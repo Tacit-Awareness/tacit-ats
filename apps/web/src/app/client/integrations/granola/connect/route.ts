@@ -18,7 +18,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     clientId = await registerGranolaClient(redirectUri);
   } catch (err) {
     if (!(err instanceof GranolaConnectError)) console.error("[client-granola] register failed:", err instanceof Error ? err.message : err);
-    return NextResponse.redirect(new URL("/client/integrations?error=granola_unreachable", request.url));
+    return NextResponse.redirect(new URL("/client/settings?error=granola_unreachable", request.url));
   }
   const state = newState();
   const { verifier, challenge } = await pkce();

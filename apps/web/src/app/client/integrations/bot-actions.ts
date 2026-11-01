@@ -48,7 +48,7 @@ export async function rotateBotSecretAction(_prev: SecretResult): Promise<Secret
 }
 
 function back(params: { notice?: BotNotice; error?: BotError }): never {
-  redirect(`/client/integrations?${new URLSearchParams(params)}#bot`);
+  redirect(`/client/settings?${new URLSearchParams(params)}#bot`);
 }
 
 export async function verifyBotAction(): Promise<void> {
