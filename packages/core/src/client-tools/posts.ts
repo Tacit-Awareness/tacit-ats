@@ -15,7 +15,8 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
  * The public half is not here: apps/web's /jobs/[slug] reads a live post
  * through job_post_public and submits through submit_job_application, both on
  * the publishable key. An applicant lands in the job at sourced with source
- * job_board, and listApplicationsInbox is where the team finds them.
+ * job_board, and listApplicationsInbox is where the team finds them, beside
+ * the people referred into a job.
  */
 
 export const JOB_POST_STATUSES = ["draft", "live", "closed"] as const;
@@ -35,6 +36,8 @@ const DEFAULT_LABELS: Partial<Record<QuestionType, string>> = {
 };
 /** Where an applicant lands: the first stage. "applied" is listed for a pipeline that grows one. */
 export const INBOX_STAGES = ["applied", "sourced"] as const;
+/** Who waits in the inbox: an application from a job post, or a referral. */
+export const INBOX_SOURCES = ["job_board", "referral"] as const;
 
 export const QUESTIONS_MAX = 40;
 export const QUESTION_LABEL_MAX = 300;
@@ -438,16 +441,20 @@ export type InboxEntry = {
   jobId: string;
   jobTitle: string | null;
   stage: string;
-  /** The post they applied through (its title at the time). */
+  source: string;
+  /** The post they applied through (its title at the time); null for a referral. */
   post: string | null;
+  /** Who referred them, as typed; null for a job-board application. */
+  referredBy: string | null;
+  linkedinUrl: string | null;
   appliedAt: string;
   answers: ApplicationAnswer[];
 };
 
 /**
- * New applicants from job posts: applications with source job_board still at
- * the first stage, newest first, with their answers. Moving one on (update_stage)
- * takes them out of the inbox.
+ * New applicants: applications from job posts and referrals still at the
+ * first stage, newest first, with their answers (a referral has none). Moving
+ * one on (update_stage) takes them out of the inbox.
  */
 export async function listApplicationsInbox(
   db: Db,
@@ -465,16 +472,16 @@ export async function listApplicationsInbox(
   }
   let q = db
     .from("applications")
-    .select("id, person_id, role_id, stage, source_detail, created_at, people(display_name, email), roles(title)")
-    .eq("source", "job_board")
+    .select("id, person_id, role_id, stage, source, source_detail, created_at, people(display_name, email, linkedin_url), roles(title)")
+    .in("source", [...INBOX_SOURCES])
     .in("stage", [...INBOX_STAGES])
     .order("created_at", { ascending: false })
     .limit(limit);
   if (input.jobId) q = q.eq("role_id", input.jobId);
   const { data, error } = await q.overrideTypes<
     Array<{
-      id: string; person_id: string; role_id: string; stage: string; source_detail: string | null; created_at: string;
-      people: { display_name: string | null; email: string | null } | null; roles: { title: string } | null;
+      id: string; person_id: string; role_id: string; stage: string; source: string; source_detail: string | null; created_at: string;
+      people: { display_name: string | null; email: string | null; linkedin_url: string | null } | null; roles: { title: string } | null;
     }>,
     { merge: false }
   >();
@@ -489,7 +496,10 @@ export async function listApplicationsInbox(
     jobId: r.role_id,
     jobTitle: r.roles?.title ?? null,
     stage: r.stage,
-    post: r.source_detail,
+    source: r.source,
+    post: r.source === "referral" ? null : r.source_detail,
+    referredBy: r.source === "referral" ? r.source_detail : null,
+    linkedinUrl: r.people?.linkedin_url ?? null,
     appliedAt: r.created_at,
     answers: answers.get(r.id)?.answers ?? [],
   }));

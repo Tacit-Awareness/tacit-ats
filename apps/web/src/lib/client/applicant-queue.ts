@@ -1,7 +1,7 @@
 import { departmentOptions, type DepartmentsRead } from "./department-tree";
 
 // New Applicants' arrangement of the queue (design/tats's #triage): the
-// job-board applicants core's listApplicationsInbox returns, grouped by team
+// applicants and referrals core's listApplicationsInbox returns, grouped by team
 // (the data model's teams are departments), and each application's answers
 // split into contact and the rest. Pure: the page reads, this arranges. Every
 // answer is candidate text, so nothing here turns one into markup; a link is
@@ -16,7 +16,10 @@ export type QueueEntry = {
   jobId: string;
   jobTitle: string | null;
   stage: string;
+  source: string;
   post: string | null;
+  referredBy: string | null;
+  linkedinUrl: string | null;
   appliedAt: string;
   answers: { questionId: string; type: string; label: string; value: string }[];
 };
@@ -61,6 +64,14 @@ export function groupByTeam(entries: QueueEntry[], read: DepartmentsRead): Queue
   return groups.filter((g) => g.entries.length > 0);
 }
 
+export const isReferral = (e: Pick<QueueEntry, "source">): boolean => e.source === "referral";
+
+/** Where they came from, in words. A referrer is free text, so this is only ever rendered as text. */
+export function sourceWords(e: Pick<QueueEntry, "source" | "post" | "referredBy">): string {
+  if (isReferral(e)) return e.referredBy ? `Referred by ${e.referredBy}` : "Referral";
+  return e.post ? `Job board · ${e.post}` : "Job board";
+}
+
 /** The list in reading order, as the groups show it. */
 export const inOrder = (groups: QueueGroup[]): QueueEntry[] => groups.flatMap((g) => g.entries);
 
@@ -100,13 +111,17 @@ export type ReaderAnswer = { questionId: string; label: string; value: string; h
 const IN_HEADER = new Set(["name", "email", "phone"]);
 const LINKS = new Set(["linkedin", "resume"]);
 
-/** The phone, and every other answer but name and email, in the form's order; resume and LinkedIn as links when they are URLs. */
-export function readerAnswers(answers: QueueEntry["answers"]): { phone: string | null; answers: ReaderAnswer[] } {
+/**
+ * The phone, and every other answer but name and email, in the form's order;
+ * resume and LinkedIn as links when they are URLs. The person's own LinkedIn
+ * comes last when no answer gave one, which is how a referral has it.
+ */
+export function readerAnswers(answers: QueueEntry["answers"], linkedinUrl: string | null = null): { phone: string | null; answers: ReaderAnswer[] } {
   const phone = answers.find((a) => a.type === "phone" && a.value.trim())?.value.trim() ?? null;
-  return {
-    phone,
-    answers: answers
-      .filter((a) => !IN_HEADER.has(a.type) && a.value.trim() !== "")
-      .map((a) => ({ questionId: a.questionId, label: a.label, value: a.value, href: LINKS.has(a.type) ? safeHref(a.value) : null })),
-  };
+  const read = answers
+    .filter((a) => !IN_HEADER.has(a.type) && a.value.trim() !== "")
+    .map((a) => ({ questionId: a.questionId, label: a.label, value: a.value, href: LINKS.has(a.type) ? safeHref(a.value) : null }));
+  const hasLinkedin = answers.some((a) => a.type === "linkedin" && a.value.trim() !== "");
+  if (linkedinUrl && !hasLinkedin) read.push({ questionId: "linkedin", label: "LinkedIn profile", value: linkedinUrl, href: safeHref(linkedinUrl) });
+  return { phone, answers: read };
 }

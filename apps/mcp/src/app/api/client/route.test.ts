@@ -249,7 +249,7 @@ describe("the tools", () => {
     const byName = Object.fromEntries(tools.map((t: { name: string; annotations?: object }) => [t.name, t.annotations ?? {}]));
     expect(Object.keys(byName)).toEqual([
       "whoami", "list_jobs", "get_pipeline", "search_candidates", "get_candidate", "list_team",
-      "add_candidate", "update_stage", "set_next_action", "add_note",
+      "add_candidate", "add_contact", "update_stage", "set_next_action", "add_note",
       "create_job", "update_job", "get_hiring_team", "add_to_hiring_team", "remove_from_hiring_team",
       "set_member_access", "get_connector_settings", "set_connector_access", "invite_member", "list_invites", "withdraw_invite",
       "list_my_interviews", "find_interview_times", "schedule_interview", "update_interview", "submit_feedback", "get_feedback",

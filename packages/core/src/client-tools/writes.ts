@@ -250,3 +250,29 @@ export async function addNote(
     return { result: { noteId: data.id }, entityId: input.candidateId, after: { note_id: data.id }, changed: true };
   });
 }
+
+export type ContactResult = { candidateId: string; kind: string; added: boolean };
+
+/** Attach a contact identifier (email / phone / linkedin) to an existing candidate: whoever can_edit_person, deduped by the org's (kind, value). */
+export async function addCandidateContact(
+  db: Db, ctx: ClientToolCtx,
+  input: { candidateId: string; kind: "email" | "phone" | "linkedin"; value: string },
+): Promise<ContactResult> {
+  const value = input.value.trim();
+  if (!value || value.length > 320) throw new ClientToolError("invalid", "A contact value of at most 320 characters.");
+  if (!(await can(db, "can_edit_person" as "can_add_people", { p_person: input.candidateId }))) {
+    throw new ClientToolError("not_found", "No candidate with that id that you can edit.");
+  }
+  return withAudit<ContactResult>(db, ctx, { action: "person.contact", entity: "person" }, async () => {
+    const { data, error } = await db
+      .from("person_identifiers")
+      .insert({ person_id: input.candidateId, org_id: ctx.orgId, kind: input.kind, value })
+      .select("id")
+      .single();
+    if (error?.code === "23505") {
+      return { result: { candidateId: input.candidateId, kind: input.kind, added: false }, entityId: input.candidateId, after: {}, changed: false };
+    }
+    if (error) throw new Error(error.message);
+    return { result: { candidateId: input.candidateId, kind: input.kind, added: true }, entityId: input.candidateId, after: { identifier_id: data.id, kind: input.kind }, changed: true };
+  });
+}

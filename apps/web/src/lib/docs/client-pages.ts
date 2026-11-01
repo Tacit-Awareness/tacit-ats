@@ -206,7 +206,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 
 ## New Applicants
 
-**New Applicants** holds job-board applicants, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application. Pick the next step in the panel under it, then press the button beside it:
+**New Applicants** holds job-board applicants and referrals, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application, or for a referral who referred them and their note. Pick the next step in the panel under it, then press the button beside it:
 
 | Key | What it does |
 | --- | --- |
@@ -1042,6 +1042,7 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`get_activity\` | A candidate's history, newest first | Everyone (interviewers: their own) | |
 | \`list_team\` | Your company's members and their access | Everyone | |
 | \`add_candidate\` | Add someone to a job at sourced, with a source | Job managers | |
+| \`add_contact\` | Attach an email, phone or LinkedIn to a candidate on file | Anyone who can edit the candidate | |
 | \`update_stage\` | Move an application, with a reason when closing | Job managers | Yes |
 | \`set_next_action\` | Set or clear what happens next, with a due date | Job managers | |
 | \`add_note\` | A note the team can read | Everyone | |
@@ -1153,7 +1154,7 @@ A job post is the public page for a job, with an application form: a title, a lo
 | \`create_job_post\` | Write a post for a job, as a draft | Job managers | |
 | \`update_job_post\` | Change a post's text or questions; a live post changes at once | Job managers | |
 | \`set_job_post_status\` | Publish a post (live) or take it down (closed) | Job managers | Yes |
-| \`list_applications_inbox\` | New applicants from job posts, with their answers | Hiring team, admins | |
+| \`list_applications_inbox\` | New applicants from job posts, with their answers, and referrals | Hiring team, admins | |
 
 A post takes applications only while its job is open. \`get_candidate\` and \`get_pipeline\` show a job-board applicant's answers. Applicants cannot upload a resume yet; the resume question asks for a link.
 

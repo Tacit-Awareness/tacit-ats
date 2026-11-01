@@ -40,8 +40,8 @@ export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./co
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";
 export type { CandidateDetail, CandidateHit, CandidateNote, JobPipeline, JobView, TeamMember } from "./reads.js";
-export { addCandidate, addNote, setApplicationNextAction, updateStage } from "./writes.js";
-export type { AddCandidateResult, NextActionResult, StageResult } from "./writes.js";
+export { addCandidate, addCandidateContact, addNote, setApplicationNextAction, updateStage } from "./writes.js";
+export type { AddCandidateResult, ContactResult, NextActionResult, StageResult } from "./writes.js";
 export {
   JOB_STATUSES, TEAM_ROLES,
   addToHiringTeam, createJob, getHiringTeam, inviteMember, listInvites, removeFromHiringTeam, setMemberAccess,
@@ -124,7 +124,7 @@ export type {
   AddProspectResult, CandidatePool, ConvertResult, CreatePoolResult, Pool, PoolMember, PoolResult, PoolStage, PoolView,
 } from "./pools.js";
 export {
-  INBOX_STAGES, JOB_POST_STATUSES, QUESTIONS_MAX, QUESTION_LABEL_MAX, QUESTION_TYPES,
+  INBOX_SOURCES, INBOX_STAGES, JOB_POST_STATUSES, QUESTIONS_MAX, QUESTION_LABEL_MAX, QUESTION_TYPES,
   buildQuestions, createJobPost, jobPostUrl, listApplicationsInbox, listJobPosts, setJobPostStatus, updateJobPost,
 } from "./posts.js";
 export type {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { DepartmentsRead } from "./department-tree";
-import { groupByJob, groupByTeam, inOrder, neighbour, readerAnswers, safeHref, selected, type QueueEntry } from "./applicant-queue";
+import { groupByJob, groupByTeam, inOrder, neighbour, readerAnswers, safeHref, selected, sourceWords, type QueueEntry } from "./applicant-queue";
 
 const entry = (id: string, jobId: string, appliedAt: string, over: Partial<QueueEntry> = {}): QueueEntry => ({
   applicationId: id,
@@ -10,10 +10,37 @@ const entry = (id: string, jobId: string, appliedAt: string, over: Partial<Queue
   jobId,
   jobTitle: `Job ${jobId}`,
   stage: "sourced",
+  source: "job_board",
   post: null,
+  referredBy: null,
+  linkedinUrl: null,
   appliedAt,
   answers: [],
   ...over,
+});
+
+describe("sourceWords", () => {
+  test("a job-board applicant by their post, a referral by who referred them", () => {
+    expect(sourceWords({ source: "job_board", post: "Engineer", referredBy: null })).toBe("Job board · Engineer");
+    expect(sourceWords({ source: "job_board", post: null, referredBy: null })).toBe("Job board");
+    expect(sourceWords({ source: "referral", post: null, referredBy: "Priya Shah" })).toBe("Referred by Priya Shah");
+    expect(sourceWords({ source: "referral", post: null, referredBy: null })).toBe("Referral");
+  });
+});
+
+describe("readerAnswers' LinkedIn", () => {
+  const given = { questionId: "linkedin", type: "linkedin", label: "LinkedIn profile", value: "linkedin.com/in/given" };
+
+  test("a referral has the person's, as a link", () => {
+    expect(readerAnswers([], "https://linkedin.com/in/rita").answers).toEqual([
+      { questionId: "linkedin", label: "LinkedIn profile", value: "https://linkedin.com/in/rita", href: "https://linkedin.com/in/rita" },
+    ]);
+  });
+
+  test("an answer is not repeated, and a bad address is no link", () => {
+    expect(readerAnswers([given], "https://linkedin.com/in/other").answers.map((a) => a.value)).toEqual(["linkedin.com/in/given"]);
+    expect(readerAnswers([], "javascript:alert(1)").answers[0]?.href).toBeNull();
+  });
 });
 
 describe("groupByJob", () => {
