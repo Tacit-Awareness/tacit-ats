@@ -2,11 +2,12 @@
 // reads and changes before anything is written. Pure. The text is real, not
 // {{placeholders}}, so the box already reads like the email, and core still
 // fills or refuses anything a member types. design/tats's Testbench starter is
-// left out: it needs a link nothing here can make.
+// `testbench`, apart from the kinds: it is only ever shown, since it needs a
+// link nothing here can make yet.
 
 export const REPLY_KINDS = ["interview", "decline", "blank"] as const;
 export type ReplyKind = (typeof REPLY_KINDS)[number];
-export type ReplyStarters = { subject: string; bodies: Record<ReplyKind, string> };
+export type ReplyStarters = { subject: string; bodies: Record<ReplyKind, string>; testbench: string };
 
 /** Braces in a name or a title could read to core as a placeholder it can't fill: every one goes, so none can close up. */
 const plain = (s: string) => s.replace(/[{}]/g, "").replace(/\s+/g, " ").trim();
@@ -29,5 +30,6 @@ export function replyStarters(v: { candidateName: string | null; jobTitle: strin
       decline: letter(`Thank you for applying for ${role}, and for your interest in ${plain(v.company)}. We've looked closely and decided not to move forward right now. We'd be glad to hear from you again in the future.`),
       blank: letter(""),
     },
+    testbench: letter(`Thanks for applying for ${role}. Before we talk, we'd like you to try a short take-home in a real coding environment. Do it whenever suits you this week. The link is below.`),
   };
 }

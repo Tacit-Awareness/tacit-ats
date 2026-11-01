@@ -212,12 +212,13 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | --- | --- |
 | \`J\` / \`K\` | Next, previous |
 | \`I\` | Pick Interview |
+| \`T\` | Pick Testbench |
 | \`S\` | Pick Screening |
 | \`D\` | Pick Decline, then choose a reason from your company's list |
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Testbench isn't connected yet: picking it shows the message, and nothing goes out. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
