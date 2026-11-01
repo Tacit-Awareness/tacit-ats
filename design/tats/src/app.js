@@ -61,6 +61,41 @@ const SURFACE = new URLSearchParams(location.search).get("surface");
 const GROK_CH = "BroadcastChannel" in window ? new BroadcastChannel("tats-grokbot") : null;
 try { const t = localStorage.getItem("tats-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
 
+/* ---------------- Warmth correction: undo Night Shift / True Tone ----------------
+   macOS warms a display (True Tone on the built-in screen, Night Shift on a schedule) after the page has drawn,
+   and no web API reports it. So each display is corrected once by eye, and tATS reapplies it by itself: the
+   level is remembered per display (size, pixel density, colour range) and per day or night, and re-read when the
+   window moves to another screen or the evening starts. A correction pulls red and some green down so whites
+   return to neutral; blue can't go above full, so it cools by trimming the others. Off draws no filter at all. */
+const WB = { levels: [[1, 1], [0.965, 0.985], [0.93, 0.97], [0.89, 0.95], [0.85, 0.93]], key: "", lv: 0 };
+const wbNight = () => { const h = new Date().getHours(); return h >= 19 || h < 7; };
+const wbDisplay = () => `${screen.width}x${screen.height}@${devicePixelRatio}${matchMedia("(color-gamut: p3)").matches ? "p3" : ""}`;
+const wbStore = () => { try { return JSON.parse(localStorage.getItem("tats-wb")) || {}; } catch { return {}; } };
+function wbApply() {
+  const key = `${wbDisplay()}|${wbNight() ? "night" : "day"}`, lv = wbStore()[key] || 0;
+  WB.key = key; WB.lv = lv;
+  let svg = document.getElementById("wb-svg");
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "wb-svg"; svg.setAttribute("aria-hidden", "true");
+    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+    svg.innerHTML = `<filter id="wb" color-interpolation-filters="sRGB"><feColorMatrix type="matrix"/></filter>`;
+    document.body.appendChild(svg);
+  }
+  const [r, g] = WB.levels[lv];
+  svg.querySelector("feColorMatrix").setAttribute("values", `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 1 0 0  0 0 0 1 0`);
+  document.documentElement.classList.toggle("wb-on", lv > 0);
+}
+function setWarmth(lv) {
+  const s = wbStore(); if (lv) s[WB.key] = lv; else delete s[WB.key];
+  try { localStorage.setItem("tats-wb", JSON.stringify(s)); } catch {}
+  wbApply();
+}
+wbApply();
+addEventListener("resize", () => { if (!WB.key.startsWith(wbDisplay() + "|")) wbApply(); });
+if (screen.addEventListener) screen.addEventListener("change", wbApply);
+setInterval(() => { if (WB.key.endsWith(wbNight() ? "|day" : "|night")) wbApply(); }, 60000);
+
 /* ---------------- formatting ---------------- */
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -168,7 +203,9 @@ const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" ar
 // Applicants have no photos, so they get no picture placeholder: their name carries the row.
 const candAv = () => "";
 const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}"></i>`;
-const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
+// Each team has its own mark (Research a flask, Engineering a server stack, Product a layout), so it reads at a glance.
+const TEAM_ICO = { research: "M6 2.5h4M6.5 2.5v4L3 12.5a1 1 0 0 0 .9 1.5h8.2a1 1 0 0 0 .9-1.5L9.5 6.5v-4M4.6 10h6.8", infra: "M3 3h10v3.5H3zM3 9.5h10V13H3zM5.5 4.75h.01M5.5 11.25h.01", product: "M2.5 3h11v10h-11zM2.5 6h11M6 6v7" };
+const teamKey = (k) => `<span class="team-key t-${k}" style="--c:${TEAMS[k].color}" title="${esc(TEAMS[k].name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${TEAM_ICO[k] || P.users}"/></svg></span>`;
 function court(a) {
   const c = STATES[a.state].court;
   if (c === "you") return { av: personAv(ME), label: "You" };
@@ -547,6 +584,13 @@ function tbPanel(a, compact) {
     ${t.note ? `<p class="tb-note">${esc(t.note)}</p>` : ""}
     <button class="tlink" data-act="replay">${ico("play")}Replay the session</button></div>`;
 }
+// Everything they sent, page by page, the same pages New Applicants reads from.
+function appBlock(a) {
+  const pages = docPages(a), i = Math.min(state.tkPage?.[a.id] || 0, pages.length - 1);
+  return `<div class="block"><div class="block-head">Application<span class="n">${pages.length} ${pages.length === 1 ? "page" : "pages"}</span></div>
+    <div class="tk-app"><div class="pills tk-app-tabs" role="tablist">${pages.map((p, j) => `<button class="${i === j ? "on" : ""}" data-act="tkPage" data-id="${a.id}" data-i="${j}" role="tab" aria-selected="${i === j}">${esc(p.name)}</button>`).join("")}</div>
+      <article class="pg pg-${pages[i].k} tk-pg">${pages[i].html}</article></div></div>`;
+}
 function profile(a) {
   return `<ul class="sum">${a.sum.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
     ${a.exp.length ? `<div class="exp">${a.exp.map(([co, ti, yr]) => `<div><b>${esc(co)}</b><span>${esc(ti)}</span><span class="faint">${esc(yr)}</span></div>`).join("")}</div>` : ""}
@@ -578,12 +622,30 @@ const srcOf = (role) => weighted([["Applied", 55], ["Tacit", 25], [`Referral · 
 const usedNames = new Set(APPLICANTS.map((a) => a.name));
 function personName() { for (let i = 0; i < 20; i++) { const n = `${pickOne(FIRSTS)} ${pickOne(LASTS)}`; if (!usedNames.has(n) || i === 19) { usedNames.add(n); return n; } } }
 const BULK = [];
+// A profile for each generated applicant: three highlights for their kind of role, two jobs, a link.
+const BULK_SUM = {
+  eng: ["Led the move of a 40-service fleet to Kubernetes with no customer-facing downtime", "Wrote the rate limiter that fronts every public API", "Cut p99 latency on the checkout path from 900ms to 210ms", "Ran the on-call rotation for a 99.99% availability tier", "Built the deploy pipeline the whole company ships through"],
+  inf: ["Profiled and fixed a GPU memory leak that cost a week of training runs", "Owns the cluster scheduler for 2,000 accelerators", "Halved checkpoint time by moving to async sharded writes", "Wrote the incident playbook the infra team still uses"],
+  res: ["Built an eval suite for long-context retrieval used across three model launches", "First author on a workshop paper on reward-model overoptimization", "Found a contamination bug that inflated a benchmark by 20 points", "Trained and shipped a 7B model end to end"],
+  evals: ["Owns the eval harness for every pre-release model", "Cut eval turnaround from a day to forty minutes by sharding the harness", "Designed graders that report their own uncertainty", "Caught a regression in tool use two days before a launch"],
+  pe: ["Shipped the onboarding flow that lifted activation 18%", "Rebuilt the settings pages in React and TypeScript with full test coverage", "Owns the design system's component library", "Took a feature from prototype to GA in six weeks"],
+  des: ["Led the redesign of a B2B dashboard used by 40k teams", "Built the design system from scratch", "Ran weekly research sessions with customers for two years", "Portfolio: three shipped products, one acquired"],
+};
+const PRIOR_TITLE = { eng: "Software engineer", inf: "Systems engineer", res: "Research assistant", evals: "Data scientist", pe: "Frontend engineer", des: "Product designer" };
+function bulkProfile(a, r) {
+  const pool = [...(BULK_SUM[a.role] || BULK_SUM.eng)];
+  a.sum = [0, 1, 2].map(() => pool.splice(Math.floor(r() * pool.length), 1)[0]);
+  const [title, co] = a.hl.split(" at "), start = 2026 - Math.min(a.yrs, 4);
+  a.exp = [[co[0].toUpperCase() + co.slice(1), title, `${start}–now`], [COS[Math.floor(r() * COS.length)], PRIOR_TITLE[a.role] || "Engineer", `${start - 1 - Math.floor(r() * 3)}–${start}`]];
+  a.links = [`github.com/${a.name.toLowerCase().replace(/[^a-z]+/g, "")}`];
+}
 for (let i = 0; i < 264; i++) {
   const role = roleOf(), team = ROLES[role].team, st = weighted([["testbench", 22], ["routing", 6], ["asked", 10], ["scheduling", 12], ["scheduled", 22], ["debrief", 8], ["judgment", 10]]);
   const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * { testbench: 2.5, routing: 2, asked: 2, scheduling: 3, scheduled: 9, debrief: 4, judgment: 5 }[st] * DAY) - HR;
   const score = 55 + Math.floor(rnd() * 44);
   const a = { id: `APP-${2001 + i}`, bulk: true, pri: weighted([[0, 3], [1, 1], [2, 3], [3, 4], [4, 2]]), name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, src: srcOf(role), loc: pickOne(CITIES), yrs: 1 + Math.floor(rnd() * 12), links: [], state: st, when, sum: [], exp: [],
     labels: rnd() < 0.08 ? ["Competing offer"] : rnd() < 0.08 ? ["Relocating"] : [] };
+  bulkProfile(a, rng(9001 + i));
   if (st === "testbench") { a.tbSent = when; a.tb = { state: rnd() < 0.5 ? "running" : "sent", progress: 0.4 }; }
   else { a.team = team; a.iv = iv; a.tb = TB(score, "", "2h 30m", Math.min(99, score), [4, 4, 4, 4], ""); if (score >= 90) a.labels = [...a.labels, "Top Testbench"]; }
   if (st === "scheduled") a.at = NOW + Math.floor(1 + rnd() * 8) * DAY + (9 + Math.floor(rnd() * 8)) * HR - new Date(NOW).getHours() * HR;
@@ -699,7 +761,7 @@ function openHist(id) {
       ${h.score ? `<dt>Testbench</dt><dd>${h.score}/100</dd>` : ""}
       <dt>Closed</dt><dd>${fmtDate(h.closed)} · ${esc(h.outcome)}</dd></dl>
       ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
-    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
+    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in New Applicants`); } });
 }
 /* ---------------- CRM: everyone the funnel has closed, as one database ---------------- */
 // One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
@@ -852,12 +914,12 @@ function homeMetrics() {
   const apps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
   const prevApps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= prevFrom && appliedAt(a) < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= prevFrom && h.applied < from).length;
   return [
-    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in New Applicants"] },
     { k: "active", label: "Candidates in process", def: "Everyone with an open application, by stage of your interview process", v: act.length, unit: "active", act, go: ["#crm~active", "Open in CRM"] },
-    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interviews"] },
-    { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Calendar"] },
+    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in New Applicants"] },
+    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in New Applicants"] },
+    { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interview Judgement"] },
+    { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Interview Calendar"] },
   ];
 }
 // Interview hours by team: booked interviews in the window ahead, plus ones already held awaiting feedback.
@@ -868,68 +930,88 @@ function workload(act) {
   const r1 = ivs.filter((a) => roundOf(a) === 1).length;
   return { n: ivs.length, h: byTeam.reduce((n, t) => n + t.h, 0), byTeam, r1 };
 }
+// A line chart in the dashboards' style: the first series solid with a fade under it and a dot on today,
+// any second series (the period before) a lighter line behind. Scales to its box; strokes keep their width.
+let sparkN = 0;
+function spark(series, { h = 84, grid = 0 } = {}) {
+  const W = 300, n = series[0].length, max = Math.max(...series.flat(), 1) * 1.15;
+  const x = (i) => (n === 1 ? W : (i / (n - 1)) * W), y = (v) => h - 2 - (v / max) * (h - 8);
+  const line = (vs) => vs.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join("");
+  const id = `wgf${++sparkN}`, last = series[0][n - 1];
+  return `<div class="wg-chart" style="height:${h}px"><svg viewBox="0 0 ${W} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--chart);stop-opacity:.2"/><stop offset="1" style="stop-color:var(--chart);stop-opacity:0"/></linearGradient></defs>
+    ${grid ? Array.from({ length: grid + 1 }, (_, i) => `<path class="wg-gl" d="M${((i / grid) * W).toFixed(1)} 0V${h}"/>`).join("") : `<path class="wg-base" d="M0 ${h - 0.5}H${W}"/>`}
+    ${series.slice(1).map((vs) => `<path class="wg-l2" d="${line(vs)}"/>`).join("")}
+    <path d="${line(series[0])}L${W} ${h}L0 ${h}Z" fill="url(#${id})"/><path class="wg-l1" d="${line(series[0])}"/></svg>
+    <i class="wg-dot" style="top:${((y(last) / h) * 100).toFixed(1)}%"></i></div>`;
+}
+const dayLabel = (ms) => { const d = new Date(ms); return `${d.getDate()} ${MO[d.getMonth()]}`; };
+const axis = (days) => `<div class="wg-axis"><span>${dayLabel(NOW - (days - 1) * DAY)}</span><span>Today</span></div>`;
+const delta = (v, prev, good = 1) => { if (!prev) return ""; const d = (v - prev) / prev, up = d >= 0; return `<b class="wg-delta ${up === good > 0 ? "good" : "bad"}">${up ? "▲" : "▼"} ${Math.abs(Math.round(d * 100))}%</b>`; };
+// A share, split: one bar in shades of the chart colour, then a legend with each part's count and share.
+function shares(parts) {
+  const tot = parts.reduce((s, p) => s + p.n, 0) || 1, k = parts.length;
+  const shade = (i) => `color-mix(in oklch, var(--chart) ${Math.round(100 - (i / Math.max(1, k - 1)) * 72)}%, var(--paper))`;
+  return `<div class="wg-seg">${parts.filter((p) => p.n).map((p) => `<i style="flex:${p.n};background:${shade(parts.indexOf(p))}" title="${esc(p.l)}: ${p.n}"></i>`).join("")}</div>
+    <div class="wg-leg">${parts.map((p, i) => `<div><i style="background:${shade(i)}"></i><span>${esc(p.l)}</span><b>${p.n.toLocaleString()}</b><em>${Math.round((p.n / tot) * 100)}%</em></div>`).join("")}</div>`;
+}
 function metricCard(m) {
   const t = state.thr[m.k];
-  let value, sub, chart, over = false;
+  let value, side = "", chart, over = false;
   if (m.unit === "n") {
     over = t != null && m.v < t;
-    const days = appsByDay(homeDays()), max = Math.max(...days.map((d) => d.n), 1), d = m.prev ? (m.v - m.prev) / m.prev : 0;
+    const days = appsByDay(homeDays());
     value = m.v.toLocaleString();
-    sub = `<span class="hm-d ${d >= 0 ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span><span class="hm-sub">vs the ${homeDays()} days before</span>`;
-    chart = `<div class="hm-hist">${days.map((x) => `<span title="${x.n} on ${esc(x.full)}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${esc(x.l)}</em></span>`).join("")}</div>`;
+    side = `${delta(m.v, m.prev)}<span>vs the ${homeDays()} days before</span>`;
+    chart = spark([days.map((d) => d.n)]) + axis(homeDays());
   } else if (m.unit === "active") {
     // Where the active candidates are, in the company's own stage names.
-    const st = PROCESS_DEFAULT.map(([k]) => ({ k, n: m.act.filter((a) => stageOf(a) === k).length })), max = Math.max(...st.map((x) => x.n), 1);
     value = m.v.toLocaleString();
-    sub = `<span class="hm-sub">across ${st.filter((x) => x.n).length} stages</span>`;
-    chart = `<div class="hm-hist">${st.map((x, i) => `<span title="${x.n} in ${esc(procName(x.k))}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${esc(procAbbr(x.k))}</em></span>`).join("")}</div>`;
+    side = `<b>${PROCESS_DEFAULT.length}</b><span>stages</span>`;
+    chart = shares(PROCESS_DEFAULT.map(([k]) => ({ l: procName(k), n: m.act.filter((a) => stageOf(a) === k).length })));
   } else if (m.unit === "load") {
     // Actual hours are solid; the Testbench saving is an estimate and looks like one.
     const w = workload(m.act), max = Math.max(...w.byTeam.map((x) => x.h), 1);
     value = `${Math.round(w.h)}h`;
     over = t != null && w.h > t;
-    sub = `<span class="hm-sub">${w.n} interviews booked or awaiting feedback</span>`;
-    chart = `<div class="hm-load">${w.byTeam.map((x) => `<div><span>${esc(TEAMS[x.k].name)}</span><i style="width:${(x.h / max) * 100}%"></i><b>${Math.round(x.h)}h</b></div>`).join("")}</div>
+    side = `<b>${w.n}</b><span>interviews</span>`;
+    chart = `<div class="hm-load">${w.byTeam.map((x) => `<div><span>${esc(TEAMS[x.k].name)}</span><span class="wg-meter"><i style="width:${(x.h / max) * 100}%"></i></span><b>${Math.round(x.h)}h</b></div>`).join("")}</div>
       <div class="hm-est" title="An estimate, not booked time: moving each first-round live technical to the Testbench saves 30 to 60 minutes of interviewer time."><span class="tag">Estimate</span>Testbench as round 1 could free <b>${Math.round(w.r1 * 0.5)}–${w.r1}h</b></div>`;
   } else {
     // How long the open ones have waited. Past your target, the bars turn red.
     over = t != null && m.v > t;
     const bs = ageBuckets(m.open), max = Math.max(...bs.map((b) => b.n), 1), oldest = Math.max(0, ...m.open), nn = m.open.length;
-    const noun = m.nounOf ? `${m.noun}${nn === 1 ? "" : "s"} of ${m.nounOf}` : `${m.noun}${nn === 1 ? "" : "s"}`;
     value = fmtHrs(m.v);
-    sub = nn ? `<span class="hm-sub">${nn} ${noun} waiting · oldest ${fmtHrs(oldest)}</span>` : `<span class="hm-sub">Nothing waiting</span>`;
+    side = nn ? `<b class="${over ? "bad" : ""}">${nn} waiting</b><span>oldest ${fmtHrs(oldest)}</span>` : `<b>0 waiting</b><span>all clear</span>`;
     chart = `<div class="hm-hist">${bs.map((b) => `<span title="${b.n} waiting ${b.l.replace("<", "under ").replace("+", " or more")}"><i style="height:${b.n ? Math.max(6, (b.n / max) * 100) : 0}%" class="${t != null && b.lo >= t ? "over" : ""}"></i><em>${b.l}</em></span>`).join("")}</div>`;
   }
   const thrLabel = m.unit === "n" ? "Alert below" : m.unit === "load" ? "Cap" : "Target";
   const thrVal = t == null ? "" : m.unit === "n" ? t : m.unit === "load" ? `${t}h` : fmtHrs(t);
   return `<section class="hm-card ${over ? "over" : ""} ${m.k === "active" ? "link" : ""}" ${m.k === "active" ? `data-act="goCrmActive"` : ""}>
-    <div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div>
-    <div class="hm-v"><b>${value}</b>${m.unit === "h" ? `<span class="hm-sub">typical</span>` : ""}</div>
-    <div class="hm-ctx">${sub}</div>
+    <div class="wg-top"><div><div class="hm-v"><b>${value}</b>${m.unit === "h" ? `<span class="hm-sub">typical</span>` : ""}</div><div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div></div><div class="wg-side">${side}</div></div>
     ${chart}
     <div class="hm-f">${m.unit === "active" ? `<span></span>` : `<button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${thrLabel} ${thrVal}` : "Set a target"}</button>`}
       <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
   </section>`;
 }
-function homeOverview() {
+// Everything the Overview's widgets read, worked out once per render.
+function homeCtx() {
   const ms = homeMetrics(), act = everyone().filter((a) => isOpen(a) && homeScope(a));
   const wait = (a) => Date.now() - a.when;
-  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
   // Bottlenecks: real waits, oldest first, each with the page that clears it.
   const q = queue().filter(homeScope), sch = act.filter((a) => ["asked", "scheduling"].includes(a.state)), deb = act.filter((a) => a.state === "debrief"), yc = act.filter((a) => a.state === "judgment" && !isOfferOut(a));
   const unsent = inboxRows().filter((x) => x.inInbox && x.iss.k === "invite" && homeScope(x.a));
   const oldest = (xs) => xs.reduce((m, a) => Math.max(m, wait(a)), 0);
   const bn = [
-    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in Applicant Tickets"] },
-    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in Applicant Tickets"] },
-    deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
+    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in New Applicants"] },
+    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in New Applicants"] },
+    deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interview Judgement"] },
     yc.length && { k: "decide", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
   ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
   // Stage timing, in the company's process: how many, how long they've waited, and who's waited longest.
   const SEG = [[0, 24, "Under a day"], [24, 72, "1 to 3 days"], [72, Infinity, "Over 3 days"]];
   const segs = (xs) => SEG.map(([lo, hi, l], i) => ({ i, l, n: xs.filter((a) => hrs(wait(a)) >= lo && hrs(wait(a)) < hi).length }));
   const stages = PROCESS_DEFAULT.map(([k]) => { const xs = act.filter((a) => stageOf(a) === k).sort((x, y) => wait(y) - wait(x)); return { k, n: procName(k), xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
-  const maxN = Math.max(...stages.map((x) => x.xs.length), 1), open = state.homeStage;
   // Interviewer follow-through.
   const outFb = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
   const ivs = Object.keys(PEOPLE).filter((id) => PEOPLE[id].team && (!state.homeTeam || PEOPLE[id].team === state.homeTeam)).map((id) => {
@@ -937,49 +1019,188 @@ function homeOverview() {
     const h = [...id].reduce((n, c) => n + c.charCodeAt(0), 0);
     return { id, med: mine.length ? median(mine.concat([(h % 30) + 4])) : (h % 30) + 4, out: outFb.filter((o) => o.iv === id).length };
   }).sort((x, y) => y.med - x.med);
-  const maxIv = Math.max(...ivs.map((x) => x.med), 1);
   // Interview efficiency, from closed applications: how many get through each round, and what a hire costs in interviews.
   const H = HISTORY.filter((h) => homeScope(h) && h.closed >= NOW - 365 * DAY);
   const rank = { Applied: 0, Testbench: 0, "Round 1": 1, "Round 2": 2, Offer: 3 };
   const reached = (n) => H.filter((h) => rank[h.reached] >= n).length;
-  const hires = H.filter((h) => h.outcome === "Hired").length || 1;
-  const ivCount = H.reduce((n, h) => n + rank[h.reached], 0);
-  const eff = [
-    ["Round 1 to round 2", reached(2) / (reached(1) || 1)],
-    ["Round 2 to the final", reached(3) / (reached(2) || 1)],
-  ];
-  const perHire = ivCount / hires;
-  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
-    ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
-    <a class="btn sm ghost" href="#compare" title="The same layout in both styles, side by side">Compare styles</a></div>
-  ${homeNav("overview")}
-  <div class="scroll" id="scroller"><div class="hm">
-    <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
-    <h2 class="hm-sec">Where are candidates getting stuck?</h2>
-    <div class="hm-row stuck">
-      <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
-        ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
-      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#setup~process" title="Stages are the steps of your interview process">Edit stages${ico("arrowR")}</a></div>
-        <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
-        <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
-        ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
-            <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / maxN) * 100}%">${segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
-          ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#crm~active">All ${x.xs.length} in CRM${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
-    </div>
-    <div class="hm-row three">
-      <section class="hm-box"><div class="hm-h"><b title="Typical time from interview to feedback, slowest first">Time to submit, by interviewer</b></div>
-        ${ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")}</section>
-      <section class="hm-box"><div class="hm-h"><b title="From applications closed in the last 12 months">Interview efficiency</b></div>
-        ${eff.map(([l, r]) => `<div class="hm-eff"><div><span>${l}</span><b>${Math.round(r * 100)}%</b></div><i><i style="width:${r * 100}%"></i></i></div>`).join("")}
-        <div class="hm-eff-n"><div><b>${perHire.toFixed(1)}</b><span>interviews per hire</span></div><div><b>${(perHire * 0.95).toFixed(1)}h</b><span>interviewer time per hire</span></div></div></section>
-      <section class="hm-box"><div class="hm-h"><b title="Interviews whose feedback hasn't come in">Outstanding feedback</b><span>${outFb.length}</span></div>
-        ${outFb.slice(0, 5).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">All feedback is in.</p>`}
-        ${outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${outFb.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
-    </div>
+  const eff = [["Round 1 to round 2", reached(2) / (reached(1) || 1)], ["Round 2 to the final", reached(3) / (reached(2) || 1)]];
+  const perHire = H.reduce((n, h) => n + rank[h.reached], 0) / (H.filter((h) => h.outcome === "Hired").length || 1);
+  return { ms, act, bn, SEG, segs, stages, maxN: Math.max(...stages.map((x) => x.xs.length), 1), outFb, ivs, maxIv: Math.max(...ivs.map((x) => x.med), 1), eff, perHire };
+}
+const box = (head, body, cls = "") => `<section class="hm-box ${cls}">${head}${body}</section>`;
+/* ---------------- Home widgets: pick the blocks you care about, iOS-style ----------------
+   "Edit widgets" puts the Overview in edit mode: drag a widget to move it, − removes it, its size
+   button cycles Small / Wide / Full, and "Add widget" opens a gallery of every block with a live preview.
+   The layout is yours and stays in this browser. */
+const SIZE_N = ["", "Small", "Wide", "Full"];
+const metricW = (k) => (c) => metricCard(c.ms.find((m) => m.k === k));
+const WIDGETS = {
+  apps: { name: "New applications", desc: "Applications per day, against the period before", sizes: [1, 2], r: metricW("apps") },
+  active: { name: "Candidates in process", desc: "Everyone open, split by stage", sizes: [1, 2], r: metricW("active") },
+  review: { name: "Time to review", desc: "How long applications wait for an answer", sizes: [1, 2], r: metricW("review") },
+  sched: { name: "Time to schedule", desc: "Ready to booked on both calendars", sizes: [1, 2], r: metricW("sched") },
+  cards: { name: "Time to feedback", desc: "Interview ending to the interviewer's read", sizes: [1, 2], r: metricW("cards") },
+  load: { name: "Interview workload", desc: "Team hours booked or awaiting feedback", sizes: [1, 2], r: metricW("load") },
+  trend: { name: "Applications over time", desc: "This period against the last, day by day", sizes: [2, 3], r: () => {
+    const d = homeDays(), xs = appsByDay(d * 2).map((x) => x.n), n = xs.length / 2, cur = xs.slice(n), prev = xs.slice(0, n), sc = cur.reduce((a, b) => a + b, 0), sp = prev.reduce((a, b) => a + b, 0);
+    return box(`<div class="wg-top"><div><div class="hm-l">Applications over time</div><div class="hm-v big"><b>${sc.toLocaleString()}</b>${delta(sc, sp)}<span class="hm-sub">vs last period</span></div></div></div>`,
+      `${spark([cur, prev], { h: 170, grid: Math.min(cur.length - 1, 14) })}${axis(d)}<div class="wg-pp"><span>Last period <b class="l2">${sp.toLocaleString()}</b></span><span>This period <b>${sc.toLocaleString()}</b></span></div>`); } },
+  hires: { name: "Hires", desc: "Offers accepted, week by week, last 12 weeks", sizes: [1, 2], r: () => {
+    const wk = (i) => HISTORY.filter((h) => homeScope(h) && h.outcome === "Hired" && h.closed >= NOW - (i + 1) * 7 * DAY && h.closed < NOW - i * 7 * DAY).length;
+    const cur = Array.from({ length: 12 }, (_, i) => wk(11 - i)), prev = Array.from({ length: 12 }, (_, i) => wk(23 - i)), sc = cur.reduce((a, b) => a + b, 0), sp = prev.reduce((a, b) => a + b, 0);
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${sc}</b></div><div class="hm-l">Hires</div></div><div class="wg-side">${delta(sc, sp)}<span>vs the 12 weeks before</span></div></div>`, `${spark([cur])}${axis(84)}`); } },
+  sources: { name: "Where applicants come from", desc: "Careers page, Tacit-sourced and referrals", sizes: [1, 2], r: () => {
+    const from = NOW - homeDays() * DAY, srcs = everyone().filter((a) => homeScope(a) && (((TRACE[a.id] || [])[0] || {}).at || 0) >= from).map((a) => a.src).concat(HISTORY.filter((h) => homeScope(h) && h.applied >= from).map((h) => h.src));
+    const n = (f) => srcs.filter(f).length;
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${srcs.length.toLocaleString()}</b></div><div class="hm-l">Where applicants come from</div></div><div class="wg-side"><b>${homeDays()} days</b><span>this period</span></div></div>`,
+      shares([{ l: "Careers page", n: n((s) => s === "Applied") }, { l: "Sourced by Tacit", n: n((s) => s === "Tacit") }, { l: "Referrals", n: n((s) => /^Referral/.test(s || "")) }])); } },
+  bots: { name: "Grokbots connected", desc: "Interviewers with a working Grokbot", sizes: [1, 2], r: () => {
+    const ids = staff(), on = ids.filter((id) => PEOPLE[id].bot === "on").length, inv = ids.filter((id) => PEOPLE[id].bot === "invited").length;
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${on}</b><span class="hm-sub">of ${ids.length}</span></div><div class="hm-l">Grokbots connected</div></div><div class="wg-side"><b>${inv}</b><span>invited</span></div></div>`,
+      `<span class="wg-meter big"><i style="width:${(on / (ids.length || 1)) * 100}%"></i><i class="inv" style="width:${(inv / (ids.length || 1)) * 100}%"></i></span>
+       <div class="hm-f"><span class="hm-sub">${ids.length - on - inv} without one</span><a class="hm-go" href="#setup~people">Team & Grokbots${ico("arrowR")}</a></div>`); } },
+  offers: { name: "Offers awaiting approval", desc: "Drafted offers waiting on a sign-off", sizes: [1, 2], r: () => box(`<div class="hm-h"><b>Offers awaiting approval</b><span>${OFFERS.length}</span></div>`,
+    OFFERS.map((o) => `<a class="hm-li" href="#t~${o.a.id}">${personAv(o.by)}<span><b>${esc(o.a.name)}</b><span>${esc(ROLES[o.a.role].title)} · with ${esc(first(o.by))}</span></span><em>${dur(Date.now() - o.since)}</em><span></span></a>`).join("") || `<p class="hm-none">No offers waiting.</p>`) },
+  bottlenecks: { name: "Bottlenecks", desc: "What's waiting longest, and where to clear it", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b>Bottlenecks</b><span>${c.bn.length}</span></div>`,
+    c.bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`) },
+  stages: { name: "Time in stage", desc: "Each stage of your process: how many, how long", sizes: [2, 3], r: (c) => box(`<div class="hm-h" id="hm-stages"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${c.act.length} active</span><a class="hm-go" href="#setup~process" title="Stages are the steps of your interview process">Edit stages${ico("arrowR")}</a></div>`,
+    `<div class="hm-st-key">${c.SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
+     <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
+     ${c.stages.map((x) => `<button class="hm-st ${state.homeStage === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(state.homeStage === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
+         <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / c.maxN) * 100}%">${c.segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
+       ${state.homeStage === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(Date.now() - a.when)}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#crm~active">All ${x.xs.length} in CRM${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}`) },
+  byiv: { name: "Time to submit, by interviewer", desc: "Typical time from interview to feedback", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="Typical time from interview to feedback, slowest first">Time to submit, by interviewer</b></div>`,
+    c.ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / c.maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")) },
+  eff: { name: "Interview efficiency", desc: "Pass-through by round, and interviews per hire", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="From applications closed in the last 12 months">Interview efficiency</b></div>`,
+    `${c.eff.map(([l, r]) => `<div class="hm-eff"><div><span>${l}</span><b>${Math.round(r * 100)}%</b></div><i><i style="width:${r * 100}%"></i></i></div>`).join("")}
+     <div class="hm-eff-n"><div><b>${c.perHire.toFixed(1)}</b><span>interviews per hire</span></div><div><b>${(c.perHire * 0.95).toFixed(1)}h</b><span>interviewer time per hire</span></div></div>`) },
+  outfb: { name: "Outstanding feedback", desc: "Interviews whose read hasn't come in", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="Interviews whose feedback hasn't come in">Outstanding feedback</b><span>${c.outFb.length}</span></div>`,
+    `${c.outFb.slice(0, 5).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">All feedback is in.</p>`}
+     ${c.outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${c.outFb.length} in Interview Judgement${ico("arrowR")}</a>` : ""}`) },
+};
+// The default fills one screen, three by three, so the Overview can be put on a projector as it is.
+const WG_KEY = "tats.widgets.v2";
+const WG_DEFAULT = [["apps", 1], ["active", 1], ["review", 1], ["sched", 1], ["cards", 1], ["load", 1], ["trend", 2], ["hires", 1]];
+const wgDefault = () => WG_DEFAULT.map(([k, w]) => ({ k, w }));
+try { state.widgets = (JSON.parse(localStorage.getItem(WG_KEY)) || wgDefault()).filter((x) => WIDGETS[x.k]); } catch { state.widgets = wgDefault(); }
+const saveWidgets = () => { try { localStorage.setItem(WG_KEY, JSON.stringify(state.widgets)); } catch {} };
+function widget(x, c, i) {
+  const W = WIDGETS[x.k], ed = state.hmEdit;
+  return `<div class="wg w${x.w}" data-tid="wg-${x.k}" data-wk="${x.k}"><div class="wg-j">
+    ${W.r(c, x.w)}
+    ${ed ? `<button class="wg-ctl wg-x" data-act="wgRemove" data-k="${x.k}" aria-label="Remove ${esc(W.name)}">${ico("minus")}</button>
+      ${W.sizes.length > 1 ? `<button class="wg-ctl wg-sz" data-act="wgSize" data-k="${x.k}" title="Change size">${SIZE_N[x.w]}</button>` : ""}` : ""}
   </div></div>`;
 }
+function homeOverview() {
+  const c = homeCtx(), ed = state.hmEdit;
+  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
+  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
+    ${ed ? `<span class="wg-hint">Drag to move · − to remove</span><button class="btn sm" data-act="wgGallery">${ico("plus")}Add widget</button><button class="btn sm wg-done" data-act="wgDone">Done</button>`
+      : `${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
+    <button class="btn sm ghost" data-act="wgEdit" title="Choose, move and resize the blocks on this page">${ico("grid")}Edit widgets</button>
+    <button class="btn sm ghost" data-act="hmPresent" title="Full screen, for a projector or a TV (Esc to leave)">${ico("expand")}Present</button>`}</div>
+  ${homeNav("overview")}
+  <div class="scroll" id="scroller"><div class="hm fit">
+    <div class="wg-grid ${ed ? "editing" : ""}">${state.widgets.map((x, i) => widget(x, c, i)).join("")}
+      ${ed ? `<button class="wg-add" data-act="wgGallery">${ico("plus")}<span>Add widget</span></button>` : ""}</div>
+    ${!state.widgets.length && !ed ? `<div class="wg-empty"><p>No widgets on your Overview.</p><button class="btn sm" data-act="wgEdit">${ico("grid")}Edit widgets</button></div>` : ""}
+  </div></div>`;
+}
+// The gallery: every widget with a live preview, the ones already placed marked.
+function openWidgetGallery() {
+  const c = homeCtx(), on = new Set(state.widgets.map((x) => x.k));
+  openForm({ title: "Add a widget", sub: "Pick the numbers you care about. Each one keeps its own size and place.", wide: true,
+    body: `<div class="wg-gal">${Object.entries(WIDGETS).sort(([x], [y]) => on.has(x) - on.has(y)).map(([k, W]) => `<div class="wg-tile ${on.has(k) ? "off" : ""}" data-wadd="${k}" role="button" tabindex="${on.has(k) ? -1 : 0}" aria-disabled="${on.has(k)}">
+      <span class="wg-prev"><span class="wg-prev-in w${W.sizes[0]}">${W.r(c, W.sizes[0]).replace(/\sid="[^"]*"/g, "")}</span></span>
+      <span class="wg-tile-t"><b>${esc(W.name)}</b><span>${esc(W.desc)}</span></span><span class="wg-tile-a">${on.has(k) ? `${ico("check")}On your Overview` : `${ico("plus")}Add`}</span></div>`).join("")}</div>
+      <div class="wg-gal-f"><button type="button" class="btn sm ghost" data-wreset>Reset to the default layout</button></div>` });
+  const el = $("#layer .overlay");
+  $(".modal", el).classList.add("wg-galm");
+  el.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".wg-tile")) { e.preventDefault(); e.target.click(); } });
+  el.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-wadd]");
+    if (t && !t.classList.contains("off")) { const W = WIDGETS[t.dataset.wadd]; state.widgets.push({ k: t.dataset.wadd, w: W.sizes[0] }); saveWidgets(); closeLayer(); render(); wgArrive(t.dataset.wadd); toast(`Added ${W.name}`); }
+    if (e.target.closest("[data-wreset]")) { state.widgets = wgDefault(); saveWidgets(); closeLayer(); render(); toast("Back to the default layout"); }
+  });
+}
+function wgArrive(k) {
+  const el = $(`.wg[data-wk="${k}"]`); if (!el) return;
+  el.scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" });
+  motion((g) => g.from(el, { scale: 0.85, opacity: 0, duration: 0.35, ease: "back.out(1.6)", clearProps: "transform,opacity" }));
+}
+// Rearranging: the widgets move as one set (Flip), so a removed or resized one closes its gap smoothly.
+function wgFlip(change) {
+  const els = $$(".wg-grid .wg"), st = FL && !calm() ? FL.getState(els) : null;
+  change(); render();
+  if (st) FL.from(st, { targets: $$(".wg-grid .wg"), duration: 0.32, ease: "power3.out", absolute: false, nested: true, prune: true });
+}
+const wgActs = {
+  wgEdit: () => { state.hmEdit = true; if (state.route.name !== "home") go("home"); else render(); },
+  wgDone: () => { state.hmEdit = false; render(); },
+  // Present: the Overview alone, full screen; the sidebar and tabs step aside until Esc.
+  hmPresent: () => { document.body.classList.add("present"); const r = document.documentElement.requestFullscreen; if (r) document.documentElement.requestFullscreen().catch(() => {}); },
+  wgGallery: () => openWidgetGallery(),
+  wgRemove: (el) => {
+    const k = el.dataset.k, w = el.closest(".wg"), drop = () => wgFlip(() => { state.widgets = state.widgets.filter((x) => x.k !== k); saveWidgets(); });
+    if (G && !calm()) { G.to(w, { scale: 0.7, opacity: 0, duration: 0.18, ease: "power2.in" }); setTimeout(drop, 180); } else drop();
+  },
+  wgSize: (el) => wgFlip(() => { const x = state.widgets.find((y) => y.k === el.dataset.k), s = WIDGETS[x.k].sizes; x.w = s[(s.indexOf(x.w) + 1) % s.length]; saveWidgets(); }),
+};
+// Dragging a widget: it lifts and follows the pointer; the others slide out of its way as it passes over them.
+{
+  let d = null;
+  const slot = (el) => ({ L: el.offsetLeft, T: el.offsetTop });
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest(".wg-grid.editing .wg");
+    if (!el || e.button || e.target.closest(".wg-ctl")) return;
+    e.preventDefault();
+    const sc = $("#scroller");
+    d = { el, sc, x0: e.clientX, y0: e.clientY, s0: slot(el), sc0: sc ? sc.scrollTop : 0, moved: false, x: e.clientX, y: e.clientY };
+  });
+  const place = () => {
+    const { el, sc, x0, y0, s0, sc0, x, y } = d, s = slot(el);
+    el.style.transform = `translate(${x - x0 + s0.L - s.L}px, ${y - y0 + (sc ? sc.scrollTop - sc0 : 0) + s0.T - s.T}px) scale(1.03)`;
+  };
+  document.addEventListener("pointermove", (e) => {
+    if (!d) return;
+    d.x = e.clientX; d.y = e.clientY;
+    if (!d.moved) { if (Math.hypot(d.x - d.x0, d.y - d.y0) < 4) return; d.moved = true; d.el.classList.add("lift"); document.body.classList.add("wg-dragging"); }
+    place();
+    // Over another widget: take its place. Moving forward lands after it, moving back lands before it;
+    // a short pause after each move lets the others finish sliding so it doesn't swap straight back.
+    const over = Date.now() > (d.lock || 0) && document.elementsFromPoint(d.x, d.y).map((n) => n.closest && n.closest(".wg")).find((n) => n && n !== d.el);
+    if (over) {
+      const all = $$(".wg-grid .wg"), fwd = all.indexOf(d.el) < all.indexOf(over), others = all.filter((n) => n !== d.el), st = FL && !calm() ? FL.getState(others) : null;
+      over.parentNode.insertBefore(d.el, fwd ? over.nextElementSibling : over);
+      d.lock = Date.now() + 300;
+      place();
+      if (st) FL.from(st, { targets: others, duration: 0.28, ease: "power3.out" });
+    }
+    // Near the top or bottom of the page, scroll it.
+    if (d.sc) { const r = d.sc.getBoundingClientRect(), v = d.y < r.top + 60 ? -12 : d.y > r.bottom - 60 ? 12 : 0; if (v) { d.sc.scrollTop += v; place(); } }
+  });
+  const end = () => {
+    if (!d) return;
+    const { el, moved } = d; d = null;
+    document.body.classList.remove("wg-dragging");
+    if (!moved) return;
+    const order = $$(".wg-grid .wg").map((n) => n.dataset.wk);
+    state.widgets.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k)); saveWidgets();
+    el.classList.remove("lift"); el.classList.add("settle"); el.style.transform = "";
+    setTimeout(() => el.classList.remove("settle"), 260);
+  };
+  document.addEventListener("pointerup", end);
+  document.addEventListener("pointercancel", end);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || $("#layer").children.length) return;
+    if (document.body.classList.contains("present")) document.body.classList.remove("present");
+    else if (state.hmEdit) { state.hmEdit = false; render(); }
+  });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) document.body.classList.remove("present"); });
+}
 // Home's slider switches tabs inside Home: the slider stays put, so Overview is always one click back.
-const HOME_TABS = [["overview", "Overview"], ["tickets", "Applicant Tickets"], ["interviews", "Interviews"], ["referrals", "Referrals"]];
+const HOME_TABS = [["overview", "Overview"], ["tickets", "New Applicants"], ["interviews", "Interview Judgement"], ["referrals", "Referrals"]];
 const homeNav = (on) => `<div class="hm-nav"><div class="pills" role="tablist">${HOME_TABS.map(([k, n]) => `<a class="${on === k ? "on" : ""}" href="${k === "overview" ? "#home" : `#home~${k}`}" role="tab" aria-selected="${on === k}">${n}</a>`).join("")}</div></div>`;
 function homePage(tab, key) {
   if (!HOME_TABS.some((t) => t[0] === tab) || tab === "overview") return homeOverview();
@@ -990,6 +1211,90 @@ function homePage(tab, key) {
   ${homeNav(tab)}<div class="hm-sub hm-sub-${tab}">${inner}</div>`;
 }
 // Two treatments of the same layout, side by side, so the styling can be judged on its own.
+/* ---------------- Banner: a status message, after Fluid Functionalism's ----------------
+   Five statuses, each with its colour and glyph; low contrast is a neutral fill with a coloured icon, high a light wash
+   of the colour. Inline sits in the page; fixed is a full-bleed bar stuck to the top of its scroller. Up to three actions,
+   laid out primary, secondary, then ghost. A dismissed banner collapses its height and stays dismissed. */
+const BN_ICO = {
+  default: "M8 2.5A3.5 3.5 0 0 0 4.5 6v2.5L3 10.5h10l-1.5-2V6A3.5 3.5 0 0 0 8 2.5ZM6.5 12.5a1.5 1.5 0 0 0 3 0",
+  info: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM8 7.5V11M8 5h.01",
+  success: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM5.5 8l1.8 1.8L10.5 6.5",
+  warning: "M8 2.5 14 13H2L8 2.5ZM8 6.5v3M8 11.2h.01",
+  error: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM6 6l4 4M10 6l-4 4",
+};
+const BN_STATUS = ["default", "info", "success", "warning", "error"];
+let bnHidden = new Set();
+try { bnHidden = new Set(JSON.parse(localStorage.getItem("tats.banners") || "[]")); } catch {}
+function banner({ id, status = "default", contrast = "low", variant = "inline", size = "default", title, desc = "", actions = [], dismissible = false, icon }) {
+  if (id && bnHidden.has(id)) return "";
+  const order = { primary: 0, secondary: 1, ghost: 2 };
+  const acts = actions.slice(0, 3).sort((x, y) => order[x.variant || "secondary"] - order[y.variant || "secondary"]).map((a) => {
+    const cls = `btn sm bn-a ${a.variant === "primary" ? "primary" : a.variant === "ghost" ? "ghost" : ""}`;
+    const attrs = Object.entries(a.data || {}).map(([k, v]) => ` data-${k}="${esc(String(v))}"`).join("");
+    return a.href ? `<a class="${cls}" href="${a.href}"${a.external ? ` target="_blank" rel="noopener"` : ""}${attrs}>${esc(a.label)}${a.external ? ico("arrowUR") : ""}</a>`
+      : `<button class="${cls}" ${a.act ? `data-act="${a.act}"` : ""}${attrs}>${esc(a.label)}</button>`;
+  }).join("");
+  return `<div class="bn s-${status} ${contrast === "high" ? "high" : ""} ${variant === "fixed" ? "fixed" : ""} ${size === "compact" ? "compact" : ""}" role="${status === "error" || status === "warning" ? "alert" : "status"}" ${id ? `data-bn="${esc(id)}" data-tid="bn-${esc(id)}"` : ""}>
+    <div class="bn-in"><div class="bn-box">
+      <span class="bn-ico"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${icon || BN_ICO[status]}"/></svg></span>
+      <div class="bn-txt"><b class="bn-t">${esc(title)}</b>${desc ? `<span class="bn-d">${esc(desc)}</span>` : ""}</div>
+      ${dismissible ? `<button class="bn-x" data-act="bnDismiss" aria-label="Dismiss" title="Dismiss">${ico("x")}</button>` : ""}
+      ${acts ? `<div class="bn-acts">${acts}</div>` : ""}
+    </div></div></div>`;
+}
+// Dismiss: the banner folds away (its height collapses), then it's gone, for good if it has an id.
+function bnDismiss(el) {
+  const b = el.closest(".bn"), id = b && b.dataset.bn;
+  if (!b) return;
+  b.classList.add("out");
+  setTimeout(() => {
+    if (id) { bnHidden.add(id); if (!id.startsWith("pg-")) try { localStorage.setItem("tats.banners", JSON.stringify([...bnHidden].filter((x) => !x.startsWith("pg-")))); } catch {} }
+    render();
+  }, calm() ? 0 : 240);
+}
+
+/* ---------------- Banner playground (#banners): every status, contrast, variant and size, with live controls ---------------- */
+const BN_PG_DEFAULT = { status: "warning", contrast: "high", variant: "inline", size: "default", dismissible: true, n: 3,
+  title: "Marcus's Grokbot can't reach Slack", desc: "Its Slack access expired, so the read for Inez Iyer didn't go out. Reconnect, or send it by email instead." };
+const BN_PG_ACTS = [{ label: "Reconnect Slack", variant: "primary", act: "bnDemo" }, { label: "Send by email", act: "bnDemo" }, { label: "Ignore", variant: "ghost", act: "bnDismiss" }];
+const BN_COPY = {
+  default: ["Testbench results come in overnight", "Scores land in New Applicants by 8 AM your time."],
+  info: ["Wei is heads-down until the 14th", "New interviews go to the rest of Engineering until then."],
+  success: ["Slack reconnected", "Marcus's Grokbot is back and has re-sent the read for Inez."],
+  warning: ["3 tickets are stuck past their target", "The oldest has waited 22 hours over. Nudge or reassign them."],
+  error: ["Marcus's Grokbot can't reach Slack", "Its access expired. The read for Inez Iyer didn't go out."],
+};
+function bannerPage() {
+  const g = (state.bnPg ||= { ...BN_PG_DEFAULT });
+  const seg = (k, opts) => `<div class="pills" role="tablist">${opts.map(([v, l]) => `<button class="${String(g[k]) === String(v) ? "on" : ""}" data-act="bnSet" data-k="${k}" data-v="${v}" role="tab" aria-selected="${String(g[k]) === String(v)}">${l}</button>`).join("")}</div>`;
+  const row = (l, c) => `<div class="bnp-row"><span class="bnp-l">${l}</span>${c}</div>`;
+  const live = banner({ id: "pg-live", status: g.status, contrast: g.contrast, variant: g.variant, size: g.size, title: g.title, desc: g.desc, actions: BN_PG_ACTS.slice(0, g.n), dismissible: g.dismissible });
+  const mock = `<div class="bnp-frame ${g.variant}"><div class="bnp-scroll">${g.variant === "fixed" ? live : ""}
+      <div class="bnp-page"><div class="bnp-h"><b>Applicant Tickets</b><span>281</span></div>${g.variant === "inline" ? live : ""}
+        ${Array.from({ length: 9 }, (_, i) => `<div class="bnp-line"><i></i><span style="width:${38 + ((i * 23) % 40)}%"></span><em></em></div>`).join("")}</div></div>
+      ${bnHidden.has("pg-live") ? `<button class="btn sm bnp-again" data-act="bnAgain">Show it again</button>` : ""}</div>`;
+  const grid = BN_STATUS.map((st) => `<div class="bnp-st"><span class="bnp-l">${st[0].toUpperCase() + st.slice(1)}</span>${["low", "high"].map((c) => banner({ status: st, contrast: c, size: "compact", title: BN_COPY[st][0], desc: BN_COPY[st][1] })).join("")}</div>`).join("");
+  return `<div class="bar"><div class="crumbs"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="${BN_ICO.default}"/></svg><b>Banner playground</b></div><span class="spacer"></span><button class="btn sm ghost" data-act="bnReset">Reset</button></div>
+  <div class="scroll" id="scroller"><div class="bnp">
+    <section class="bnp-ctl">
+      ${row("Status", seg("status", BN_STATUS.map((x) => [x, x[0].toUpperCase() + x.slice(1)])))}
+      ${row("Contrast", seg("contrast", [["low", "Low"], ["high", "High"]]))}
+      ${row("Variant", seg("variant", [["inline", "Inline"], ["fixed", "Fixed"]]))}
+      ${row("Size", seg("size", [["default", "Default"], ["compact", "Compact"]]))}
+      ${row("Actions", seg("n", [[0, "None"], [1, "1"], [2, "2"], [3, "3"]]))}
+      ${row("Dismissible", seg("dismissible", [["true", "Yes"], ["false", "No"]]))}
+      ${row("Title", `<input class="bnp-in" id="bnp-title" data-bnk="title" value="${esc(g.title)}" autocomplete="off">`)}
+      ${row("Description", `<textarea class="bnp-in" id="bnp-desc" data-bnk="desc" rows="2">${esc(g.desc)}</textarea>`)}
+      <div class="bnp-copy">${BN_STATUS.map((st) => `<button class="chip" data-act="bnCopy" data-v="${st}">${esc(st[0].toUpperCase() + st.slice(1))} example</button>`).join("")}</div>
+    </section>
+    <section class="bnp-prev"><div class="bnp-cap">Preview</div>${mock}</section>
+    <section class="bnp-all"><div class="bnp-cap">Every status, low and high contrast</div><div class="bnp-cols"><span></span><span class="bnp-l">Low</span><span class="bnp-l">High</span></div>${grid}</section>
+    <section class="bnp-all"><div class="bnp-cap">In tATS</div><div class="bnp-uses">
+      <div><b>Interview Calendar</b><span>An info banner for interviewers who are away, so nobody books them.</span></div></div></section>
+  </div></div>`;
+}
+document.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.bnk; if (k && state.bnPg) { state.bnPg[k] = e.target.value; render(); } });
+
 function comparePage() {
   const html = homePage().replace(/id="[^"]*"/g, "");
   return `<div class="bar"><div class="crumbs">${ico("home")}<a href="#home">Recruiting Overview</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>Compare styles</b></div><span class="spacer"></span><a class="btn sm" href="#home">Back</a></div>
@@ -1072,7 +1377,7 @@ function flowDefault() {
       n("offer", "end", 1448, cy("end"), "Offer"),
       n("note1", "note", 380, 250, "Skip the Testbench for referrals from the team?"),
     ],
-    edges: [["applied", "review"], ["review", "tb"], ["tb", "route"], ["route", "t-infra", "Infra"], ["route", "t-research", "Research"], ["route", "t-product", "Product"],
+    edges: [["applied", "review"], ["review", "tb"], ["tb", "route"], ["route", "t-infra", "Engineering"], ["route", "t-research", "Research"], ["route", "t-product", "Product"],
       ["t-infra", "cross"], ["t-research", "cross"], ["t-product", "cross"], ["cross", "final"], ["final", "offer"]]
       .map(([from, to, label = ""], i) => ({ id: `e${i}`, from, to, label })),
   };
@@ -1136,7 +1441,7 @@ function fcInspector() {
     return `<div class="fc-pill" title="Double-click the canvas to add a step. Drag from the dot on a step to connect it. Click a step to say who runs it. Delete removes, ⌘Z undoes. Scroll to pan, ⌘ + scroll to zoom.">${sm.steps} steps · ${sm.ivs} interview${sm.ivs === 1 ? "" : "s"} · about ${fmtMins(sm.mins)} per candidate<span class="fc-q">?</span></div>`;
   }
   if (s.t === "e") return `<aside class="fc-insp"><b class="fc-ih">Connection</b><span class="fc-sub">${esc(fN(o.from)?.label || "")} → ${esc(fN(o.to)?.label || "")}</span>
-    <label class="fc-f"><span>Label</span><input data-fcf="label" value="${esc(o.label)}" placeholder="Pass, Yes, Infra…" autocomplete="off"></label>
+    <label class="fc-f"><span>Label</span><input data-fcf="label" value="${esc(o.label)}" placeholder="Pass, Yes, Engineering…" autocomplete="off"></label>
     <button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove connection</button></aside>`;
   if (o.kind === "note") return `<aside class="fc-insp"><b class="fc-ih">Note</b><label class="fc-f"><textarea data-fcf="label" rows="4">${esc(o.label)}</textarea></label><button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove note</button></aside>`;
   const outs = state.flow.edges.filter((e) => e.from === o.id);
@@ -1442,7 +1747,7 @@ function processTree(x) {
 }
 
 /* ---------------- The Grokbot, live on Onboarding ---------------- */
-// Ask your Grokbot in Slack or the CLI ("put Daniel on Infra, Product and Research") and its cursor comes onto this page,
+// Ask your Grokbot in Slack or the CLI ("put Daniel on Engineering, Product and Research") and its cursor comes onto this page,
 // goes to each box and makes the change, so you watch it happen. setupOps reads the request; grokDo moves the cursor.
 const IV_KW = { "Technical screen": /tech(nical)? screen/, "Systems design": /systems? design/, "GPU performance deep dive": /gpu/, "Research deep dive": /research deep dive/, "FDE customer scenario": /\bfde\b|customer scenario/, "Product and design": /product (and|&) design/, "Final with the CTO": /\bfinal\b/ };
 const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0] || "");
@@ -1604,7 +1909,7 @@ function openRefForm(pre = {}) {
       if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
       const a = { id: `APP-${140 + APPLICANTS.length}`, pri: 3, labels: [], name, hl: v.link ? v.link.replace(/^https?:\/\/(www\.)?/, "") : `Referred by ${first(v.by)}`, role: v.role, src: `Referral · ${first(v.by)}`, loc: "", yrs: 0, links: v.link ? [v.link.replace(/^https?:\/\/(www\.)?/, "")] : [], state: "new", when: Date.now(), sum: v.note ? [v.note] : [], exp: [], tb: null, note: v.note ? `${v.note}\n\n${first(v.by)}` : "" };
       APPLICANTS.push(a); A[a.id] = a; seed(a); touch(a);
-      toast(`${name} is in Applicant Tickets, referred by ${first(v.by)}`);
+      toast(`${name} is in New Applicants, referred by ${first(v.by)}`);
     } });
 }
 // Add with Grokbot: paste what you have (a Slack message, an email, a link) and it fills the form.
@@ -1696,9 +2001,9 @@ const TOUR = [
   ["inbox", ".ibx", "Inbox", "What's worth your time from everything that happened: what needs you, what was decided, what got booked."],
   ["inbox", ".ibx-g.need", "Needs you", "Click a problem and it opens with the fix already drafted. Read it, edit it, send it."],
   ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
-  ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
-  ["all", ".pl-fun", "Pipeline", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
-  ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
+  ["triage", ".act-glow", "New Applicants", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
+  ["all", ".pl-fun", "Applicant Tickets", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
+  ["interviews", ".pt", "Interview Judgement", "Where a candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
   ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Open it from ⌘K. Ask, delegate and assign here or there; this dashboard is for checking in."],
 ];
@@ -1824,7 +2129,7 @@ function applicantsPage() {
       ${groups.map(({ x, xs }) => `<div class="pl-gh">${esc(x.name)}<span>${xs.length}</span></div>${xs.slice(0, cap(x.k)).map(plRow).join("")}${xs.length > cap(x.k) ? `<button class="pl-more" data-act="plMore" data-k="${x.k}">Show all ${xs.length} in ${esc(x.name)}</button>` : ""}`).join("") || `<div class="pl-zero">${ico("check")}<b>${mode === "stuck" ? "Nobody's stuck" : "No one here"}</b><span>${mode === "stuck" ? "Everyone is inside their stage's target. The Grokbots have it." : "Nothing matches these filters."}</span></div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Applicant Tickets</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
     ${view === "board" ? "" : `<div class="pills pl-mode" role="tablist">${[["stuck", "Stuck", all.filter((a) => plLate(a) > 1).length], ["all", "Everyone", all.length]].map(([k, l, n]) => `<button class="${mode === k ? "on" : ""}" data-act="plMode" data-v="${k}" role="tab" aria-selected="${mode === k}">${l}<span>${n.toLocaleString()}</span></button>`).join("")}</div>`}
     <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" ${role ? `title="Board (B)"` : `disabled title="Pick one role to see it as a board"`}>${ico("board")}</button></div>
     <a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
@@ -1850,7 +2155,18 @@ function priMenu(anchor, ids) {
   const cur = ids.length === 1 ? A[ids[0]].pri || 0 : -1;
   openMenu(anchor, [1, 2, 3, 4, 0].map((p) => ({ id: p, label: PRIORITIES[p].name, icon: priIcon(p), checked: cur === p, hint: String(p) })), (o) => ids.forEach((id) => setPri(A[id], o.id)), { title: "Priority" });
 }
-function teamPick(anchor, ids) { openAssign(ids); }
+// Team: a quick pick. Choosing who interviews is its own step ("Pick an interviewer…").
+function teamPick(anchor, ids) {
+  const xs = ids.map((id) => A[id]).filter(Boolean), cur = xs.length === 1 ? xs[0].team || null : -1;
+  const items = [{ sec: "Team" }, ...Object.entries(TEAMS).map(([k, t]) => ({ id: k, label: t.name, icon: teamKey(k), checked: cur === k, hint: `${t.members.length} interviewers` }))];
+  if (xs.some(isOpen)) items.push({ sec: "Interviewer" }, { id: "__assign", label: "Pick an interviewer…", icon: ico("users") });
+  openMenu(anchor, items, (o) => {
+    if (o.id === "__assign") return openAssign(ids);
+    // A new team isn't a new stage, so the clock on the stage keeps running.
+    xs.forEach((a) => { if (a.team === o.id) return; const w = a.when; a.team = o.id; now(a, "me", `Moved to the ${esc(TEAMS[o.id].name)} team`); touch(a); a.when = w; });
+    render(); toast(xs.length === 1 ? `${xs[0].name} is on ${TEAMS[o.id].name}` : `${xs.length} moved to ${TEAMS[o.id].name}`);
+  });
+}
 function labelMenu(anchor, a) {
   const auto = labelsOf(a).filter((l) => !(a.labels || []).includes(l));
   openMenu(anchor, Object.keys(LABELS).filter((l) => !auto.includes(l)).map((l) => ({ id: l, label: l, icon: `<i class="ldot" style="background:${LABELS[l]}"></i>`, checked: (a.labels || []).includes(l) })), (o) => {
@@ -1999,16 +2315,64 @@ function nowPanel(a) {
   }
   if (s === "judgment") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>Back with you</b><span>${esc(stripTags(lastEv(a).html))}</span></div></div>
     <div class="cc-acts"><button class="btn primary" data-act="advance" data-id="${a.id}" title="Send to a team (A)">${ico("arrowR")}Send to a team</button><button class="btn" data-act="reject" data-id="${a.id}" title="Reject (R)">Reject</button></div></section>`;
-  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from Applicant Tickets. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in Applicant Tickets</a></div></section>`;
-  const c = court(a);
-  if (["routing", "asked", "scheduling", "debrief"].includes(s)) {
-    const r = RUNS.find((x) => x.a === a.id && !x.end);
-    return `<section class="now-card"><span class="now-av">${c.av}</span><div class="grow"><b>With ${esc(c.label)}</b><span>${esc(doing(a))}</span></div>${r ? `<a class="btn sm" href="#run~${r.id}">${runPill(r)}</a>` : `<span class="working-dots"><i></i><i></i><i></i></span>`}</section>`;
-  }
-  if (s === "scheduled") return `<section class="now-card">${personAv(a.iv, "lg")}<div class="grow"><b>Interview booked</b><span>${esc(a.at ? fmtWhen(a.at) : "")} with ${esc(PEOPLE[a.iv].name)}. Feedback is collected afterwards.</span></div>
-</section>`;
-  if (s === "testbench") return `<section class="now-card">${candAv(a, "lg")}<div class="grow"><b>With ${esc(first2(a))}</b><span>${a.tb.state === "running" ? "Working on the Testbench" : "Testbench sent, not started yet"}. It comes back to Applicant Tickets with a score.</span></div></section>`;
+  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from New Applicants. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in New Applicants</a></div></section>`;
+  if (["testbench", "routing", "asked", "scheduling", "scheduled", "debrief"].includes(s)) return situation(a);
   return `<section class="now-card closed">${stIcon(s)}<div class="grow"><b>${STATES[s].name}</b><span>${esc(stripTags(lastEv(a).html))}</span></div></section>`;
+}
+// Where a ticket stands: who has it, what they're doing, how long it's sat against the stage's target,
+// and the one thing that moves it on. Past the target it says so, in red, and the fix is the primary button.
+function situation(a) {
+  const s = a.state, c = court(a), iv = a.iv && first(a.iv), cand = first2(a);
+  const r = RUNS.find((x) => x.a === a.id && !x.end), failed = r && runState(r) === "failed";
+  const st = plStage(a), age = Date.now() - a.when, late = plLate(a) > 1;
+  const btn = (label, act, primary, extra = "") => `<button class="btn sm ${primary ? "primary" : ""}" data-act="${act}" data-id="${a.id}"${extra}>${label}</button>`;
+  const runBtn = r ? `<a class="btn sm ghost" href="#run~${r.id}">Open the Grokbot's run${ico("arrowR")}</a>` : "";
+  const nudged = a.ivNudged && Date.now() - a.ivNudged < DAY;
+  const nudge = (primary) => nudged ? `<span class="sit-done">${ico("check")}Nudged ${dur(Date.now() - a.ivNudged)} ago</span>`
+    : r ? `<button class="btn sm ${primary ? "primary" : ""}" data-act="nudgeRun" data-id="${r.id}">Nudge ${esc(iv)}</button>` : btn(`Nudge ${esc(iv)}`, "nudgeIv", primary);
+  let what, why, fix, acts;
+  if (failed) {
+    what = `${possessive(iv || "The")} Grokbot got stuck`; why = `It couldn't ${r.kind.toLowerCase()}: ${stripTags(r.why || "the channel didn't answer")}.`;
+    fix = "Retry it, or pick another way to reach them.";
+    acts = `<button class="btn sm primary" data-act="retryRun" data-id="${r.id}">Retry</button>${runBtn}`;
+  } else if (s === "testbench") {
+    const run = a.tb.state === "running";
+    what = run ? `${cand} is working on the Testbench` : `Waiting on ${cand} to start the Testbench`;
+    why = run ? "It comes back with a score when they submit. Nothing for you to do." : `Sent ${dur(age)} ago, not started yet.`;
+    fix = run ? "" : late || age > DAY ? `Remind ${cand}. A short email usually gets it started.` : "Give it a day; most people start within 24 hours.";
+    acts = run ? "" : btn(`Remind ${cand}`, "nudgeCand", late || age > DAY);
+  } else if (s === "routing") {
+    what = `Finding an interviewer on ${TEAMS[a.team].name}`; why = "The team's Grokbots are checking who has room this week.";
+    fix = late ? "No one has taken it. Pick the interviewer yourself." : "Wait for a yes, or pick the interviewer yourself.";
+    acts = `${btn("Pick the interviewer", "advance", late)}${runBtn}`;
+  } else if (s === "asked") {
+    what = `Waiting on ${iv} to say yes`; why = `${possessive(iv)} Grokbot asked if they can take ${cand}. No answer yet.`;
+    fix = late ? `${iv} hasn't answered. Nudge them, or give it to someone else.` : `Nudge ${iv}, or give it to someone else.`;
+    acts = `${nudge(late)}${btn("Pick someone else", "advance", false)}`;
+  } else if (s === "scheduling") {
+    const draft = r && r.kind === "Schedule the interview" && r.status === "waiting" && !r.sent;
+    what = draft ? `Invite drafted in ${possessive(iv)} Gmail, not sent` : `Waiting on ${cand} to pick a time`;
+    why = draft ? `Offers ${(a.slots || []).join(" or ") || "two times"}. It needs your OK to go out.` : `Offered ${(a.slots || []).join(" or ") || "two times"}.`;
+    fix = draft ? "Send it. It goes from their account and lands on both calendars once picked." : `Remind ${cand} if it's been a while.`;
+    acts = draft ? btn("Send the invite", "sendInvite", true) : `${btn(`Remind ${cand}`, "nudgeCand", late)}${runBtn}`;
+  } else if (s === "scheduled") {
+    const ahead = a.at && a.at > Date.now();
+    what = ahead ? `Interview ${fmtWhen(a.at)} with ${PEOPLE[a.iv].name}` : `Interviewed by ${PEOPLE[a.iv].name}`;
+    why = ahead ? "Nothing to do until then. The read is collected right after." : "The read hasn't been asked for yet.";
+    fix = ahead ? "" : `Ask ${iv} for the read.`;
+    acts = ahead ? `<a class="btn sm ghost" href="#calendar">Open in Interview Calendar${ico("arrowR")}</a>` : btn(`Ask ${esc(iv)} for the read`, "askGrok", true);
+  } else {
+    const asked = r ? Date.now() - r.start : age;
+    what = `Waiting on ${possessive(iv)} read`; why = `${possessive(iv)} Grokbot asked ${dur(asked)} ago in ${CH_NAME[(r && r.ch) || "slack"]}. No reply yet.`;
+    fix = late ? `Nudge ${iv}. It goes from their Grokbot and copies their lead.` : `Usually back within a day. Nudge ${iv} if you need it sooner.`;
+    acts = `${nudge(late)}${btn(`Ask ${esc(possessive(iv))} Grokbot`, "askGrok", false)}${runBtn}`;
+  }
+  const left = st.target * HR - age;
+  return `<section class="sit ${late || failed ? "late" : ""}">
+    <div class="sit-top"><span class="sit-av">${c.av}</span><div class="grow"><span class="sit-k">With ${esc(c.label)}</span><b>${esc(what)}</b><span class="sit-why">${esc(why)}</span></div>
+      <span class="sit-age" title="Time in ${esc(st.name)}, against its ${plDur(st.target)} target"><span>${late ? `<i class="dot"></i>Stuck · ${plDur((age - st.target * HR) / HR)} over` : `${plDur(age / HR)} in ${esc(st.name)}`}</span><em>${late ? `target ${plDur(st.target)}` : left > 0 ? `${plDur(left / HR)} left of ${plDur(st.target)}` : ""}</em></span></div>
+    ${fix || acts ? `<div class="sit-next">${fix ? `<span class="sit-k">To move it on</span><span class="sit-fix">${esc(fix)}</span>` : ""}${acts ? `<div class="sit-acts">${acts}</div>` : ""}</div>` : ""}
+  </section>`;
 }
 const prop = (k, v) => `<div class="prop"><span class="k">${k}</span><span class="v">${v}</span></div>`;
 const bprop = (k, v, act, id) => `<button class="prop" data-act="${act}" data-id="${id}"><span class="k">${k}</span><span class="v">${v}</span></button>`;
@@ -2017,7 +2381,7 @@ function ticketPage(id) {
   const c = court(a);
   const team = a.team && TEAMS[a.team];
   const back = state.backTo && !state.backTo.startsWith("t~") && !state.backTo.startsWith("run~") ? state.backTo : "all";
-  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Calendar" : back === "jobs" ? "Job Postings" : back === "triage" ? "Applicant Tickets" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Analytics" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Pipeline";
+  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Interview Calendar" : back === "jobs" ? "Job Postings" : back === "triage" ? "New Applicants" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Analytics" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Applicant Tickets";
   const pos = state.lastList.indexOf(id);
   return `<div class="bar"><div class="crumbs"><a href="#${back}">${esc(backName)}</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>${esc(a.name)}</b></div><span class="spacer"></span>
     ${pos >= 0 ? `<span class="faint pos">${pos + 1} / ${state.lastList.length}</span>` : ""}
@@ -2037,6 +2401,7 @@ function ticketPage(id) {
       ${pastOf(a).length ? `<div class="block"><div class="block-head">Past applications<span class="n">${pastOf(a).length}</span></div><div class="plan">${pastOf(a).map((h) => `<button class="past-row" data-act="openHist" data-id="${h.id}"><span class="what"><b>${esc(ROLES[h.role].title)}</b><span>${fmtDate(h.applied)} to ${fmtDate(h.closed)} · got to ${esc(h.reached)}</span></span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span></button>`).join("")}</div></div>` : ""}
       <div class="block">${tbPanel(a)}</div>
       <div class="block"><div class="block-head">Profile</div>${profile(a)}</div>
+      ${appBlock(a)}
       <div class="block"><div class="block-head">Activity<button class="aside linkish" data-act="rawLog">${state.rawLog ? "Show summary" : "Show all steps"}</button></div>${state.rawLog ? traceView(a) : storyView(a)}
         <div class="composer"><textarea id="cmt" data-compose="${a.id}" placeholder="Add a comment…" rows="2"></textarea>
           <div class="tools"><span class="grow"></span><button class="btn sm" data-act="comment" data-id="${a.id}" title="Comment (⌘↵)">Comment</button></div></div>
@@ -2212,12 +2577,13 @@ function calendarPage() {
   };
   const note = (e) => e.kind === "iv" ? `Invite sent from ${first(e.iv)}'s Gmail.` : e.kind === "hold" ? `Waiting on ${first2(e.a)} to pick ${e.a.slots.join(" or ")}` : e.a.read && e.status === e.a.read.verdict ? `“${e.a.read.quote}”` : e.status === "Offer" ? "Moved to offer. Draft ready in Gmail." : e.status === "Rejected" ? `Rejected. ${first(e.iv)}'s Grokbot sent the note.` : e.status === "Read in" ? "Read is in" : `${first(e.iv)}'s Grokbot is collecting the read`;
   const teamName = state.calTeam && state.calTeam !== "all" ? TEAMS[state.calTeam].name : "Everyone";
-  return `<div class="bar cx-bar"><h1 class="cx-title">Calendar</h1><span class="spacer"></span>
+  return `<div class="bar cx-bar"><h1 class="cx-title">Interview Calendar</h1><span class="spacer"></span>
     <label class="cx-search hide-sm">${ico("search")}<input id="calq" placeholder="Search interviews…" value="${esc(state.calQ || "")}" autocomplete="off"></label>
     <button class="cx-ibtn" data-act="help" aria-label="Keyboard Shortcuts" title="Keyboard Shortcuts (?)">?</button>
     <button class="cx-primary" data-act="findTime" title="Suggests an interviewer and a time">${ico("cal")}<span>Find a time</span></button></div>
   <div class="scroll ${mode === "list" ? "" : "fitv"}" id="scroller"><div class="calpage ${mode === "list" ? "" : "fit"}">
     <div class="cal-main">
+      ${(() => { const away = Object.entries(PEOPLE).filter(([, p]) => p.quiet); return away.length ? banner({ id: "cal-away", status: "info", size: "compact", title: away.map(([id, p]) => `${first(id)}: ${p.quiet[0].toLowerCase()}${p.quiet.slice(1)}`).join(" · "), desc: "They show as away when you pick an interviewer. Their Grokbots still answer.", actions: [{ label: "See interviewers", href: "#bots~people" }], dismissible: true }) : ""; })()}
       <div class="cal-top">
         ${mode === "list" ? `<h2>All interviews</h2>` : `<button class="cx-btn" data-act="calToday">Today</button>
         <div class="cx-pair"><button class="cx-btn" data-act="calNav" data-d="-1" aria-label="Previous">${ico("arrowL")}</button><button class="cx-btn" data-act="calNav" data-d="1" aria-label="Next">${ico("arrowR")}</button></div>
@@ -2696,7 +3062,7 @@ const EX_MEASURES = {
 };
 const EX_SLICES = {
   stage: { name: "Stage", groups: () => [
-    ["new", "Applicant Tickets", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
+    ["new", "New Applicants", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
     ["routing", "With Grokbots", (a) => ["routing", "asked", "scheduling"].includes(a.state)], ["scheduled", "Interview booked", (a) => a.state === "scheduled"],
     ["debrief", "Getting the read", (a) => a.state === "debrief"], ["judgment", "Your call", (a) => a.state === "judgment"],
     ["offer", "Offer", (a) => a.state === "offer"], ["rejected", "Closed", (a) => a.state === "passed" || a.state === "rejected"],
@@ -2812,7 +3178,7 @@ function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); 
 /* ---------------- Views: everything you don't need every day, one click away ---------------- */
 // Pages you visit now and then. Pin the ones you use to the sidebar.
 const PAGE_VIEWS = [
-  { id: "calendar", name: "Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
+  { id: "calendar", name: "Interview Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
   { id: "interviewers", name: "Interviewers", icon: "users", href: "#bots~people", desc: "Who interviews, their load, and their Grokbot" },
 ];
 // Saved Pipeline filters.
@@ -2854,7 +3220,7 @@ function viewsPage() {
 function openNewView() {
   const opt = (name, pairs) => `<select name="${name}">${pairs.map(([v, n]) => `<option value="${v}">${n}</option>`).join("")}</select>`;
   openForm({
-    title: "New view", sub: "A saved filter on the Pipeline.", submit: "Create view",
+    title: "New view", sub: "A saved filter on Applicant Tickets.", submit: "Create view",
     body: `<label class="fm-f"><span>Name</span><input name="name" placeholder="Strong infra referrals" required></label>
       <div class="fm-row"><label class="fm-f"><span>Team</span>${opt("team", [["", "Any team"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])])}</label>
       <label class="fm-f"><span>Stage</span>${opt("stage", [["", "Any stage"], ["you", "With you"], ["bots", "With Grokbots"], ["booked", "Interview booked"], ["closed", "Closed"]])}</label></div>
@@ -2903,19 +3269,19 @@ function renderSide() {
     </nav>
     <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
-      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
+      ${item("#triage", ico("ticket"), "New Applicants", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
     </nav>
     <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
+      ${item("#all", ico("people"), "Applicant Tickets", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
       ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
-      ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
-      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
-      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#interviews", ico("mic"), "Interview Judgement", r.name === "interviews")}
+      ${item("#calendar", ico("cal"), "Interview Calendar", r.name === "calendar")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
     </nav>
     <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
       ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
+      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
       ${item("#setup~process", ico("route"), "Interview process", r.name === "setup" && r.id === "process")}
       ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
@@ -2927,7 +3293,7 @@ function renderSide() {
 /* ---------------- moves: what you can do with an applicant, as buttons or a menu ---------------- */
 function statusMoves(a) {
   const m = [];
-  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to Applicant Tickets", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); toast(`${a.name} is back in Applicant Tickets`); } });
+  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to New Applicants", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to New Applicants"); touch(a); toast(`${a.name} is back in New Applicants`); } });
   if (!a.tb && isOpen(a)) m.push({ k: "testbench", label: "Send Testbench", icon: stIcon("testbench"), run: () => { const undo = sendTB(a); render(); toast(`Testbench sent to ${a.name}`, { undo }); } });
   if (isOpen(a)) m.push({ k: "team", label: a.state === "judgment" ? "Next round…" : "Send to a team…", icon: stIcon("routing"), primary: a.state === "judgment", run: (el) => teamPick(el, [a.id]) });
   if (a.state === "judgment") m.push({ k: "offer", label: "Move to offer…", icon: stIcon("offer"), run: () => openOffer(a) });
@@ -2941,7 +3307,7 @@ const moveButtons = (a, only) => statusMoves(a).filter((m) => !only || only.incl
 /* ---------------- Inbox: one row per applicant, newest first, read like email ---------------- */
 const seen = new Map(), archived = new Map();
 const attnRun = (a) => RUNS.find((r) => r.a === a.id && needsAttention(r));
-// Only a decision or a stuck Grokbot needs you. New applicants have their own page, Applicant Tickets.
+// Only a decision or a stuck Grokbot needs you. New applicants have their own page, New Applicants.
 const needsYou = (a) => a.state === "judgment" || !!attnRun(a);
 // The Inbox is a queue of operational issues, not of applicants. An applicant has at most one open
 // issue: a Grokbot that broke, an invite drafted but not sent, someone who hasn't answered, or a
@@ -3196,19 +3562,19 @@ function ibThink() {
   ibAnim = { tl, box, think, stop, rows, p, done };
   box.addEventListener("click", () => { if (ibAnim) ibThinkEnd(); }, { once: true, capture: true });
 }
+const fullBody = (id) => { const rec = recordings().filter((x) => x.a.id === id).sort((x, y) => y.round - x.round)[0]; return `${rec ? processTree(rec) : ""}${ticketPage(id)}`; };
 // A full-page pop-up with everything about one candidate, so a decision can be made right there.
 // It closes back to where you were (✕, Esc or a click outside); "Open as a page" is there if you want the ticket itself.
 function openFull(id) {
   const a = A[id];
   if (!a) return;
   closeLayer();
-  const rec = recordings().filter((x) => x.a.id === id).sort((x, y) => y.round - x.round)[0];
   const el = document.createElement("div");
   el.className = "overlay fs";
   el.innerHTML = `<div class="fs-sheet" role="dialog" aria-label="${esc(a.name)}">
     <header class="fs-h"><div class="fs-t"><b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)} · ${esc(STATES[a.state].name)}</span></div><span class="grow"></span>
       <a class="btn sm ghost" href="#t~${id}" data-close>${ico("arrowUR")}Open as a page</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
-    <div class="fs-body">${rec ? processTree(rec) : ""}${ticketPage(id)}</div></div>`;
+    <div class="fs-body" data-id="${id}">${fullBody(id)}</div></div>`;
   $("#layer").appendChild(el);
   ftFit();
   modal = { send: () => {}, fs: true };
@@ -3286,7 +3652,7 @@ function ibDone(id) {
   toast(`Dismissed: ${A[id].name}`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
 }
 
-/* ---------------- Applicant Tickets: one email each, a reply ready ---------------- */
+/* ---------------- New Applicants: one email each, a reply ready ---------------- */
 const MODES = [["interview", "Interview", "I"], ["testbench", "Testbench", "T"], ["decline", "Decline", "D"]];
 function suggestMode(a) {
   if (!a.tb) return "testbench";
@@ -3386,7 +3752,7 @@ function triagePage() {
   const q = queue();
   const t = triState(q);
   const a = A[t.sel];
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Applicant Tickets</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">New Applicants</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
   if (!a) return `${head}<div class="scroll"><div class="tri-done">${ico("check", "ico big")}<h2>No new applicants</h2><p>Every applicant ticket has been answered.</p><a class="btn" href="#inbox">Back to Inbox</a></div></div>`;
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
@@ -3807,7 +4173,7 @@ function interviewsPage(selKey) {
   const xs = ivList();
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">Interview Judgement</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
   return `${head}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
     <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
@@ -3855,25 +4221,28 @@ function readThread(x) {
   const played = (state.gcPlayed ||= new Map());
   if (!played.has(x.key)) played.set(x.key, Date.now());
   const play = Date.now() - played.get(x.key) < 4000;
+  // Laid out like a chat transcript: the Grokbot is the assistant, plain text on the left; the interviewer
+  // is the user, a soft bubble on the right with their name, the time and Copy in a row under it
+  // (shown on hover, its height always kept so nothing shifts).
   let i = 0;
-  const out = (txt, cls = "") => `<div class="gc-row out" style="--i:${i++}"><div class="gc-bubble ${cls}">${txt}</div></div>`;
-  const inn = (txt, first) => `<div class="gc-row in" style="--i:${i++}">${first ? `<span class="gc-av">${personAv(x.iv)}</span>` : `<span class="gc-av"></span>`}<div class="gc-col">${first ? `<span class="gc-name">${esc(PEOPLE[x.iv].name)}</span>` : ""}<div class="gc-bubble in">${txt}</div></div></div>`;
-  const meta = (txt) => `<span class="gc-meta" style="--i:${i++}">${txt}</span>`;
-  let body = meta(`${esc(possessive(first(x.iv)))} Grokbot · ${ch} · ${when(ask)}`);
-  body += out(`How did it go with ${esc(first2(a))}? A yes or no and a line on why is enough.`);
+  const iv = PEOPLE[x.iv].name;
+  const bot = (txt) => `<div class="cm assistant" style="--i:${i++}"><div class="cm-body">${txt}</div></div>`;
+  const you = (txt, at, last) => `<div class="cm user ${last ? "last" : ""}" style="--i:${i++}"><div class="cm-bubble">${esc(txt)}</div>
+    <div class="cm-meta"><span>${esc(iv)}${at ? ` · ${fmtTime(at)}` : ""}</span><button class="cm-act" data-act="cmCopy" data-copy="${esc(txt)}" aria-label="Copy" title="Copy">${GICO.copy}</button></div></div>`;
+  let body = `<div class="cm-day" style="--i:${i++}">${esc(possessive(first(x.iv)))} Grokbot · ${ch} · ${when(ask)}</div>`;
+  body += bot(`How did it go with ${esc(first2(a))}? A yes or no and a line on why is enough.`);
   if (r) {
-    body += meta(`Read ${reply ? fmtTime(reply.at) : ""}`);
-    body += inn(esc(r.quote), true);
-    if (r.notes.length > 1) {
-      body += out("Anything the next interviewer should dig into?");
-      body += inn(`${esc(r.notes[r.notes.length - 1])}.`, true);
+    const more = r.notes.length > 1;
+    body += you(r.quote, reply && reply.at, !more);
+    if (more) {
+      body += bot("Anything the next interviewer should dig into?");
+      body += you(`${r.notes[r.notes.length - 1]}.`, reply && reply.at, true);
     }
   } else {
-    if (nudge) { body += meta(when(nudge)); body += out(`<span class="gc-alert">Following up on ${esc(first2(a))}. Even one line helps.</span>`, "last"); }
-    body += meta("Read");
-    body += `<div class="gc-foot" style="--i:${i++}">No reply yet</div>`;
+    if (nudge) body += bot(`<span class="gc-alert">Following up on ${esc(first2(a))}. Even one line helps.</span>`);
+    body += `<div class="cm-wait" style="--i:${i++}">No reply from ${esc(first(x.iv))} yet</div>`;
   }
-  return `<div class="gc" ${play ? "data-play" : ""}>${body}</div>`;
+  return `<div class="cm-thread" ${play ? "data-play" : ""}>${body}</div>`;
 }
 /* ---------------- the interview loop: where a candidate is, who met them, and how it went ---------------- */
 // Rounds before the one on file: [team, interviewer, verdict, days ago].
@@ -3915,7 +4284,7 @@ function recReader(x) {
   const steps = nextSteps(x), done = (state.nsDone ||= new Set());
   const nDone = steps.filter((s, i) => s[3] || done.has(`${key}:${i}`)).length;
   return `<article class="rc">
-      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interviews">${ico("chevL")}</a>
+      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interview Judgement">${ico("chevL")}</a>
         <div class="grow"><h1>${esc(a.name)} · Round ${x.round}</h1><p>${esc(ROLES[a.role].title)}<i>·</i>${esc(`${MO[new Date(x.start).getMonth()]} ${new Date(x.start).getDate()}, ${new Date(x.start).getFullYear()}`)}</p></div>
         ${vPill(x.v)}<span class="stackav">${candAv(a)}${personAv(x.iv)}</span>
         <a class="icon-btn" href="#t~${a.id}" title="Open ticket" aria-label="Open ticket">${ico("arrowR")}</a>
@@ -4189,6 +4558,7 @@ function parseHash() {
   if (name === "history") { location.replace("#crm"); return { name: "crm" }; }
   if (name === "crm") { if (a && CRM_VIEWS.some((v) => v[0] === a)) { state.crmView = a; state.crmPg = 0; } return { name }; }
   if (name === "compare") return { name };
+  if (name === "banners") return { name };
   if (name === "chat") return { name };
   if (name === "setup") return { name, id: a || "people" };
   if (name === "bots" && a === "rules") return { name: "settings" };
@@ -4225,8 +4595,11 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) + (r.run ? runDrawer(RUNS.find((x) => x.id === r.run)) : "") : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) + (r.run ? runDrawer(RUNS.find((x) => x.id === r.run)) : "") : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "banners" ? bannerPage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
+  // The candidate pop-up keeps up too: a nudge or a page turn inside it shows there.
+  const fsb = $("#layer .overlay.fs .fs-body");
+  if (fsb && A[fsb.dataset.id]) patch(fsb, fullBody(fsb.dataset.id));
   fitCalendar();
   drawTrees(); setTimeout(drawTrees, 420); ftFit();
   $$(".cmp-inner").forEach((el) => { el.style.zoom = (el.parentElement.clientWidth - 2) / 1180; });
@@ -4321,6 +4694,7 @@ function openAcct(anchor) {
   el.innerHTML = `<div class="acct-h"><b>${esc(me.name)}</b><span class="acct-role">${esc(me.role)}</span><span class="acct-mail">${esc(first(ME).toLowerCase())}@meridian.com</span></div>
     <div class="acct-g">${items.map(([k, ic, l, h]) => `<button class="opt" role="menuitem" data-k="${k}">${ico(ic)}<span class="grow">${l}</span>${h}</button>`).join("")}</div>
     <div class="acct-g acct-th"><span class="acct-tl">${ico("moon")}Theme</span><div class="pills acct-pills" role="radiogroup" aria-label="Theme">${THEMES.map(([k, ic, l]) => `<button class="${themeNow() === k ? "on" : ""}" data-theme="${k}" role="radio" aria-checked="${themeNow() === k}" title="${l}" aria-label="${l}">${ico(ic)}</button>`).join("")}</div></div>
+    <div class="acct-g acct-th acct-wb"><span class="acct-tl" title="Cancels Night Shift and True Tone on this display${wbNight() ? " at night" : " by day"}; remembered per screen">${ico("monitor")}Warmth fix</span><div class="pills acct-pills" role="radiogroup" aria-label="Warmth correction for this display">${["Off", "1", "2", "3", "4"].map((l, k) => `<button class="${WB.lv === k ? "on" : ""}" data-wb="${k}" role="radio" aria-checked="${WB.lv === k}" title="${k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "No correction"}">${l}</button>`).join("")}</div></div>
     <div class="acct-g"><button class="opt" role="menuitem" data-k="out">${ico("logout")}<span class="grow">Sign out</span>${kb("⇧ ⌘ Q")}</button></div>`;
   $("#layer").appendChild(el);
   const r = anchor.getBoundingClientRect();
@@ -4332,6 +4706,8 @@ function openAcct(anchor) {
   el.addEventListener("click", (e) => {
     const th = e.target.closest("[data-theme]");
     if (th) { setTheme(th.dataset.theme); $$("[data-theme]", el).forEach((b) => { b.classList.toggle("on", b === th); b.setAttribute("aria-checked", b === th); }); return; }
+    const wb = e.target.closest("[data-wb]");
+    if (wb) { setWarmth(+wb.dataset.wb); $$("[data-wb]", el).forEach((b) => { b.classList.toggle("on", b === wb); b.setAttribute("aria-checked", b === wb); }); return; }
     const b = e.target.closest(".opt");
     if (!b) return;
     closeLayer();
@@ -4391,16 +4767,17 @@ function openPalette(ctx) {
     ...acts,
     { sec: "Go to", label: "Chat with your Grokbot", icon: botAv(ME), run: () => go("chat") },
     { sec: "Go to", label: "Inbox", sub: `${unreadCount()} unread`, icon: ico("inbox"), hint: "G I", run: () => go("inbox") },
-    { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
-    { sec: "Go to", label: "Pipeline", icon: ico("people"), hint: "G A", run: () => go("all") },
+    { sec: "Go to", label: "New Applicants", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
+    { sec: "Go to", label: "Applicant Tickets", icon: ico("people"), hint: "G A", run: () => go("all") },
     { sec: "Go to", label: "Job Postings", icon: ico("brief"), hint: "G J", run: () => go("jobs") },
     { sec: "Do", label: "New Job Posting", icon: ico("plus"), run: () => newJob() },
     { sec: "Do", label: "Add a Grokbot", icon: ico("plus"), run: () => openAddBot() },
     { sec: "Do", label: "Set up people and teams", icon: ico("users"), run: () => go("setup~people") },
     { sec: "Go to", label: "Applicants board", icon: ico("board"), run: () => { state.view = "board"; go("all"); } },
-    { sec: "Go to", label: "Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
+    { sec: "Go to", label: "Interview Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
+    { sec: "Go to", label: "Banner playground", icon: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="${BN_ICO.default}"/></svg>`, run: () => go("banners") },
     { sec: "Go to", label: "Analytics", icon: ico("chart"), run: () => go("analytics") },
-    { sec: "Go to", label: "Interviews", icon: ico("mic"), run: () => go("interviews") },
+    { sec: "Go to", label: "Interview Judgement", icon: ico("mic"), run: () => go("interviews") },
     { sec: "Go to", label: "Settings", icon: ico("gear"), run: () => go("settings") },
     { sec: "Go to", label: "Views", icon: ico("layers"), hint: "G V", run: () => go("views") },
     { sec: "Do", label: "New view", icon: ico("plus"), run: () => openNewView() },
@@ -4431,11 +4808,11 @@ function openPalette(ctx) {
 function openHelp() {
   closeLayer();
   const rows = [
-    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, Applicant Tickets, Views"], ["G then A / J", "Pipeline, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
+    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, New Applicants, Views"], ["G then A / J", "Applicant Tickets, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
     ["Inbox", [["J / K", "Next, previous"], ["E", "Done: clear it from your Inbox"], ["U", "Mark unread"], ["↵", "Open the ticket"], ["Esc", "Close the reader"]]],
-    ["Applicant Tickets", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
+    ["New Applicants", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
     ["Applicants", [["J / K", "Move"], ["X", "Select"], ["↵", "Open"], ["A", "Send to a team"], ["P", "Priority"], ["S", "Status"], ["L", "Labels"], ["F", "Filter"], ["B", "List or board"]]],
-    ["Calendar", [["← / →", "Previous, next"], ["D / W / M", "Day, week, month"], ["Drag", "Add an interview, or move one"], [".", "Today"]]],
+    ["Interview Calendar", [["← / →", "Previous, next"], ["D / W / M", "Day, week, month"], ["Drag", "Add an interview, or move one"], [".", "Today"]]],
     ["An applicant", [["A", "Send to a team, or next round"], ["O", "Move to offer"], ["R", "Reject"], ["C", "Comment"], ["Esc", "Back"]]],
   ];
   const el = document.createElement("div");
@@ -4603,6 +4980,16 @@ const ACT = {
   refPage: (el) => { state.refPg = (state.refPg || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
   refAdd: () => openRefForm(),
   refGrok: () => openRefGrok(),
+  ...wgActs,
+  bnDismiss: (el) => bnDismiss(el),
+  bnSet: (el) => { const g = state.bnPg, k = el.dataset.k, v = el.dataset.v; g[k] = k === "n" ? +v : k === "dismissible" ? v === "true" : v; bnHidden.delete("pg-live"); render(); },
+  bnCopy: (el) => { const [t, d] = BN_COPY[el.dataset.v]; Object.assign(state.bnPg, { status: el.dataset.v, title: t, desc: d }); bnHidden.delete("pg-live"); render(); },
+  bnAgain: () => { bnHidden.delete("pg-live"); render(); },
+  bnReset: () => { state.bnPg = { ...BN_PG_DEFAULT }; bnHidden.delete("pg-live"); render(); },
+  bnDemo: (el) => toast(`${el.textContent.trim()}: just a demo here`),
+  nudgeIv: (el) => { const a = A[el.dataset.id], lead = TEAMS[PEOPLE[a.iv].team].members[0]; a.ivNudged = Date.now(); now(a, `bot:${a.iv}`, `Nudged ${nm(a.iv)}${a.state === "asked" ? " to say yes or no" : " for the read"}${lead !== a.iv ? ` and copied ${nm(lead)}` : ""}`, { ch: PEOPLE[a.iv].ch || "slack" }); const w = a.when; touch(a); a.when = w; render(); toast(`Nudged ${first(a.iv)}`); },
+  tkPage: (el) => { (state.tkPage ||= {})[el.dataset.id] = +el.dataset.i; render(); },
+  cmCopy: (el) => { const t = el.dataset.copy; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Copied"), () => toast("Couldn't copy")); },
   homeStage: (el) => { state.homeStage = state.homeStage === el.dataset.k ? null : el.dataset.k; render(); },
   homeFilter: (el) => {
     const k = el.dataset.k;
@@ -4628,7 +5015,7 @@ const ACT = {
   openHist: (el) => openHist(el.dataset.id),
 
   sendInvite: (el) => sendInvite(A[el.dataset.id]),
-  nudgeCand: (el) => nudgeCand(A[el.dataset.id]),
+  nudgeCand: (el) => { const a = A[el.dataset.id], w = a.when; nudgeCand(a); a.when = w; render(); },
   remindIv: (el) => { const a = A[el.dataset.id]; ev(a, Date.now(), `bot:${a.iv}`, `Reminded ${nm(a.iv)} to send the invite`, { ch: chOf(a.iv) }); touch(a); toast(`Reminded ${first(a.iv)} to send the invite`); },
   ibBack: () => { state.ibSel = null; render(); },
   ibDone: (el) => ibDone(el.dataset.id),
@@ -4715,7 +5102,7 @@ document.addEventListener("drop", (e) => {
   const a = A[dragged]; dragged = null;
   const at = { left: e.clientX, top: e.clientY, bottom: e.clientY, width: 0 };
   const k = col.dataset.drop;
-  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); }
+  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to New Applicants"); touch(a); }
   else if (k === "testbench") { if (!a.tb) { sendTB(a); touch(a); } else toast(`${a.name} already took the Testbench`); }
   else if (k === "bots") teamPick(at, [a.id]);
   else if (k === "closed") openMenu(at, [{ id: "pass", label: "Pass", icon: stIcon("passed") }, { id: "reject", label: "Reject…", icon: stIcon("rejected") }], (o) => (o.id === "pass" ? openPass(a) : openReject(a)), { title: "Close as" });
@@ -4998,7 +5385,7 @@ if (GROK_CH && !SURFACE) GROK_CH.onmessage = async ({ data }) => {
   GROK_CH.postMessage({ type: "done", id: data.id, say: String(say || "").split("\n").map(plain).join("\n") });
 };
 function mountSurface(kind) {
-  const cli = kind === "cli", ex = ["put Daniel Okafor on Infra, Product and Research", "star Sam for Systems design", "turn off Wei's Grokbot", "add a references check before the offer in the process"];
+  const cli = kind === "cli", ex = ["put Daniel Okafor on Engineering, Product and Research", "star Sam for Systems design", "turn off Wei's Grokbot", "add a references check before the offer in the process"];
   document.title = cli ? "grokbot — Meridian" : "Grokbot · Slack";
   [...document.body.children].forEach((c) => { if (!/^(STYLE|LINK|SCRIPT)$/.test(c.tagName)) c.remove(); });
   document.body.className = `surface ${kind}`;
