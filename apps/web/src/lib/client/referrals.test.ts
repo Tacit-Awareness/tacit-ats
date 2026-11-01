@@ -31,6 +31,18 @@ describe("addReferral", () => {
     expect(logTouch).toHaveBeenCalledWith(DB, { applicationId: "app-1", actorId: "actor-1", note: "Great" });
   });
 
+  test("a note that fails says so: they're in, and a retry would answer exists", async () => {
+    addCandidate.mockResolvedValue(ADDED);
+    logTouch.mockRejectedValue(new Error("no"));
+    expect(await addReferral(DB, CTX, INPUT)).toMatchObject({ ok: true, status: "added_no_note" });
+  });
+
+  test("a NUL leaves the note, which Postgres couldn't store", async () => {
+    addCandidate.mockResolvedValue(ADDED);
+    await addReferral(DB, CTX, { ...INPUT, note: "Gr\0eat" });
+    expect(logTouch).toHaveBeenCalledWith(DB, expect.objectContaining({ note: "Great" }));
+  });
+
   test("someone already in the records is added_existing", async () => {
     addCandidate.mockResolvedValue({ ...ADDED, newCandidate: false });
     expect(await addReferral(DB, CTX, INPUT)).toMatchObject({ ok: true, status: "added_existing" });

@@ -121,9 +121,9 @@ describe("the checklist", () => {
 
   test("an archived type does not cover anyone, and is not counted", async () => {
     must(await db().from("interviewer_interview_types").insert(ONE_TEAM.map((actor_id) => ({ org_id: ACME, actor_id, type_id: RETIRED, prioritized: false }))));
-    expect(await item("skills")).toMatchObject({ done: false, detail: "0 of 1 interview type covered" });
+    expect(await item("skills")).toMatchObject({ done: false, detail: expect.stringContaining("0 of 1 interview type covered,") });
     must(await db().from("interviewer_interview_types").insert(ONE_TEAM.map((actor_id) => ({ org_id: ACME, actor_id, type_id: CODING, prioritized: false }))));
-    expect(await item("skills")).toMatchObject({ done: true, detail: "1 of 1 interview type covered" });
+    expect(await item("skills")).toMatchObject({ done: true, detail: expect.stringContaining("1 of 1 interview type covered,") });
   });
 
   test("the process counts its steps and is done with an interview in it", async () => {

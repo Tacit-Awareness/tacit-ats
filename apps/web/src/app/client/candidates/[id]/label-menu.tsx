@@ -68,7 +68,8 @@ function Menu({ anchor, options, carried, onFlip, onClose }: { anchor: DOMRect; 
       }
       e.preventDefault();
       const all = items();
-      if (command.kind === "pick") return all[command.index]?.click();
+      // A press, not a key held: each repeat would flip it again.
+      if (command.kind === "pick") return e.repeat ? undefined : all[command.index]?.click();
       const cur = all.indexOf(document.activeElement as HTMLElement);
       all[(cur + command.d + all.length) % all.length]?.focus();
     };

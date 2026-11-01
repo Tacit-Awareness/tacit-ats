@@ -64,7 +64,7 @@ describe("inertOutside", () => {
 
 describe("writeInFlight", () => {
   test("a form's submit turned off is a write under way", () => {
-    expect(writeInFlight({ querySelector: (s) => (s === 'form button[type="submit"]:disabled' ? {} : null) })).toBe(true);
+    expect(writeInFlight({ querySelector: (s) => (s === 'form button[type="submit"]:disabled:not([data-off])' ? {} : null) })).toBe(true);
     expect(writeInFlight({ querySelector: () => null })).toBe(false);
     expect(writeInFlight(null)).toBe(false);
   });

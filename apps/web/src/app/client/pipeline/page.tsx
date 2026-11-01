@@ -7,7 +7,7 @@ import { countPastMatches, pastMatchWords } from "@/lib/client/past-matches";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { movesFor } from "@/lib/client/pipeline-moves";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
-import { isStuck, modeParam, parseLayout, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
+import { isStuck, modeParam, parseLayout, parseNameSearch, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
 import { resolveClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import { readPersonTags } from "@/lib/client/views";
@@ -68,7 +68,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
-  const q = one(sp.q).trim();
+  const q = parseNameSearch(one(sp.q));
   const expanded = isColumnKey(one(sp.all)) ? (one(sp.all) as ColumnKey) : null;
   const viewId = parseViewId(one(sp.view));
   const filters = parseViewFilters({ stage: one(sp.stage), source: one(sp.source), tag: one(sp.tag) });

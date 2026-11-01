@@ -70,7 +70,7 @@ export function setupChecklist(facts: SetupFacts): Checklist {
   const detail: Record<SetupStep, string> = {
     people: people.length > 1 ? count(people.length, "person", "people") : "Just you so far",
     teams: teams.length ? `${count(teams.length, "team")}, ${onTeam} of ${count(people.length, "person", "people")} on one` : "No teams yet",
-    skills: types.length ? `${covered} of ${count(types.length, "interview type")} covered` : "No interview types yet",
+    skills: types.length ? `${covered} of ${count(types.length, "interview type")} covered, ${running} of ${count(people.length, "person", "people")} running one` : "No interview types yet",
     process: process ? `${count(process.steps, "step")}, ${count(process.interviews, "interview")}` : "Not drawn yet",
     review: open ? `${count(open, "step")} to go` : "All set",
   };

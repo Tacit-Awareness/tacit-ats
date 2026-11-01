@@ -7,6 +7,7 @@ import type { ProcessRead } from "@/lib/client/process";
 import { editorReducer, editorState } from "@/lib/client/process-editor";
 import { validateGraph } from "@/lib/client/process-graph";
 import { leavesPage } from "@/lib/client/posting-draft";
+import { holdLeave } from "@/lib/leave-guard";
 import { saveProcessAction } from "./actions";
 import { ApplyDialog } from "./apply-dialog";
 import { ProcessCanvas } from "./canvas";
@@ -46,7 +47,9 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", onClick, true);
+    const release = holdLeave();
     return () => {
+      release();
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", onClick, true);
     };

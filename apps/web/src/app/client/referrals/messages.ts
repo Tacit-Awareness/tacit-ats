@@ -4,6 +4,7 @@
 export const REFERRAL_NOTICES = {
   added: "Referral added. They're at the top of the list.",
   added_existing: "Referral added. They were already in your company's records, so that person was added to the job.",
+  added_no_note: "Referral added, but the note didn't save. Add it on their page.",
   exists: "They're already in that job's pipeline, so nothing changed: they keep the source they came in with.",
 } as const;
 
