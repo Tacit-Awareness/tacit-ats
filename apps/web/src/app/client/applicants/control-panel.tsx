@@ -17,8 +17,7 @@ import { RoutingBar, TeamField, pill, pillPrimary, type MoveKey, type Routing } 
 // pick shows design/tats's message with Send off, and the reply stays mounted,
 // hidden, keeping what was typed.
 
-/** Screening has no starter of its own, and says nothing the member didn't. */
-const STARTER: Record<Exclude<MoveKey, "testbench">, ReplyKind> = { interview: "interview", screening: "blank", decline: "decline" };
+const STARTER: Record<Exclude<MoveKey, "testbench">, ReplyKind> = { interview: "interview", decline: "decline" };
 
 /** design/tats's Testbench message and Send, as `.cp-main`, with nothing to post. */
 function TestbenchPreview({ to, body }: { to: string | null; body: string }) {

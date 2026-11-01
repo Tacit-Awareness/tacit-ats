@@ -38,10 +38,10 @@ describe("the control panel", () => {
     expect(out).toContain("Not a fit");
   });
 
-  test("the next step is four pills, with interview picked first, and Testbench sends nothing", () => {
+  test("the next step is three pills, with interview picked first, and Testbench sends nothing", () => {
     const out = html();
-    expect(out.match(/aria-pressed="true"[^>]*aria-keyshortcuts="[ITSD]"/g)).toEqual(['aria-pressed="true" aria-keyshortcuts="I"']);
-    expect(out.match(/aria-pressed="false"[^>]*aria-keyshortcuts="[ITSD]"/g)).toHaveLength(3);
+    expect(out.match(/aria-pressed="true"[^>]*aria-keyshortcuts="[ITD]"/g)).toEqual(['aria-pressed="true" aria-keyshortcuts="I"']);
+    expect(out.match(/aria-pressed="false"[^>]*aria-keyshortcuts="[ITD]"/g)).toHaveLength(2);
     expect(out).not.toContain('value="testbench"');
     expect(out).not.toContain("Send Testbench");
   });

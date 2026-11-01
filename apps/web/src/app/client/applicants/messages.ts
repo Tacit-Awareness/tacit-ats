@@ -4,7 +4,6 @@ import { SEND_ERRORS } from "@/lib/client/email-messages";
 // action redirects with a code and the page looks the sentence up here, so no
 // name rides in a URL.
 export const APPLICANT_NOTICES = {
-  screening: "Moved to screening.",
   interview: "Moved to interviewing.",
   decline: "Declined.",
   sent: "Sent. They stay here until you route them.",
