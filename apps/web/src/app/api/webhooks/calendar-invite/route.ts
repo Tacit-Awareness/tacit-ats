@@ -16,6 +16,7 @@ import { connector } from "@tacit/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
 import { keepReply, type ReceivedEmail } from "@/lib/inbound/email-reply";
+import { pingCompanyBot } from "@/lib/notify/candidate-replied";
 import { parseIcs } from "@/lib/public/ics";
 
 const RESEND = "https://api.resend.com";
@@ -95,10 +96,11 @@ function forwarder(): { send: connector.EmailSender; fromAddress: string } | nul
 }
 
 /** A reply's words are the provider's to give: a failed read answers 502, so Resend delivers it again. */
-async function replyResponse(emailId: string): Promise<Response> {
+async function replyResponse(emailId: string, origin: string): Promise<Response> {
   const mail = await resendGet(`/emails/receiving/${emailId}`);
   if (mail?.status !== 200) return new Response(null, { status: 502 });
-  const outcome = await keepReply(getSupabaseServiceClient(), { ...(mail.body as Omit<ReceivedEmail, "providerId">), providerId: emailId }, forwarder());
+  const db = getSupabaseServiceClient();
+  const outcome = await keepReply(db, { ...(mail.body as Omit<ReceivedEmail, "providerId">), providerId: emailId }, forwarder(), (orgId, reply) => pingCompanyBot(db, orgId, reply, origin));
   return Response.json({ ok: true, reply: outcome });
 }
 
@@ -107,7 +109,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!svixOk(request, raw)) return new Response(null, { status: 401 });
   const event = JSON.parse(raw) as { type?: string; data?: { email_id?: string; to?: string[]; cc?: string[] } };
   if (event.type !== "email.received" || !event.data?.email_id) return Response.json({});
-  if (clientTools.repliedEmailId([...(event.data.to ?? []), ...(event.data.cc ?? [])])) return replyResponse(event.data.email_id);
+  if (clientTools.repliedEmailId([...(event.data.to ?? []), ...(event.data.cc ?? [])])) return replyResponse(event.data.email_id, new URL(request.url).origin);
 
   const { ics, diag } = await fetchIcs(event.data.email_id);
   const ev = ics ? parseIcs(ics) : null;
