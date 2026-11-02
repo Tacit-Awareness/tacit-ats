@@ -614,7 +614,7 @@ export function ScheduleView({
     }
   }
   useKeys(bindings);
-  useKeyHelp("Calendar", [
+  useKeyHelp("Interview Calendar", [
     { keys: "D / W / M / L", label: "Day, week, month, list" },
     ...(q ? [] : [{ keys: "← / →", label: "Previous, next" }]),
     { keys: ".", label: "Today" },
@@ -644,7 +644,7 @@ export function ScheduleView({
   return (
     <Page
       bar={
-        <PageBar title="Calendar">
+        <PageBar title="Interview Calendar">
           <div ref={search} className="contents">
             {/* Keyed by the search: the box holds what it was given, and the URL can change under it. */}
             <SearchBox key={q ?? ""} action="/client/schedule" defaultValue={q ?? ""} placeholder="Search interviews…" label="Search interviews" keep={{ view, date: anchor, dept }} />

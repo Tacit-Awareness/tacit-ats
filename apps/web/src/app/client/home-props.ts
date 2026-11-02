@@ -33,7 +33,7 @@ const BOTTLENECK_GO: Record<BottleneckKey, { icon: BottleneckIcon; label: string
   review: { icon: "ticket", label: "Screen in Pipeline" },
   schedule: { icon: "cal", label: "Schedule in Pipeline" },
   decide: { icon: "flag", label: "Decide in Pipeline" },
-  feedback: { icon: "quote", label: "Open Interviews" },
+  feedback: { icon: "quote", label: "Open Interview Judgement" },
   stalled: { icon: "clock", label: "Open Pipeline" },
 };
 
@@ -232,7 +232,7 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
         wait: fmtHours(Math.max(0, now - Date.parse(o.endsAt)) / 3_600_000),
         href: `/client/interviews?i=${o.interviewId}`,
       })),
-      more: fb.outstanding > OUTSTANDING_PREVIEW ? { href: "/client/interviews", label: `All ${fb.outstanding} in Interviews` } : null,
+      more: fb.outstanding > OUTSTANDING_PREVIEW ? { href: "/client/interviews", label: `All ${fb.outstanding} in Interview Judgement` } : null,
     },
     editStages: canEditTargets ? "/client/onboarding/process" : null,
     stages: stages.map((r) => ({
