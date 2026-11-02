@@ -162,6 +162,8 @@ token cannot read applications.
   candidate address, reply from that mailbox: within a minute it is under
   Replies in the Inbox and forwarded to your own mail, and the candidate's
   activity says they replied. Write to them again and it leaves the queue.
+  With the bot verified and its instruction current (`/client/docs/grok-bot`),
+  it DMs you the reply and any times offered.
 
 ### Pipeline (`/client/pipeline`)
 
