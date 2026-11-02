@@ -118,7 +118,7 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
 const NAV: { sub: HomeSub | null; href: string; label: string }[] = [
   { sub: null, href: "/client", label: "Overview" },
   { sub: "tickets", href: homeSubBase("tickets"), label: "New Applicants" },
-  { sub: "interviews", href: homeSubBase("interviews"), label: "Interviews" },
+  { sub: "interviews", href: homeSubBase("interviews"), label: "Interview Judgement" },
   { sub: "referrals", href: homeSubBase("referrals"), label: "Referrals" },
 ];
 

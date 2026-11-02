@@ -117,7 +117,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
 
 function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[] }) {
   return (
-    <KeyList title="Interviews" next="Next interview" mode="select" className="-mx-2 -mt-2 grid content-start" data-tour="interviews">
+    <KeyList title="Interview Judgement" next="Next interview" mode="select" className="-mx-2 -mt-2 grid content-start" data-tour="interviews">
       <SentimentBar counts={counts} />
       {groups.length === 0 ? <Empty className="px-[18px] pt-3">No interviews yet.</Empty> : null}
       {groups.map((g) => (
@@ -409,7 +409,7 @@ function InterviewReader({ reader, own, granola, base }: { reader: Reader; own: 
     <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
         <Link href={base} className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
-          ← Interviews
+          ← Interview Judgement
         </Link>
         <div className="grid min-w-0 flex-1">
           <h1 className="m-0 truncate text-[19px] font-medium tracking-[-0.01em]">{reader.title}</h1>
@@ -468,7 +468,7 @@ export function InterviewsView({
               <ReviewCount />
             </div>
           ) : (
-            <PageBar title="Interviews" count={<ReviewCount />} />
+            <PageBar title="Interview Judgement" count={<ReviewCount />} />
           )
         }
         list={

@@ -51,7 +51,7 @@ const PAGE = 1000;
 /** Rows a table read stops at, like the reports' REPORT_SCAN_MAX; the page says so. */
 const SCAN_MAX = 5000;
 const DAY = 86_400_000;
-/** Outstanding feedback the card lists, oldest first, before "All in Interviews". */
+/** Outstanding feedback the card lists, oldest first, before "All in Interview Judgement". */
 export const OUTSTANDING_PREVIEW = 5;
 /** The hires widget's weeks; the same again before them is what it compares with. */
 export const HIRE_WEEKS = 12;

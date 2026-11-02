@@ -45,7 +45,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 
 ## Where to begin
 
-- **Interviewer**: open **Interviews**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
+- **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Pipeline & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
@@ -301,12 +301,12 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
   },
   {
     slug: "app-interviews",
-    title: "Interviews, Calendar & Onboarding",
+    title: "Interview Judgement, Calendar & Onboarding",
     category: "tATS features",
     description: "Review interview feedback, book and move interviews, and manage who interviews.",
-    body: `## Interviews
+    body: `## Interview Judgement
 
-**Interviews** lists what you can see, grouped as Upcoming and then past interviews by verdict: **Pass**, **Fail**, **Mixed** or **Read pending**. A verdict comes from the feedback you are allowed to read, so it follows your company's [feedback visibility](/docs/access#feedback-visibility) setting. Interviewers see only the interviews they sit on, with their own feedback.
+**Interview Judgement** lists what you can see, grouped as Upcoming and then past interviews by verdict: **Pass**, **Fail**, **Mixed** or **Read pending**. A verdict comes from the feedback you are allowed to read, so it follows your company's [feedback visibility](/docs/access#feedback-visibility) setting. Interviewers see only the interviews they sit on, with their own feedback.
 
 Pick one to see the candidate's whole loop and who ran each round, then this interview's recommendation, ratings and notes.
 
@@ -318,9 +318,9 @@ Press \`E\`, or the round button on a row, to mark a past interview as reviewed.
 
 If you connected Granola, your own notes appear on interviews you sat on, with the transcript a click away. Only your own notes are ever read.
 
-## Calendar
+## Interview Calendar
 
-**Calendar** shows every interview you can see by day, week or month, or as a list, in your own time zone.
+**Interview Calendar** shows every interview you can see by day, week or month, or as a list, in your own time zone.
 
 | Key | What it does |
 | --- | --- |
@@ -422,7 +422,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 
 ## On each page
 
-Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Calendar](/docs/app-interviews#calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
+Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Interview Calendar](/docs/app-interviews#interview-calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
 
 ## Tutorial
 
@@ -923,11 +923,11 @@ When the job has an interview plan, the step must be one of its steps. Schedulin
 
 \`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free.
 
-On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
+On the **Interview Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
 
 ## Connect your calendar
 
-Open **Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
+Open **Interview Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
 
 \`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first. When the interview is on a calendar, the event follows: a move is checked against the interviewers' calendars, new interviewers are invited, and cancelling removes the event, with Google telling everyone on it. A move or a cancellation comes with a draft email to the candidate, sent only after your yes.
 
@@ -961,7 +961,7 @@ Filing again replaces your earlier feedback, ratings included.
 
 ## Your Granola notes
 
-If you take interview notes in Granola, click **Connect** next to Granola in **Settings** and sign in to Granola. Then your own notes show on **Interviews** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
+If you take interview notes in Granola, click **Connect** next to Granola in **Settings** and sign in to Granola. Then your own notes show on **Interview Judgement** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
 
 The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Tacit says which. When nothing matches, you get the notes you took around then to pick from. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
   },
