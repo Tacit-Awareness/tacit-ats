@@ -8,7 +8,7 @@ import type { IssueFix, IssueInstance, IssueKind } from "@/lib/client/inbox-issu
 import { cn } from "@/lib/utils";
 import { ActivityStory } from "../candidates/activity-story";
 import { LocalForEnd, LocalWhen } from "../candidates/local-day";
-import { Feedback, Loop, type LoopProps, type Reader as InterviewReader } from "../interviews/view";
+import { Loop, type LoopProps, type Reader as InterviewReader } from "../interviews/view";
 import { markAllDigestReadAction } from "./actions";
 import { OpeningCard } from "./opening-card";
 import { button, plain } from "./buttons";
@@ -17,6 +17,7 @@ import { FixBar } from "./fix-bar";
 import { IssuePopup } from "./popup";
 import { SendBar, type SendProps } from "./send-bar";
 import { RowDismiss, RowKeys, RowMarkRead } from "./set-aside";
+import { CallCard, WhereItStands } from "./ticket-card";
 
 // The Inbox's markup, props only (page.tsx does the reads): design/tats's
 // #inbox as a digest, one centred card (`.ibx`): Welcome back with what's worth
@@ -29,9 +30,10 @@ import { RowDismiss, RowKeys, RowMarkRead } from "./set-aside";
 // unsent draft (send-bar.tsx, key F, after a dialog) or the decision
 // (decision-bar.tsx, keys A, O, R), Dismiss (set-aside.tsx, key E), the card
 // saying what is waiting, an offer's terms for the approver reading it, then the
-// candidate's story. A decision on a candidate has the whole ticket instead of
-// the story: the loop, the read and the candidate. The rows under Needs you open
-// that whole candidate over the card (`?open=`). done-view.tsx is Done.
+// candidate's story. An issue about someone the member can open is the whole
+// ticket instead (design/tats's `openFull`): the route across the top, then the
+// candidate with the card and its buttons under the chips (ticket-card.tsx). The
+// rows under Needs you open that same ticket over the card (`?open=`). done-view.tsx is Done.
 // Everything a member or a candidate wrote renders as text.
 
 export type IssueRow = {
@@ -70,17 +72,26 @@ export type IssueReaderProps = {
   terms: TermLine[] | null;
   next: string | null;
   secondary: { label: string; href: string } | null;
+  /** Who it waits on and how long, for the card. */
+  who: string | null;
+  age: string;
   /** "Open as a page". Null when there's nothing the member can open (an approver not on the job). */
   page: string | null;
   /** Null for an issue with no candidate (a job's approval), or one the member can't read (an approver not on the job). */
   story: clientTools.ActivityEntry[] | null;
-  /** A decision: the whole candidate, under the loop and the read, in the story's place. Null where they can't be read. */
-  ticket?: { loop: TicketLoop | null; body: React.ReactNode } | null;
+  /** The whole candidate in the story's place, the card under their chips. Null where they can't be read. */
+  ticket?: Ticket | null;
   now: number;
 };
 
+/** One candidate as a pop-up holds them: named in its header, the route over them, `body` placing what it's given under their chips. */
+export type Ticket = { title: string; subject: string; loop: TicketLoop | null; body: (call: React.ReactNode) => React.ReactNode };
+
+/** Where someone stands, for a row that asks nothing of the member. */
+export type Standing = { who: string | null; title: string; why: string; age: string; late: boolean };
+
 /** The whole candidate over the card, from a row under Needs you. */
-export type PersonPopupProps = { key: string; title: string; subject: string; page: string; body: React.ReactNode };
+export type PersonPopupProps = Ticket & { key: string; page: string; standing: Standing | null };
 
 const ICON: Record<IssueKind, string> = {
   draft: "M2.5 4h11v8.5h-11ZM2.5 4.5 8 8.8l5.5-4.3",
@@ -344,7 +355,7 @@ function CaughtUp({ range, truncated, draftsCapped }: { range: DigestRange; trun
 
 function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   return (
-    <dl className="m-0 mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-1 border-t border-[color:var(--line)] pt-3 text-[13px]">
+    <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
       {draft.from ? (
         <>
           <dt className="text-muted-foreground">From</dt>
@@ -360,32 +371,54 @@ function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   );
 }
 
+function Bar({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
+  if (issue.decision) return <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} range={range} secondary={issue.secondary} />;
+  if (issue.fix.type === "send" && issue.draft) return <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />;
+  if (issue.fix.type === "link" || issue.fix.type === "write") return <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />;
+  return null;
+}
+
+/** The issue's card: a decision's call, the read and the buttons together, or where anything else stands. */
+function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
+  const extra =
+    issue.draft || issue.terms ? (
+      <>
+        {issue.draft ? <Draft draft={issue.draft} /> : null}
+        {issue.terms ? <OfferTerms lines={issue.terms} /> : null}
+      </>
+    ) : null;
+  const loop = issue.ticket?.loop;
+  return issue.decision ? (
+    <CallCard
+      reads={loop?.feedback ?? []}
+      note={loop?.feedbackNote ?? null}
+      hint={issue.card.detail}
+      head={
+        <div className="flex items-center gap-3">
+          <KindIcon kind={issue.kind} />
+          <div className="grid min-w-0 gap-px">
+            <b className="text-[14px] font-semibold break-words">{issue.card.title}</b>
+            <span className="text-[13px] break-words text-muted-foreground">{issue.card.detail}</span>
+          </div>
+        </div>
+      }
+      actions={<Bar issue={issue} range={range} />}
+    >
+      {extra}
+    </CallCard>
+  ) : (
+    <WhereItStands who={issue.who} title={issue.card.title} why={issue.card.detail} age={issue.age} late={issue.kind === "late"} actions={<Bar issue={issue} range={range} />}>
+      {extra}
+    </WhereItStands>
+  );
+}
+
+/** An issue with no one to open, a job's approval or an approver not on the job: the card and the story. */
 function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   return (
     <article className="mx-auto grid w-[760px] max-w-full content-start">
-      {issue.decision ? (
-        <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} range={range} secondary={issue.secondary} />
-      ) : issue.fix.type === "send" && issue.draft ? (
-        <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />
-      ) : issue.fix.type === "link" || issue.fix.type === "write" ? (
-        <FixBar fix={issue.fix} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />
-      ) : null}
-      <section className="mt-5 border border-[color:var(--line-strong)] bg-[color:var(--paper)] py-3 pr-3 pl-3.5">
-        <div className="flex items-center gap-3">
-          <KindIcon kind={issue.kind} className="size-[26px]" />
-          <div className="grid min-w-0 gap-px">
-            <b className="text-[13.5px] font-medium break-words">{issue.card.title}</b>
-            <span className="text-[12.5px] break-words text-muted-foreground">{issue.card.detail}</span>
-          </div>
-        </div>
-        {issue.draft ? <Draft draft={issue.draft} /> : null}
-        {issue.terms ? (
-          <div className="mt-3 border-t border-[color:var(--line)] pt-3">
-            <OfferTerms lines={issue.terms} />
-          </div>
-        ) : null}
-      </section>
-      {issue.story && !issue.ticket ? (
+      <IssueCard issue={issue} range={range} />
+      {issue.story ? (
         <section aria-label="Activity" className="mt-7">
           <h2 className="m-0 mb-1 text-[13px] font-medium">Activity</h2>
           <ActivityStory entries={issue.story} now={issue.now} />
@@ -395,16 +428,13 @@ function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange 
   );
 }
 
-/** The path through the loop and the read, the Interviews reader's own two blocks, over the candidate. */
-function LoopAndRead({ loop }: { loop: TicketLoop }) {
-  return (
-    <div className="px-4 pt-3 md:px-6">
-      <article className="@container mx-auto w-[760px] max-w-full overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
-        <Loop reader={loop} />
-        <Feedback reader={loop} />
-      </article>
+/** The route, edge to edge over the candidate (design/tats's `fullBody`). */
+function Route({ loop }: { loop: TicketLoop | null }) {
+  return loop ? (
+    <div className="@container">
+      <Loop reader={loop} />
     </div>
-  );
+  ) : null;
 }
 
 export function InboxView({
@@ -455,19 +485,33 @@ export function InboxView({
           {any ? <DigestFoot digest={digest} needs={rows.length} /> : <CaughtUp range={digest.range} truncated={truncated} draftsCapped={draftsCapped} />}
         </OpeningCard>
       </div>
-      {issue ? (
+      {issue?.ticket ? (
+        <IssuePopup issueKey={issue.instance.key} title={issue.ticket.title} subject={issue.ticket.subject} home={home} pageHref={issue.page}>
+          <Route loop={issue.ticket.loop} />
+          {issue.ticket.body(
+            <>
+              {flash}
+              <IssueCard issue={issue} range={digest.range} />
+            </>,
+          )}
+        </IssuePopup>
+      ) : issue ? (
         <IssuePopup issueKey={issue.instance.key} title={issue.what} subject={issue.subject} home={home} pageHref={issue.page}>
-          <div className={cn("grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-3 md:px-6", !issue.ticket && "pb-10")}>
+          <div className="grid grid-cols-[minmax(0,1fr)] content-start gap-3 px-4 pt-5 pb-10 md:px-6">
             {flash ? <div className="mx-auto w-[760px] max-w-full">{flash}</div> : null}
             <Reader issue={issue} range={digest.range} />
           </div>
-          {issue.ticket?.loop ? <LoopAndRead loop={issue.ticket.loop} /> : null}
-          {issue.ticket?.body}
         </IssuePopup>
       ) : person ? (
         <IssuePopup issueKey={person.key} title={person.title} subject={person.subject} home={home} pageHref={person.page}>
-          {flash ? <div className="px-4 pt-3 md:px-6">{flash}</div> : null}
-          {person.body}
+          <Route loop={person.loop} />
+          {person.body(
+            <>
+              {flash}
+              {person.loop?.feedback.length ? <CallCard reads={person.loop.feedback} note={person.loop.feedbackNote} head={null} hint="" actions={null} /> : null}
+              {person.standing ? <WhereItStands {...person.standing} /> : null}
+            </>,
+          )}
         </IssuePopup>
       ) : null}
     </div>

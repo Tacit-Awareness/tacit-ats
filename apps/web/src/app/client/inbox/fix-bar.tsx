@@ -85,7 +85,7 @@ export function FixBar({
   secondary: { label: string; href: string } | null;
 }) {
   return (
-    <div data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
+    <div data-tour="inbox-keys" className="flex flex-wrap items-center gap-1.5">
       {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} instance={instance} next={next} range={range} />}
       <DismissButton instance={instance} next={next} range={range} />
       {secondary ? (

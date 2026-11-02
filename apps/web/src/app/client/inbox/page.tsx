@@ -22,12 +22,12 @@ import { Refusal } from "../refusal";
 import { DoneView } from "./done-view";
 import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice, movedToast } from "./messages";
 import { UndoToast } from "./set-aside";
-import { InboxView, type TicketLoop } from "./view";
+import { InboxView, type Standing, type TicketLoop } from "./view";
 
 // The Inbox (design/tats's #inbox): what is stuck and waiting on someone, one
 // digest card. lib/client/inbox.ts reads on the member's own token, lib/client/
 // inbox-issues.ts computes the queue, lib/client/inbox-feed.ts what happened
-// lately, view.tsx draws them; this file words the reader's card. `?range=` is
+// lately, view.tsx draws them; this file words the issue's card. `?range=` is
 // how far back the digest goes (Needs you doesn't depend on it). `?i=` opens an
 // issue in the pop-up, and only then is it read in full. `?open=` opens a digest
 // row's candidate the same way, checked against the rows this member's own read
@@ -74,20 +74,32 @@ const stageOf = (applications: { applicationId: string; stage: string }[], appli
   return stage ? stageLabel(stage) : null;
 };
 
-/** A decision on a candidate: the whole ticket. An approver not on the job has neither their page nor the loop, so keeps the reader as it was. */
-const isDecision = (i: Issue) => i.candidate !== null && (i.reason === "decide" || i.reason === "approval");
-
-function ticketLoop(read: DecisionLoop, candidate: string, isAdmin: boolean, now: number): TicketLoop {
-  const held = lastHeld(read.progress, now);
-  const hidden = held ? hiddenOn(read.progress, held) : 0;
+/** The route and the read, once a round has been held to read (design/tats's `fullBody`, which has none before one). */
+function ticketLoop(read: DecisionLoop | null, candidate: string, isAdmin: boolean, now: number): TicketLoop | null {
+  const held = read ? lastHeld(read.progress, now) : null;
+  if (!read || !held) return null;
+  const hidden = hiddenOn(read.progress, held);
   const notes = [
     read.feedback?.yoursOutstanding && !isAdmin ? "Others' feedback may stay hidden until you file yours." : null,
     hidden ? `${hidden === 1 ? "One interviewer's" : `${hidden} interviewers'`} feedback on the last round is not visible to you.` : null,
   ].filter(Boolean);
   return {
-    ...loopProps({ candidate, jobTitle: read.plan.title, progress: read.progress, selectedId: held ?? "", listed: new Set(), href: () => "", stage: read.stage, routing: read.routing, isAdmin, now }),
+    ...loopProps({ candidate, jobTitle: read.plan.title, progress: read.progress, selectedId: held, listed: new Set(), href: () => "", stage: read.stage, routing: read.routing, isAdmin, now }),
     feedback: read.feedback ? feedbackCards(read.feedback, now) : [],
     feedbackNote: notes.length ? notes.join(" ") : null,
+  };
+}
+
+/** Where an application stands, from what's on it: its next action, else its stage, and how long since anyone touched it. */
+function standingOf(a: { stage: string; nextAction: string | null; nextActionDue: string | null; lastTouchAt: string }, who: string | null, now: number): Standing {
+  const due = a.nextActionDue ? Date.parse(`${a.nextActionDue.slice(0, 10)}T23:59:59Z`) : null;
+  const late = due !== null && due < now;
+  return {
+    who,
+    title: a.nextAction ?? stageLabel(a.stage),
+    why: !a.nextAction ? "No next action set." : late ? `${stageLabel(a.stage)}. Past its due date.` : stageLabel(a.stage),
+    age: `Touched ${ago(a.lastTouchAt, now)}`,
+    late,
   };
 }
 
@@ -182,8 +194,11 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const openRow = open ? null : selectedRow(digest.groups, one(sp.open));
   const openPerson = openRow ? await readCandidateView(gate.ctx, openRow.candidate.id, nowMs) : null;
   const shownRow = openPerson ? openRow : null;
-  const whole = open && isDecision(open) && detail?.canOpen ? await readCandidateView(gate.ctx, open.candidate!.id, nowMs) : null;
+  // An approver not on the job has neither their page nor the loop, so keeps the reader.
+  const whole = open?.candidate && detail?.canOpen ? await readCandidateView(gate.ctx, open.candidate.id, nowMs) : null;
   const loop = open && whole && open.job.id && open.applicationId ? await readDecisionLoop(db, member, { jobId: open.job.id, applicationId: open.applicationId }) : null;
+  const personApp = openPerson && shownRow ? openPerson.candidate.applications.find((a) => a.applicationId === shownRow.applicationId) : null;
+  const personLoop = shownRow && personApp ? await readDecisionLoop(db, member, { jobId: personApp.jobId, applicationId: shownRow.applicationId }) : null;
 
   const walk = [...issues.map((i) => i.key), ...digest.groups.flatMap((g) => g.rows.map((r) => r.id))];
 
@@ -227,9 +242,19 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,
                 next: nextIssue(issues, open.key)?.key ?? null,
                 secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
+                who: open.who,
+                age: `Waiting ${ago(waitingSince(open), nowMs)}`,
                 page: (detail?.canOpen ?? true) ? candidateHref(open) : null,
                 story: open.candidate ? (detail?.story ?? null) : null,
-                ticket: whole ? { loop: loop ? ticketLoop(loop, open.candidate!.name, accessLevel === "admin", nowMs) : null, body: <CandidateBody {...whole} popup notice={null} error={null} /> } : null,
+                ticket:
+                  whole && open.candidate
+                    ? {
+                        title: open.candidate.name,
+                        subject: [open.job.title, open.applicationId ? stageOf(whole.candidate.applications, open.applicationId) : null].filter(Boolean).join(" · "),
+                        loop: ticketLoop(loop, open.candidate.name, accessLevel === "admin", nowMs),
+                        body: (call) => <CandidateBody {...whole} notice={null} error={null} call={call} />,
+                      }
+                    : null,
                 now: nowMs,
               }
             : null
@@ -241,7 +266,9 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 title: shownRow.candidate.name,
                 subject: [shownRow.jobTitle, stageOf(openPerson.candidate.applications, shownRow.applicationId)].filter(Boolean).join(" · "),
                 page: shownRow.page,
-                body: <CandidateBody {...openPerson} popup notice={null} error={null} />,
+                loop: ticketLoop(personLoop, shownRow.candidate.name, accessLevel === "admin", nowMs),
+                standing: personApp ? standingOf(personApp, openPerson.owners[personApp.applicationId] ?? null, nowMs) : null,
+                body: (call) => <CandidateBody {...openPerson} notice={null} error={null} call={call} />,
               }
             : null
         }

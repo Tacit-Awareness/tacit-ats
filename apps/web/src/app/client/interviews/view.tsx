@@ -354,6 +354,28 @@ export function Loop({ reader }: { reader: LoopProps }) {
   );
 }
 
+/** One filing's scorecard and notes, also under the read on the Inbox's ticket. */
+export function FeedbackDetail({ feedback: f }: { feedback: FeedbackCard }) {
+  return (
+    <>
+      {f.ratings.length ? (
+        <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[13px]">
+          {f.ratings.map((r, i) => (
+            <div key={i} className="contents">
+              <dt className="text-muted-foreground">
+                {r.attribute}
+                {r.note ? <span className="block whitespace-pre-wrap text-faint">{r.note}</span> : null}
+              </dt>
+              <dd className="m-0 text-right tabular-nums">{r.rating} / 4</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {f.notes ? <p className="m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 text-[14px] leading-normal break-words whitespace-pre-wrap">{f.notes}</p> : null}
+    </>
+  );
+}
+
 export function Feedback({ reader }: { reader: Pick<Reader, "feedback" | "feedbackNote"> }) {
   return (
     <section aria-label="Feedback" className="grid gap-3.5 px-4 pt-5 pb-[22px] @2xl:px-[26px]">
@@ -371,20 +393,7 @@ export function Feedback({ reader }: { reader: Pick<Reader, "feedback" | "feedba
             {f.rating !== null ? <span className="text-xs text-muted-foreground tabular-nums">{f.rating} / 4</span> : null}
             <span className="ml-auto text-xs text-faint">{f.submitted}</span>
           </header>
-          {f.ratings.length ? (
-            <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[13px]">
-              {f.ratings.map((r, i) => (
-                <div key={i} className="contents">
-                  <dt className="text-muted-foreground">
-                    {r.attribute}
-                    {r.note ? <span className="block whitespace-pre-wrap text-faint">{r.note}</span> : null}
-                  </dt>
-                  <dd className="m-0 text-right tabular-nums">{r.rating} / 4</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-          {f.notes ? <p className="m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 text-[14px] leading-normal break-words whitespace-pre-wrap">{f.notes}</p> : null}
+          <FeedbackDetail feedback={f} />
         </article>
       ))}
       {reader.feedback.length > 0 && reader.feedbackNote ? <p className="m-0 text-xs text-faint">{reader.feedbackNote}</p> : null}
