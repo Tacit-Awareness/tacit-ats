@@ -429,3 +429,16 @@ describe("a candidate's reply", () => {
     expect((await db().from("candidate_email_replies").select("id").eq("org_id", ACME)).data).toEqual([]);
   });
 });
+
+describe("a reply on the connector's read", () => {
+  test("the words for the hiring team, never an interviewer or another company", async () => {
+    const id = await drafted();
+    const { mailer } = fakeMailer();
+    await sendDraft(asAda(), ada, { ...mailer, replyDomain: "in.example.test" }, id);
+    await keepReply(db(), { providerId: "em_read", from: "cam@cand.test", to: [`reply+${id}@in.example.test`], subject: "Re: Your application", text: "6pm works" }, null);
+    expect(await clientTools.listEmailReplies(asAda(), ada, { candidateId: person(1) })).toMatchObject([{ emailId: id, body: "6pm works", from: "cam@cand.test" }]);
+    expect(await clientTools.listEmailReplies(token("user_em_ivan"), { ...ivan, accessLevel: "elevated" }, { candidateId: person(1) })).toEqual([]);
+    await expect(clientTools.listEmailReplies(token("user_em_ivan"), ivan, { candidateId: person(1) })).rejects.toThrow(/Interviewers/);
+    expect(await clientTools.listEmailReplies(token("user_em_out", GLOBEX_WORKOS), ctx(OUTSIDER, "admin", GLOBEX), { candidateId: person(1) })).toEqual([]);
+  });
+});

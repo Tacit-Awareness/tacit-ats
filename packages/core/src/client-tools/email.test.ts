@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 import { FakeSupabase } from "../test-helpers/fake-supabase.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 import {
-  createEmailTemplate, draftEmail, listEmailTemplates, listEmails, sendEmail, updateEmailTemplate, type ClientMailer,
+  createEmailTemplate, draftEmail, listEmailReplies, listEmailTemplates, listEmails, sendEmail, updateEmailTemplate, type ClientMailer,
 } from "./email.js";
 
 /**
@@ -278,6 +278,20 @@ describe("sendEmail", () => {
   test("a member with no address of their own on file cannot send: replies would go nowhere", async () => {
     const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, { data: { display_name: "Ada", email: null } }, ACME]);
     expect((await refusal(sendEmail(fake.asDb(), ctx(), mailer(), { draftId: "d-1" }))).message).toMatch(/nowhere to go/);
+  });
+});
+
+describe("listEmailReplies", () => {
+  test("an interviewer is refused before any read", async () => {
+    const none = new FakeSupabase([]);
+    expect((await refusal(listEmailReplies(none.asDb(), ctx("limited"), { candidateId: "p-1" }))).code).toBe("forbidden");
+    expect(none.calls).toEqual([]);
+  });
+
+  test("the candidate's words, naming the email they answer", async () => {
+    const fake = new FakeSupabase([{ data: [{ id: "r-1", email_id: "d-1", from_email: "cam@cand.test", subject: "Re: Hi", body: "6pm works", received_at: "2026-11-01T10:00:00Z", candidate_emails: { person_id: "p-1" } }] }]);
+    expect(await listEmailReplies(fake.asDb(), ctx(), { candidateId: "p-1" })).toEqual([{ replyId: "r-1", emailId: "d-1", from: "cam@cand.test", subject: "Re: Hi", body: "6pm works", receivedAt: "2026-11-01T10:00:00Z" }]);
+    expect(fake.calls[0]).toMatchObject({ table: "candidate_email_replies" });
   });
 });
 

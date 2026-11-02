@@ -561,6 +561,21 @@ export async function emailsFor(db: Db, ctx: ClientToolCtx, personId: string): P
 
 export type CandidateEmailWithBody = CandidateEmail & { body: string };
 
+export type CandidateEmailReply = { replyId: string; emailId: string; from: string; subject: string; body: string; receivedAt: string };
+
+/** What a candidate wrote back, newest first: their own words, so a caller fences them. The policy reads them with the email, never for an interviewer. */
+export async function listEmailReplies(db: Db, ctx: ClientToolCtx, input: { candidateId: string }): Promise<CandidateEmailReply[]> {
+  if (ctx.accessLevel === "limited") throw notForInterviewers();
+  const { data, error } = await db
+    .from("candidate_email_replies")
+    .select("id, email_id, from_email, subject, body, received_at, candidate_emails!inner(person_id)")
+    .eq("candidate_emails.person_id", input.candidateId)
+    .order("received_at", { ascending: false })
+    .limit(LIST_MAX);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ replyId: r.id, emailId: r.email_id, from: r.from_email, subject: r.subject, body: r.body, receivedAt: r.received_at }));
+}
+
 /** A candidate's emails with their bodies, for list_emails. */
 export async function listEmails(db: Db, ctx: ClientToolCtx, input: { candidateId: string }): Promise<CandidateEmailWithBody[]> {
   if (ctx.accessLevel === "limited") throw notForInterviewers();
