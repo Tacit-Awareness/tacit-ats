@@ -897,9 +897,7 @@ With Gmail connected, email you send a candidate goes out **from your own addres
 
 Tacit looks only at who each new email is between. It reads an email in full only when it is with someone on file as a candidate at your company, and never mail with anyone else, including your colleagues.
 
-**If your company uses Google Workspace**, an admin connects it once for everyone (below), and there is nothing for you to connect: **Settings** › **Gmail** says so, and has **Turn off sync** if you don't want your email with candidates kept. Email you send from Tacit still goes out from your address.
-
-**Otherwise**, connect your own: **Settings** › **Gmail** › **Connect**. Google asks for two things, to send as you and to read your mail; untick reading and Tacit only sends.
+Gmail comes through your company's Google Workspace: an admin connects it once for everyone (below), and there is nothing for you to connect. **Settings** › **Gmail** then says so, and has **Turn off sync** if you don't want your email with candidates kept; email you send from Tacit still goes out from your address. Until it is connected, email goes out from Tacit's sending address.
 
 ### Connecting your company's Google Workspace
 

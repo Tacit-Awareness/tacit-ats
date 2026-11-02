@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
 import { disconnectGranolaAction } from "../integrations/actions";
-import { disconnectMailboxAction, disconnectWorkspaceAction, setMailboxSyncAction, verifyWorkspaceAction } from "../mailbox/actions";
+import { disconnectWorkspaceAction, setMailboxSyncAction, verifyWorkspaceAction } from "../mailbox/actions";
 import { MAILBOX_ERRORS, MAILBOX_NOTICES, isMailboxError, isMailboxNotice } from "../mailbox/messages";
 import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
@@ -18,15 +18,17 @@ import { RoutingRules } from "./routing-rules";
 // `.lrow.pol`): one ruled row per connector, Connect or its connected state,
 // the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
-// (/client/calendar/connect and, for Gmail, /client/mailbox/connect) and
-// Granola's (/client/integrations/granola/connect).
+// (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
+// Gmail has no Connect here: it comes through the company's Google Workspace,
+// which an admin connects below. A member's own Gmail by OAuth
+// (/client/mailbox/connect) is built but not offered until Google has verified
+// Tacit for gmail.readonly.
 // Above them, design/tats's `.set-link`s to Onboarding and its Routing Rules,
 // and one of this app's own to Email templates (not for an interviewer).
 // Props only, so page.tsx does every read.
 export function SettingsView({
   calendar,
   granola,
-  mailbox,
   calendarConfigured,
   throughWorkspace = null,
   workspace = null,
@@ -40,8 +42,6 @@ export function SettingsView({
 }: {
   calendar: { accountEmail: string } | null;
   granola: { accountEmail: string | null } | null;
-  /** The member's own Gmail for candidate email; undefined for an interviewer, who sends none. */
-  mailbox?: { accountEmail: string; readsReplies: boolean } | null;
   calendarConfigured: boolean;
   /** The member's Gmail comes through their company's Google Workspace: nothing to connect, only their sync switch. */
   throughWorkspace?: { accountEmail: string; syncOn: boolean } | null;
@@ -118,48 +118,25 @@ export function SettingsView({
               ) : null
             }
           />
-          {mailbox !== undefined ? (
+          {throughWorkspace ? (
             <div id="gmail" className="grid scroll-mt-4">
-              {throughWorkspace ? (
-                <ConnectorRow
-                  icon={<AppTile><GoogleG className="size-4 bg-transparent" /></AppTile>}
-                  name="Gmail"
-                  detail={
-                    throughWorkspace.syncOn
-                      ? `Through your company's Google Workspace, as ${throughWorkspace.accountEmail}. Your email with candidates syncs to their profiles`
-                      : `Through your company's Google Workspace, as ${throughWorkspace.accountEmail}. Sync is off: only email you send from Tacit is kept`
-                  }
-                  action={
-                    <form action={setMailboxSyncAction}>
-                      <input type="hidden" name="on" value={throughWorkspace.syncOn ? "0" : "1"} />
-                      <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
-                        {throughWorkspace.syncOn ? "Turn off sync" : "Turn on sync"}
-                      </button>
-                    </form>
-                  }
-                />
-              ) : (
-                <ConnectorRow
-                  icon={<AppTile><GoogleG className="size-4 bg-transparent" /></AppTile>}
-                  name="Gmail"
-                  detail={
-                    mailbox
-                      ? mailbox.readsReplies
-                        ? `Candidate email goes out from ${mailbox.accountEmail}, and replies come back to the Inbox`
-                        : `Candidate email goes out from ${mailbox.accountEmail}; replies stay in your Gmail`
-                      : calendarConfigured
-                        ? "Email candidates from your own address, and see their replies in the Inbox"
-                        : "Not set up on this Tacit deployment yet"
-                  }
-                  action={
-                    mailbox ? (
-                      <Connected disconnect={disconnectMailboxAction} manageHref={calendarConfigured ? "/client/mailbox/connect" : undefined} />
-                    ) : calendarConfigured ? (
-                      <ActionLink href="/client/mailbox/connect">Connect</ActionLink>
-                    ) : null
-                  }
-                />
-              )}
+              <ConnectorRow
+                icon={<AppTile><GoogleG className="size-4 bg-transparent" /></AppTile>}
+                name="Gmail"
+                detail={
+                  throughWorkspace.syncOn
+                    ? `Through your company's Google Workspace, as ${throughWorkspace.accountEmail}. Your email with candidates syncs to their profiles`
+                    : `Through your company's Google Workspace, as ${throughWorkspace.accountEmail}. Sync is off: only email you send from Tacit is kept`
+                }
+                action={
+                  <form action={setMailboxSyncAction}>
+                    <input type="hidden" name="on" value={throughWorkspace.syncOn ? "0" : "1"} />
+                    <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>
+                      {throughWorkspace.syncOn ? "Turn off sync" : "Turn on sync"}
+                    </button>
+                  </form>
+                }
+              />
             </div>
           ) : null}
           <div id="granola" className="grid scroll-mt-4">
