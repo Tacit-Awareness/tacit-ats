@@ -376,13 +376,15 @@ export function FeedbackDetail({ feedback: f }: { feedback: FeedbackCard }) {
   );
 }
 
-export function Feedback({ reader }: { reader: Pick<Reader, "feedback" | "feedbackNote"> }) {
+/** `own` is the member's own feedback form (./feedback-form.tsx), passed in so the Inbox's ticket, which draws this too, imports no action. */
+export function Feedback({ reader, own = null }: { reader: Pick<Reader, "feedback" | "feedbackNote">; own?: React.ReactNode }) {
   return (
     <section aria-label="Feedback" className="grid gap-3.5 px-4 pt-5 pb-[22px] @2xl:px-[26px]">
       <div className="flex items-baseline justify-between gap-3 text-[14.5px]">
         <b className="font-medium">Feedback</b>
         {reader.feedback.length ? <span className="text-[13px] text-faint tabular-nums">{reader.feedback.length}</span> : null}
       </div>
+      {own}
       {reader.feedback.length === 0 ? <Empty className="my-0">{reader.feedbackNote ?? "No feedback filed yet."}</Empty> : null}
       {reader.feedback.map((f) => (
         <article key={f.feedbackId} className="grid gap-2.5 border-t border-[color:var(--line)] pt-3.5 first-of-type:border-t-0 first-of-type:pt-0">
@@ -402,7 +404,7 @@ export function Feedback({ reader }: { reader: Pick<Reader, "feedback" | "feedba
 }
 
 /** One `.rc` card: the head, the loop, the feedback, the member's Granola notes. */
-function InterviewReader({ reader, granola, base }: { reader: Reader; granola: React.ReactNode; base: string }) {
+function InterviewReader({ reader, own, granola, base }: { reader: Reader; own: React.ReactNode; granola: React.ReactNode; base: string }) {
   return (
     <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
@@ -416,7 +418,7 @@ function InterviewReader({ reader, granola, base }: { reader: Reader; granola: R
         {reader.verdict ? <VerdictPill verdict={reader.verdict} /> : null}
       </header>
       <Loop reader={reader} />
-      <Feedback reader={reader} />
+      <Feedback reader={reader} own={own} />
       {granola}
     </article>
   );
@@ -427,6 +429,7 @@ export function InterviewsView({
   counts,
   reviewed,
   reader,
+  own = null,
   granola,
   open,
   readerError,
@@ -438,6 +441,8 @@ export function InterviewsView({
   /** The past interviews this member has checked off; null when that could not be read. */
   reviewed: string[] | null;
   reader: Reader | null;
+  /** The member's own feedback form, on an interview they ran that has started. Null when they can't file. */
+  own?: React.ReactNode;
   /** The member's own Granola notes on this interview, already behind its Suspense boundary. Null when there can be none. */
   granola: React.ReactNode;
   /** An interview was picked (`?i=`): on a phone the reader replaces the list. */
@@ -474,7 +479,7 @@ export function InterviewsView({
         }
         reader={
           reader ? (
-            <InterviewReader reader={reader} granola={granola} base={base} />
+            <InterviewReader reader={reader} own={own} granola={granola} base={base} />
           ) : (
             <Empty className="p-2">{readerError ?? "Pick an interview to read its loop and feedback."}</Empty>
           )

@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import type { RouteNode, RouteView } from "@/lib/client/interview-loop";
-import { Loop, type LoopRound, type Reader } from "./view";
+
+import { Feedback, Loop, type LoopRound, type Reader } from "./view";
 
 const round = (n: number, over: Partial<LoopRound>): LoopRound => ({
   key: `step-${n}`, n, name: `Round ${n}`, status: "Not booked", people: [], when: null, place: "later", next: false, href: null, ...over,
@@ -108,5 +109,13 @@ describe("the routing graph", () => {
   test("colours are tokens, so dark mode follows", () => {
     // An avatar's own colour is per name, on purpose, in both themes.
     expect(html.replace(/--c:#[0-9a-f]+/gi, "")).not.toMatch(/#[0-9a-f]{3,6}\b/i);
+  });
+});
+
+describe("your feedback", () => {
+  test("the form sits above the filings when the page passes one", () => {
+    const html = renderToStaticMarkup(<Feedback reader={reader([])} own={<form id="own" />} />);
+    expect(html.indexOf('id="own"')).toBeLessThan(html.indexOf("No feedback filed yet."));
+    expect(renderToStaticMarkup(<Feedback reader={reader([])} />)).not.toContain("<form");
   });
 });
