@@ -218,7 +218,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-A referral shows who referred them in the list and on the application. Testbench isn't connected yet: picking it shows the message, and nothing goes out. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 

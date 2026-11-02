@@ -17,7 +17,7 @@ const reply = (over: Partial<Reply> = {}): Reply => ({
   sender: { from: '"Ada at Acme" <hiring@example.test>', replyTo: "ada@acme.test" },
   failed: null,
   sent: null,
-  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", decline: "Hi Nia, no", blank: "Hi Nia," }, testbench: "Hi Nia, try it" },
+  starters: { subject: "Your application", bodies: { interview: "Hi Nia, meet us", testbench: "Hi Nia, try it", decline: "Hi Nia, no", blank: "Hi Nia," } },
   subjectMax: 300,
   bodyMax: 20000,
   ...over,
@@ -75,8 +75,14 @@ describe("the reply box", () => {
     expect(out).not.toContain("Hi Nia, meet us");
   });
 
+  test("Testbench is a reply like the others: the same preview, and Review draft", () => {
+    const out = renderToStaticMarkup(<ReplyBox reply={reply()} suggested="testbench" />);
+    expect(out).toMatch(/type="hidden" name="body" value="Hi Nia, try it"/);
+    expect(out).toContain("Review draft");
+  });
+
   test("the preview is text: markup in a starter is never markup", () => {
-    const out = html({ starters: { subject: "s", bodies: { interview: "<img src=x onerror=alert(1)>", decline: "d", blank: "b" }, testbench: "t" } });
+    const out = html({ starters: { subject: "s", bodies: { interview: "<img src=x onerror=alert(1)>", testbench: "t", decline: "d", blank: "b" } } });
     expect(out).not.toContain("<img");
     expect(out).toContain("&lt;img");
   });

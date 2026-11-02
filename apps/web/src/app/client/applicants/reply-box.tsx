@@ -42,7 +42,7 @@ export type Reply = {
   bodyMax: number;
 };
 
-const LABEL: Record<ReplyKind, string> = { interview: "Interview", decline: "Decline", blank: "Blank" };
+const LABEL: Record<ReplyKind, string> = { interview: "Interview", testbench: "Testbench", decline: "Decline", blank: "Blank" };
 
 const field =
   "w-full border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-[13.5px] outline-none transition-colors placeholder:text-faint focus-visible:border-[color:var(--line-strong)]";

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { replyStarters } from "./reply-starters";
+import { replyStarters, TESTBENCH_INVITE_URL } from "./reply-starters";
 
 const base = { candidateName: "Nia Okafor", jobTitle: "Founding Engineer", company: "Acme", sender: "Ada Admin" };
 
@@ -11,7 +11,8 @@ describe("replyStarters", () => {
     expect(s.bodies.interview.endsWith("\n\nAda")).toBe(true);
     expect(s.bodies.decline).toContain("your interest in Acme");
     expect(s.bodies.blank).toBe("Hi Nia,\n\nAda");
-    expect(s.testbench).toMatch(/^Hi Nia,\n\nThanks for applying for the Founding Engineer role\. Before we talk/);
+    expect(s.bodies.testbench).toMatch(/^Hi Nia,\n\nThanks for applying for the Founding Engineer role\. Before we talk/);
+    expect(s.bodies.testbench.endsWith(`The link is below.\n\n${TESTBENCH_INVITE_URL}\n\nAda`)).toBe(true);
   });
 
   test("no name on the application says Hi, not Hi undefined", () => {
