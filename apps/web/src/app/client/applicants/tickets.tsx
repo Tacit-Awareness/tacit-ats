@@ -6,6 +6,7 @@ import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { groupByTeam, inOrder, isReferral, neighbour, readerAnswers, selected, referralTag, sourceWords } from "@/lib/client/applicant-queue";
 import { readApplicantQueue, readApplicationNotes, readPersonNotes, readRouting } from "@/lib/client/applicants";
 import { readDepartments } from "@/lib/client/departments";
+import { viewerFiles } from "@/lib/client/file-view-rules";
 import { readReply } from "@/lib/client/email";
 import { templateStarters } from "@/lib/client/email-template-rules";
 import { readTemplates } from "@/lib/client/email-templates";
@@ -87,7 +88,7 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
       referral,
       source: sourceWords(open),
       notes: [...notes, ...personNotes],
-      files: files.map((f) => ({ fileId: f.fileId, label: f.kind === "resume" ? "Resume" : "Attachment", filename: f.filename, href: `/client/files/${f.fileId}` })),
+      files: viewerFiles(files, (iso) => ago(iso, now)),
       team: group?.isTeam ? group.title : null,
       answers,
       routing: routing?.canEdit

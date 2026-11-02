@@ -1,5 +1,7 @@
+import { clientTools } from "@tacit-ats/core";
 import { readCandidate, toolCtx } from "@/lib/client/candidate";
 import { readEditing, readLabelChoices } from "@/lib/client/candidate-edits";
+import { FILE_ACCEPT, FILE_EXTENSIONS } from "@/lib/client/candidate-files";
 import { readOffers } from "@/lib/client/offers";
 import type { ClientContext } from "@/lib/client/session";
 import type { CandidateViewProps } from "./view";
@@ -26,6 +28,8 @@ export async function readCandidateView(member: ClientContext, candidateId: stri
     editing: editing && editing.editable.size ? { apps: Object.fromEntries(editing.editable), owners: editing.owners, reasons: editing.reasons } : null,
     labels,
     offers,
+    // can_edit_person, the check readLabelChoices just made and core's addFile makes again.
+    upload: labels ? { accept: FILE_ACCEPT, extensions: FILE_EXTENSIONS, maxBytes: clientTools.FILE_MAX_BYTES } : null,
     now,
   };
 }

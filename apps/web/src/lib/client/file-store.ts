@@ -12,19 +12,23 @@ import { getSupabaseServiceClient } from "@tacit/db";
  * (an upload) or read it (a link), so RLS has already decided, and the path is
  * always that row's own, never input. What leaves this file is two functions,
  * never the client. No `remove`: an erasure isn't done from here.
+ *
+ * `inline` signs a link the browser shows rather than saves (the file viewer's
+ * frame): the same object, the same five minutes, served from Storage's own
+ * origin, never this app's.
  */
 const BUCKET = "org-files";
 
 const bucket = () => getSupabaseServiceClient().storage.from(BUCKET);
 
-export function webFileStore(): clientTools.FileStore {
+export function webFileStore({ inline = false }: { inline?: boolean } = {}): clientTools.FileStore {
   return {
     put: async (storagePath, bytes, contentType) => {
       const { error } = await bucket().upload(storagePath, bytes, { contentType, upsert: false });
       if (error) throw new Error(`org-files: upload ${storagePath}: ${error.message}`);
     },
     signedUrl: async (storagePath, seconds, filename) => {
-      const { data, error } = await bucket().createSignedUrl(storagePath, seconds, { download: filename });
+      const { data, error } = await bucket().createSignedUrl(storagePath, seconds, inline ? undefined : { download: filename });
       if (error) {
         if (/not.?found/i.test(error.message)) return null;
         throw new Error(`org-files: sign ${storagePath}: ${error.message}`);
