@@ -162,7 +162,8 @@ describe("the one way to a member's calendar grants", () => {
     expect([...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class|type)\s+(\w+)/gm)].map((m) => m[1])).toEqual(["memberCalendar"]);
     // The client is built inside the read, and stops there.
     expect(text.match(/getSupabaseServiceClient/g)).toHaveLength(2);
-    expect(text).toMatch(/await getSupabaseServiceClient\(\)\s*\.from\("calendar_connections"\)/);
+    // Handed straight to core's readCalendarConnections, the one read of the grants and the Workspace.
+    expect(text).toMatch(/clientTools\.readCalendarConnections\(getSupabaseServiceClient\(\), orgId, actorIds,/);
   });
 
   test("the route is one POST, asks who is calling first, and checks where it came from before it reads the body", () => {

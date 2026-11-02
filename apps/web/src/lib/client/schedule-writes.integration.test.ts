@@ -1,6 +1,7 @@
+import { generateKeyPairSync } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 
 import { fakeGoogle } from "../../../../../packages/core/src/test-helpers/fake-google";
 import { memberCalendar } from "../member-calendar/grants";
@@ -450,5 +451,87 @@ describe("the dialogs' choices and the Calendar's own marks", () => {
   test("the Calendar's read carries what the card needs", async () => {
     const { items } = await readSchedule(admin.db, admin.ctx, { from: "2031-03-01T00:00:00Z", to: "2031-03-10T00:00:00Z" }, NOW);
     expect(items).toMatchObject([{ interviewId: ONSITE, applicationId: APP, status: "scheduled", interviewerIds: [IVY], eventLink: null }]);
+  });
+});
+
+describe("through the company's Google Workspace", () => {
+  // A real key, so the grant is signed as production's JSON-key path signs it; fake-google reads only its claims.
+  const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const SA_JSON = JSON.stringify({
+    client_email: "tacit-sa@tacit.test", client_id: "1234567890", private_key: privateKey.export({ type: "pkcs8", format: "pem" }),
+  });
+  /** As calendarOf, with Tacit's service account set: the real grants module decides who the Workspace covers. */
+  function workspaceCalendarOf(google: ReturnType<typeof fakeGoogle>): clientTools.ClientCalendar {
+    const real = memberCalendar("https://ats.test", {
+      ...process.env, CLIENT_GOOGLE_CLIENT_ID: "cid", CLIENT_GOOGLE_CLIENT_SECRET: "secret", CLIENT_GOOGLE_SERVICE_ACCOUNT: SA_JSON,
+    })!;
+    return { ...real, google: { ...real.google, fetch: google.fetchImpl } };
+  }
+  const verified = async () => must(await db().from("google_workspace_connections").insert({ org_id: ACME, domain: "sw.test", connected_by_actor_id: ADMIN }));
+  const wsFree = {
+    "at-ws-ada@sw.test": { "ada@sw.test": [], "ivy@sw.test": [] },
+    "at-ws-lee@sw.test": { "lee@sw.test": [] },
+    "at-ws-hana@sw.test": { "ivy@sw.test": [] },
+  };
+
+  test("books on the admin's work calendar AS them, not through the connection they made, asking only the calendar scopes", async () => {
+    await verified();
+    const google = fakeGoogle({ busy: wsFree });
+    const answer = await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), { calendar: workspaceCalendarOf(google), now });
+    expect(answer).toMatchObject({ ok: true, kind: "booked", calendar: { status: "invited", organizer: { userId: ADMIN } } });
+    expect(await row(NEW_ID)).toMatchObject({ calendar_actor_id: ADMIN, google_event_id: NEW_ID.replace(/-/g, "") });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ method: "POST", token: "at-ws-ada@sw.test" })]);
+    expect(new Set(google.delegatedScopes().map((g) => g.scope))).toEqual(new Set([
+      `${clientTools.CALENDAR_EVENTS_SCOPE} ${clientTools.CALENDAR_FREEBUSY_SCOPE}`,
+    ]));
+    // Ada's own refresh token was never used.
+    expect(google.calls.filter((c) => (c.body as { refresh_token?: string } | undefined)?.refresh_token)).toEqual([]);
+    const kept = JSON.stringify(await audit(ADMIN));
+    for (const secret of ["at-ws-", "ada@sw.test"]) expect(kept).not.toContain(secret);
+  });
+
+  test("a hiring manager who never connected a calendar books on their own with nothing to connect", async () => {
+    await verified();
+    const google = fakeGoogle({ busy: wsFree });
+    const answer = await runScheduleRequest(lead.db, lead.ctx, book({ interviewerIds: [LEAD], confirmed: true }), { calendar: workspaceCalendarOf(google), now });
+    expect(answer).toMatchObject({ ok: true, kind: "booked", calendar: { status: "invited", organizer: { userId: LEAD } } });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ token: "at-ws-lee@sw.test" })]);
+  });
+
+  test("a move follows to the event with the holder's Workspace grant", async () => {
+    await verified();
+    const google = fakeGoogle({ busy: wsFree });
+    expect(await runScheduleRequest(admin.db, admin.ctx, move({ confirmed: true }), { calendar: workspaceCalendarOf(google), now })).toMatchObject({ ok: true });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ method: "PATCH", token: "at-ws-hana@sw.test" })]);
+    expect(await row(ONSITE)).toMatchObject({ calendar_actor_id: HANA });
+  });
+
+  test("Google refusing the Workspace (calendar scopes not delegated yet) falls back to the member's own connection", async () => {
+    await verified();
+    const google = fakeGoogle({ busy: free, workspaceRefused: ["ada@sw.test"] });
+    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), { calendar: workspaceCalendarOf(google), now })).toMatchObject({ ok: true, kind: "booked" });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ token: "at-ada" })]);
+  });
+
+  test("covers only members of the verified company, signed in, above interviewer, at its domain", async () => {
+    await verified();
+    must(await db().from("actors").update({ auth_subject: null }).eq("id", HANA));
+    const read = (orgId: string, ids: string[]) => clientTools.readCalendarConnections(db(), orgId, ids, { workspace: true });
+    const acme = await read(ACME, [ADMIN, LEAD, IVY, HANA]);
+    expect(acme.get(ADMIN)).toEqual({ accountEmail: "ada@sw.test", workspace: true, own: { accountEmail: "ada@sw.test", refreshToken: "rt-ada" } });
+    expect(acme.get(LEAD)).toEqual({ accountEmail: "lee@sw.test", workspace: true, own: null });
+    // An interviewer is not covered; someone not signed in keeps only the connection they made.
+    expect(acme.has(IVY)).toBe(false);
+    expect(acme.get(HANA)).toEqual({ accountEmail: "hana@sw.test", refreshToken: "rt-hana" });
+    // Gus is at the same domain, but Globex verified no Workspace, and Acme's is not his company's.
+    expect((await read(GLOBEX, [GUS])).size).toBe(0);
+    expect((await read(ACME, [GUS])).size).toBe(0);
+  });
+
+  test("not verified, the service account books nobody", async () => {
+    const google = fakeGoogle({ busy: free });
+    expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), { calendar: workspaceCalendarOf(google), now })).toMatchObject({ ok: true, kind: "booked" });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ token: "at-ada" })]);
+    expect(google.delegatedScopes()).toEqual([]);
   });
 });

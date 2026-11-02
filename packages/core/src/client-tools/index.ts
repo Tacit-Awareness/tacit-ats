@@ -58,9 +58,10 @@ export type {
   UpdatePreview,
 } from "./interviews.js";
 export {
-  DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS, findInterviewTimes, unknownText,
+  CALENDAR_EVENTS_SCOPE, CALENDAR_FREEBUSY_SCOPE, DEFAULT_INTERVIEW_MINUTES, FIND_RESULTS_DEFAULT, FIND_RESULTS_MAX, FIND_WINDOW_MAX_DAYS,
+  WORKSPACE_CALENDAR_SCOPES, accessToken as calendarAccessToken, findInterviewTimes, readCalendarConnections, throughWorkspace, unknownText,
 } from "./calendar.js";
-export type { CalendarConnection, ClientCalendar, FoundTimes, Person, Slot, UnknownReason } from "./calendar.js";
+export type { CalendarConnection, ClientCalendar, FoundTimes, OwnCalendar, Person, Slot, UnknownReason } from "./calendar.js";
 export { limitText } from "./interviewer-limits.js";
 export type { FullWeek, LimitedInterviewer } from "./interviewer-limits.js";
 export { GRANOLA_MCP_URL, GRANOLA_NOTE_ID, GRANOLA_TEXT_MAX, GRANOLA_TRANSCRIPT_MAX, getInterviewNotes, granolaGrantAccess } from "./granola.js";

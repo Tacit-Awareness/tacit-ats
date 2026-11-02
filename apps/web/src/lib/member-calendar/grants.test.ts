@@ -44,6 +44,13 @@ describe("memberCalendar", () => {
     expect(found).toEqual(new Map([["a", { accountEmail: "a@x.test", refreshToken: "rt-a" }]]));
   });
 
+  test("with Tacit's service account set, hands core its signer, still no client", () => {
+    const calendar = memberCalendar("https://ats.test", { ...ENV, CLIENT_GOOGLE_SERVICE_ACCOUNT: JSON.stringify({ client_email: "sa@tacit.test", private_key: "k", client_id: "42" }) })!;
+    expect(calendar.delegation).toMatchObject({ clientEmail: "sa@tacit.test", clientId: "42" });
+    expect(memberCalendar("https://ats.test", ENV)!.delegation).toBeNull();
+    expect(getSupabaseServiceClient).not.toHaveBeenCalled();
+  });
+
   test("nobody asked for: no read at all", async () => {
     expect(await memberCalendar("https://ats.test", ENV)!.connections("org-1", [])).toEqual(new Map());
     expect(getSupabaseServiceClient).not.toHaveBeenCalled();

@@ -1,12 +1,15 @@
 import { getSupabaseServiceClient } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 
 /**
- * Members' connected calendars (calendar_connections, tacit-internal
- * migration 20261017120000): the refresh token is granted to no member
- * token, so reading it needs the service role. The fourth module under
- * src/client allowed a privileged client (src/client-connector.test.ts), and
- * like the other three it exports only its function, never the client.
+ * Members' calendar grants (calendar_connections, tacit-internal migration
+ * 20261017120000, and since 2026-11-02 their company's Google Workspace,
+ * google_workspace_connections): a refresh token, and whether a member has
+ * signed in, are granted to no member token, so reading them needs the service
+ * role. One of the modules under src/client allowed a privileged client
+ * (src/client-connector.test.ts), and like the others it exports only its
+ * function, never the client. Core's readCalendarConnections holds the rule
+ * of who the Workspace covers.
  *
  * The rule that keeps this narrow is the caller's: core's clientTools
  * calendar.ts asks only for the caller, the interviewers the caller has
@@ -15,15 +18,11 @@ import type { clientTools } from "@tacit-ats/core";
  * caller's own token has read and may change. Always within the member's own
  * org, which the handler passes from the bound member, never from input.
  */
-export async function calendarConnections(orgId: string, actorIds: string[]): Promise<Map<string, clientTools.CalendarConnection>> {
-  const ids = [...new Set(actorIds)];
-  if (!ids.length) return new Map();
-  const { data, error } = await getSupabaseServiceClient()
-    .from("calendar_connections")
-    .select("actor_id, account_email, refresh_token")
-    .eq("org_id", orgId)
-    .eq("provider", "google")
-    .in("actor_id", ids);
-  if (error) throw new Error(`calendar_connections: ${error.message}`);
-  return new Map((data ?? []).map((c) => [c.actor_id, { accountEmail: c.account_email, refreshToken: c.refresh_token }]));
+export async function calendarConnections(
+  orgId: string,
+  actorIds: string[],
+  opts: { workspace: boolean } = { workspace: false },
+): Promise<Map<string, clientTools.CalendarConnection>> {
+  if (!actorIds.length) return new Map();
+  return clientTools.readCalendarConnections(getSupabaseServiceClient(), orgId, actorIds, opts);
 }

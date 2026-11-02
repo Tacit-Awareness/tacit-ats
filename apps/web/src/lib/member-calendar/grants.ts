@@ -1,6 +1,7 @@
 import { getSupabaseServiceClient } from "@tacit/db";
-import type { clientTools } from "@tacit-ats/core";
+import { clientTools } from "@tacit-ats/core";
 import { googleCalendarConfig } from "../client/google-calendar";
+import { tacitDelegation } from "../google-delegation";
 
 /**
  * Members' connected calendars, for the Calendar's book, move, cancel and Find
@@ -20,26 +21,22 @@ import { googleCalendarConfig } from "../client/google-calendar";
  * to name, or the holder of an interview it has read and may change, always in
  * the member's own org, which the route passes from the bound member.
  *
+ * A member their company's verified Google Workspace covers (core's
+ * readCalendarConnections) books through Tacit's service account, as Gmail
+ * does, when this deployment has one (tacitDelegation).
+ *
  * Null when the deployment has no Google app or no service key. Core then
  * records bookings in Tacit only and says so, and refuses to read availability.
  */
 export function memberCalendar(origin: string, env: Record<string, string | undefined> = process.env): clientTools.ClientCalendar | null {
   const google = googleCalendarConfig(env);
   if (!google || !env.SUPABASE_URL?.trim() || !env.SUPABASE_SECRET_KEY?.trim()) return null;
+  const delegation = tacitDelegation(env);
   return {
     google,
     connectUrl: `${origin}/client/settings`,
-    connections: async (orgId, actorIds) => {
-      const ids = [...new Set(actorIds)];
-      if (!ids.length) return new Map();
-      const { data, error } = await getSupabaseServiceClient()
-        .from("calendar_connections")
-        .select("actor_id, account_email, refresh_token")
-        .eq("org_id", orgId)
-        .eq("provider", "google")
-        .in("actor_id", ids);
-      if (error) throw new Error(`calendar_connections: ${error.message}`);
-      return new Map((data ?? []).map((c) => [c.actor_id, { accountEmail: c.account_email, refreshToken: c.refresh_token }]));
-    },
+    delegation,
+    connections: async (orgId, actorIds) =>
+      actorIds.length ? clientTools.readCalendarConnections(getSupabaseServiceClient(), orgId, actorIds, { workspace: !!delegation }) : new Map(),
   };
 }

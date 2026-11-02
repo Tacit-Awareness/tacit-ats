@@ -17,13 +17,19 @@ export async function disconnectMailboxAction(): Promise<void> {
   redirect(`/client/settings?${new URLSearchParams(params)}`);
 }
 
+/** Everything the Workspace is used for: Gmail (core's mailbox.ts) and Calendar (calendar.ts). */
+const WORKSPACE_SCOPES = [
+  clientTools.GMAIL_SEND_SCOPE, clientTools.GMAIL_READ_SCOPE, clientTools.CALENDAR_EVENTS_SCOPE, clientTools.CALENDAR_FREEBUSY_SCOPE,
+];
+
 const back = (params: { notice?: MailboxNotice; error?: MailboxError }): never => redirect(`/client/settings?${new URLSearchParams(params)}#gmail`);
 
 /**
  * An admin verifies their company's Google Workspace, Ashby's way: Tacit asks
- * Google for a token AS the admin with both Gmail scopes, which Google grants
- * only once the domain's admin has delegated them to Tacit's service account,
- * then reads the admin's own mailbox profile. Then client_connect_workspace,
+ * Google for a token AS the admin with both Gmail scopes and both Calendar
+ * scopes, which Google grants only once the domain's admin has delegated all
+ * four to Tacit's service account, then reads the admin's own mailbox profile
+ * and their own busy times for the next hour (never what is on the calendar). Then client_connect_workspace,
  * on the admin's own token, stores the domain: only an admin's, and only their
  * own address's (the database checks both again).
  */
@@ -36,9 +42,16 @@ export async function verifyWorkspaceAction(): Promise<void> {
   const domain = clientTools.domainOf(email);
   if (!email || !domain) back({ error: "workspace_no_domain" });
   try {
-    const token = await clientTools.delegatedAccessToken(delegation!, email!, [clientTools.GMAIL_SEND_SCOPE, clientTools.GMAIL_READ_SCOPE]);
+    const token = await clientTools.delegatedAccessToken(delegation!, email!, WORKSPACE_SCOPES);
     const profile = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", { headers: { authorization: `Bearer ${token}` } });
     if (!profile.ok) throw new Error(`gmail profile: ${profile.status}`);
+    const now = Date.now();
+    const busy = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ timeMin: new Date(now).toISOString(), timeMax: new Date(now + 3_600_000).toISOString(), items: [{ id: "primary" }] }),
+    });
+    if (!busy.ok) throw new Error(`calendar freeBusy: ${busy.status}`);
   } catch (err) {
     // Google's status only; the admin's address stays out of the log.
     console.error("[client-workspace] verify refused:", err instanceof Error ? err.message.replace(/\S+@\S+/g, "<address>").slice(0, 200) : "failed");

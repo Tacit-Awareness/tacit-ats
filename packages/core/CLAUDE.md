@@ -497,7 +497,21 @@ src/
                         draftEmail draft for a booking, a move or a
                         cancellation; a draft
                         that cannot be written is reported, not thrown.
-                        Without a ClientCalendar both behave as before
+                        Without a ClientCalendar both behave as before.
+                        Since 2026-11-02 a CalendarConnection is a member's
+                        own (OwnCalendar) or their company's Google Workspace
+                        ({accountEmail, workspace: true, own}), as Ashby:
+                        readCalendarConnections(serviceDb, orgId, ids,
+                        {workspace}) is the one read both apps and the
+                        notifier use (service role; covers a signed-in
+                        member, auth_subject, above interviewer at the
+                        verified domain, as memberMailbox does the caller),
+                        and calendarAccess mints a delegated token
+                        (ClientCalendar.delegation, WORKSPACE_CALENDAR_SCOPES:
+                        calendar.events, calendar.events.freebusy), falling
+                        back to the member's own connection when Google
+                        refuses (a company that has not added the calendar
+                        scopes yet); unknown reason workspace_refused
                         granola.ts (2026-10-19, 20261019200000):
                         getInterviewNotes, the caller's own Granola notes
                         from an interview they were an interviewer on.

@@ -43,7 +43,7 @@ export default async function ClientSettings({
   if (syncOff.error) throw new Error(syncOff.error.message);
   const myEmail = gate.ctx.user.email.trim().toLowerCase();
   const delegation = tacitDelegation();
-  // As core's memberMailbox decides: the company's Workspace covers a member above interviewer at its domain.
+  // As core's memberMailbox (and, for Calendar, readCalendarConnections) decides: the company's Workspace covers a member above interviewer at its domain.
   const throughWorkspace =
     !!delegation && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
   if (granola.error) throw new Error(granola.error.message);
@@ -66,6 +66,8 @@ export default async function ClientSettings({
             : null
       }
       throughWorkspace={throughWorkspace ? { accountEmail: myEmail, syncOn: !syncOff.data } : null}
+      // Booking needs the Google app as well (lib/member-calendar/grants.ts), so without it the Workspace books nothing.
+      calendarThroughWorkspace={throughWorkspace && googleCalendarConfig() !== null ? { accountEmail: myEmail } : null}
       workspace={
         admin
           ? {

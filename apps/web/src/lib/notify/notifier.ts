@@ -1,10 +1,12 @@
 import {
-  agentWebhookAdapter, listAgentDestinations, refreshGoogleAccessToken,
+  agentWebhookAdapter, listAgentDestinations,
   type AgentDestination, type HubDeps, type ReminderPollDeps,
 } from "@tacit/core";
 import { getSupabaseServiceClient, type Db } from "@tacit/db";
+import { clientTools } from "@tacit-ats/core";
 
 import { googleCalendarConfig } from "../client/google-calendar";
+import { tacitDelegation } from "../google-delegation";
 
 /** Google's OAuth client plus where a holder's token comes from (core's connector CalendarDeps). */
 type CalendarDeps = NonNullable<ReminderPollDeps["calendar"]>;
@@ -33,22 +35,24 @@ export async function companiesWithBots(db: Db): Promise<AgentDestination[]> {
 
 /**
  * A company's interviews are on its members' own calendars: each holder's
- * grant (calendar_connections) with tacit-ats's Google app. Null when the
+ * grant through the company's Google Workspace when it covers them, else their
+ * own connection (calendar_connections) with tacit-ats's Google app; core's
+ * readCalendarConnections decides, as it does for booking. Null when the
  * deployment has no Google app, and then no event is read.
  */
 export function companyCalendar(db: Db, orgId: string): CalendarDeps | null {
   const config = googleCalendarConfig();
   if (!config) return null;
+  const delegation = tacitDelegation();
+  const google = { clientId: config.clientId, clientSecret: config.clientSecret };
   return {
-    clientId: config.clientId,
-    clientSecret: config.clientSecret,
+    ...google,
     tokenFor: async (actorId) => {
-      const { data, error } = await db
-        .from("calendar_connections").select("refresh_token")
-        .eq("org_id", orgId).eq("actor_id", actorId).eq("provider", "google").maybeSingle();
-      if (error) throw new Error(`calendar_connections: ${error.message}`);
-      if (!data) throw new Error("no calendar connected");
-      return refreshGoogleAccessToken({ clientId: config.clientId, clientSecret: config.clientSecret, refreshToken: data.refresh_token });
+      const conn = (await clientTools.readCalendarConnections(db, orgId, [actorId], { workspace: !!delegation })).get(actorId);
+      if (!conn) throw new Error("no calendar connected");
+      const token = await clientTools.calendarAccessToken({ google, delegation }, conn);
+      if (!token) throw new Error(clientTools.throughWorkspace(conn) ? "the company's Google Workspace refused the calendar" : "the calendar connection has expired");
+      return token;
     },
   };
 }

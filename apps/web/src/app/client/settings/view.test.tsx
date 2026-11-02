@@ -55,7 +55,9 @@ describe("SettingsView", () => {
         workspace={{ configured: true, clientId: "1234567890", connected: null }} />,
     );
     expect(setup).toContain("1234567890");
-    expect(setup).toContain("gmail.send,https://www.googleapis.com/auth/gmail.readonly");
+    expect(setup).toContain(
+      "gmail.send,https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.events.freebusy",
+    );
     expect(setup).toContain(">Verify<");
     const connected = renderToStaticMarkup(
       <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
@@ -73,6 +75,16 @@ describe("SettingsView", () => {
     expect(covered).toContain("as ada@acme.test");
     expect(covered).toContain("Turn off sync");
     expect(covered).not.toContain('href="/client/mailbox/connect"');
+  });
+
+  test("a member the Workspace books for has no calendar to connect", () => {
+    const covered = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
+        calendarThroughWorkspace={{ accountEmail: "ada@acme.test" }} />,
+    );
+    expect(covered).toContain("Through your company&#x27;s Google Workspace, as ada@acme.test");
+    expect(covered).not.toContain('href="/client/calendar/connect"');
+    expect(html).toContain('href="/client/calendar/connect"');
   });
 
 });
