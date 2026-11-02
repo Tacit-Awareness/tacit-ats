@@ -201,11 +201,13 @@ describe("what a failure may say", () => {
     expect(await runScheduleRequest(db(null, { message: "boom" }), ctx, cancel, deps)).toEqual({ ok: false, code: "failed", message: COULD_NOT_FINISH });
   });
 
-  test("Find a time's unread calendars come back with why, by name", async () => {
+  test("Find a time's unread calendars and interviewers' limits come back with why, by name", async () => {
     findInterviewTimes.mockResolvedValue({
       timezone: "UTC", durationMinutes: 60, slots: [], checked: [{ userId: "a", name: "Dana", via: "their_calendar" }], unknown: [{ userId: "b", name: "Lee", reason: "not_connected" }],
+      limited: [{ userId: "c", name: "Sam", awayThrough: "2030-01-09", fullWeeks: [{ weekOf: "2030-01-14", booked: 3, cap: 3 }] }],
     });
     const answer = await runScheduleRequest(ahead, ctx, { op: "find", interviewerIds: [ID], durationMinutes: 60, windowStart: "2030-01-07T12:00:00Z", windowEnd: "2030-01-20T12:00:00Z", timezone: "UTC", applicationId: ID }, deps);
     expect(answer).toMatchObject({ ok: true, kind: "times", found: { checked: ["Dana"], unknown: [{ name: "Lee", why: clientTools.unknownText("not_connected") }] } });
+    expect(answer).toMatchObject({ found: { limited: [{ name: "Sam", why: "away through Jan 9; has 3 of 3 interviews the week of Jan 14" }] } });
   });
 });

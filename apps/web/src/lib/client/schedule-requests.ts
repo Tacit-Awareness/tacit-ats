@@ -78,6 +78,8 @@ export type FoundTimes = {
   checked: string[];
   /** Interviewers whose calendars could not be read, each with why: not assumed free or busy. */
   unknown: { name: string; why: string }[];
+  /** Interviewers whose own limits took times out (a day away, a week at their cap), each with why. */
+  limited: { name: string; why: string }[];
 };
 
 export type ScheduleAnswer =

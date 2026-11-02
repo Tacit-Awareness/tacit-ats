@@ -87,6 +87,7 @@ async function run(db: Db, ctx: clientTools.ClientToolCtx, request: ScheduleRequ
           slots: found.slots,
           checked: found.checked.map((p) => p.name),
           unknown: found.unknown.map((p) => ({ name: p.name, why: clientTools.unknownText(p.reason) })),
+          limited: found.limited.map((p) => ({ name: p.name, why: clientTools.limitText(p) })),
         },
       };
     }
