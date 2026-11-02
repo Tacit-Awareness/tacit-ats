@@ -12,8 +12,8 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2",
     "@tacit-ats/core": "workspace:^",
-    "@tacit/core": "file:../../vendor/tacit-core-0806105.tgz",
-    "@tacit/db": "file:../../vendor/tacit-db-0806105.tgz",
+    "@tacit/core": "file:../../vendor/tacit-core-c7389c6.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db-c7389c6.tgz",
     "jose": "^6.2.10",
     "mcp-handler": "^2",
     "next": "16.3.0",

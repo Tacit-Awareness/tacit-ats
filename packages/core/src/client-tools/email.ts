@@ -1,9 +1,10 @@
 import type { Db } from "@tacit/db";
 
-import { connector, logTouch, refreshGoogleAccessToken, renderTemplate, sendGmailMessage } from "@tacit/core";
+import { connector, logTouch, renderTemplate, sendGmailMessage } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { replyAddress } from "./email-replies.js";
+import { GMAIL_SEND_SCOPE, grantsScope, type MailboxGrant } from "./mailbox.js";
 
 /**
  * Candidate email for the client connector (20261016100000_client_email):
@@ -15,9 +16,9 @@ import { replyAddress } from "./email-replies.js";
  * emails: written by whoever can_edit_person, sent by their author only).
  * The checks here ask first only to answer with a sentence.
  *
- * Delivery is injected (ClientMailer). A member who has connected their
- * Gmail (mailbox_connections, 20261106120000) sends through it, as Ashby,
- * Lever and Gem do: From their own address, in their own Sent folder, so the
+ * Delivery is injected (ClientMailer). A member with Gmail (their company's
+ * Google Workspace, or their own connection: mailbox.ts) sends through it, as
+ * Ashby does: From their own address, in their own Sent folder, so the
  * candidate replies to them like any email. Everyone else goes through the
  * staff connector's Resend sender (connector/email.ts makeResendSender), From
  * a Tacit-controlled address with the member's name in the display name, since
@@ -64,26 +65,16 @@ export type ClientMailer = {
   mailbox?: ClientMailbox | null;
 };
 
-/** A member's connected Gmail: what they send as, and the grant to send with. */
-export type MailboxGrant = { accountEmail: string; refreshToken: string; scopes: string };
-
 /**
- * Members' own mailboxes. The refresh token is granted to no member token, so
- * each app implements `own` with the service role in one module. It is handed
- * the member's OWN client and answers for whoever that client's token reads in
- * mailbox_connections, which is only ever the member themselves, so no caller
- * can name another member's mailbox.
+ * Members' own Gmail (mailbox.ts's memberMailbox, which each app wires with
+ * its service account and its service-role read of OAuth refresh tokens).
+ * `own` is handed the member's OWN client and their ctx, and answers for them
+ * alone.
  */
 export type ClientMailbox = {
-  /** The Google OAuth client the grants were made to (apps/web's Connect Gmail). */
-  google: { clientId: string; clientSecret: string; fetch?: typeof fetch };
-  own: (db: Db) => Promise<MailboxGrant | null>;
+  own: (db: Db, ctx: ClientToolCtx) => Promise<MailboxGrant | null>;
+  fetch?: typeof fetch;
 };
-
-export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
-/** Reading a candidate's replies takes this too; a member may connect without it. */
-export const GMAIL_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
-export const grantsScope = (grant: { scopes: string }, scope: string) => grant.scopes.split(/\s+/).includes(scope);
 
 const turnedOff = (what: string) =>
   new ClientToolError("forbidden", `Candidate email is turned off on this Tacit deployment. ${what}`);
@@ -266,8 +257,8 @@ export async function addressesOnFile(db: Db, personId: string, primary: string 
 }
 
 /** The member's own Gmail when it is connected and may send, else null. */
-async function ownMailbox(db: Db, mailer: ClientMailer): Promise<MailboxGrant | null> {
-  const grant = mailer.mailbox ? await mailer.mailbox.own(db) : null;
+async function ownMailbox(db: Db, ctx: ClientToolCtx, mailer: ClientMailer): Promise<MailboxGrant | null> {
+  const grant = mailer.mailbox ? await mailer.mailbox.own(db, ctx) : null;
   return grant && grantsScope(grant, GMAIL_SEND_SCOPE) ? grant : null;
 }
 
@@ -277,7 +268,7 @@ async function ownMailbox(db: Db, mailer: ClientMailer): Promise<MailboxGrant | 
  * Exported so apps/web can show it on a draft before Send.
  */
 export async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer, mailbox?: MailboxGrant | null) {
-  const own = mailbox === undefined ? await ownMailbox(db, mailer) : mailbox;
+  const own = mailbox === undefined ? await ownMailbox(db, ctx, mailer) : mailbox;
   const [me, org] = await Promise.all([
     db.from("org_members").select("display_name, email").eq("id", ctx.actorId).maybeSingle(),
     db.from("orgs").select("name").eq("id", ctx.orgId).maybeSingle(),
@@ -449,7 +440,7 @@ export async function sendEmail(
 ): Promise<SendEmailResult> {
   if (!mailer) throw turnedOff("Nothing was sent.");
   if (ctx.accessLevel === "limited") throw notForInterviewers();
-  const mailbox = await ownMailbox(db, mailer);
+  const mailbox = await ownMailbox(db, ctx, mailer);
   const send = mailer.send;
   if (!mailbox && !send) {
     throw new ClientToolError("forbidden", "Email sending is not set up on this Tacit deployment yet, so nothing was sent. The draft is kept.");
@@ -478,13 +469,15 @@ export async function sendEmail(
   // Before the draft is claimed, so a grant Google no longer accepts leaves it a draft.
   let gmailToken: string | null = null;
   if (mailbox) {
-    const google = mailer.mailbox!.google;
     try {
-      gmailToken = await refreshGoogleAccessToken({
-        clientId: google.clientId, clientSecret: google.clientSecret, refreshToken: mailbox.refreshToken, fetchImpl: google.fetch,
-      });
+      gmailToken = await mailbox.accessToken();
     } catch {
-      throw new ClientToolError("forbidden", `Google no longer accepts your Gmail connection (${mailbox.accountEmail}). Connect Gmail again in Settings. Nothing was sent; the draft is kept.`);
+      throw new ClientToolError(
+        "forbidden",
+        mailbox.via === "workspace"
+          ? `Google refused to send as ${mailbox.accountEmail} through your company's Google Workspace. An admin can check it under Settings > Google Workspace. Nothing was sent; the draft is kept.`
+          : `Google no longer accepts your Gmail connection (${mailbox.accountEmail}). Connect Gmail again in Settings. Nothing was sent; the draft is kept.`,
+      );
     }
   }
 
@@ -515,7 +508,7 @@ export async function sendEmail(
         // From their own mailbox, so a reply comes straight back to it. Gmail takes no
         // idempotency key: the claim above is what makes two sends of one draft one email.
         const sent = await sendGmailMessage(
-          { accessToken: gmailToken, fetchImpl: mailer.mailbox?.google.fetch },
+          { accessToken: gmailToken, fetchImpl: mailer.mailbox?.fetch },
           { fromName: sender.name ?? "", fromEmail: mailbox.accountEmail, toEmail: draft.to_email, subject: draft.subject, bodyText: draft.body },
         );
         if (!sent.id) throw new Error("Gmail answered without the message's id");

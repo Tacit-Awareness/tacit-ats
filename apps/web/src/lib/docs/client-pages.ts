@@ -893,17 +893,23 @@ If a placeholder cannot be filled for this candidate (no job given for \`{{job_t
 
 ## Sending from your own Gmail
 
-In **Settings**, **Gmail** › **Connect** asks Google for two things: to send email as you, and to read replies. Leave both ticked and a candidate's replies show in Tacit's Inbox as well as your own; untick reading and Tacit only sends. Tacit reads only the threads its own emails started, never the rest of your mailbox. Disconnect there at any time, and email goes out from Tacit's address again.
+With Gmail connected, email you send a candidate goes out **from your own address**, sits in your Sent folder, and the candidate's reply comes back to your inbox like any email. Your email with candidates is also kept on their profile: what you send them from Gmail, what they send you, and their replies to Tacit's email, which show in Tacit's Inbox too. Your team sees it where they can see the candidate; interviewers never do.
 
-### For your Google Workspace admin
+Tacit looks only at who each new email is between. It reads an email in full only when it is with someone on file as a candidate at your company, and never mail with anyone else, including your colleagues.
 
-Until Google has finished reviewing Tacit's Gmail access, a company on Google Workspace may see Google block the connection, or warn that the app is unverified. An admin can allow it for everyone in about two minutes:
+**If your company uses Google Workspace**, an admin connects it once for everyone (below), and there is nothing for you to connect: **Settings** › **Gmail** says so, and has **Turn off sync** if you don't want your email with candidates kept. Email you send from Tacit still goes out from your address.
 
-1. In the [Google Admin console](https://admin.google.com), open **Security** › **Access and data control** › **API controls**.
-2. Under **App access control**, choose **Manage Third-Party App Access**, then **Add app** › **OAuth App Name Or Client ID**.
-3. Paste Tacit's client ID (an admin sees it in Tacit's **Settings**, under Gmail), pick the app, and set it to **Trusted**.
+**Otherwise**, connect your own: **Settings** › **Gmail** › **Connect**. Google asks for two things, to send as you and to read your mail; untick reading and Tacit only sends.
 
-Then everyone in the company can connect Gmail from Settings. Trusting the app changes nothing about what it reads: each person still chooses on Google's screen, and Tacit still reads only its own threads.
+### Connecting your company's Google Workspace
+
+An admin does this once, with your Google Workspace admin, in a few minutes:
+
+1. In Tacit, open **Settings** › **Google Workspace**. It shows Tacit's client ID and the two permissions to grant.
+2. Your Google Workspace admin opens the [Google Admin console](https://admin.google.com) › **Security** › **Access and data control** › **API controls** › **Manage Domain Wide Delegation**, chooses **Add new**, pastes the client ID and the permissions, and authorizes.
+3. Back in Tacit, press **Verify**. Tacit asks Google to act as you; it can take a few minutes after authorizing before Google agrees.
+
+From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer. **Disconnect** there stops it.
 
 ## Sent email is on the record
 

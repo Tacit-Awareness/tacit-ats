@@ -18,9 +18,11 @@ export default async function ClientSettings({
 
   const { notice, error } = await searchParams;
   const admin = gate.ctx.accessLevel === "admin";
-  const [calendar, mailbox, granola, bot, botConnected] = await Promise.all([
+  const [calendar, mailbox, workspace, syncOff, granola, bot, botConnected] = await Promise.all([
     gate.ctx.db.from("calendar_connections").select("account_email").maybeSingle(),
     gate.ctx.db.from("mailbox_connections").select("account_email, scopes").maybeSingle(),
+    gate.ctx.db.from("google_workspace_connections").select("domain, verified_at").maybeSingle(),
+    gate.ctx.db.from("mailbox_sync_optouts").select("actor_id").maybeSingle(),
     gate.ctx.db.from("granola_connections").select("account_email").maybeSingle(),
     // The company's bot: only an admin's token reads the row (never its secret).
     admin
@@ -36,6 +38,13 @@ export default async function ClientSettings({
   ]);
   if (calendar.error) throw new Error(calendar.error.message);
   if (mailbox.error) throw new Error(mailbox.error.message);
+  if (workspace.error) throw new Error(workspace.error.message);
+  if (syncOff.error) throw new Error(syncOff.error.message);
+  const myEmail = gate.ctx.user.email.trim().toLowerCase();
+  const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
+  // As core's memberMailbox decides: the company's Workspace covers a member above interviewer at its domain.
+  const throughWorkspace =
+    !!serviceAccount && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
   if (granola.error) throw new Error(granola.error.message);
   if (bot.error) throw new Error(bot.error.message);
   if (botConnected.error) throw new Error(botConnected.error.message);
@@ -55,9 +64,17 @@ export default async function ClientSettings({
             ? { accountEmail: mailbox.data.account_email, readsReplies: clientTools.grantsScope(mailbox.data, clientTools.GMAIL_READ_SCOPE) }
             : null
       }
+      throughWorkspace={throughWorkspace ? { accountEmail: myEmail, syncOn: !syncOff.data } : null}
+      workspace={
+        admin
+          ? {
+              configured: !!serviceAccount,
+              clientId: serviceAccount?.clientId ?? null,
+              connected: workspace.data ? { domain: workspace.data.domain, verifiedAt: workspace.data.verified_at } : null,
+            }
+          : null
+      }
       calendarConfigured={googleCalendarConfig() !== null}
-      // Public (it is in every consent URL); an admin pastes it into Google Admin to trust Tacit.
-      googleClientId={admin ? (googleCalendarConfig()?.clientId ?? null) : null}
       bot={admin ? { set: bot.data ? { url: bot.data.url, enabled: bot.data.enabled, verifiedAt: bot.data.verified_at } : null } : null}
       botConnected={admin ? undefined : !!botConnected.data}
       orgName={gate.ctx.org.name}

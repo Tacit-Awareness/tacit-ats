@@ -5,7 +5,8 @@
 // client_connect_mailbox on the member's own token (mailbox_connections,
 // tacit-internal 20261106120000), which no member token can read back;
 // core's sendEmail sends with it (lib/client/mailbox.ts), and the reply reader
-// (lib/inbound/gmail-replies.ts) reads the threads it started.
+// (lib/inbound/gmail-sync.ts) reads the mailbox. A company on Google Workspace
+// needs none of this: its admin connects everyone at once (lib/client/mailbox.ts).
 //
 // gmail.send is required. gmail.readonly is asked for and optional: Google's
 // consent lets a member untick it, and they then send from Gmail with their

@@ -14,8 +14,9 @@
 //     check-in), and tells the bot when one it opened a thread about was cancelled;
 //   - delivers to the bot: signed JSON, the contract in core's notify/agent-webhook.ts.
 //
-// Then, for every company, with or without a bot: candidates' replies to email
-// members sent from their own Gmail (lib/inbound/gmail-replies.ts), kept for the
+// Then, for every company, with or without a bot: the Gmail sync
+// (lib/inbound/gmail-sync.ts), email between members and candidates from
+// members' own mailboxes, and the replies to Tacit's own email kept for the
 // Inbox and passed to the company's bot when it has one.
 //
 // One company's failure does not stop the others. CRON_SECRET authenticates
@@ -24,7 +25,8 @@ import { runNotifications } from "@tacit/core";
 import { start } from "workflow/api";
 
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
-import { readGmailReplies } from "@/lib/inbound/gmail-replies";
+import { syncGmail } from "@/lib/inbound/gmail-sync";
+import { clientTools } from "@tacit-ats/core";
 import { pingCompanyBot } from "@/lib/notify/candidate-replied";
 import { companiesWithBots, companyCalendar, companyHub, notifierDb } from "@/lib/notify/notifier";
 import { interviewReminderTimer } from "@/workflows/interview-reminder";
@@ -74,15 +76,16 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
   const google = googleCalendarConfig();
+  const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
   const origin = new URL(request.url).origin;
-  let gmailReplies;
+  let gmail;
   try {
-    gmailReplies = google
-      ? await readGmailReplies(db, { google, ping: (orgId, reply) => pingCompanyBot(db, orgId, reply, origin) })
+    gmail = google || serviceAccount
+      ? await syncGmail(db, { google, serviceAccount, ping: (orgId, reply) => pingCompanyBot(db, orgId, reply, origin) })
       : null;
   } catch (err) {
-    console.error("[cron] gmail replies failed", err instanceof Error ? err.message.slice(0, 200) : "failed");
-    gmailReplies = { status: "failed" as const };
+    console.error("[cron] gmail sync failed", err instanceof Error ? err.message.slice(0, 200) : "failed");
+    gmail = { status: "failed" as const };
   }
-  return Response.json({ status: "ok", companies: results.length, results, gmailReplies });
+  return Response.json({ status: "ok", companies: results.length, results, gmail });
 }

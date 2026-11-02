@@ -30,7 +30,7 @@ export async function keepReply(db: Db, mail: ReceivedEmail, forward: ReplyForwa
 
 /**
  * Keeps a reply to the email it is known to answer: by its reply+<id>@ address
- * above, or by the Gmail thread that email started (gmail-replies.ts, which
+ * above, or by the Gmail thread that email started (gmail-sync.ts, which
  * passes no forwarder, since the reply is already in the member's own mailbox).
  */
 export async function keepReplyTo(db: Db, emailId: string, mail: ReceivedEmail, forward: ReplyForwarder | null, ping?: ReplyPing): Promise<ReplyOutcome> {

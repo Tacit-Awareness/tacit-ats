@@ -227,7 +227,7 @@ describe("sendEmail", () => {
   });
 
   describe("from the member's own Gmail", () => {
-    const GRANT = { accountEmail: "ada@acme.test", refreshToken: "rt", scopes: "openid https://www.googleapis.com/auth/gmail.send" };
+    const GRANT = { accountEmail: "ada@acme.test", scopes: "openid https://www.googleapis.com/auth/gmail.send", via: "oauth" as const };
     const SENT = [
       { data: DRAFT }, { data: [] }, ME, ACME,
       { data: "audit-1" }, { data: [{ id: "d-1" }] }, { data: null },
@@ -245,9 +245,20 @@ describe("sendEmail", () => {
       }) as unknown as typeof globalThis.fetch;
       return { calls, fetch };
     }
+    // The grant's token comes from Google's token endpoint, as the apps' memberMailbox gets it.
     const withGmail = (send: ClientMailer["send"], fetch: typeof globalThis.fetch, grant: typeof GRANT | null = GRANT): ClientMailer => ({
       ...mailer(send), replyDomain: "in.tacit.test",
-      mailbox: { google: { clientId: "cid", clientSecret: "cs", fetch }, own: vi.fn(async () => grant) },
+      mailbox: {
+        fetch,
+        own: vi.fn(async () => grant && {
+          ...grant,
+          accessToken: async () => {
+            const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST" });
+            if (!res.ok) throw new Error("refused");
+            return ((await res.json()) as { access_token: string }).access_token;
+          },
+        }),
+      },
     });
     const raw = (body: string) =>
       Buffer.from((JSON.parse(body) as { raw: string }).raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");

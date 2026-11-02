@@ -6,6 +6,11 @@ export const MAILBOX_NOTICES = {
   mailbox_connected_send_only:
     "Your Gmail is connected for sending. Replies stay in your Gmail only, since Tacit wasn't allowed to read them: connect again and leave both boxes ticked to see them in the Inbox.",
   mailbox_disconnected: "Gmail is disconnected. Email you send candidates goes out from Tacit's address again.",
+  workspace_connected:
+    "Your Google Workspace is connected. Everyone at your domain now sends candidate email from their own address, and their email with candidates syncs to Tacit.",
+  workspace_disconnected: "Google Workspace is disconnected. Candidate email goes out from Tacit's address again, and nothing more is synced.",
+  sync_on: "Your Gmail sync is on. Your email with candidates shows on their profiles.",
+  sync_off: "Your Gmail sync is off. Email you send from Tacit still goes out from your address; nothing else is synced.",
 } as const;
 
 export const MAILBOX_ERRORS = {
@@ -17,6 +22,11 @@ export const MAILBOX_ERRORS = {
   mailbox_no_email: "Google didn't say which account this is. Try again.",
   mailbox_exchange_failed: "Google didn't complete the connection. Try again.",
   mailbox_failed: "That didn't work. Nothing was changed.",
+  workspace_not_set_up: "Google Workspace connections are not set up on this Tacit deployment yet.",
+  workspace_not_admin: "Only an admin can connect your company's Google Workspace.",
+  workspace_no_domain: "Your address isn't one Google Workspace can be connected for.",
+  workspace_refused:
+    "Google refused. In your Google Admin console, check that Tacit's client ID is under Security > Access and data control > API controls > Domain-wide delegation, with both scopes shown here. A new entry can take a few minutes to start working.",
 } as const;
 
 export type MailboxNotice = keyof typeof MAILBOX_NOTICES;

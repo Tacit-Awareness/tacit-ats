@@ -87,7 +87,7 @@ describe("the client connector never holds a database client other than the memb
       ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
       ["client/calendar.ts", ["calendarConnections"]],
       ["client/granola.ts", ["granolaAccessToken"]],
-      ["client/mailbox.ts", ["ownMailbox"]],
+      ["client/mailbox.ts", ["mailboxRefreshToken"]],
     ] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);

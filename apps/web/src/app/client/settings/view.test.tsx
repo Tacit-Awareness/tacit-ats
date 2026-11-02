@@ -3,7 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 
 vi.mock("../calendar/actions", () => ({ disconnectCalendarAction: async () => {} }));
 vi.mock("../integrations/actions", () => ({ disconnectGranolaAction: async () => {} }));
-vi.mock("../mailbox/actions", () => ({ disconnectMailboxAction: async () => {} }));
+vi.mock("../mailbox/actions", () => ({ disconnectMailboxAction: async () => {}, disconnectWorkspaceAction: async () => {}, setMailboxSyncAction: async () => {}, verifyWorkspaceAction: async () => {} }));
 vi.mock("../integrations/bot", () => ({ BotSection: () => null }));
 
 import { SettingsView } from "./view";
@@ -48,12 +48,31 @@ describe("SettingsView", () => {
     expect(sendOnly).toContain("goes out from ada@acme.test; replies stay in your Gmail");
   });
 
-  test("tells an admin the client ID their Google admin trusts, and nobody else", () => {
-    expect(html).not.toContain("trusting Tacit");
-    const admin = renderToStaticMarkup(
-      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured googleClientId="123.apps.googleusercontent.com" bot={null} orgName="Acme" botCallbackUrl={null} />,
+  test("an admin gets the Google Workspace setup with the client ID and scopes, then Verify", () => {
+    expect(html).not.toContain("Google Workspace");
+    const setup = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
+        workspace={{ configured: true, clientId: "1234567890", connected: null }} />,
     );
-    expect(admin).toContain("123.apps.googleusercontent.com");
-    expect(admin).toContain('href="/client/docs/email"');
+    expect(setup).toContain("1234567890");
+    expect(setup).toContain("gmail.send,https://www.googleapis.com/auth/gmail.readonly");
+    expect(setup).toContain(">Verify<");
+    const connected = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
+        workspace={{ configured: true, clientId: "1234567890", connected: { domain: "acme.test", verifiedAt: "2026-11-02T00:00:00Z" } }} />,
+    );
+    expect(connected).toContain("Connected for <strong>acme.test</strong>");
+    expect(connected).toContain("Disconnect");
   });
+
+  test("a member covered by the Workspace has nothing to connect, only their own sync switch", () => {
+    const covered = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
+        throughWorkspace={{ accountEmail: "ada@acme.test", syncOn: true }} />,
+    );
+    expect(covered).toContain("as ada@acme.test");
+    expect(covered).toContain("Turn off sync");
+    expect(covered).not.toContain('href="/client/mailbox/connect"');
+  });
+
 });

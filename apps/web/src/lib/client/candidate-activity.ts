@@ -57,6 +57,10 @@ export function activityLine(e: Entry): ActivityLine {
       return { what: "emailed them", body: e.text };
     case "email.reply":
       return { what: "replied by email", body: e.text };
+    case "email.out":
+      return { what: "emailed them", body: e.text };
+    case "email.in":
+      return { what: "wrote by email", body: e.text };
     default:
       return { what: `${OFFER[e.kind] ?? e.kind.replace(/[._]/g, " ")}${on(e)}`, body: e.text };
   }
