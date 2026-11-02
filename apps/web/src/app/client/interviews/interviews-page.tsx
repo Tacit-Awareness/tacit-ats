@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { clientTools } from "@tacit-ats/core";
+import { canFile, type FeedbackForm as OwnFeedback } from "@/lib/client/feedback-rules";
+import { readFeedbackForm } from "@/lib/client/feedback";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { granolaReadable } from "@/lib/client/interview-granola";
 import { GROUPS, groupInterviews, verdictOf, type Verdict } from "@/lib/client/interview-groups";
@@ -8,7 +10,9 @@ import { readReviewed } from "@/lib/client/interview-reviews";
 import { readInterview, readInterviewRoute, readInterviews, type InterviewDetail, type InterviewListItem, type InterviewRoute, type Member } from "@/lib/client/interviews";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
+import { toolCtx } from "@/lib/client/tool-ctx";
 import { Refusal } from "../refusal";
+import { FeedbackForm } from "./feedback-form";
 import { GranolaLoading, GranolaNotes } from "./granola";
 import { feedbackCards, loopProps } from "./loop-props";
 import { InterviewsView, type ListGroup, type Reader } from "./view";
@@ -17,9 +21,10 @@ import { InterviewsView, type ListGroup, type Reader } from "./view";
 // then the past ones by how they went, and a reader with the candidate's loop
 // and this interview's feedback. Read with the signed-in member's own token
 // (lib/client/interviews.ts), so an interviewer sees their own interviews and
-// the feedback the org's feedback_visibility lets them read. Feedback is filed
-// from the client connector (submit_feedback); the page's one write is the
-// member's own reviewed check (review.tsx, which saves through review/route.ts).
+// the feedback the org's feedback_visibility lets them read. Two writes: on an
+// interview the member ran, their own feedback (feedback-form.tsx, the
+// connector's submit_feedback), and their reviewed check (review.tsx, which
+// saves through review/route.ts).
 // On an interview the member ran, their own Granola notes stream in below the
 // rest (./granola.tsx): `?note=` is the meeting they picked when nothing matched,
 // `?transcript=1` asks for the transcript too, both read from the URL like `?i=`.
@@ -79,6 +84,7 @@ export async function InterviewsContent({ sp, home = false }: { sp: Record<strin
   const listed = new Set(ordered.map((i) => i.interviewId));
 
   let reader: Reader | null = null;
+  let own: OwnFeedback | null = null;
   let readerError: string | null = null;
   if (selected) {
     try {
@@ -89,6 +95,10 @@ export async function InterviewsContent({ sp, home = false }: { sp: Record<strin
       ]);
       const routing = await readInterviewRoute(db, member, selected.jobId, detail.plan.steps);
       reader = buildReader(href, selected, detail, application.data?.stage ?? null, routing, listed, member, nowMs);
+      if (canFile(selected, nowMs)) {
+        const mine = detail.feedback.feedback.find((f) => f.mine && f.interviewId === selected.interviewId) ?? null;
+        own = await readFeedbackForm(db, toolCtx(gate.ctx), { interviewId: selected.interviewId, jobId: selected.jobId, mine });
+      }
     } catch (err) {
       if (!(err instanceof clientTools.ClientToolError)) throw err;
       readerError = "This interview is no longer there for you to read.";
@@ -142,6 +152,7 @@ export async function InterviewsContent({ sp, home = false }: { sp: Record<strin
       counts={counts}
       reviewed={reviewed}
       reader={reader}
+      own={reader && own ? <FeedbackForm key={own.interviewId} form={own} candidate={reader.candidate} /> : null}
       granola={granola}
       open={!!asked && selected?.interviewId === asked}
       readerError={readerError}

@@ -312,6 +312,8 @@ Pick one to see the candidate's whole loop and who ran each round, then this int
 
 When a job's plan matches your [interview process](/docs/app-interviews#interview-process), admins and the hiring team see the loop as the process itself: the candidate's branch lit, other teams' branches faded, who is up next and how many rounds are left before the offer. It shows who has filed feedback, never what they said, and rounds that aren't on the plan sit below it. Admins can open the process from there. On a phone, scroll it sideways.
 
+**File your feedback** on an interview you sat on, once it has started: whether you'd hire them (strong yes, yes, no or strong no), an optional overall rating from 1 to 4, the job's scorecard if it has one, each rated 1 to 4 with an optional note, and your notes. \`⌘↵\` files it. Once filed it folds to **Edit your feedback**, and filing again replaces what you filed. Who else can read it follows your company's [feedback visibility](/docs/access#feedback-visibility). It is the same as \`submit_feedback\` in Claude.
+
 Press \`E\`, or the round button on a row, to mark a past interview as reviewed. The mark is yours alone, and the page counts how many are left.
 
 If you connected Granola, your own notes appear on interviews you sat on, with the transcript a click away. Only your own notes are ever read.
