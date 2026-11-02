@@ -28,6 +28,7 @@ import {
   type Ymd,
 } from "@/lib/client/schedule-layout";
 import { searchOrder } from "@/lib/client/schedule-search";
+import { withoutBook, type NextRound } from "@/lib/client/next-round-rules";
 import { cn } from "@/lib/utils";
 import { ScheduleDialog, type Flow } from "./booking";
 import { cssPx } from "@/lib/ui-scale";
@@ -565,6 +566,7 @@ export function ScheduleView({
   q,
   truncated,
   canBook,
+  nextRound = null,
   banner,
 }: {
   view: View;
@@ -581,6 +583,8 @@ export function ScheduleView({
   truncated: boolean;
   /** May book on some job: not an interviewer. Which jobs is the dialog's read, and the policies' at the write. */
   canBook: boolean;
+  /** The `?book=`, the Inbox's Next round: Find a time opens on it once, prefilled. */
+  nextRound?: NextRound | null;
   /** Above the toolbar: the page's banner, when it has one. */
   banner?: React.ReactNode;
 }) {
@@ -595,8 +599,12 @@ export function ScheduleView({
   const today = timeZone ? todayIn(timeZone, now) : null;
   const shown = anchor ?? today;
 
-  const [flow, setFlow] = React.useState<Flow | null>(null);
+  const [flow, setFlow] = React.useState<Flow | null>(() => (canBook && nextRound ? { kind: "book", find: true, next: nextRound } : null));
   const [notice, setNotice] = React.useState<string | null>(null);
+  // Once open, `?book=` has done its job: a reload, or Back after a booking, shouldn't open it again.
+  React.useEffect(() => {
+    if (nextRound) router.replace(withoutBook(window.location.search), { scroll: false });
+  }, [nextRound, router]);
   const openEvent = React.useCallback((event: CalendarEvent) => setFlow({ kind: "event", event }), []);
   const bookAt = (find: boolean) => setFlow({ kind: "book", find, ...(shown ? { at: { day: shown, minutes: 10 * 60, length: 60 } } : {}) });
 

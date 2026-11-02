@@ -1,10 +1,11 @@
 import { Banner } from "@/components/banner";
 import { bannerTag } from "@/lib/banner-rules";
 import { safeHref } from "@/lib/client/applicant-queue";
+import { parseBook } from "@/lib/client/next-round-rules";
 import { awayBanner } from "@/lib/client/interviewer-profile";
 import { readAway } from "@/lib/client/interviewers";
 import { readAllInterviews, readSchedule } from "@/lib/client/schedule";
-import { schedulableRoles } from "@/lib/client/schedule-choices";
+import { readNextRound, schedulableRoles } from "@/lib/client/schedule-choices";
 import { departmentTones, isScheduleView, parseYmd, readWindow, toneFor } from "@/lib/client/schedule-layout";
 import { matchesSearch, parseSearch } from "@/lib/client/schedule-search";
 import { resolveClient } from "@/lib/client/session";
@@ -33,6 +34,11 @@ import { ScheduleView, type CalendarEvent } from "./view";
 // an interview still ahead on a job the member may schedule on, asked the way a
 // write asks, and the write asks again. An interviewer changes nothing.
 //
+// `?book=` is the Inbox's Next round (lib/client/next-round-rules.ts): an
+// application's id, opening Find a time on that candidate and job with their
+// plan's next step picked, read here on the member's own token. view.tsx drops
+// it from the address once the dialog is up. An interviewer gets the Calendar.
+//
 // Above it, for whoever books, the prototype's banner of interviewers who are
 // away (their Interviewers profile's "Away through"), from the profiles their
 // own token reads; dismissed in this browser until someone else is away.
@@ -54,7 +60,17 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
 
   const now = new Date();
   const member = { actorId, orgId: org.id, accessLevel };
-  const { items, departments, truncated } = q ? await readAllInterviews(db, member, now) : await readSchedule(db, member, readWindow(view, anchor, now), now);
+  const book = accessLevel === "limited" ? null : parseBook(one(sp.book));
+  const [{ items, departments, truncated }, nextRound] = await Promise.all([
+    q ? readAllInterviews(db, member, now) : readSchedule(db, member, readWindow(view, anchor, now), now),
+    // The step is a convenience: a failed read still opens the dialog on the candidate.
+    book
+      ? readNextRound(db, member, book).catch((err) => {
+          console.error("[client-schedule] reading the next round failed:", err instanceof Error ? err.message : err);
+          return { applicationId: book, step: null };
+        })
+      : null,
+  ]);
   const tones = departmentTones(departments);
   // The department filter's choices: the outermost departments the member may read, by name.
   const names = [...new Set([...tones.values()].map((t) => t.name))].sort((a, b) => a.localeCompare(b));
@@ -97,6 +113,7 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
       q={q}
       truncated={truncated}
       canBook={accessLevel !== "limited"}
+      nextRound={nextRound}
       banner={
         away ? (
           <Banner

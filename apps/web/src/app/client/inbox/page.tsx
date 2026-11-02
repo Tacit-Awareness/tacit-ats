@@ -48,7 +48,7 @@ function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
     case "decide":
       return {
         title: "The team's call",
-        detail: decidable ? `${i.why}. Next round opens their page: booking one is the client connector's schedule_interview for now.` : `${i.why}. Move them on or close them from their page.`,
+        detail: decidable ? `${i.why}. Next round finds a time for their next interview.` : `${i.why}. Move them on or close them from their page.`,
       };
     case "approval":
       return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };

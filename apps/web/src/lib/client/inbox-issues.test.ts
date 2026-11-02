@@ -184,15 +184,16 @@ describe("a decision's fix", () => {
 
   test("the team's call is decided here only by someone who may edit the pipeline", () => {
     expect(decide.reason).toBe("decide");
-    expect(issueFix(decide, true)).toEqual({ type: "decide", applicationId: "a", nextRoundHref: "/client/candidates/p-a" });
+    // Next round books the next interview: the Calendar's Find a time, on them.
+    expect(issueFix(decide, true)).toEqual({ type: "decide", applicationId: "a", nextRoundHref: "/client/schedule?book=a" });
     expect(issueFix(decide, false).type).toBe("link");
   });
 
   test("the second way out is the candidate, or for a job's approval the job", () => {
     expect(secondaryLink(offer, issueFix(offer, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
     expect(secondaryLink(job, issueFix(job, true))).toEqual({ label: "Open the job", href: "/client/jobs/job" });
-    // Next round is already their page.
-    expect(secondaryLink(decide, issueFix(decide, true))).toBeNull();
+    // Next round goes to the Calendar, so their page is still a way out.
+    expect(secondaryLink(decide, issueFix(decide, true))).toEqual({ label: "Open candidate", href: "/client/candidates/p-a" });
   });
 
   test("an approver who can't open the page behind it gets no link to a 404", () => {
