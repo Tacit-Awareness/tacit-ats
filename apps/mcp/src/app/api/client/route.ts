@@ -41,11 +41,17 @@ async function handle(request: Request): Promise<Response> {
       return { ...mailer, mailbox: { own: (db, ctx) => clientTools.memberMailbox(db, ctx, sources) } };
     })(),
     // No CLIENT_GOOGLE_CLIENT_ID / _SECRET: no availability, interviews recorded in Tacit only.
+    // With the service account too, a member their company's Google Workspace covers books through it.
     calendar: (() => {
       const google = clientGoogleCalendar();
-      return google
-        ? { google: { clientId: google.clientId, clientSecret: google.clientSecret }, connections: calendarConnections, connectUrl: google.connectUrl }
-        : null;
+      if (!google) return null;
+      const delegation = clientTools.delegationFrom(process.env, () => getVercelOidcToken());
+      return {
+        google: { clientId: google.clientId, clientSecret: google.clientSecret },
+        connections: (orgId, actorIds) => calendarConnections(orgId, actorIds, { workspace: !!delegation }),
+        delegation,
+        connectUrl: google.connectUrl,
+      };
     })(),
     // A member's own Granola access token, read (and refreshed) with the service role only for the caller.
     granola: { accessToken: (orgId, actorId) => granolaAccessToken(orgId, actorId), connectUrl: granolaConnectUrl() },

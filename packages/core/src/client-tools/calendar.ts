@@ -3,6 +3,7 @@ import type { Db } from "@tacit/db";
 
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 import { awayOn, fullIn, limitedIn, readInterviewerLimits, type LimitedInterviewer } from "./interviewer-limits.js";
+import { delegatedAccessToken, domainOf, type DelegationSigner } from "./mailbox.js";
 
 /**
  * Calendar scheduling for the client connector: a member's own Google
@@ -19,15 +20,37 @@ import { awayOn, fullIn, limitedIn, readInterviewerLimits, type LimitedInterview
  * their company, on a job they may schedule on), or the member whose
  * calendar holds an interview the caller's own token has read and may
  * change. Only busy times are ever read from a calendar, never what is in it.
+ *
+ * Before any of that, the company's Google Workspace (2026-11-02), the way
+ * Ashby has one admin setup for Gmail and Calendar: the admin who delegated
+ * Gmail to Tacit's service account (mailbox.ts) adds the two calendar scopes
+ * to the same entry, and every member it covers (signed in, above
+ * interviewer, their address at the verified domain: the rule memberMailbox
+ * applies to the caller) is booked AS themselves through it, with nothing to
+ * connect. Their own connection, if they made one, stays as the fallback for
+ * when Google refuses the Workspace's grant (a company that has not added the
+ * calendar scopes yet).
  */
 
-export type CalendarConnection = { accountEmail: string; refreshToken: string };
+/** A member's own Google Calendar, connected by OAuth (calendar_connections). */
+export type OwnCalendar = { accountEmail: string; refreshToken: string };
+/** Whose grant books for a member: their company's Workspace, as their work address, or their own connection. */
+export type CalendarConnection = OwnCalendar | { accountEmail: string; workspace: true; own: OwnCalendar | null };
+
+export const CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+export const CALENDAR_FREEBUSY_SCOPE = "https://www.googleapis.com/auth/calendar.events.freebusy";
+/** What a Workspace-delegated calendar token asks for: the same two scopes a member's own connection grants. */
+export const WORKSPACE_CALENDAR_SCOPES = [CALENDAR_EVENTS_SCOPE, CALENDAR_FREEBUSY_SCOPE];
+
+export const throughWorkspace = (conn: CalendarConnection | null | undefined): boolean => !!conn && "workspace" in conn;
 
 export type ClientCalendar = {
   /** The Google OAuth client the members' grants were made to (apps/web's connect flow). */
   google: connector.CalendarDeps;
-  /** The connections these members of the org have; absent = not connected. */
+  /** The connections these members of the org have (readCalendarConnections); absent = not connected. */
   connections: (orgId: string, actorIds: string[]) => Promise<Map<string, CalendarConnection>>;
+  /** Tacit's service account, which signs a Workspace-covered member's token. Null: no Workspace calendars. */
+  delegation?: DelegationSigner | null;
   /** Where a member connects their calendar (apps/web /client/calendar), for the sentences. Null = not said. */
   connectUrl: string | null;
 };
@@ -100,7 +123,7 @@ function clockMinutes(value: string, label: string): number {
 
 export type Person = { userId: string; name: string };
 export type Interval = { start: number; end: number };
-export type UnknownReason = "not_connected" | "not_shared" | "connection_expired" | "lookup_failed";
+export type UnknownReason = "not_connected" | "not_shared" | "connection_expired" | "workspace_refused" | "lookup_failed";
 
 export type Availability = {
   /** Busy intervals of each interviewer whose calendar could be read, and how. */
@@ -109,22 +132,98 @@ export type Availability = {
   /** The caller's own access token, when they are connected and it refreshed. */
   callerToken: string | null;
   callerConnection: CalendarConnection | null;
-  /** Whether the caller's connection exists but would not refresh. */
+  /** Whether the caller's connection exists but would not refresh (or Google refused their Workspace's grant). */
   callerExpired: boolean;
   connections: Map<string, CalendarConnection>;
   /** Access tokens that refreshed, by member: the caller's (or the holder's) and each connected interviewer's. */
   tokens: Map<string, string>;
 };
 
-export async function accessToken(calendar: ClientCalendar, conn: CalendarConnection): Promise<string | null> {
+/**
+ * An access token for one member's calendar, and the grant it came from: the
+ * Workspace's, else (Google refused it) their own connection's. Null when
+ * neither gives one.
+ */
+export async function calendarAccess(
+  calendar: Pick<ClientCalendar, "google" | "delegation">,
+  conn: CalendarConnection,
+): Promise<{ token: string; conn: CalendarConnection } | null> {
+  if ("workspace" in conn) {
+    if (calendar.delegation) {
+      try {
+        return { token: await delegatedAccessToken(calendar.delegation, conn.accountEmail, WORKSPACE_CALENDAR_SCOPES, calendar.google.fetch), conn };
+      } catch (err) {
+        // Google's status only; the member's address stays out of the log.
+        console.error("[client-tools calendar] workspace token refused:", err instanceof Error ? err.message.replace(/\S+@\S+/g, "<address>").slice(0, 200) : "failed");
+      }
+    }
+    return conn.own ? calendarAccess(calendar, conn.own) : null;
+  }
   try {
-    return await refreshGoogleAccessToken({
+    const token = await refreshGoogleAccessToken({
       clientId: calendar.google.clientId, clientSecret: calendar.google.clientSecret,
       refreshToken: conn.refreshToken, fetchImpl: calendar.google.fetch,
     });
+    return { token, conn };
   } catch {
     return null;
   }
+}
+
+export async function accessToken(calendar: Pick<ClientCalendar, "google" | "delegation">, conn: CalendarConnection): Promise<string | null> {
+  return (await calendarAccess(calendar, conn))?.token ?? null;
+}
+
+/** Why a member's connection gave no token. */
+const failedReason = (conn: CalendarConnection): UnknownReason => ("workspace" in conn ? "workspace_refused" : "connection_expired");
+
+/**
+ * The calendar grants of these members of the org, for ClientCalendar's
+ * `connections`: read with the SERVICE ROLE (a refresh token, and whether a
+ * member has signed in, are granted to no member token), so the apps call it
+ * only with the actor ids core asked for and the org of the bound member.
+ * With `workspace` (the deployment can sign delegated tokens), a member the
+ * company's verified Google Workspace covers gets their work address through
+ * it, their own connection kept as its fallback.
+ */
+export async function readCalendarConnections(
+  serviceDb: Db,
+  orgId: string,
+  actorIds: string[],
+  opts: { workspace: boolean },
+): Promise<Map<string, CalendarConnection>> {
+  const ids = [...new Set(actorIds)];
+  if (!ids.length) return new Map();
+  const none = Promise.resolve({ data: null, error: null });
+  const [own, workspace, actors] = await Promise.all([
+    serviceDb.from("calendar_connections").select("actor_id, account_email, refresh_token").eq("org_id", orgId).eq("provider", "google").in("actor_id", ids),
+    opts.workspace ? serviceDb.from("google_workspace_connections").select("domain").eq("org_id", orgId).maybeSingle() : none,
+    opts.workspace
+      ? serviceDb.from("actors").select("id, email, access_level, auth_subject").eq("org_id", orgId).is("archived_at", null).in("id", ids)
+      : none,
+  ]);
+  if (own.error) throw new Error(`calendar_connections: ${own.error.message}`);
+  if (workspace.error) throw new Error(`google_workspace_connections: ${workspace.error.message}`);
+  if (actors.error) throw new Error(`actors: ${actors.error.message}`);
+  const found = new Map<string, CalendarConnection>(
+    (own.data ?? []).map((c) => [c.actor_id, { accountEmail: c.account_email, refreshToken: c.refresh_token }]),
+  );
+  const domain = workspace.data?.domain;
+  if (!domain) return found;
+  for (const a of actors.data ?? []) {
+    const email = a.email?.trim().toLowerCase();
+    if (!a.auth_subject || a.access_level === "limited" || !email || domainOf(email) !== domain) continue;
+    const mine = found.get(a.id);
+    found.set(a.id, { accountEmail: email, workspace: true, own: mine && !("workspace" in mine) ? mine : null });
+  }
+  return found;
+}
+
+/** The sentence for a caller whose grant gave no token. */
+export function callerExpiredText(calendar: ClientCalendar, conn: CalendarConnection | null): string {
+  return conn && "workspace" in conn
+    ? "Google refused Tacit's access to your calendar through your company's Google Workspace: one of its Google admins adds the calendar scopes to Tacit's entry under domain-wide delegation (Settings lists them), then a Tacit admin presses Verify."
+    : `Your Google connection has expired. ${connectHint(calendar)}`;
 }
 
 /**
@@ -132,6 +231,8 @@ export async function accessToken(calendar: ClientCalendar, conn: CalendarConnec
  * calendar when they have one, else from the caller's connection asking for
  * their address (which Google answers inside one Workspace), else unknown.
  * `via` defaults to the caller; a move uses the holder of the event instead.
+ * A grant that falls back from the Workspace to a member's own connection
+ * replaces theirs in `connections`, so their address is that calendar's.
  */
 export async function availability(
   calendar: ClientCalendar,
@@ -141,25 +242,31 @@ export async function availability(
   via: string = ctx.actorId,
 ): Promise<Availability> {
   const connections = await calendar.connections(ctx.orgId, [...new Set([via, ...interviewers.map((i) => i.id)])]);
+  const tokenOf = async (id: string): Promise<string | null> => {
+    const conn = connections.get(id);
+    const got = conn ? await calendarAccess(calendar, conn) : null;
+    if (got) connections.set(id, got.conn);
+    return got?.token ?? null;
+  };
+  const callerToken = await tokenOf(via);
   const callerConnection = connections.get(via) ?? null;
-  const callerToken = callerConnection ? await accessToken(calendar, callerConnection) : null;
   const checked: Availability["checked"] = new Map();
   const unknown: Availability["unknown"] = new Map();
   const tokens: Availability["tokens"] = new Map(callerToken ? [[via, callerToken]] : []);
 
   // One free/busy call per access token: each connected interviewer's own, and the caller's for the rest.
-  const byToken = new Map<string, Array<{ id: string; email: string; via: "their_calendar" | "your_calendar"; ownExpired: boolean }>>();
+  const byToken = new Map<string, Array<{ id: string; email: string; via: "their_calendar" | "your_calendar"; ownFailed: UnknownReason | null }>>();
   for (const i of interviewers) {
+    const ownToken = connections.has(i.id) ? (i.id === via ? callerToken : await tokenOf(i.id)) : null;
     const own = connections.get(i.id);
-    const ownToken = own ? (i.id === via ? callerToken : await accessToken(calendar, own)) : null;
     if (ownToken) tokens.set(i.id, ownToken);
     if (own && ownToken) {
-      byToken.set(ownToken, [...(byToken.get(ownToken) ?? []), { id: i.id, email: own.accountEmail, via: "their_calendar", ownExpired: false }]);
+      byToken.set(ownToken, [...(byToken.get(ownToken) ?? []), { id: i.id, email: own.accountEmail, via: "their_calendar", ownFailed: null }]);
     } else if (callerToken && i.email) {
-      // An expired connection of their own falls back to the caller's view of their calendar.
-      byToken.set(callerToken, [...(byToken.get(callerToken) ?? []), { id: i.id, email: i.email.toLowerCase(), via: "your_calendar", ownExpired: !!own }]);
+      // A connection of their own that gave no token falls back to the caller's view of their calendar.
+      byToken.set(callerToken, [...(byToken.get(callerToken) ?? []), { id: i.id, email: i.email.toLowerCase(), via: "your_calendar", ownFailed: own ? failedReason(own) : null }]);
     } else {
-      unknown.set(i.id, own ? "connection_expired" : "not_connected");
+      unknown.set(i.id, own ? failedReason(own) : "not_connected");
     }
   }
   for (const [token, asked] of byToken) {
@@ -173,7 +280,7 @@ export async function availability(
     }
     for (const a of asked) {
       const busy = answer.get(a.email);
-      if (!busy) unknown.set(a.id, a.ownExpired ? "connection_expired" : a.via === "your_calendar" ? "not_shared" : "lookup_failed");
+      if (!busy) unknown.set(a.id, a.ownFailed ?? (a.via === "your_calendar" ? "not_shared" : "lookup_failed"));
       else checked.set(a.id, { via: a.via, busy: busy.map((b) => ({ start: Date.parse(b.startIso), end: Date.parse(b.endIso) })) });
     }
   }
@@ -201,6 +308,7 @@ const UNKNOWN_TEXT: Record<UnknownReason, string> = {
   not_connected: "has not connected a calendar, and yours is not connected either",
   not_shared: "has not connected a calendar, and theirs is not shared with yours",
   connection_expired: "connected a calendar, but the connection has expired",
+  workspace_refused: "is on your company's Google Workspace, but Google refused Tacit's access to their calendar (the calendar scopes are not delegated yet)",
   lookup_failed: "Google did not answer for their calendar",
 };
 export const unknownText = (reason: UnknownReason) => UNKNOWN_TEXT[reason];
@@ -278,7 +386,7 @@ export async function findInterviewTimes(
   const name = (id: string) => people.find((p) => p.id === id)!.name;
   if (!avail.checked.size) {
     const own = avail.callerExpired
-      ? `Your Google connection has expired. ${connectHint(calendar)}`
+      ? callerExpiredText(calendar, avail.callerConnection)
       : !avail.callerConnection ? `Your calendar is not connected. ${connectHint(calendar)}` : "";
     throw new ClientToolError(
       "invalid",

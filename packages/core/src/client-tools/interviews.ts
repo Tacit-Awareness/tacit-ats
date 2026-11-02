@@ -5,7 +5,7 @@ import { withAudit } from "./audit.js";
 import { ClientToolError, type ClientToolCtx } from "./context.js";
 import { STEP_NAME_MAX, planStep, stepsOf } from "./plans.js";
 import {
-  accessToken, availability, busyIn, checkInterviewers as interviewers, checkTimezone, connectHint, instant,
+  availability, busyIn, calendarAccess, callerExpiredText, checkInterviewers as interviewers, checkTimezone, connectHint, instant,
   interviewerDetails, notSetUp, unknownText, type Availability, type ClientCalendar, type Person, type UnknownReason,
 } from "./calendar.js";
 import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js";
@@ -21,7 +21,8 @@ import { draftEmail, type ClientMailer, type DraftEmailResult } from "./email.js
  * against the job's attributes, read whenever the feedback is.
  *
  * Scheduling books on Google Calendar (calendar.ts): the event goes on an
- * interviewer's own connected calendar, so they are its organizer (the
+ * interviewer's own calendar (through the company's Google Workspace when it
+ * covers them, else their own connection), so they are its organizer (the
  * caller's when they interview, else the first interviewer connected; the
  * caller's own when no interviewer is), under an id derived from the
  * interview's, with the other interviewers invited by Google and a Meet link
@@ -517,7 +518,7 @@ export async function scheduleInterview(
     const withoutInvites = recordOnlyHint(ctx, " Nothing was scheduled; or pass send_invites: false to record it without invites.");
     if (!holder && avail.callerExpired) {
       if (!input.dryRun) {
-        throw new ClientToolError("forbidden", `Your Google connection has expired, and no interviewer's calendar is connected. ${connectHint(calendar)}${withoutInvites}`);
+        throw new ClientToolError("forbidden", `${callerExpiredText(calendar, avail.callerConnection)} No interviewer's calendar is connected either.${withoutInvites}`);
       }
       preflight = { status: "not_sent", reason: "connection_expired", connectUrl: calendar.connectUrl };
     } else if (!holder) {
@@ -740,8 +741,11 @@ export async function updateInterview(
     } else {
       const connections = await calendar.connections(ctx.orgId, [...new Set([holder, ...ids])]);
       const conn = connections.get(holder);
-      const token = conn ? await accessToken(calendar, conn) : null;
-      if (token) google = { token, holder, people: interviewing, avail: { connections } };
+      const got = conn ? await calendarAccess(calendar, conn) : null;
+      if (got) {
+        connections.set(holder, got.conn);
+        google = { token: got.token, holder, people: interviewing, avail: { connections } };
+      }
     }
     if (google && reinvite && !cancelling) candidateEmail = (await applicationDetail(db, current.application_id)).candidateEmail;
     if (!google) {

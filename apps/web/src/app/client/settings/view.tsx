@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
 import { FlashToast } from "@/components/flash-toast";
+import { Banner } from "@/components/banner";
 import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
@@ -12,6 +13,7 @@ import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
 } from "../integrations/messages";
+import type { CalendarDelegation } from "@/lib/client/workspace-calendar";
 import { RoutingRules } from "./routing-rules";
 
 // /client/settings, design/tats's settings cards (`.cardbox` around
@@ -29,6 +31,7 @@ export function SettingsView({
   mailbox,
   calendarConfigured,
   throughWorkspace = null,
+  calendarThroughWorkspace = null,
   workspace = null,
   bot,
   botConnected,
@@ -45,6 +48,8 @@ export function SettingsView({
   calendarConfigured: boolean;
   /** The member's Gmail comes through their company's Google Workspace: nothing to connect, only their sync switch. */
   throughWorkspace?: { accountEmail: string; syncOn: boolean } | null;
+  /** The company's Google Workspace books for this member (core's readCalendarConnections), as this address. */
+  calendarThroughWorkspace?: { accountEmail: string } | null;
   /** For an admin: the company's Google Workspace setup. */
   workspace?: WorkspaceSetup | null;
   /** Null for anyone but an admin, who gets the company's bot section. */
@@ -104,14 +109,19 @@ export function SettingsView({
             }
             name="Google Calendar"
             detail={
-              calendar
+              calendarThroughWorkspace
+                ? `Through your company's Google Workspace, as ${calendarThroughWorkspace.accountEmail}`
+                : calendar
                 ? `Interview scheduling, as ${calendar.accountEmail}`
                 : calendarConfigured
                   ? "Find times your interviewers are free and send them invites"
                   : "Not set up on this Tacit deployment yet"
             }
             action={
-              calendar ? (
+              // Covered by the Workspace: nothing to connect; a connection of their own stays only as its fallback.
+              calendarThroughWorkspace ? (
+                calendar ? <Connected disconnect={disconnectCalendarAction} /> : null
+              ) : calendar ? (
                 <Connected disconnect={disconnectCalendarAction} manageHref={calendarConfigured ? "/client/calendar/connect" : undefined} />
               ) : calendarConfigured ? (
                 <ActionLink href="/client/calendar/connect">Connect</ActionLink>
@@ -264,14 +274,21 @@ export type WorkspaceSetup = {
   configured: boolean;
   /** The service account's client ID, which the company's Google admin authorizes. */
   clientId: string | null;
-  connected: { domain: string; verifiedAt: string } | null;
+  /** `calendar`: whether Google gives a calendar token as this admin (lib/client/workspace-calendar.ts). */
+  connected: { domain: string; verifiedAt: string; calendar: CalendarDelegation } | null;
 };
 
-const WORKSPACE_SCOPES = "https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.readonly";
+/** Gmail (send, and read for the sync) and Calendar (book, and busy times), as core's mailbox.ts and calendar.ts ask. */
+const WORKSPACE_SCOPES = [
+  "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.events.freebusy",
+].join(",");
 
 /**
  * An admin connects the company's Google Workspace once, as in Ashby: their
- * Google admin authorizes Tacit's client ID for the two scopes under
+ * Google admin authorizes Tacit's client ID for the four scopes under
  * domain-wide delegation, then Verify asks Google for a token as this admin.
  */
 function WorkspaceSection({ setup }: { setup: WorkspaceSetup }) {
@@ -284,8 +301,29 @@ function WorkspaceSection({ setup }: { setup: WorkspaceSetup }) {
           <>
             <p>
               Connected for <strong>{setup.connected.domain}</strong>. Everyone at {setup.connected.domain} sends candidate email from their own
-              address, and their email with candidates syncs to Tacit. Each person can turn their own sync off under Gmail above.
+              address, interviews are booked on their own Google Calendar, and their email with candidates syncs to Tacit. Each person can turn
+              their own sync off under Gmail above.
             </p>
+            {setup.connected.calendar === "missing" ? (
+              <Banner
+                status="warning"
+                title="Calendar isn't delegated yet"
+                desc={
+                  <>
+                    Google refused Tacit&apos;s calendar access, so interviews are booked only on calendars people connect themselves. Your Google
+                    admin edits Tacit&apos;s entry under Manage Domain Wide Delegation (client ID{" "}
+                    <code className="break-all font-mono">{setup.clientId}</code>) so its OAuth scopes read{" "}
+                    <code className="break-all font-mono">{WORKSPACE_SCOPES}</code>, then Verify again.
+                  </>
+                }
+              />
+            ) : setup.connected.calendar === "unknown" ? (
+              <p className="text-xs text-muted-foreground">
+                Connected before Calendar was part of it? Your Google admin adds the calendar scopes to Tacit&apos;s entry (client ID{" "}
+                <code className="break-all font-mono">{setup.clientId}</code>):{" "}
+                <code className="break-all font-mono">{WORKSPACE_SCOPES}</code>. Then Verify again.
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <form action={verifyWorkspaceAction}>
                 <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>Verify again</button>
@@ -300,8 +338,8 @@ function WorkspaceSection({ setup }: { setup: WorkspaceSetup }) {
         ) : (
           <>
             <p className="text-muted-foreground">
-              Connect once for the whole company: everyone at your domain sends candidate email from their own address, with nothing to connect
-              themselves, and their email with candidates syncs to Tacit. Your Google Workspace admin does step 1.
+              Connect once for the whole company: everyone at your domain sends candidate email from their own address and has interviews booked
+              on their own Google Calendar, with nothing to connect themselves, and their email with candidates syncs to Tacit. Your Google Workspace admin does step 1.
             </p>
             <ol className="grid list-decimal gap-2 pl-5">
               <li>

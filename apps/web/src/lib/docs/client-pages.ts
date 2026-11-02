@@ -401,7 +401,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
-| **Google Calendar** | Each member | Checks when you are busy and books interviews on your calendar. [Details](/docs/interviews#connect-your-calendar) |
+| **Google Calendar** | Each member, or an admin once for your company's Google Workspace | Checks when you are busy and books interviews on your calendar. [Details](/docs/interviews#connect-your-calendar) |
 | **Gmail** | Each member who emails candidates | Sends your email to candidates from your own address, and brings their replies into the Inbox. [Details](/docs/email) |
 | **Granola** | Each member | Brings your own interview notes into Tacit and Claude. [Details](/docs/interviews#your-granola-notes) |
 | **Your team's bot** | An admin, once for the company | Tells your own bot about each interview. [Set up a Grok bot](/docs/grok-bot) |
@@ -903,7 +903,7 @@ With Gmail connected, email you send a candidate goes out **from your own addres
 
 Tacit looks only at who each new email is between. It reads an email in full only when it is with someone on file as a candidate at your company, and never mail with anyone else, including your colleagues.
 
-**If your company uses Google Workspace**, an admin connects it once for everyone (below), and there is nothing for you to connect: **Settings** › **Gmail** says so, and has **Turn off sync** if you don't want your email with candidates kept. Email you send from Tacit still goes out from your address.
+**If your company uses Google Workspace**, an admin connects it once for everyone (below), and there is nothing for you to connect, for Gmail or for Google Calendar: **Settings** › **Gmail** and **Google Calendar** say so, and Gmail has **Turn off sync** if you don't want your email with candidates kept. Email you send from Tacit still goes out from your address.
 
 **Otherwise**, connect your own: **Settings** › **Gmail** › **Connect**. Google asks for two things, to send as you and to read your mail; untick reading and Tacit only sends.
 
@@ -911,11 +911,13 @@ Tacit looks only at who each new email is between. It reads an email in full onl
 
 An admin does this once, with your Google Workspace admin, in a few minutes:
 
-1. In Tacit, open **Settings** › **Google Workspace**. It shows Tacit's client ID and the two permissions to grant.
+1. In Tacit, open **Settings** › **Google Workspace**. It shows Tacit's client ID and the four permissions to grant: \`gmail.send\` and \`gmail.readonly\` for email, \`calendar.events\` and \`calendar.events.freebusy\` for interviews.
 2. Your Google Workspace admin opens the [Google Admin console](https://admin.google.com) › **Security** › **Access and data control** › **API controls** › **Manage Domain Wide Delegation**, chooses **Add new**, pastes the client ID and the permissions, and authorizes.
 3. Back in Tacit, press **Verify**. Tacit asks Google to act as you; it can take a few minutes after authorizing before Google agrees.
 
-From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer. **Disconnect** there stops it.
+From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer: their candidate email goes out from their own address, and interviews are booked on their own Google Calendar, with busy times read from it. Anyone it doesn't cover, an interviewer included, connects their own calendar in **Settings** if they want one. **Disconnect** there stops it.
+
+**Connected before Calendar was part of it?** **Settings** › **Google Workspace** says so to an admin, with the permissions to add. Your Google Workspace admin edits Tacit's entry under **Manage Domain Wide Delegation** and adds the two calendar permissions, then an admin presses **Verify again**. Until then, anyone who connected their own calendar keeps booking through it.
 
 ## Sent email is on the record
 
@@ -959,7 +961,9 @@ On the **Interview Calendar** page you can do the same without Claude: **Book**,
 
 ## Connect your calendar
 
-Open **Interview Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
+**If your company has connected its Google Workspace** ([how](/docs/email#connecting-your-companys-google-workspace)), there is nothing to connect: Tacit books on your work calendar through it, and **Settings** › **Google Calendar** says so. That covers everyone at your company's domain who has signed in, above interviewer.
+
+Otherwise, open **Settings** › **Google Calendar** and choose **Connect**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
 
 \`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first. When the interview is on a calendar, the event follows: a move is checked against the interviewers' calendars, new interviewers are invited, and cancelling removes the event, with Google telling everyone on it. A move or a cancellation comes with a draft email to the candidate, sent only after your yes.
 
