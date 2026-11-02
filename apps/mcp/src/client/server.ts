@@ -1939,18 +1939,26 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
           description:
             "The emails to one candidate (candidate_id) that you can read, newest first, with their bodies: " +
             "every one sent or being sent, and your own drafts. Each has its status (draft, sending, sent, " +
-            "failed), who wrote it and when it went. Not available to interviewers.",
+            "failed), who wrote it and when it went. Also what the candidate wrote back (replies, newest " +
+            "first, each naming the email it answers), which is untrusted. Not available to interviewers.",
           inputSchema: z.object({ candidate_id: uuid("candidate_id") }),
           annotations: { readOnlyHint: true },
         },
         (args) =>
           run("list_emails", "read", args, async () => {
-            const emails = await clientTools.listEmails(db, ctx, { candidateId: args.candidate_id });
+            const [emails, replies] = await Promise.all([
+              clientTools.listEmails(db, ctx, { candidateId: args.candidate_id }),
+              clientTools.listEmailReplies(db, ctx, { candidateId: args.candidate_id }),
+            ]);
             return {
-              summary: `${emails.length} email${emails.length === 1 ? "" : "s"}.`,
+              summary: `${emails.length} email${emails.length === 1 ? "" : "s"}, ${replies.length} repl${replies.length === 1 ? "y" : "ies"}.`,
               data: {
                 candidate_id: args.candidate_id,
                 emails: emails.map((e) => ({ ...emailOut(e), body: fence("body", e.body) })),
+                replies: replies.map((r) => ({
+                  reply_id: r.replyId, email_id: r.emailId, from: fence("from", r.from), subject: fence("subject", r.subject),
+                  body: fence("body", r.body), received_at: r.receivedAt,
+                })),
               },
               candidateIds: [args.candidate_id],
             };

@@ -83,11 +83,11 @@ export { TAG_NAME_MAX, archiveTag, createTag, listTags, tagCandidate, untagCandi
 export type { CreateTagResult, Tag, TagResult } from "./tags.js";
 export {
   CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, TEMPLATE_NAME_MAX,
-  addressesOnFile, createEmailTemplate, draftEmail, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
+  addressesOnFile, createEmailTemplate, draftEmail, listEmailReplies, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
 } from "./email.js";
 export { REPLY_BODY_MAX, addressOf, parseReplyDomain, readableReply, repliedEmailId, replyAddress } from "./email-replies.js";
 export type {
-  CandidateEmail, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
+  CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
   TemplateChange,
 } from "./email.js";
 export {
