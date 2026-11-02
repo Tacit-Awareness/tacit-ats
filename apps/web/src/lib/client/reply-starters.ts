@@ -28,7 +28,7 @@ export function replyStarters(v: { candidateName: string | null; jobTitle: strin
   return {
     subject: job ? `Your application for ${job}` : "Your application",
     bodies: {
-      interview: letter(`Thanks for applying for ${role}. The team would like to meet you. Someone from the team will email you a few times this week.`),
+      interview: letter(`Thanks for applying for ${role}. The team would like to meet you. What times work for you this week or next? Please reply with a few options, and your time zone.`),
       testbench: letter(`Thanks for applying for ${role}. Before we talk, we'd like you to try a short take-home in a real coding environment. Do it whenever suits you this week. The link is below.\n\n${TESTBENCH_INVITE_URL}`),
       decline: letter(`Thank you for applying for ${role}, and for your interest in ${plain(v.company)}. We've looked closely and decided not to move forward right now. We'd be glad to hear from you again in the future.`),
       blank: letter(""),
