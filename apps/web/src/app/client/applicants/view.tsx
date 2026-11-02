@@ -3,7 +3,9 @@ import { FlashToast } from "@/components/flash-toast";
 import { ListReader, Notice, PageBar, textLink } from "@/components/page";
 import { KeyList } from "@/components/keys";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
+import type { ViewerFile } from "@/lib/client/file-view-rules";
 import { cn } from "@/lib/utils";
+import { FileViewer } from "../files/viewer";
 import { ControlPanel } from "./control-panel";
 import type { Reply } from "./reply-box";
 import type { Routing } from "./routing-bar";
@@ -41,8 +43,8 @@ export type Ticket = {
   source: string;
   /** The team's notes: those on their file, and a referral's on the application. */
   notes: string[];
-  /** Their file's resumes and attachments, each opened through /client/files. */
-  files: { fileId: string; label: string; filename: string; href: string }[];
+  /** Their file's resumes and attachments, read in the viewer under the application (files/viewer.tsx). */
+  files: ViewerFile[];
   /** The job's team, or null when the list isn't by team. */
   team: string | null;
   answers: ReaderAnswer[];
@@ -139,19 +141,6 @@ function Paper({ ticket }: { ticket: Ticket }) {
           )}
         </section>
       ))}
-      {ticket.files.length > 0 ? (
-        <section>
-          <h2 className={h2}>Files</h2>
-          {ticket.files.map((f) => (
-            <p key={f.fileId} className="m-0 mb-1 break-words">
-              <span className="text-[color:var(--n700)]">{f.label}: </span>
-              <a href={f.href} target="_blank" rel="noopener noreferrer" className="break-all text-[color:var(--n900)] underline decoration-[color:var(--n300)] underline-offset-2">
-                {f.filename}
-              </a>
-            </p>
-          ))}
-        </section>
-      ) : null}
       {ticket.notes.length > 0 ? (
         <section>
           <h2 className={h2}>Notes</h2>
@@ -207,6 +196,12 @@ export function ApplicantsView({
               </Link>
               {flash ? <div className="mx-auto w-[640px] max-w-full">{flash}</div> : null}
               <Paper ticket={ticket} />
+              {/* design/tats's ticket: the application, then the pages they sent with it */}
+              {ticket.files.length > 0 ? (
+                <div className="mx-auto w-[640px] max-w-full">
+                  <FileViewer key={ticket.applicationId} files={ticket.files} label={`${ticket.name}'s files`} />
+                </div>
+              ) : null}
             </div>
             {ticket.reply || ticket.routing ? <ControlPanel key={ticket.applicationId} routing={ticket.routing} reply={ticket.reply} team={ticket.team} /> : null}
           </div>

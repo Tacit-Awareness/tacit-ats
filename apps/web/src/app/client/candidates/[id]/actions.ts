@@ -14,6 +14,9 @@ import {
   type LabelOutcome,
   type NoteOutcome,
 } from "@/lib/client/candidate-edits";
+import { addCandidateFile, FILE_KINDS, uploadFile, type AddFileOutcome } from "@/lib/client/candidate-files";
+import { webFileStore } from "@/lib/client/file-store";
+import type { FileUploadState } from "@/lib/client/file-view-rules";
 import { askOfferApproval, moveOffer, saveOffer, type OfferOutcome } from "@/lib/client/offers";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
@@ -171,5 +174,34 @@ export async function addNoteAction(prev: NoteState, form: FormData): Promise<No
   revalidatePath(`/client/candidates/${candidateId}`);
   // The Pipeline's pop-up holds this box too, and its feed is that page's.
   revalidatePath("/client/pipeline");
+  return { added: prev.added + 1 };
+}
+
+/**
+ * A file added to the candidate (file-upload.tsx), answering in place. The
+ * kind and the file are request data, checked again here and by core's
+ * addFile; a log names neither the file nor the candidate's text.
+ */
+export async function addFileAction(prev: FileUploadState, form: FormData): Promise<FileUploadState> {
+  const member = await requireClient();
+  const candidateId = candidateOf(form);
+  const refuse = (error: FileUploadState["error"]): FileUploadState => ({ added: prev.added, error });
+  if (!candidateId) return refuse("file_gone");
+  const kind = FILE_KINDS.find((k) => k === form.get("kind")) ?? "attachment";
+  const file = await uploadFile(form.get("file"), kind === "resume" ? "Resume" : "Attachment");
+  if (typeof file === "string") return refuse(file);
+
+  let outcome: AddFileOutcome;
+  try {
+    outcome = await addCandidateFile(member.db, toolCtx(member), { candidateId, kind, file }, webFileStore());
+  } catch (err) {
+    console.error("[client-candidate] file failed:", err instanceof Error ? err.message : err);
+    return refuse("failed");
+  }
+  if (!outcome.ok) return refuse(outcome.error);
+  revalidatePath(`/client/candidates/${candidateId}`);
+  // The Pipeline's pop-up and New Applicants' tickets show the same files.
+  revalidatePath("/client/pipeline");
+  revalidatePath("/client/applicants");
   return { added: prev.added + 1 };
 }

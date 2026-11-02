@@ -5,15 +5,18 @@ import { Chip, Chips, Empty, Notice, Page, PageBar, Pill, textLink } from "@/com
 import { FEED_MAX } from "@/lib/client/candidate";
 import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, LabelChoices, OwnerChoice } from "@/lib/client/candidate-edits";
+import { fileHref, fileSize, viewerFiles } from "@/lib/client/file-view-rules";
 import { stageLabel } from "@/lib/client/crm-views";
 import { offerBoard, type Offer } from "@/lib/client/offer-rules";
 import type { PastApplication } from "@/lib/client/past-applications";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { cn, safeHttpUrl } from "@/lib/utils";
+import { FileViewer } from "../../files/viewer";
 import { ActivityStory } from "../activity-story";
 import { LocalDay } from "../local-day";
 import { CandidateCommands } from "./commands";
 import { CandidateLabels, JobControls } from "./controls";
+import { FileUpload } from "./file-upload";
 import { NoteComposer } from "./note-composer";
 import { OfferBlock } from "./offer-block";
 
@@ -25,7 +28,9 @@ import { OfferBlock } from "./offer-block";
 // under it where the member may edit (can_edit_pipeline, controls.tsx); the
 // applications they came back after, with "Applied before" among the chips,
 // as design/tats's past applications (lib/client/past-applications.ts); the
-// profile; the activity as a `.story` under the `.composer` for a note, which
+// profile; their files in design/tats's document viewer (files/viewer.tsx),
+// "under the profile", with the upload for whoever can change their record
+// (file-upload.tsx); the activity as a `.story` under the `.composer` for a note, which
 // is above it because this feed runs newest first), beside the 280px `.props`
 // rail (contact, files). Everything about the candidate is untrusted text and is
 // rendered as text; a LinkedIn link is only a link when it is http(s). Times
@@ -49,6 +54,8 @@ export type CandidateViewProps = {
   labels?: LabelChoices | null;
   /** Each application's offers, only for the jobs the member can manage: a job left out shows nothing. */
   offers?: Record<string, Offer[]>;
+  /** What the upload takes (core's), when the member may add files to this candidate (can_edit_person); null when not. */
+  upload?: { accept: string; extensions: string[]; maxBytes: number } | null;
   notice: string | null;
   error: string | null;
   now: number;
@@ -66,9 +73,6 @@ function due(iso: string, now: number): { text: string; late: boolean } {
   if (days < 0) return { text: `${-days}d overdue`, late: true };
   return { text: `due in ${days}d`, late: false };
 }
-
-const size = (bytes: number | null) =>
-  bytes === null ? null : bytes < 1024 ? `${bytes} B` : bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 
 const sourceText = (source: string, detail: string | null) => [source.replace(/_/g, " "), detail].filter(Boolean).join(" · ");
 
@@ -226,7 +230,7 @@ function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewP
 }
 
 /** The page's content, also what the Pipeline's and the Inbox's pop-ups hold. `call`: what a pop-up wants decided, under the chips (design/tats's `nowPanel`). */
-export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, offers = {}, notice, error, now, call = null }: CandidateViewProps & { call?: React.ReactNode }) {
+export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, offers = {}, upload = null, notice, error, now, call = null }: CandidateViewProps & { call?: React.ReactNode }) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
@@ -354,6 +358,16 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
           </section>
         ) : null}
 
+        {candidate.files.length || upload ? (
+          <section aria-label="Files">
+            <BlockHead count={candidate.files.length || undefined}>Files</BlockHead>
+            <div className="grid gap-3">
+              {candidate.files.length ? <FileViewer files={viewerFiles(candidate.files, (iso) => ago(iso, now))} label={`${name}'s files`} /> : null}
+              {upload ? <FileUpload key={candidate.candidateId} candidateId={candidate.candidateId} {...upload} /> : null}
+            </div>
+          </section>
+        ) : null}
+
         <section aria-label="Activity">
           <BlockHead count={activity.length}>Activity</BlockHead>
           <div className="grid gap-3">
@@ -398,11 +412,11 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
             candidate.files.map((f) => (
               <Prop key={f.fileId} k={f.kind === "resume" ? "Resume" : "Attachment"}>
                 <a
-                  href={`/client/files/${f.fileId}`}
+                  href={fileHref(f.fileId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="truncate underline decoration-[color:var(--n300)] underline-offset-2"
-                  title={[f.filename, size(f.sizeBytes), f.uploadedBy, ago(f.uploadedAt, now)].filter(Boolean).join(" · ")}
+                  title={[f.filename, fileSize(f.sizeBytes), f.uploadedBy, ago(f.uploadedAt, now)].filter(Boolean).join(" · ")}
                 >
                   {f.filename}
                 </a>

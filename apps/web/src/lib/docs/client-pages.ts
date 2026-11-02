@@ -207,7 +207,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 
 ## New Applicants
 
-**New Applicants** holds job-board applicants and referrals, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application, or for a referral who referred them and their note. Any notes and files on their candidate page show there too. Pick the next step in the panel under it, then press the button beside it:
+**New Applicants** holds job-board applicants and referrals, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application, or for a referral who referred them and their note. Any notes on their candidate page show there too, and their files open under the application, as on the candidate page. Pick the next step in the panel under it, then press the button beside it:
 
 | Key | What it does |
 | --- | --- |
@@ -246,7 +246,9 @@ Bulk reject sends no email. It leaves anyone at offer, or with a live offer, for
 
 ## The candidate page
 
-Each candidate has one page with their profile, tags, pools, the jobs they are in, past applications and a full activity feed. Resumes and attachments are listed by name; ask Claude or use \`tats\` for a [download link](/docs/files).
+Each candidate has one page with their profile, tags, pools, the jobs they are in, past applications, their files and a full activity feed. **Files**, under the profile, opens their resumes and attachments in place, resumes first: a PDF, plain text or an image shows on the page, and a Word file downloads. With more than one, pick it from the strip beside it. **Open** shows it in a new tab and **Download** saves it.
+
+Whoever can change a candidate's record (their hiring team or an admin) can add a file there: pick it, choose Resume or Attachment, and press **Add file**. It takes PDF, Word, plain text, PNG and JPEG, up to 3 MB, and the file must be what its name says. Files can't be replaced or deleted; to correct one, add the right file. Claude and \`tats\` can [list, download and attach](/docs/files) them too.
 
 Where you can edit the job, you can move the stage, reject or mark withdrawn with a reason, change the owner, set the next action and log a touch. Anyone who can open the page can leave a note: press \`C\` to write and \`⌘↵\` to save. Notes cannot be edited or deleted.
 
@@ -838,7 +840,7 @@ An interviewer sees only the resume of someone they interview.
 
 The file's contents must match its type: a PNG renamed to .pdf is refused. Whoever can edit the candidate can add files (their hiring team or an admin), never an interviewer.
 
-Files cannot be replaced or deleted through Claude. To correct one, add the right file; the newest is listed first.`,
+Files cannot be replaced or deleted, through Claude or in tATS. To correct one, add the right file; the newest is listed first.`,
   },
   {
     slug: "email",
