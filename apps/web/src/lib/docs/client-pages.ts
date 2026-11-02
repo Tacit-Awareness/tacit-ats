@@ -158,6 +158,8 @@ Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. An i
 
 Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer (that's on their page), and rejecting someone here sends no email.
 
+The Inbox keeps up on its own: when a candidate moves, arrives or changes in another tab, or for a teammate, it catches up within half a minute while it is on screen, and as soon as you come back to the tab. It waits while you are typing or have a pop-up or menu open.
+
 Once you act on an issue in the pop-up, it moves to Done and the pop-up opens the next one. A message says who moved and who is next, or that you are all caught up.
 
 Dismissing changes only your own queue. **Done**, at the foot of the card, lists what you dismissed or fixed from here, **Move back to Inbox** brings back an issue that still stands, and **Inbox** at the top of Done takes you back.
@@ -275,6 +277,8 @@ Pick one job and its board appears. **List** and **Board** at the top switch bet
 | **Interview booked** | An interview is coming up |
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
+
+The Pipeline keeps up on its own: a move, a new applicant or a change made elsewhere shows within half a minute while the page is on screen, and as soon as you come back to the tab, without a reload. It waits while you are dragging a card, typing, or have a pop-up or menu open.
 
 Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
 
