@@ -279,7 +279,7 @@ export async function addCandidateContact(
 
 export type CandidateUpdateResult = { candidateId: string; fields: string[] };
 
-const CANDIDATE_FIELDS = { headline: "headline", education: "education", currentTitle: "current_title", currentCompany: "current_company", basedIn: "based_in" } as const;
+const CANDIDATE_FIELDS = { education: "education", currentTitle: "current_title", currentCompany: "current_company", basedIn: "based_in" } as const;
 
 /** Patch a candidate's profile fields (headline, education, current role, where they are): whoever can_edit_person. */
 export async function updateCandidate(
