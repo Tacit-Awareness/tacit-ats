@@ -31,8 +31,8 @@ import { keepReplyTo, type ReplyPing } from "./email-reply";
 // and catches up on its Tacit threads from the last 30 days.
 
 export type GmailSyncDeps = {
-  /** Tacit's service account, for companies on Workspace. */
-  serviceAccount: clientTools.GoogleServiceAccount | null;
+  /** Tacit's service account, for companies on Workspace (lib/google-delegation.ts). */
+  delegation: clientTools.DelegationSigner | null;
   /** The OAuth client members' own connections were made to. */
   google: { clientId: string; clientSecret: string } | null;
   fetch?: typeof fetch;
@@ -55,8 +55,8 @@ async function mailboxes(db: Db, deps: GmailSyncDeps): Promise<Mailbox[]> {
   if (offError) throw new Error(`mailbox_sync_optouts: ${offError.message}`);
   const optedOut = new Set((off ?? []).map((o) => o.actor_id));
 
-  const sa = deps.serviceAccount;
-  if (sa) {
+  const signer = deps.delegation;
+  if (signer) {
     const { data: workspaces, error } = await db.from("google_workspace_connections").select("org_id, domain");
     if (error) throw new Error(`google_workspace_connections: ${error.message}`);
     const domains = new Map((workspaces ?? []).map((w) => [w.org_id, w.domain]));
@@ -73,7 +73,7 @@ async function mailboxes(db: Db, deps: GmailSyncDeps): Promise<Mailbox[]> {
         if (clientTools.domainOf(email) !== domains.get(m.org_id!)) continue;
         out.set(m.id, {
           actorId: m.id, orgId: m.org_id!, email,
-          token: () => clientTools.delegatedAccessToken(sa, email, [clientTools.GMAIL_READ_SCOPE], deps.fetch),
+          token: () => clientTools.delegatedAccessToken(signer, email, [clientTools.GMAIL_READ_SCOPE], deps.fetch),
         });
       }
     }

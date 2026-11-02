@@ -86,9 +86,10 @@ export {
   addressesOnFile, createEmailTemplate, draftEmail, listEmailReplies, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
 } from "./email.js";
 export {
-  GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE, delegatedAccessToken, domainOf, grantsScope, memberMailbox, parseServiceAccount,
+  GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE, delegatedAccessToken, delegationFrom, domainOf, grantsScope, keyDelegation, keylessDelegation,
+  memberMailbox, parseServiceAccount,
 } from "./mailbox.js";
-export type { GoogleServiceAccount, MailboxGrant, MailboxSources } from "./mailbox.js";
+export type { DelegationSigner, GoogleServiceAccount, MailboxGrant, MailboxSources } from "./mailbox.js";
 export { REPLY_BODY_MAX, addressOf, parseReplyDomain, readableReply, repliedEmailId, replyAddress } from "./email-replies.js";
 export type {
   CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailbox, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate,

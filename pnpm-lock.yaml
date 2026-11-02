@@ -44,6 +44,9 @@ importers:
       '@tacit/db':
         specifier: file:../../vendor/tacit-db-c7389c6.tgz
         version: file:vendor/tacit-db-c7389c6.tgz
+      '@vercel/oidc':
+        specifier: 4.0.1
+        version: 4.0.1
       jose:
         specifier: ^6.2.10
         version: 6.2.12
@@ -84,6 +87,9 @@ importers:
       '@tacit/db':
         specifier: file:../../vendor/tacit-db-c7389c6.tgz
         version: file:vendor/tacit-db-c7389c6.tgz
+      '@vercel/oidc':
+        specifier: 4.0.1
+        version: 4.0.1
       '@workos-inc/authkit-nextjs':
         specifier: 4.4.0
         version: 4.4.0(@workos-inc/node@10.14.0)(next@16.3.0(@types/node@26.6.5)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@5.9.3)
@@ -1184,6 +1190,9 @@ packages:
   '@vercel/cli-auth@0.0.1':
     resolution: {integrity: sha512-CnqiuMlZ4pjs2LCPYiR6aLKPPd3Xb8SBI1Y7eotXKgpx6qgrGNY+E7EIyUt5ErGHJGIrCZyGG5WEo4bHtVmz2Q==}
 
+  '@vercel/cli-config@0.3.1':
+    resolution: {integrity: sha512-sISbygqlFXYb8qfPu/+2Cf/A8IjrlAuZePdag3EDQr2PRA455s7UZtl9Ro674CWsB/saBRmz3jEkw0YsQs8OoQ==}
+
   '@vercel/cli-config@0.3.4':
     resolution: {integrity: sha512-lkAn8NEC2I1EKN/Ni0M8b/VwWVMzZEcaF7lzT/B5NF51+5vPUx8bEkZGYqWmMUCVO2HFUyWCcX2pZlRDPrUsKQ==}
 
@@ -1205,6 +1214,10 @@ packages:
 
   '@vercel/oidc@3.2.0':
     resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
+    engines: {node: '>= 20'}
+
+  '@vercel/oidc@4.0.1':
+    resolution: {integrity: sha512-l//xMmDTj2WR6EMtfA2BEF2oR7ViKCD1SCxqFKCn1/8wOZBxgxhxkegSGi90ICTc1rB50ZbKuPIslc8aJxAqew==}
     engines: {node: '>= 20'}
 
   '@vercel/oidc@4.0.4':
@@ -4071,7 +4084,12 @@ snapshots:
     dependencies:
       async-listen: 3.0.0
       open: 8.4.0
-      xdg-app-paths: 5.1.0
+      xdg-app-paths: 5.5.1
+      zod: 4.1.11
+
+  '@vercel/cli-config@0.3.1':
+    dependencies:
+      xdg-app-paths: 5.5.1
       zod: 4.1.11
 
   '@vercel/cli-config@0.3.4':
@@ -4091,6 +4109,12 @@ snapshots:
       ws: 8.22.0
 
   '@vercel/oidc@3.2.0': {}
+
+  '@vercel/oidc@4.0.1':
+    dependencies:
+      '@vercel/cli-config': 0.3.1
+      '@vercel/cli-exec': 1.0.1
+      jose: 5.10.0
 
   '@vercel/oidc@4.0.4':
     dependencies:

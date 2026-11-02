@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { clientTools } from "@tacit-ats/core";
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
 import { resolveClient } from "@/lib/client/session";
+import { tacitDelegation } from "@/lib/google-delegation";
 import { Refusal } from "../refusal";
 import { SettingsView } from "./view";
 
@@ -41,10 +42,10 @@ export default async function ClientSettings({
   if (workspace.error) throw new Error(workspace.error.message);
   if (syncOff.error) throw new Error(syncOff.error.message);
   const myEmail = gate.ctx.user.email.trim().toLowerCase();
-  const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
+  const delegation = tacitDelegation();
   // As core's memberMailbox decides: the company's Workspace covers a member above interviewer at its domain.
   const throughWorkspace =
-    !!serviceAccount && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
+    !!delegation && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
   if (granola.error) throw new Error(granola.error.message);
   if (bot.error) throw new Error(bot.error.message);
   if (botConnected.error) throw new Error(botConnected.error.message);
@@ -68,8 +69,8 @@ export default async function ClientSettings({
       workspace={
         admin
           ? {
-              configured: !!serviceAccount,
-              clientId: serviceAccount?.clientId ?? null,
+              configured: !!delegation,
+              clientId: delegation?.clientId ?? null,
               connected: workspace.data ? { domain: workspace.data.domain, verifiedAt: workspace.data.verified_at } : null,
             }
           : null

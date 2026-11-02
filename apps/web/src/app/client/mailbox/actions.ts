@@ -3,6 +3,7 @@
 import { clientTools } from "@tacit-ats/core";
 import { redirect } from "next/navigation";
 import { requireClient } from "@/lib/client/session";
+import { tacitDelegation } from "@/lib/google-delegation";
 import type { MailboxError, MailboxNotice } from "./messages";
 
 // Disconnecting is the member's own: client_disconnect_mailbox deletes only
@@ -29,13 +30,13 @@ const back = (params: { notice?: MailboxNotice; error?: MailboxError }): never =
 export async function verifyWorkspaceAction(): Promise<void> {
   const { db, accessLevel, user } = await requireClient();
   if (accessLevel !== "admin") back({ error: "workspace_not_admin" });
-  const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
-  if (!serviceAccount) back({ error: "workspace_not_set_up" });
+  const delegation = tacitDelegation();
+  if (!delegation) back({ error: "workspace_not_set_up" });
   const email = user.email?.trim().toLowerCase();
   const domain = clientTools.domainOf(email);
   if (!email || !domain) back({ error: "workspace_no_domain" });
   try {
-    const token = await clientTools.delegatedAccessToken(serviceAccount!, email!, [clientTools.GMAIL_SEND_SCOPE, clientTools.GMAIL_READ_SCOPE]);
+    const token = await clientTools.delegatedAccessToken(delegation!, email!, [clientTools.GMAIL_SEND_SCOPE, clientTools.GMAIL_READ_SCOPE]);
     const profile = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", { headers: { authorization: `Bearer ${token}` } });
     if (!profile.ok) throw new Error(`gmail profile: ${profile.status}`);
   } catch (err) {

@@ -207,7 +207,10 @@ src/
                         member's own client: their company's Google
                         Workspace, as Ashby, through the service
                         account's domain-wide delegation
-                        (delegatedAccessToken, a signed JWT grant),
+                        (delegatedAccessToken, a JWT grant signed by
+                        a DelegationSigner: keylessDelegation, the
+                        app's OIDC token through Google STS and IAM
+                        signJwt, or keyDelegation with a JSON key),
                         for members above interviewer at its domain;
                         else their own OAuth connection), it goes
                         through @tacit/core's sendGmailMessage

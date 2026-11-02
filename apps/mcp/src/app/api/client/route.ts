@@ -1,3 +1,4 @@
+import { getVercelOidcToken } from "@vercel/oidc";
 import { clientTools } from "@tacit-ats/core";
 // Relative and without ".js": see apps/mcp/CLAUDE.md.
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
@@ -26,14 +27,14 @@ async function handle(request: Request): Promise<Response> {
     files: process.env.CLIENT_FILES_DISABLED ? null : { put: putFile, signedUrl: signFileUrl, remove: removeFiles },
     // CLIENT_EMAIL_DISABLED set: draft_email and send_email refuse. No RESEND_API_KEY: drafts only,
     // unless the member has connected Gmail, which send_email then sends through as them.
-    // Their company's Google Workspace (CLIENT_GOOGLE_SERVICE_ACCOUNT) or their own connection.
+    // Their company's Google Workspace (keyless through Vercel OIDC, GCP_*; or CLIENT_GOOGLE_SERVICE_ACCOUNT) or their own connection.
     email: (() => {
       const mailer = clientMailer();
       const google = clientGoogleCalendar();
-      const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
-      if (!mailer || (!google && !serviceAccount)) return mailer;
+      const delegation = clientTools.delegationFrom(process.env, () => getVercelOidcToken());
+      if (!mailer || (!google && !delegation)) return mailer;
       const sources: clientTools.MailboxSources = {
-        serviceAccount,
+        delegation,
         google: google ? { clientId: google.clientId, clientSecret: google.clientSecret } : null,
         refreshToken: mailboxRefreshToken,
       };

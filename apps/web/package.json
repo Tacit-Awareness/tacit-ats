@@ -13,6 +13,7 @@
     "@tacit-ats/core": "workspace:^",
     "@tacit/core": "file:../../vendor/tacit-core-c7389c6.tgz",
     "@tacit/db": "file:../../vendor/tacit-db-c7389c6.tgz",
+    "@vercel/oidc": "4.0.1",
     "@workos-inc/authkit-nextjs": "4.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

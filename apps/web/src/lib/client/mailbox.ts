@@ -1,5 +1,6 @@
 import { clientTools } from "@tacit-ats/core";
 import { getSupabaseServiceClient } from "@tacit/db";
+import { tacitDelegation } from "../google-delegation";
 import { googleCalendarConfig } from "./google-calendar";
 
 type Env = Record<string, string | undefined>;
@@ -8,7 +9,7 @@ type Env = Record<string, string | undefined>;
  * A member's own Gmail, for sending candidate email as them: the fifth
  * client-area module allowed a privileged client (src/client-area.test.ts).
  * Core's memberMailbox decides which Gmail on the member's own client: their
- * company's Google Workspace (Tacit's service account, CLIENT_GOOGLE_SERVICE_ACCOUNT,
+ * company's Google Workspace (Tacit's service account, lib/google-delegation.ts,
  * delegated by the company's Google admin), else their own OAuth connection.
  * The one thing it cannot read is that connection's refresh token, granted to
  * no member token, so this file reads it with the service role, and only for
@@ -19,11 +20,11 @@ type Env = Record<string, string | undefined>;
  * with a service key: email then goes through Resend only.
  */
 export function memberMailbox(env: Env = process.env, fetchImpl?: typeof fetch): clientTools.ClientMailbox | null {
-  const serviceAccount = clientTools.parseServiceAccount(env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
+  const delegation = tacitDelegation(env);
   const oauth = env.SUPABASE_URL?.trim() && env.SUPABASE_SECRET_KEY?.trim() ? googleCalendarConfig(env) : null;
-  if (!serviceAccount && !oauth) return null;
+  if (!delegation && !oauth) return null;
   const sources: clientTools.MailboxSources = {
-    serviceAccount,
+    delegation,
     google: oauth,
     fetch: fetchImpl,
     refreshToken: async (orgId, actorId) => {

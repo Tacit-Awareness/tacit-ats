@@ -25,8 +25,8 @@ import { runNotifications } from "@tacit/core";
 import { start } from "workflow/api";
 
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
+import { tacitDelegation } from "@/lib/google-delegation";
 import { syncGmail } from "@/lib/inbound/gmail-sync";
-import { clientTools } from "@tacit-ats/core";
 import { pingCompanyBot } from "@/lib/notify/candidate-replied";
 import { companiesWithBots, companyCalendar, companyHub, notifierDb } from "@/lib/notify/notifier";
 import { interviewReminderTimer } from "@/workflows/interview-reminder";
@@ -76,12 +76,12 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
   const google = googleCalendarConfig();
-  const serviceAccount = clientTools.parseServiceAccount(process.env.CLIENT_GOOGLE_SERVICE_ACCOUNT);
+  const delegation = tacitDelegation();
   const origin = new URL(request.url).origin;
   let gmail;
   try {
-    gmail = google || serviceAccount
-      ? await syncGmail(db, { google, serviceAccount, ping: (orgId, reply) => pingCompanyBot(db, orgId, reply, origin) })
+    gmail = google || delegation
+      ? await syncGmail(db, { google, delegation, ping: (orgId, reply) => pingCompanyBot(db, orgId, reply, origin) })
       : null;
   } catch (err) {
     console.error("[cron] gmail sync failed", err instanceof Error ? err.message.slice(0, 200) : "failed");

@@ -36,7 +36,7 @@ const SEND = clientTools.GMAIL_SEND_SCOPE;
 const READ = clientTools.GMAIL_READ_SCOPE;
 const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
 const SA_JSON = JSON.stringify({ client_email: "tacit@proj.iam.gserviceaccount.com", private_key: privateKey.export({ type: "pkcs8", format: "pem" }).toString(), client_id: "1234567890" });
-const serviceAccount = clientTools.parseServiceAccount(SA_JSON);
+const delegation = clientTools.delegationFrom({ CLIENT_GOOGLE_SERVICE_ACCOUNT: SA_JSON }, async () => "unused");
 const google = { clientId: "cid", clientSecret: "cs" };
 const ENV = { CLIENT_GOOGLE_CLIENT_ID: "cid", CLIENT_GOOGLE_CLIENT_SECRET: "cs", SUPABASE_URL: process.env.SUPABASE_URL, SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY };
 const WORKSPACE_ENV = { ...ENV, CLIENT_GOOGLE_SERVICE_ACCOUNT: SA_JSON };
@@ -231,7 +231,7 @@ describe("the sync", () => {
     await connectWorkspace();
     must(await asLee().rpc("client_set_mailbox_sync", { p_on: false }));
     const id = await sendOne(mailerWith(gmail, WORKSPACE_ENV));
-    const deps = { google, serviceAccount, fetch: gmail.fetch };
+    const deps = { google, delegation, fetch: gmail.fetch };
 
     // First run: no place yet. Only Ada: Lee turned his sync off, Ivan is an interviewer.
     const before = Date.now() + 1000;
@@ -280,7 +280,7 @@ describe("the sync", () => {
     await connect(asAda(), SEND);
     await sendOne(mailerWith(gmail));
     gmail.put({ id: "reply1", threadId: "thread1", labelIds: ["INBOX"], from: "cam@cand.test", to: "ada@gmail.test", subject: "Re", text: "Yes", at: Date.now() + 1000 });
-    expect(await syncGmail(db(), { google, serviceAccount: null, fetch: gmail.fetch })).toMatchObject({ mailboxes: 0 });
+    expect(await syncGmail(db(), { google, delegation: null, fetch: gmail.fetch })).toMatchObject({ mailboxes: 0 });
     expect(await replies()).toEqual([]);
   });
 });
