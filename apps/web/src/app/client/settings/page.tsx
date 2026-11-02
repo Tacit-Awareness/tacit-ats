@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { clientTools } from "@tacit-ats/core";
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
 import { resolveClient } from "@/lib/client/session";
+import { calendarDelegation } from "@/lib/client/workspace-calendar";
 import { tacitDelegation } from "@/lib/google-delegation";
 import { Refusal } from "../refusal";
 import { SettingsView } from "./view";
@@ -46,6 +47,11 @@ export default async function ClientSettings({
   // As core's memberMailbox (and, for Calendar, readCalendarConnections) decides: the company's Workspace covers a member above interviewer at its domain.
   const throughWorkspace =
     !!delegation && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
+  // An admin at the verified domain: does Google give Tacit their calendar too? (Companies connected before Calendar was part of it don't.)
+  const calendarCheck =
+    admin && delegation && workspace.data && clientTools.domainOf(myEmail) === workspace.data.domain
+      ? await calendarDelegation(delegation, myEmail)
+      : "unknown";
   if (granola.error) throw new Error(granola.error.message);
   if (bot.error) throw new Error(bot.error.message);
   if (botConnected.error) throw new Error(botConnected.error.message);
@@ -73,7 +79,7 @@ export default async function ClientSettings({
           ? {
               configured: !!delegation,
               clientId: delegation?.clientId ?? null,
-              connected: workspace.data ? { domain: workspace.data.domain, verifiedAt: workspace.data.verified_at } : null,
+              connected: workspace.data ? { domain: workspace.data.domain, verifiedAt: workspace.data.verified_at, calendar: calendarCheck } : null,
             }
           : null
       }

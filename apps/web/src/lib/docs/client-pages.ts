@@ -917,7 +917,7 @@ An admin does this once, with your Google Workspace admin, in a few minutes:
 
 From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer: their candidate email goes out from their own address, and interviews are booked on their own Google Calendar, with busy times read from it. Anyone it doesn't cover, an interviewer included, connects their own calendar in **Settings** if they want one. **Disconnect** there stops it.
 
-**Connected before Calendar was part of it?** Your Google Workspace admin edits Tacit's entry under **Manage Domain Wide Delegation** and adds the two calendar permissions, then an admin presses **Verify again**. Until then, anyone who connected their own calendar keeps booking through it.
+**Connected before Calendar was part of it?** **Settings** › **Google Workspace** says so to an admin, with the permissions to add. Your Google Workspace admin edits Tacit's entry under **Manage Domain Wide Delegation** and adds the two calendar permissions, then an admin presses **Verify again**. Until then, anyone who connected their own calendar keeps booking through it.
 
 ## Sent email is on the record
 

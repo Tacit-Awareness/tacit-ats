@@ -61,10 +61,24 @@ describe("SettingsView", () => {
     expect(setup).toContain(">Verify<");
     const connected = renderToStaticMarkup(
       <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
-        workspace={{ configured: true, clientId: "1234567890", connected: { domain: "acme.test", verifiedAt: "2026-11-02T00:00:00Z" } }} />,
+        workspace={{ configured: true, clientId: "1234567890", connected: { domain: "acme.test", verifiedAt: "2026-11-02T00:00:00Z", calendar: "delegated" } }} />,
     );
     expect(connected).toContain("Connected for <strong>acme.test</strong>");
     expect(connected).toContain("Disconnect");
+    expect(connected).not.toContain("calendar.events");
+  });
+
+  test("a connected Workspace that doesn't delegate Calendar warns, with the scopes to add; one not known gets the note", () => {
+    const at = (calendar: "missing" | "unknown") => renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null}
+        workspace={{ configured: true, clientId: "1234567890", connected: { domain: "acme.test", verifiedAt: "2026-11-02T00:00:00Z", calendar } }} />,
+    );
+    const missing = at("missing");
+    expect(missing).toContain("Calendar isn&#x27;t delegated yet");
+    expect(missing).toContain("calendar.events,https://www.googleapis.com/auth/calendar.events.freebusy");
+    const unknown = at("unknown");
+    expect(unknown).not.toContain("delegated yet");
+    expect(unknown).toContain("Connected before Calendar was part of it?");
   });
 
   test("a member covered by the Workspace has nothing to connect, only their own sync switch", () => {

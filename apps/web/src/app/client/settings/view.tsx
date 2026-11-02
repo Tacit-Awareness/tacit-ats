@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { GoogleG, GranolaIcon } from "@/components/brand-icons";
 import { FlashToast } from "@/components/flash-toast";
+import { Banner } from "@/components/banner";
 import { AppTile, Notice, Page, PageBar, Pill, Row, Rows, Section } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
@@ -12,6 +13,7 @@ import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
 } from "../integrations/messages";
+import type { CalendarDelegation } from "@/lib/client/workspace-calendar";
 import { RoutingRules } from "./routing-rules";
 
 // /client/settings, design/tats's settings cards (`.cardbox` around
@@ -272,7 +274,8 @@ export type WorkspaceSetup = {
   configured: boolean;
   /** The service account's client ID, which the company's Google admin authorizes. */
   clientId: string | null;
-  connected: { domain: string; verifiedAt: string } | null;
+  /** `calendar`: whether Google gives a calendar token as this admin (lib/client/workspace-calendar.ts). */
+  connected: { domain: string; verifiedAt: string; calendar: CalendarDelegation } | null;
 };
 
 /** Gmail (send, and read for the sync) and Calendar (book, and busy times), as core's mailbox.ts and calendar.ts ask. */
@@ -301,11 +304,26 @@ function WorkspaceSection({ setup }: { setup: WorkspaceSetup }) {
               address, interviews are booked on their own Google Calendar, and their email with candidates syncs to Tacit. Each person can turn
               their own sync off under Gmail above.
             </p>
-            <p className="text-xs text-muted-foreground">
-              Connected before Calendar was part of it? Your Google admin adds the calendar scopes to Tacit&apos;s entry (client ID{" "}
-              <code className="break-all font-mono">{setup.clientId}</code>):{" "}
-              <code className="break-all font-mono">{WORKSPACE_SCOPES}</code>. Then Verify again.
-            </p>
+            {setup.connected.calendar === "missing" ? (
+              <Banner
+                status="warning"
+                title="Calendar isn't delegated yet"
+                desc={
+                  <>
+                    Google refused Tacit&apos;s calendar access, so interviews are booked only on calendars people connect themselves. Your Google
+                    admin edits Tacit&apos;s entry under Manage Domain Wide Delegation (client ID{" "}
+                    <code className="break-all font-mono">{setup.clientId}</code>) so its OAuth scopes read{" "}
+                    <code className="break-all font-mono">{WORKSPACE_SCOPES}</code>, then Verify again.
+                  </>
+                }
+              />
+            ) : setup.connected.calendar === "unknown" ? (
+              <p className="text-xs text-muted-foreground">
+                Connected before Calendar was part of it? Your Google admin adds the calendar scopes to Tacit&apos;s entry (client ID{" "}
+                <code className="break-all font-mono">{setup.clientId}</code>):{" "}
+                <code className="break-all font-mono">{WORKSPACE_SCOPES}</code>. Then Verify again.
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <form action={verifyWorkspaceAction}>
                 <button type="submit" className={buttonVariants({ variant: "outline", size: "sm" })}>Verify again</button>
