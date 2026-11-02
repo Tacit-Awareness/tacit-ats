@@ -221,14 +221,15 @@ function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewP
   );
 }
 
-/** The page's content, also what the Pipeline's pop-up holds (`popup`: its header already names them). */
-export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, notice, error, now, popup = false }: CandidateViewProps & { popup?: boolean }) {
+/** The page's content, also what the Pipeline's and the Inbox's pop-ups hold. `call`: what a pop-up wants decided, under the chips (design/tats's `nowPanel`). */
+export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, notice, error, now, call = null }: CandidateViewProps & { call?: React.ReactNode }) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
   const pastIds = new Set(past.map((p) => p.applicationId));
   const current = candidate.applications.filter((a) => !pastIds.has(a.applicationId));
   const multi = current.length > 1;
+  const sole = candidate.full && current.length === 1 ? current[0] : null;
 
   const contact: [string, React.ReactNode][] = [];
   if (candidate.full) contact.push(["Email", candidate.email ? <span className="truncate">{candidate.email}</span> : <span className="text-faint">None on file</span>]);
@@ -264,7 +265,7 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
         <div className="grid gap-5">
           <div className="flex items-center gap-3">
             <div className="min-w-0">
-              {popup ? null : <h1 className="m-0 text-[22px] leading-[1.25] font-semibold tracking-[-0.012em] text-balance">{name}</h1>}
+              <h1 className="m-0 text-[22px] leading-[1.25] font-semibold tracking-[-0.012em] text-balance">{name}</h1>
               {subtitle ? <p className="m-0 mt-0.5 text-[14px] text-muted-foreground">{subtitle}</p> : null}
             </div>
           </div>
@@ -293,6 +294,8 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
             </Chips>
           ) : null}
         </div>
+
+        {call}
 
         {candidate.full ? (
           <section aria-label="Jobs">
@@ -336,8 +339,24 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
 
       {/* design/tats's `.props`: the rail, ruled off on the left */}
       <aside className="grid content-start gap-4 border-t border-[color:var(--line)] px-3 pt-3.5 pb-10 min-[1100px]:border-t-0 min-[1100px]:border-l">
+        {sole ? (
+          <PropGroup title="Application">
+            <Prop k="Status">
+              <span className="truncate">{stageLabel(sole.stage)}</span>
+            </Prop>
+            <Prop k="Owner">
+              {owners[sole.applicationId] ? <span className="truncate">{owners[sole.applicationId]}</span> : <span className="text-faint">No owner</span>}
+            </Prop>
+            <Prop k="Role">
+              <span className="truncate">{sole.jobTitle ?? "Untitled job"}</span>
+            </Prop>
+            <Prop k="Source">
+              <span className="truncate">{sourceText(sole.source, sole.sourceDetail)}</span>
+            </Prop>
+          </PropGroup>
+        ) : null}
         {contact.length ? (
-          <PropGroup title="Contact">
+          <PropGroup ruled={sole !== null} title="Contact">
             {contact.map(([k, v]) => (
               <Prop key={k} k={k}>
                 {v}
@@ -345,7 +364,7 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
             ))}
           </PropGroup>
         ) : null}
-        <PropGroup ruled={contact.length > 0} title={`Files${candidate.files.length ? ` · ${candidate.files.length}` : ""}`}>
+        <PropGroup ruled={sole !== null || contact.length > 0} title={`Files${candidate.files.length ? ` · ${candidate.files.length}` : ""}`}>
           {candidate.files.length === 0 ? (
             <p className="m-0 px-2 text-[12.5px] text-faint">No files.</p>
           ) : (

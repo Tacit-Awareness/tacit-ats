@@ -221,7 +221,7 @@ export function DecisionBar({
     decision.actions.map((a) => ({ keys: a.key.toUpperCase(), label: "href" in a ? a.label : `${a.label}, after you confirm` })),
   );
   return (
-    <div ref={bar} data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
+    <div ref={bar} data-tour="inbox-keys" className="flex flex-wrap items-center gap-1.5">
       {decision.actions.map((a) =>
         "href" in a ? (
           <Link key={a.key} ref={link} href={a.href} aria-keyshortcuts={a.key.toUpperCase()} className={cn(button, a.primary ? primary : plain)}>

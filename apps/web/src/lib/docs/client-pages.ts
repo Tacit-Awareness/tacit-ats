@@ -144,7 +144,7 @@ The Inbox is one card for admins and the hiring team: what is stuck and waiting 
 | **Replies** | A candidate wrote back to your email. It's forwarded to your own mail too, and writing to them again clears it |
 | **Unsent drafts** | Your own candidate emails, left unsent for two hours |
 
-Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. A decision on a candidate opens their whole ticket: the interview loop, the feedback you can read, and everything on their page. Anything else opens with the candidate's recent history. \`Esc\`, the close button or a click outside takes you back to the card, at the same period. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:
+Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. An issue about a candidate opens their whole ticket: the interview process across the top once they have had an interview, then their page, with a card under their name. On a decision the card holds the feedback you can read and the buttons; on anything else it says where things stand and what moves them on. A job's approval, or an approval on a job you aren't on, opens with just the card and any recent history. \`Esc\`, the close button or a click outside takes you back to the card, at the same period. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:
 
 | Key | What it does |
 | --- | --- |

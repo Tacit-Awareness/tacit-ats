@@ -131,7 +131,7 @@ export function SendBar({
   useKeys({ f: () => void (isShown(bar.current) && setOpen(true)) }, fix.canSend && !open);
   useKeyHelp("Inbox", fix.canSend ? [{ keys: "F", label: `${fix.label}, after you confirm` }] : []);
   return (
-    <div ref={bar} data-tour="inbox-keys" className="mt-4 flex flex-wrap items-center gap-1.5">
+    <div ref={bar} data-tour="inbox-keys" className="flex flex-wrap items-center gap-1.5">
       <button type="button" disabled={!fix.canSend} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts={fix.canSend ? "F" : undefined} className={cn(button, primary, !fix.canSend && "cursor-not-allowed")}>
         {fix.label}
         {fix.canSend ? (
