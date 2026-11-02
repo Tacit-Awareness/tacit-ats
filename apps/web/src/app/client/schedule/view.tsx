@@ -565,6 +565,7 @@ export function ScheduleView({
   q,
   truncated,
   canBook,
+  banner,
 }: {
   view: View;
   /** The `?date=`; null is the browser's today. */
@@ -580,6 +581,8 @@ export function ScheduleView({
   truncated: boolean;
   /** May book on some job: not an interviewer. Which jobs is the dialog's read, and the policies' at the write. */
   canBook: boolean;
+  /** Above the toolbar: the page's banner, when it has one. */
+  banner?: React.ReactNode;
 }) {
   const router = useRouter();
   const timeZone = React.useSyncExternalStore(noSubscribe, browserZone, serverZone);
@@ -670,6 +673,7 @@ export function ScheduleView({
       bleed
       className="grid-cols-[minmax(0,1fr)]"
     >
+      {banner}
       {/* Wraps at every width: beside the sidebar a long department name would push the pills off the edge. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:px-5 md:py-3">
         {q ? (

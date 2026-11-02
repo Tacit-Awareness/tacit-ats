@@ -1,4 +1,8 @@
+import { Banner } from "@/components/banner";
+import { bannerTag } from "@/lib/banner-rules";
 import { safeHref } from "@/lib/client/applicant-queue";
+import { awayBanner } from "@/lib/client/interviewer-profile";
+import { readAway } from "@/lib/client/interviewers";
 import { readAllInterviews, readSchedule } from "@/lib/client/schedule";
 import { schedulableRoles } from "@/lib/client/schedule-choices";
 import { departmentTones, isScheduleView, parseYmd, readWindow, toneFor } from "@/lib/client/schedule-layout";
@@ -29,6 +33,10 @@ import { ScheduleView, type CalendarEvent } from "./view";
 // an interview still ahead on a job the member may schedule on, asked the way a
 // write asks, and the write asks again. An interviewer changes nothing.
 //
+// Above it, for whoever books, the prototype's banner of interviewers who are
+// away (their Interviewers profile's "Away through"), from the profiles their
+// own token reads; dismissed in this browser until someone else is away.
+//
 // Left out from the prototype: holds. An event the member cannot change opens
 // the interview on the Interviews page.
 
@@ -54,7 +62,11 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
   const dept = names.includes(asDept) ? asDept : null;
 
   const ahead = (i: (typeof items)[number]) => i.status === "scheduled" && Date.parse(i.startsAt) > now.getTime();
-  const schedulable = accessLevel === "limited" ? new Set<string>() : await schedulableRoles(db, items.filter(ahead).map((i) => i.jobId));
+  const [schedulable, awayMembers] = await Promise.all([
+    accessLevel === "limited" ? new Set<string>() : schedulableRoles(db, items.filter(ahead).map((i) => i.jobId)),
+    accessLevel === "limited" ? [] : readAway(db, now),
+  ]);
+  const away = awayBanner(awayMembers, now);
 
   const events: CalendarEvent[] = (q ? items.filter((i) => matchesSearch(i, q)) : items).map((i) => ({
     id: i.interviewId,
@@ -85,6 +97,20 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
       q={q}
       truncated={truncated}
       canBook={accessLevel !== "limited"}
+      banner={
+        away ? (
+          <Banner
+            id={`schedule-away:${bannerTag(away.key)}`}
+            status="info"
+            size="compact"
+            title={away.title}
+            desc="Check before you book them."
+            actions={[{ label: "See interviewers", href: "/client/interviewers" }]}
+            dismissible
+            className="mx-3 mt-2.5 md:mx-5 md:mt-3"
+          />
+        ) : null
+      }
     />
   );
 }

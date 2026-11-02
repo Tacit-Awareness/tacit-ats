@@ -338,6 +338,8 @@ If you connected Granola, your own notes appear on interviews you sat on, with t
 
 Admins and the hiring team can book and change interviews: use **Book**, or click or drag on the grid. Click an interview still ahead to reschedule or cancel it, or drag it to a new time.
 
+When someone has said on **Interviewers** that they are away, a line above the calendar names them and the last day they are away, so you can check before you book them. Dismiss it with **✕** and it stays hidden in that browser until someone else is away, or the dates change.
+
 **Nothing changes a real calendar until you confirm.** The confirmation says whose calendar it goes on, who Google will email and who is busy. Booking here sends no separate email to the candidate: they hear from Google, as they are on the event. Without a connected calendar, Tacit records the interview and invites nobody.
 
 Changing an interview's interviewers or location is done through [Claude or tats](/docs/interviews).
