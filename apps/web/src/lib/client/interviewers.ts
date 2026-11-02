@@ -1,6 +1,6 @@
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
-import type { StoredProfile } from "./interviewer-profile";
+import type { AwayMember, StoredProfile } from "./interviewer-profile";
 import type { AccessLevel } from "./session";
 import {
   assembleInterviewers,
@@ -130,4 +130,28 @@ export async function readInterviewers(
     now,
   });
   return { groups: groupByDepartment(interviewers), feedback: feedback !== null, truncated: interviews.truncated, own: profiles.get(member.actorId) ?? null };
+}
+
+/** Rows the away read stops at: more than a banner names. */
+const AWAY_MAX = 50;
+
+/**
+ * Who is away today or later, by the profiles the member may read (everyone's
+ * for an admin or the company's own hiring team, an external recruiter's own),
+ * with their names: the Calendar's banner (interviewer-profile.ts's awayBanner).
+ */
+export async function readAway(db: Db, now: Date): Promise<AwayMember[]> {
+  const { data, error } = await db
+    .from("interviewer_profiles")
+    .select("actor_id, away_until")
+    .gte("away_until", now.toISOString().slice(0, 10))
+    .order("away_until")
+    .limit(AWAY_MAX);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []).filter((r): r is { actor_id: string; away_until: string } => r.away_until !== null);
+  if (!rows.length) return [];
+  const { data: members, error: membersError } = await db.from("org_members").select("id, display_name").in("id", rows.map((r) => r.actor_id));
+  if (membersError) throw new Error(membersError.message);
+  const names = new Map((members ?? []).flatMap((m) => (m.id ? [[m.id, m.display_name ?? ""] as const] : [])));
+  return rows.map((r) => ({ actorId: r.actor_id, name: names.get(r.actor_id) ?? "", awayUntil: r.away_until }));
 }

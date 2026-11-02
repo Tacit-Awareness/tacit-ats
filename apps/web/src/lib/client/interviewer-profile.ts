@@ -86,6 +86,27 @@ export function awayLabel(awayUntil: string | null, now: Date): string | null {
   return `Away through ${date}`;
 }
 
+export type AwayMember = { actorId: string; name: string; awayUntil: string };
+
+/** Names the Calendar's banner spells out; past that, "and N more". */
+const AWAY_NAMED = 4;
+
+/**
+ * The Calendar's away banner (design/tats's `cal-away`): "Wei: away through
+ * Nov 14 · Sam: away through Nov 20", soonest back first, by first name. Its
+ * `key` (for lib/banner-rules.ts's bannerTag) changes with who is away and until when, so a dismissed banner comes
+ * back when someone else goes away. Null when nobody is.
+ */
+export function awayBanner(members: AwayMember[], now: Date): { title: string; key: string[] } | null {
+  const away = members
+    .filter((m) => m.name.trim() && isAway(m.awayUntil, now))
+    .sort((a, b) => a.awayUntil.localeCompare(b.awayUntil) || a.name.localeCompare(b.name));
+  if (!away.length) return null;
+  const named = away.slice(0, AWAY_NAMED).map((m) => `${m.name.trim().split(/\s+/)[0]}: ${awayLabel(m.awayUntil, now)!.replace(/^Away/, "away")}`);
+  const rest = away.length - named.length;
+  return { title: named.join(" · ") + (rest ? ` · and ${rest} more` : ""), key: away.map((m) => `${m.actorId}@${m.awayUntil}`).sort() };
+}
+
 /** The most pips a bar draws; past that, each pip stands for more than one interview. */
 const MAX_PIPS = 10;
 
