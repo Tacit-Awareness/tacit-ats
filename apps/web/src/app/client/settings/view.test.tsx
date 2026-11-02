@@ -17,6 +17,14 @@ describe("SettingsView", () => {
     expect(html).toContain('href="/client/onboarding/process"');
   });
 
+  test("links Email templates only when asked to", () => {
+    expect(html).not.toContain('href="/client/settings/templates"');
+    const withTemplates = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null} templates />,
+    );
+    expect(withTemplates).toContain('href="/client/settings/templates"');
+  });
+
   test("has design/tats's Routing Rules, every selection rule on, above the integrations", () => {
     expect(html.match(/role="switch" aria-checked="true"/g)).toHaveLength(4);
     expect(html).toContain("Escalation");

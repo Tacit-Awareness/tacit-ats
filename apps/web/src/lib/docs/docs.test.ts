@@ -83,7 +83,7 @@ describe("the client site", () => {
   test("every sidebar page of the app has a features page", () => {
     const features = CLIENT_SITE.pages.filter((p) => p.category === "tATS features");
     const text = features.map((p) => p.body).join("\n");
-    for (const label of ["Home", "Inbox", "CRM", "Job Postings", "New Applicants", "Analytics", "Pipeline", "Interviews", "Calendar", "Interviewers", "Referrals", "Team", "Interview process", "Settings"]) {
+    for (const label of ["Home", "Inbox", "CRM", "Job Postings", "New Applicants", "Analytics", "Pipeline", "Interview Judgement", "Interview Calendar", "Interviewers", "Referrals", "Team", "Interview process", "Settings"]) {
       expect(text, label).toContain(label);
     }
   });

@@ -81,8 +81,8 @@ const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brie
 const APPLICANTS: NavLink = { href: "/client/applicants", label: "New Applicants", icon: "ticket" };
 const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
 const PIPELINE: NavLink = { href: "/client/pipeline", label: "Pipeline", icon: "people", activeUnder: ["/client/views"] };
-const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: "mic" };
-const CALENDAR: NavLink = { href: "/client/schedule", label: "Calendar", icon: "cal" };
+const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interview Judgement", icon: "mic" };
+const CALENDAR: NavLink = { href: "/client/schedule", label: "Interview Calendar", icon: "cal" };
 const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
 const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
 // Onboarding's steps but its process, which has its own link, as in design/tats.
@@ -388,9 +388,9 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     { group: "Go to", label: "Views", href: "/client/views" },
     { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
     { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
-    { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
     { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
     { group: "Go to", label: "Onboarding", href: TEAM.href },
+    { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
     { group: "Go to", label: PROCESS.label, href: PROCESS.href },
     { group: "Go to", label: SETTINGS.label, href: SETTINGS.href },
     { group: "Go to", label: DOCS.label, href: DOCS.href },
@@ -463,12 +463,12 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
           </Suspense>
           <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
           <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
-          <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
           <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
         </Section>
 
         <Section label="Onboarding" open={!shut.has("ob")} onToggle={() => shutToggle("ob")}>
           <NavItem link={TEAM} active={isActive(TEAM)} rail={rail} />
+          <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
           <NavItem link={PROCESS} active={isActive(PROCESS)} rail={rail} />
           <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
         </Section>

@@ -74,6 +74,7 @@ export async function readReply(
 export type DraftOutcome = { ok: true; draftId: string } | { ok: false; error: string };
 
 const NOT_THEIRS = "That application isn't one you can see any more. No draft was written.";
+const TEMPLATE_GONE = "That template has been archived. Pick another, or Blank. No draft was written.";
 
 /**
  * Writes a draft and sends nothing. A refusal comes back as core's sentence
@@ -85,14 +86,16 @@ export async function draftReply(
   db: Db,
   ctx: clientTools.ClientToolCtx,
   mailer: clientTools.ClientMailer | null,
-  input: { candidateId: string; applicationId: string; subject: string; body: string },
+  input: { candidateId: string; applicationId: string; subject: string; body: string; template?: string },
 ): Promise<DraftOutcome> {
   if (!mailer) return { ok: false, error: "Sending isn't set up on this deployment, so no draft was written." };
   try {
+    // A template's id only records which one it started from: the words are the member's, and replace the template's.
     const { draftId } = await clientTools.draftEmail(db, ctx, mailer, input);
     return { ok: true, draftId };
   } catch (err) {
     if (!(err instanceof clientTools.ClientToolError)) throw err;
+    if (input.template && /template/.test(err.message)) return { ok: false, error: TEMPLATE_GONE };
     if (err.code === "not_found" || err.message.includes("application_id")) return { ok: false, error: NOT_THEIRS };
     return { ok: false, error: err.message };
   }
