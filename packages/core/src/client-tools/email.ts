@@ -3,6 +3,7 @@ import type { Db } from "@tacit/db";
 import { connector, logTouch, renderTemplate } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
+import { replyAddress } from "./email-replies.js";
 
 /**
  * Candidate email for the client connector (20261016100000_client_email):
@@ -50,6 +51,12 @@ export type ClientMailer = {
   send: connector.EmailSender | null;
   /** The Tacit-controlled address every client email is From, e.g. hiring@tacitawareness.com. */
   fromAddress: string;
+  /**
+   * The domain Resend receives on. Set, an email's Reply-To is its own
+   * reply+<id>@ address, so a reply lands in the ATS and is forwarded to the
+   * member; unset, Reply-To is the member's own address and the ATS never sees one.
+   */
+  replyDomain?: string | null;
 };
 
 const turnedOff = (what: string) =>
@@ -451,7 +458,8 @@ export async function sendEmail(
     let providerId: string;
     try {
       ({ id: providerId } = await send({
-        from: sender.from, replyTo: sender.replyTo, to: draft.to_email, subject: draft.subject, text: draft.body,
+        from: sender.from, replyTo: mailer.replyDomain ? replyAddress(draft.id, mailer.replyDomain) : sender.replyTo,
+        to: draft.to_email, subject: draft.subject, text: draft.body,
         idempotencyKey: draft.id,
       }));
     } catch (err) {

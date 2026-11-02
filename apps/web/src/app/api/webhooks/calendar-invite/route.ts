@@ -7,8 +7,15 @@
 // of the same event updates rather than duplicates, and a cancelled event
 // lands cancelled. App-booked interviews get a calendar@ guest too, so
 // moves made in Google write back to the row the app created.
+//
+// It is also Resend's one inbound webhook, so a candidate's reply to a
+// member's email arrives here too, addressed reply+<email id>@: the Reply-To
+// core gave that email. lib/inbound/email-reply.ts keeps it.
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { connector } from "@tacit/core";
 import { getSupabaseServiceClient } from "@tacit/db";
+import { clientTools } from "@tacit-ats/core";
+import { keepReply, type ReceivedEmail } from "@/lib/inbound/email-reply";
 import { parseIcs } from "@/lib/public/ics";
 
 const RESEND = "https://api.resend.com";
@@ -80,11 +87,27 @@ async function fetchIcs(emailId: string): Promise<{ ics: string | null; diag: st
   return { ics: inline ?? null, diag: inline ? "inline" : "none" };
 }
 
+/** Who a forwarded reply goes out through. Null: it is kept, and only the Inbox has it. */
+function forwarder(): { send: connector.EmailSender; fromAddress: string } | null {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const fromAddress = process.env.CLIENT_EMAIL_FROM?.trim();
+  return apiKey && fromAddress ? { send: connector.makeResendSender({ apiKey }), fromAddress } : null;
+}
+
+/** A reply's words are the provider's to give: a failed read answers 502, so Resend delivers it again. */
+async function replyResponse(emailId: string): Promise<Response> {
+  const mail = await resendGet(`/emails/receiving/${emailId}`);
+  if (mail?.status !== 200) return new Response(null, { status: 502 });
+  const outcome = await keepReply(getSupabaseServiceClient(), { ...(mail.body as Omit<ReceivedEmail, "providerId">), providerId: emailId }, forwarder());
+  return Response.json({ ok: true, reply: outcome });
+}
+
 export async function POST(request: Request): Promise<Response> {
   const raw = await request.text();
   if (!svixOk(request, raw)) return new Response(null, { status: 401 });
-  const event = JSON.parse(raw) as { type?: string; data?: { email_id?: string } };
+  const event = JSON.parse(raw) as { type?: string; data?: { email_id?: string; to?: string[]; cc?: string[] } };
   if (event.type !== "email.received" || !event.data?.email_id) return Response.json({});
+  if (clientTools.repliedEmailId([...(event.data.to ?? []), ...(event.data.cc ?? [])])) return replyResponse(event.data.email_id);
 
   const { ics, diag } = await fetchIcs(event.data.email_id);
   const ev = ics ? parseIcs(ics) : null;

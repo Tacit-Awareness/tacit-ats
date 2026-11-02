@@ -69,6 +69,7 @@ const input: InboxInput = {
   outstanding: [],
   approvals: [],
   drafts: [],
+  replies: [],
 };
 const row = (over: Partial<Dismissal> = {}): Dismissal => ({ id: "row", key: KEY, reason: "quiet", at: AT, how: "dismissed", dismissedAt: "2026-10-29T12:00:00Z", ...over });
 const standing = standingIssues(input, NOW);

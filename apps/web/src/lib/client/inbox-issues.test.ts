@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DRAFT_LATE_MS, currentDrafts, inboxIssues, instanceId, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, standingIssues, waitingSince, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding, type Issue } from "./inbox-issues";
+import { DRAFT_LATE_MS, currentDrafts, inboxIssues, instanceId, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, standingIssues, unansweredReplies, waitingSince, type InboxApproval, type InboxCard, type InboxDraft, type InboxOutstanding, type InboxReply, type Issue } from "./inbox-issues";
 
 const NOW = Date.parse("2026-10-30T12:00:00Z");
 const DAY = 86_400_000;
@@ -59,7 +59,7 @@ const draft = (over: Partial<InboxDraft> = {}): InboxDraft => ({
   ...over,
 });
 
-const issues = (over: Partial<Parameters<typeof inboxIssues>[0]>) => inboxIssues({ cards: [], outstanding: [], approvals: [], drafts: [], ...over }, NOW);
+const issues = (over: Partial<Parameters<typeof inboxIssues>[0]>) => inboxIssues({ cards: [], outstanding: [], approvals: [], replies: [], drafts: [], ...over }, NOW);
 
 describe("inboxIssues", () => {
   test("a healthy application is no issue", () => {
@@ -232,6 +232,7 @@ describe("a dismissal", () => {
     outstanding: [missing("a")],
     approvals: [],
     drafts: [],
+    replies: [],
   };
 
   test("hides that one instance, and the next that holds on the application takes its place", () => {
@@ -247,7 +248,7 @@ describe("a dismissal", () => {
   });
 
   test("matches as instants, in whatever format the row comes back", () => {
-    const quiet = { cards: [card("a", { lastTouchAt: "2026-10-20T10:00:00.123456+00:00", stalled: ["no_touch"] })], outstanding: [], approvals: [], drafts: [] };
+    const quiet = { cards: [card("a", { lastTouchAt: "2026-10-20T10:00:00.123456+00:00", stalled: ["no_touch"] })], outstanding: [], approvals: [], replies: [], drafts: [] };
     const row = { key: "app-a", reason: "quiet" as const, at: "2026-10-20T10:00:00.123+00:00" };
     expect(inboxIssues(quiet, NOW, new Set([instanceId(row)]))).toEqual([]);
   });
@@ -259,14 +260,14 @@ describe("a dismissal", () => {
   });
 
   test("a dismissed approval gives its place back to its application's issue", () => {
-    const withApproval = { cards: [card("a", { stalled: ["no_touch"] })], outstanding: [], drafts: [], approvals: [approval({ applicationId: "a" })] };
+    const withApproval = { cards: [card("a", { stalled: ["no_touch"] })], outstanding: [], replies: [], drafts: [], approvals: [approval({ applicationId: "a" })] };
     const shown = inboxIssues(withApproval, NOW);
     expect(shown.map((i) => i.reason)).toEqual(["approval"]);
     expect(inboxIssues(withApproval, NOW, offOf(shown[0]!)).map((i) => i.reason)).toEqual(["quiet"]);
   });
 
   test("a later round's missing feedback isn't hidden by a dismissal of an earlier round's", () => {
-    const first = { cards: [card("a")], outstanding: [missing("a", { interviewId: "iv-1", endsAt: daysAgo(9) })], approvals: [], drafts: [] };
+    const first = { cards: [card("a")], outstanding: [missing("a", { interviewId: "iv-1", endsAt: daysAgo(9) })], approvals: [], replies: [], drafts: [] };
     const off = offOf(inboxIssues(first, NOW)[0]!);
     const later = { ...first, outstanding: [...first.outstanding, missing("a", { interviewId: "iv-2", interviewerName: "Kim Roe", endsAt: daysAgo(1) })] };
     expect(inboxIssues(first, NOW, off)).toEqual([]);
@@ -283,7 +284,7 @@ describe("a dismissal", () => {
   });
 
   test("an approval dismissed at one step comes back when it reaches this approver at a later one", () => {
-    const at = (waitingStep: number) => ({ cards: [], outstanding: [], drafts: [], approvals: [approval({ applicationId: null, waitingStep, steps: 2 })] });
+    const at = (waitingStep: number) => ({ cards: [], outstanding: [], replies: [], drafts: [], approvals: [approval({ applicationId: null, waitingStep, steps: 2 })] });
     const off = offOf(inboxIssues(at(1), NOW)[0]!);
     expect(inboxIssues(at(1), NOW, off)).toEqual([]);
     expect(inboxIssues(at(2), NOW, off)).toMatchObject([{ reason: "approval", why: "Your approval, step 2 of 2" }]);
@@ -299,5 +300,31 @@ describe("issueLine", () => {
   test("who, the candidate unless the heading names them, and why", () => {
     expect(issueLine(issues({ cards: [card("a")], outstanding: [missing("a")] })[0]!)).toBe("Ivan Petrov · Candidate a · Interview ended 2d ago");
     expect(issueLine(issues({ cards: [card("a", { column: "decide" })] })[0]!)).toMatch(/^Interviewed/);
+  });
+});
+
+describe("a candidate's reply", () => {
+  const reply = (over: Partial<InboxReply> = {}): InboxReply => ({
+    replyId: "r1", personId: "p1", personName: "Cam Lee", jobTitle: "Engineer", applicationId: "a1", fromEmail: "cam@cand.test", subject: "Re: Hello", receivedAt: "2026-10-30T10:00:00Z", ...over,
+  });
+
+  test("comes first in the queue, its subject as the why and no words", () => {
+    const [first] = issues({ replies: [reply()], drafts: [draft()] });
+    expect(first).toMatchObject({ key: "reply-r1", kind: "reply", what: "Cam Lee replied", why: "Re: Hello" });
+    expect(issueFix(first!, false)).toEqual({ type: "link", label: "Open candidate", href: "/client/candidates/p1" });
+  });
+
+  test("keeps each candidate's newest, unless the member has written since", () => {
+    const newer = reply({ replyId: "r2", receivedAt: "2026-10-31T10:00:00Z" });
+    expect(unansweredReplies([reply(), newer], []).map((r) => r.replyId)).toEqual(["r2"]);
+    expect(unansweredReplies([newer], [{ personId: "p1", sentAt: "2026-10-30T12:00:00Z" }]).map((r) => r.replyId)).toEqual(["r2"]);
+    expect(unansweredReplies([newer], [{ personId: "p1", sentAt: "2026-11-01T00:00:00Z" }])).toEqual([]);
+    expect(unansweredReplies([newer], [{ personId: "p2", sentAt: "2026-11-01T00:00:00Z" }])).toHaveLength(1);
+  });
+
+  test("a dismissal hides that reply and not the next one", () => {
+    const seen = new Set([instanceId({ key: "reply-r1", reason: "reply", at: "2026-10-30T10:00:00Z" })]);
+    expect(inboxIssues({ cards: [], outstanding: [], approvals: [], drafts: [], replies: [reply()] }, Date.now(), seen)).toEqual([]);
+    expect(inboxIssues({ cards: [], outstanding: [], approvals: [], drafts: [], replies: [reply({ replyId: "r2" })] }, Date.now(), seen)).toHaveLength(1);
   });
 });

@@ -65,6 +65,8 @@ export type IssueReaderProps = {
   card: { title: string; detail: string };
   /** An unsent draft, for its author's eyes. */
   draft: SendProps | null;
+  /** A candidate's reply: their words, shown as text. */
+  reply: { subject: string; body: string } | null;
   fix: IssueFix;
   /** The buttons and what they confirm, when the fix is a decision. */
   decision: DecisionProps | null;
@@ -94,12 +96,14 @@ export type Standing = { who: string | null; title: string; why: string; age: st
 export type PersonPopupProps = Ticket & { key: string; page: string; standing: Standing | null };
 
 const ICON: Record<IssueKind, string> = {
+  reply: "M6.5 3.5 2.5 7.5l4 4M2.5 7.5H10a3.5 3.5 0 0 1 3.5 3.5v1.5",
   draft: "M2.5 4h11v8.5h-11ZM2.5 4.5 8 8.8l5.5-4.3",
   late: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 4.8V8l2.2 1.3",
   decide: "M3.5 14V2.5M3.5 3h8.5l-2 3 2 3H3.5",
 };
 
 const TONE: Record<IssueKind, string> = {
+  reply: "bg-[color:var(--sel)] text-[color:var(--accent)]",
   draft: "bg-[color:var(--sel)] text-[color:var(--accent)]",
   late: "bg-[color:var(--amber-soft)] text-[color:var(--amber)]",
   decide: "bg-[color:var(--soft)] text-muted-foreground",
@@ -371,6 +375,15 @@ function Draft({ draft }: { draft: NonNullable<IssueReaderProps["draft"]> }) {
   );
 }
 
+function Reply({ reply }: { reply: NonNullable<IssueReaderProps["reply"]> }) {
+  return (
+    <div data-untrusted="candidate-email" className="text-[13px]">
+      {reply.subject ? <p className="m-0 mb-2 font-medium break-words">{reply.subject}</p> : null}
+      <p className="m-0 break-words whitespace-pre-wrap">{reply.body || "The email had no text."}</p>
+    </div>
+  );
+}
+
 function Bar({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   if (issue.decision) return <DecisionBar key={issue.decision.key} decision={issue.decision} instance={issue.instance} terms={issue.terms} next={issue.next} range={range} secondary={issue.secondary} />;
   if (issue.fix.type === "send" && issue.draft) return <SendBar key={issue.fix.draftId} fix={issue.fix} draft={issue.draft} instance={issue.instance} next={issue.next} range={range} secondary={issue.secondary} />;
@@ -381,13 +394,15 @@ function Bar({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) 
 /** The issue's card: a decision's call, the read and the buttons together, or where anything else stands. */
 function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   const extra =
-    issue.draft || issue.terms ? (
+    issue.draft || issue.reply || issue.terms ? (
       <>
         {issue.draft ? <Draft draft={issue.draft} /> : null}
+        {issue.reply ? <Reply reply={issue.reply} /> : null}
         {issue.terms ? <OfferTerms lines={issue.terms} /> : null}
       </>
     ) : null;
   const loop = issue.ticket?.loop;
+  const hasBar = issue.decision !== null || (issue.fix.type === "send" && issue.draft !== null) || issue.fix.type === "link" || issue.fix.type === "write";
   return issue.decision ? (
     <CallCard
       reads={loop?.feedback ?? []}
@@ -407,7 +422,7 @@ function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRan
       {extra}
     </CallCard>
   ) : (
-    <WhereItStands who={issue.who} title={issue.card.title} why={issue.card.detail} age={issue.age} late={issue.kind === "late"} actions={<Bar issue={issue} range={range} />}>
+    <WhereItStands who={issue.who} title={issue.card.title} why={issue.card.detail} age={issue.age} late={issue.kind === "late"} actions={hasBar ? <Bar issue={issue} range={range} /> : null}>
       {extra}
     </WhereItStands>
   );

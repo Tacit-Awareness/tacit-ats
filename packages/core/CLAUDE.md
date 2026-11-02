@@ -204,6 +204,11 @@ src/
                         error (the claim kept either way). A null mailer
                         = email turned off; a null `send` = drafts only.
                         Subjects and bodies stay out of every audit row.
+                        email-replies.ts (2026-11-01): pure, the reply
+                        address reply+<email id>@ClientMailer.replyDomain
+                        that sendEmail uses in place of the member's own,
+                        reading it back, and what is kept of an arriving
+                        email; apps/web's webhook receives it.
                         listEmails / emailsFor: what the member reads
                         (sent ones, and their own drafts). getCandidate
                         carries `emails` (no bodies); getActivity has an

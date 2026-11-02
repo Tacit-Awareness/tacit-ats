@@ -27,6 +27,7 @@ const issue: IssueReaderProps = {
   age: "Waiting 2d",
   card: { title: "t", detail: "d" },
   draft: null,
+  reply: null,
   fix: { type: "link", label: "Open candidate", href: "/client/candidates/p" },
   decision: null,
   terms: null,
@@ -214,6 +215,17 @@ describe("a decision's whole ticket", () => {
     expect(sheet.indexOf('aria-label="Where it stands"')).toBeLessThan(sheet.indexOf("Dismiss"));
     expect(sheet.indexOf("Dismiss")).toBeLessThan(sheet.indexOf("The whole candidate"));
     expect(sheet).not.toContain("A short story");
+  });
+
+  test("a candidate's reply is on the card, marked as theirs and as text", () => {
+    const sheet = opened({ issue: { ...issue, reply: { subject: "Re: hello", body: "<b>Tuesday works</b>" }, ticket } });
+    expect(sheet).toContain('data-untrusted="candidate-email"');
+    expect(sheet).toContain("&lt;b&gt;Tuesday works&lt;/b&gt;");
+    expect(sheet.indexOf("Tuesday works")).toBeLessThan(sheet.indexOf("The whole candidate"));
+  });
+
+  test("no fix to offer leaves no empty row for one", () => {
+    expect(opened({ issue: { ...issue, fix: { type: "approval", requestId: "r", kind: "offer" }, decision: null, ticket } })).not.toContain("To move it on");
   });
 
   test("a decision's card holds the read and the buttons together", () => {
