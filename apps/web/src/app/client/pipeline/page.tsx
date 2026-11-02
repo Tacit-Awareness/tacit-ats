@@ -187,7 +187,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
             home={href({})}
             pageHref={`/client/candidates/${opened.personId}`}
           >
-            <CandidateBody {...person} popup notice={null} error={null} />
+            <CandidateBody {...person} notice={null} error={null} />
           </PersonPopup>
         ) : null
       }

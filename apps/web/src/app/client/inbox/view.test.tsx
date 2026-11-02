@@ -23,6 +23,8 @@ const issue: IssueReaderProps = {
   instance: { key: "k", reason: "quiet", at: "2026-10-20T10:00:00Z" },
   what: "Nobody has been in touch",
   subject: "Sam · Staff Engineer",
+  who: null,
+  age: "Waiting 2d",
   card: { title: "t", detail: "d" },
   draft: null,
   reply: null,
@@ -202,17 +204,40 @@ describe("a decision's whole ticket", () => {
   const loop = { candidate: "Sam", tag: "Round 1 of 2", loopLine: "Staff Engineer · 1 of 2 rounds held", rounds: [], route: null, editProcess: null, partial: false, feedback: [], feedbackNote: null };
   const story = [{ at: "2026-10-20T10:00:00Z", kind: "note", title: "A short story", detail: null, actor: null }] as unknown as IssueReaderProps["story"];
 
-  test("has the bar and the card, then the loop and the read, then the candidate, and no thin story", () => {
-    const html = opened({ issue: { ...issue, story, ticket: { loop, body: <p>The whole candidate</p> } } });
+  const reads = [{ feedbackId: "f1", interviewer: "Dana", recommendation: "Strong yes", verdict: "pass" as const, rating: 4, submitted: "Filed 2h ago", ratings: [], notes: "Hire them." }];
+  const ticket = { title: "Ada Lovelace", subject: "Staff Engineer · Interviewing", loop: { ...loop, feedback: reads }, body: (call: React.ReactNode) => <>{call}<p>The whole candidate</p></> };
+
+  test("names the candidate, then the route, the card with its buttons under them, and the candidate, with no thin story", () => {
+    const html = opened({ issue: { ...issue, story, ticket } });
     const sheet = html.slice(html.indexOf('role="dialog"'));
-    expect(sheet.indexOf("Dismiss")).toBeLessThan(sheet.indexOf("Interview loop"));
-    expect(sheet.indexOf("Interview loop")).toBeLessThan(sheet.indexOf('aria-label="Feedback"'));
-    expect(sheet.indexOf('aria-label="Feedback"')).toBeLessThan(sheet.indexOf("The whole candidate"));
+    expect(sheet.indexOf("Ada Lovelace")).toBeLessThan(sheet.indexOf("Interview loop"));
+    expect(sheet.indexOf("Interview loop")).toBeLessThan(sheet.indexOf('aria-label="Where it stands"'));
+    expect(sheet.indexOf('aria-label="Where it stands"')).toBeLessThan(sheet.indexOf("Dismiss"));
+    expect(sheet.indexOf("Dismiss")).toBeLessThan(sheet.indexOf("The whole candidate"));
     expect(sheet).not.toContain("A short story");
   });
 
+  test("a candidate's reply is on the card, marked as theirs and as text", () => {
+    const sheet = opened({ issue: { ...issue, reply: { subject: "Re: hello", body: "<b>Tuesday works</b>" }, ticket } });
+    expect(sheet).toContain('data-untrusted="candidate-email"');
+    expect(sheet).toContain("&lt;b&gt;Tuesday works&lt;/b&gt;");
+    expect(sheet.indexOf("Tuesday works")).toBeLessThan(sheet.indexOf("The whole candidate"));
+  });
+
+  test("no fix to offer leaves no empty row for one", () => {
+    expect(opened({ issue: { ...issue, fix: { type: "approval", requestId: "r", kind: "offer" }, decision: null, ticket } })).not.toContain("To move it on");
+  });
+
+  test("a decision's card holds the read and the buttons together", () => {
+    const decision = { key: "d", target: { name: "approvalId", value: "a" }, actions: [] } as unknown as IssueReaderProps["decision"];
+    const sheet = opened({ issue: { ...issue, decision, ticket } });
+    expect(sheet).toContain('aria-label="Your call"');
+    expect(sheet).toContain("Dana&#x27;s read");
+    expect(sheet.indexOf("Hire them.")).toBeLessThan(sheet.indexOf("The whole candidate"));
+  });
+
   test("with no loop to show it still has the candidate", () => {
-    const html = opened({ issue: { ...issue, ticket: { loop: null, body: <p>The whole candidate</p> } } });
+    const html = opened({ issue: { ...issue, ticket: { title: "Ada Lovelace", subject: "Staff Engineer · Interviewing", loop: null, body: (call) => <>{call}<p>The whole candidate</p></> } } });
     expect(html).toContain("The whole candidate");
     expect(html).not.toContain("Interview loop");
   });
@@ -223,7 +248,15 @@ describe("a decision's whole ticket", () => {
 });
 
 describe("a digest row's pop-up", () => {
-  const person = { key: "e1", title: "Sam Lee", subject: "Staff Engineer · Offer", page: "/client/candidates/p", body: <p>The whole candidate</p> };
+  test("says where they stand, under the chips", () => {
+    const standing = { who: "Lin", title: "Book the panel", why: "Interviewing", age: "Touched 3d ago", late: true };
+    const html = view({ person: { key: "e1", title: "Sam Lee", subject: "", page: "/p", loop: null, standing, body: (call) => <>{call}</> } });
+    expect(html).toContain("With Lin");
+    expect(html).toContain("Book the panel");
+    expect(html).not.toContain('aria-label="Your call"');
+  });
+
+  const person = { key: "e1", title: "Sam Lee", subject: "Staff Engineer · Offer", page: "/client/candidates/p", loop: null, standing: null, body: () => <p>The whole candidate</p> };
 
   test("holds the whole candidate over the card, and closes back to the range", () => {
     const html = view({ person, home: "/client/inbox?range=3" });
