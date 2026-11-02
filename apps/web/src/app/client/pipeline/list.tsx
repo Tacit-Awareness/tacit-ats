@@ -105,7 +105,7 @@ export function PipelineList({ groups, popup }: { groups: ListGroup[]; popup: bo
   );
   return (
     <RowMenus cards={cards} popup={popup}>
-      <KeyList title="Pipeline" next="Next person" mode={popup ? "select" : "focus"} data-tour="board">
+      <KeyList title="Applicant Tickets" next="Next person" mode={popup ? "select" : "focus"} data-tour="board">
         {groups.map((g) => (
           <section key={g.key} aria-label={g.label}>
             <h2 className="m-0 flex items-center gap-2 px-3 pt-5 pb-1 text-[13px] font-medium text-muted-foreground">

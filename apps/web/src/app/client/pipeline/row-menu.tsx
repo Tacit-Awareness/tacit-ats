@@ -69,7 +69,7 @@ export function RowMenus({ cards, popup, children }: { cards: RowCard[]; popup: 
     },
     movable && !popup && !pending && !menu,
   );
-  useKeyHelp("Pipeline", movable ? [{ keys: "S or right-click", label: "Move to a stage" }] : []);
+  useKeyHelp("Applicant Tickets", movable ? [{ keys: "S or right-click", label: "Move to a stage" }] : []);
 
   return (
     <div onContextMenu={onContext}>

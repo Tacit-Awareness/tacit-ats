@@ -116,7 +116,7 @@ export function PipelineView({
       bar={
         <>
           <PageBar
-            title={view ? <ViewName id={view.id} fallback={view.fallback} /> : "Pipeline"}
+            title={view ? <ViewName id={view.id} fallback={view.fallback} /> : "Applicant Tickets"}
             icon={view ? undefined : <PeopleIcon />}
             crumbs={view ? [{ href: "/client/views", label: "Views" }] : undefined}
             count={total.toLocaleString("en-US")}

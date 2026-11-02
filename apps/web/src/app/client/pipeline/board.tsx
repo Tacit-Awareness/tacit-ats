@@ -272,7 +272,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
     movable && !pending && !menu,
   );
   useKeyHelp(
-    "Pipeline",
+    "Applicant Tickets",
     movable
       ? [
           { keys: "S or right-click", label: "Move to a stage" },
@@ -284,7 +284,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
 
   return (
     <>
-      <KeyList title="Pipeline" next="Next card" mode="focus" data-tour="board" className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
+      <KeyList title="Applicant Tickets" next="Next card" mode="focus" data-tour="board" className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
         <div className="flex min-w-full items-start gap-2">
           {shown.map((column) => (
             <Column
@@ -330,7 +330,7 @@ export function FilterKeys({ enabled = true }: { enabled?: boolean }) {
     input?.select();
   };
   useKeys({ f: focus, "/": focus }, enabled);
-  useKeyHelp("Pipeline", [{ keys: "F or /", label: "Filter by name" }]);
+  useKeyHelp("Applicant Tickets", [{ keys: "F or /", label: "Filter by name" }]);
   return null;
 }
 
@@ -338,6 +338,6 @@ export function FilterKeys({ enabled = true }: { enabled?: boolean }) {
 export function LayoutKey({ to, refusal, enabled }: { to: string | null; refusal: string; enabled: boolean }) {
   const router = useRouter();
   useKeys({ b: () => (to ? router.push(to) : void showToast({ text: refusal })) }, enabled);
-  useKeyHelp("Pipeline", [{ keys: "B", label: "List or board" }]);
+  useKeyHelp("Applicant Tickets", [{ keys: "B", label: "List or board" }]);
   return null;
 }
