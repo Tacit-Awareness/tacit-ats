@@ -49,6 +49,7 @@ export default async function ClientSettings({
       botConnected={admin ? undefined : !!botConnected.data}
       orgName={gate.ctx.org.name}
       botCallbackUrl={host ? `${proto}://${host}/api/agents/interview-thread` : null}
+      templates={gate.ctx.accessLevel !== "limited"}
       notice={notice}
       error={error}
     />

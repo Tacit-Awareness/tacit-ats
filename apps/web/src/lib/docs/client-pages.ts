@@ -218,7 +218,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. **Template** starts it from one of your company's email templates instead, filled in for this candidate; the words are still yours to change. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
@@ -386,7 +386,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams and Interview process, and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
@@ -866,7 +866,7 @@ Interview feedback, scorecard ratings, offer terms and private notes. Claude lea
 
 ## Templates
 
-Templates are your company's reusable emails, shared by the team.
+Templates are your company's reusable emails, shared by the team. In Tacit they are in **Settings → Email templates**: everyone but interviewers can read them, and admins make, change, archive and bring them back there. The reply box on New Applicants offers them under **Template**.
 
 | Tool | |
 | --- | --- |

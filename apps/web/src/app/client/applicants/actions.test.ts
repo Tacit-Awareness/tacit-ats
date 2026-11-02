@@ -72,6 +72,17 @@ describe("draftReplyAction", () => {
     expect(email.draftReply).not.toHaveBeenCalled();
   });
 
+  test("a template it started from goes to core as its id beside the posted words", async () => {
+    const TEMPLATE = "55555555-5555-4555-8555-555555555555";
+    await expect(draftReplyAction({}, form({ ...good, templateId: TEMPLATE }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(email.draftReply).toHaveBeenCalledWith({}, ctx, FAKE, { candidateId: CANDIDATE, applicationId: APPLICATION, subject: "Hello", body: WORDS, template: TEMPLATE });
+  });
+
+  test("a template id that isn't one is dropped, and the words still draft", async () => {
+    await expect(draftReplyAction({}, form({ ...good, templateId: "Intro call" }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(email.draftReply).toHaveBeenCalledWith({}, ctx, FAKE, { candidateId: CANDIDATE, applicationId: APPLICATION, subject: "Hello", body: WORDS });
+  });
+
   test("a refusal stays on the form, not in a URL", async () => {
     email.draftReply.mockResolvedValue({ ok: false, error: "An email needs a body." });
     expect(await draftReplyAction({}, form(good))).toEqual({ error: "An email needs a body." });
