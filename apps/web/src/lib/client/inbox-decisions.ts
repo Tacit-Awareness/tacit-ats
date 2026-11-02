@@ -49,7 +49,7 @@ export function confirmCopy(mode: ConfirmMode, s: Subject): ConfirmCopy {
         ? { title: `Reject opening ${job}?`, body: "The job stays as it is. Whoever asked sees your reason and can ask again.", confirm: "Reject", danger: true }
         : { title: `Reject the offer for ${who}?`, body: "The offer stays a draft. Whoever asked sees your reason and can ask again.", confirm: "Reject", danger: true };
     case "offer":
-      return { title: `Move ${who} to offer?`, body: `This moves them from Interviewing to Offer on ${job}. No offer is drafted or sent.`, confirm: "Move to offer", danger: false };
+      return { title: `Move ${who} to offer?`, body: `This moves them from Interviewing to Offer on ${job}. No offer is drafted or sent: that's on their page.`, confirm: "Move to offer", danger: false };
     case "close":
       return { title: `Reject ${who}?`, body: `This closes their application for ${job}. No email goes out.`, confirm: "Reject", danger: true };
   }
@@ -120,16 +120,4 @@ export function approvalNotice(outcome: clientTools.DecisionResult["outcome"] | 
   }
 }
 
-export type TermLine = { label: string; value: string };
-
-/** An offer's terms as lines, for the approver's eyes only. The ones not set are left out. */
-export function offerTermLines(terms: NonNullable<clientTools.MyApproval["terms"]>): TermLine[] {
-  const lines: [string, string | null][] = [
-    ["Salary", terms.salary === null ? null : [terms.salary.toLocaleString("en-US"), terms.currency].filter(Boolean).join(" ")],
-    ["Bonus", terms.bonus],
-    ["Equity", terms.equity],
-    ["Start date", terms.startDate],
-    ["Expires", terms.expiresOn],
-  ];
-  return lines.flatMap(([label, value]) => (value ? [{ label, value }] : []));
-}
+export { offerTermLines, type TermLine } from "./offer-rules";

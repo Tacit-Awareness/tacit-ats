@@ -29,6 +29,34 @@ export const CANDIDATE_ERRORS = {
   label_unsure: "That didn't finish, so the label may or may not have changed. Check it before trying again.",
 } as const;
 
+/** The Offer block's answers. It answers in place, so these never ride in a URL. */
+export const OFFER_NOTICES = {
+  offer_drafted: "Offer drafted. Nothing was sent to the candidate.",
+  offer_saved: "Offer saved.",
+  offer_extended: "Marked as extended. Its terms are now on record.",
+  offer_accepted: "Recorded as accepted. Move their stage when you're ready.",
+  offer_declined: "Recorded as declined.",
+  offer_withdrawn: "Offer withdrawn.",
+  offer_asked: "Sent for approval. It's in the approvers' Inbox.",
+  unchanged: "Nothing to change.",
+} as const;
+
+export const OFFER_ERRORS = {
+  offer_forbidden: "Only the people who manage this job handle its offers.",
+  offer_gone: "That offer or application isn't one you can see any more. Nothing was saved.",
+  offer_exists: "This application already has an open offer. Reload to see it. Nothing was saved.",
+  offer_approval: "This offer needs its approval first. Nothing was changed.",
+  offer_changed: "Someone changed this offer or application since you opened it, so nothing was saved. Reload to see where it stands.",
+  offer_salary: "A salary is a whole number a year, up to 100,000,000.",
+  offer_currency: "A currency is a three-letter code, like USD or EUR.",
+  offer_date: "Pick real dates for the start and the expiry.",
+  offer_long: "That's too long: a bonus or equity is at most 500 characters, and notes 5,000.",
+  rate_limited: "You've made 300 changes in the last hour, the limit. Nothing was changed. Try again later.",
+  failed: "That didn't finish, so it may or may not have saved. Reload and check before trying again.",
+} as const;
+
+export type OfferAnswer = { ok: true; notice: keyof typeof OFFER_NOTICES } | { ok: false; error: keyof typeof OFFER_ERRORS };
+
 export type CandidateNotice = keyof typeof CANDIDATE_NOTICES;
 export type CandidateError = keyof typeof CANDIDATE_ERRORS;
 

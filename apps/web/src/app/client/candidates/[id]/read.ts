@@ -1,5 +1,6 @@
 import { readCandidate, toolCtx } from "@/lib/client/candidate";
 import { readEditing, readLabelChoices } from "@/lib/client/candidate-edits";
+import { readOffers } from "@/lib/client/offers";
 import type { ClientContext } from "@/lib/client/session";
 import type { CandidateViewProps } from "./view";
 
@@ -16,6 +17,7 @@ export async function readCandidateView(member: ClientContext, candidateId: stri
           read.candidate.applications.map((a) => a.applicationId),
         );
   const labels = member.accessLevel === "limited" ? null : await readLabelChoices(member.db, candidateId, read.candidate.tags);
+  const offers = await readOffers(member.db, toolCtx(member), read.candidate.applications.map((a) => a.applicationId));
   return {
     candidate: read.candidate,
     activity: read.activity,
@@ -23,6 +25,7 @@ export async function readCandidateView(member: ClientContext, candidateId: stri
     past: read.past,
     editing: editing && editing.editable.size ? { apps: Object.fromEntries(editing.editable), owners: editing.owners, reasons: editing.reasons } : null,
     labels,
+    offers,
     now,
   };
 }

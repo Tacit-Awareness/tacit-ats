@@ -156,7 +156,7 @@ Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. An i
 | \`E\` | Dismiss to **Done**. On the card, the row you are on: an issue is dismissed, a row under it is marked read |
 | \`Z\` | Undo the dismiss |
 
-Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer, and rejecting someone here sends no email.
+Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer (that's on their page), and rejecting someone here sends no email.
 
 Once you act on an issue in the pop-up, it moves to Done and the pop-up opens the next one. A message says who moved and who is next, or that you are all caught up.
 
@@ -251,6 +251,10 @@ Each candidate has one page with their profile, tags, pools, the jobs they are i
 Where you can edit the job, you can move the stage, reject or mark withdrawn with a reason, change the owner, set the next action and log a touch. Anyone who can open the page can leave a note: press \`C\` to write and \`⌘↵\` to save. Notes cannot be edited or deleted.
 
 Where you can change a candidate's record, **Labels** beside their chips, or \`L\`, puts your company's labels on them and takes them off. It answers in place, in the Pipeline's pop-up too. New labels are made from the CRM's bulk actions.
+
+Where you manage the job, the **Offer** block drafts an offer with its salary, currency, bonus, equity, start date, expiry and notes. A draft's terms can change; once it is marked as extended they can't, so what went out stays on record. Then record whether they accepted or declined, or withdraw it. If the job has an offer approval flow, **Ask for approval** sends the draft to the approvers' Inbox, and it can't be marked as extended until they approve. Changing approved terms means asking again.
+
+tATS doesn't send an offer: mark it as extended once it has gone to the candidate. Nothing here moves their stage either, so an accepted offer doesn't mark them hired. Only the people who manage the job see offers.
 
 Interviewers see a short card: the resume, their own notes and their own interviews.
 

@@ -1,6 +1,7 @@
 import { APPLICATION_STAGES, NEXT_ACTION_MAX, parseDueDate, type ApplicationStage } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
 import { NOTE_MAX } from "./note-max";
+import { OFFER_NOTES_MAX, OFFER_SALARY_MAX, OFFER_TERM_MAX, type OfferMove } from "./offer-rules";
 
 // The candidate page's edit rules, pure: which reason a close needs, where
 // "next stage" goes, and the posted fields read back into typed input. The
@@ -119,6 +120,73 @@ export function parseNote(f: Fields): NoteParse {
   const text = typeof raw === "string" ? raw.replaceAll("\0", "").replace(/\r\n?/g, "\n").trim() : "";
   if (!text) return { ok: false, error: "note_empty", text };
   return text.length > CANDIDATE_NOTE_MAX ? { ok: false, error: "note_long", text } : { ok: true, text };
+}
+
+export type OfferInput = {
+  applicationId: string;
+  /** Null drafts a new offer. */
+  offerId: string | null;
+  terms: Required<clientTools.OfferTerms>;
+};
+export type OfferParse = { ok: true; input: OfferInput } | { ok: false; error: "offer_gone" | "offer_salary" | "offer_currency" | "offer_date" | "offer_long" };
+
+const offerText = (raw: unknown): string => (typeof raw === "string" ? raw.replaceAll("\0", "").replace(/\r\n?/g, "\n").trim() : "");
+
+/**
+ * The offer form, read back whole: an empty field clears what was there. These
+ * are someone's terms, so anything the form would not have sent is refused and
+ * never cut or guessed: a salary is plain digits, commas allowed.
+ */
+export function parseOffer(f: Fields): OfferParse {
+  const applicationId = idOf(f, "applicationId");
+  const rawId = f.get("offerId");
+  const offerId = idOf(f, "offerId");
+  if (!applicationId || (rawId && !offerId)) return { ok: false, error: "offer_gone" };
+
+  const pay = offerText(f.get("salary")).replaceAll(",", "");
+  if (pay && (!/^\d+$/.test(pay) || Number(pay) > OFFER_SALARY_MAX)) return { ok: false, error: "offer_salary" };
+  const currency = offerText(f.get("currency")).toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) return { ok: false, error: "offer_currency" };
+
+  const [startDate, expiresOn] = [offerText(f.get("startDate")), offerText(f.get("expiresOn"))];
+  if ((startDate && !parseDueDate(startDate)) || (expiresOn && !parseDueDate(expiresOn))) return { ok: false, error: "offer_date" };
+
+  const [bonus, equity, notes] = [offerText(f.get("bonus")), offerText(f.get("equity")), offerText(f.get("notes"))];
+  if (bonus.length > OFFER_TERM_MAX || equity.length > OFFER_TERM_MAX || notes.length > OFFER_NOTES_MAX) return { ok: false, error: "offer_long" };
+
+  return {
+    ok: true,
+    input: {
+      applicationId,
+      offerId,
+      terms: {
+        salary: pay ? Number(pay) : null,
+        currency,
+        bonus: bonus || null,
+        equity: equity || null,
+        startDate: startDate || null,
+        expiresOn: expiresOn || null,
+        notes: notes || null,
+      },
+    },
+  };
+}
+
+export type OfferMoveInput = { offerId: string; from: "draft" | "extended"; status: OfferMove };
+
+const OFFER_MOVES: Record<OfferMoveInput["from"], readonly OfferMove[]> = {
+  draft: ["extended", "withdrawn"],
+  extended: ["accepted", "declined", "withdrawn"],
+};
+
+/** A status change, from the status the page showed; a pair the page never offers is no move. */
+export function parseOfferMove(f: Fields): OfferMoveInput | null {
+  const offerId = idOf(f, "offerId");
+  const from = f.get("from");
+  const status = f.get("status");
+  if (!offerId || (from !== "draft" && from !== "extended")) return null;
+  const move = OFFER_MOVES[from].find((m) => m === status);
+  return move ? { offerId, from, status: move } : null;
 }
 
 /** The candidate a form came from, for the redirect back. */
