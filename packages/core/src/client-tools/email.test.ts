@@ -219,11 +219,96 @@ describe("sendEmail", () => {
       args: { status: "sending" },
       filters: [{ method: "eq", column: "id", value: "d-1" }, { method: "eq", column: "status", value: "draft" }],
     });
-    expect(sent.args).toEqual({ status: "sent", provider_id: "re_1" });
+    expect(sent.args).toEqual({ status: "sent", provider_id: "re_1", sent_via: "resend", thread_id: null });
     expect(fake.calls.find((c) => c.table === "application_events")).toMatchObject({ op: "insert", args: { kind: "touched" } });
     const finish = fake.calls.at(-1)!;
     expect(finish).toMatchObject({ table: "client_finish_write", args: { p_keep: true, p_after: { status: "sent", provider_id: "re_1" } } });
     expect(JSON.stringify(finish.args)).not.toMatch(/Founding|Hi Pat/);
+  });
+
+  describe("from the member's own Gmail", () => {
+    const GRANT = { accountEmail: "ada@acme.test", scopes: "openid https://www.googleapis.com/auth/gmail.send", via: "oauth" as const };
+    const SENT = [
+      { data: DRAFT }, { data: [] }, ME, ACME,
+      { data: "audit-1" }, { data: [{ id: "d-1" }] }, { data: null },
+      { data: [{ id: "app-1" }] }, { data: null }, { data: null },
+    ];
+    /** Google's token endpoint and users.messages.send, as fetch. */
+    function google(opts: { token?: number; send?: number } = {}) {
+      const calls: Array<{ url: string; body: string }> = [];
+      const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        calls.push({ url: String(url), body: String(init?.body ?? "") });
+        if (String(url).includes("oauth2")) {
+          return new Response(JSON.stringify(opts.token ? { error: "invalid_grant" } : { access_token: "at" }), { status: opts.token ?? 200 });
+        }
+        return new Response(JSON.stringify({ id: "gm_1", threadId: "th_1" }), { status: opts.send ?? 200 });
+      }) as unknown as typeof globalThis.fetch;
+      return { calls, fetch };
+    }
+    // The grant's token comes from Google's token endpoint, as the apps' memberMailbox gets it.
+    const withGmail = (send: ClientMailer["send"], fetch: typeof globalThis.fetch, grant: typeof GRANT | null = GRANT): ClientMailer => ({
+      ...mailer(send), replyDomain: "in.tacit.test",
+      mailbox: {
+        fetch,
+        own: vi.fn(async () => grant && {
+          ...grant,
+          accessToken: async () => {
+            const res = await fetch("https://oauth2.googleapis.com/token", { method: "POST" });
+            if (!res.ok) throw new Error("refused");
+            return ((await res.json()) as { access_token: string }).access_token;
+          },
+        }),
+      },
+    });
+    const raw = (body: string) =>
+      Buffer.from((JSON.parse(body) as { raw: string }).raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+
+    test("goes out through Gmail From their own address, with no Tacit reply address, and records the thread", async () => {
+      const send = vi.fn(async () => ({ id: "re_1" }));
+      const g = google();
+      const fake = new FakeSupabase(SENT);
+      const r = await sendEmail(fake.asDb(), ctx("elevated"), withGmail(send, g.fetch), { draftId: "d-1" });
+      expect(r).toMatchObject({ emailId: "d-1", status: "sent" });
+      expect(send).not.toHaveBeenCalled();
+      const message = raw(g.calls.find((c) => c.url.endsWith("/messages/send"))!.body);
+      expect(message).toContain("From: Ada Admin <ada@acme.test>");
+      expect(message).toContain("To: pat@cand.test");
+      expect(message).not.toMatch(/Reply-To|reply\+/);
+      const [, sent] = fake.calls.filter((c) => c.op === "update" && c.table === "candidate_emails");
+      expect(sent.args).toEqual({ status: "sent", provider_id: "gm_1", sent_via: "gmail", thread_id: "th_1" });
+      expect(fake.calls.at(-1)).toMatchObject({ table: "client_finish_write", args: { p_after: { sent_via: "gmail" } } });
+    });
+
+    test("a grant Google no longer accepts leaves the draft a draft, and says to reconnect", async () => {
+      const g = google({ token: 400 });
+      const fake = new FakeSupabase(SENT);
+      const err = await refusal(sendEmail(fake.asDb(), ctx(), withGmail(vi.fn(), g.fetch), { draftId: "d-1" }));
+      expect(err.message).toMatch(/Connect Gmail again.*draft is kept/);
+      expect(fake.calls.some((c) => c.op === "update")).toBe(false);
+      expect(rpcs(fake)).not.toContain("client_claim_write");
+    });
+
+    test("Gmail refusing the message records it failed", async () => {
+      const g = google({ send: 400 });
+      const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, ME, ACME, { data: "audit-1" }, { data: [{ id: "d-1" }] }, { data: null }, { data: null }]);
+      expect((await refusal(sendEmail(fake.asDb(), ctx(), withGmail(vi.fn(), g.fetch), { draftId: "d-1" }))).message).toMatch(/was not sent/);
+      expect(fake.calls.filter((c) => c.op === "update").at(-1)?.args).toMatchObject({ status: "failed" });
+    });
+
+    test("without a connection, or with one that may not send, it goes through Resend as before", async () => {
+      for (const grant of [null, { ...GRANT, scopes: "openid email" }]) {
+        const send = vi.fn(async () => ({ id: "re_1" }));
+        const g = google();
+        await sendEmail(new FakeSupabase(SENT).asDb(), ctx("elevated"), withGmail(send, g.fetch, grant), { draftId: "d-1" });
+        expect(send).toHaveBeenCalledWith(expect.objectContaining({ replyTo: "reply+d-1@in.tacit.test" }));
+        expect(g.calls).toEqual([]);
+      }
+    });
+
+    test("needs no Resend key", async () => {
+      const g = google();
+      await expect(sendEmail(new FakeSupabase(SENT).asDb(), ctx("elevated"), withGmail(null, g.fetch), { draftId: "d-1" })).resolves.toMatchObject({ status: "sent" });
+    });
   });
 
   test("with a receiving domain, a reply comes back to the email's own address", async () => {

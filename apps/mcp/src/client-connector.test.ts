@@ -51,7 +51,7 @@ const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createSer
 const CONTEXT = join(SRC, "lib/context.ts");
 const ALLOWED = new Set([
   join(SRC, "client/bind.ts"), join(SRC, "client/audit.ts"), join(SRC, "client/files.ts"), join(SRC, "client/calendar.ts"),
-  join(SRC, "client/granola.ts"),
+  join(SRC, "client/granola.ts"), join(SRC, "client/mailbox.ts"),
 ]);
 
 describe("the client connector never holds a database client other than the member's", () => {
@@ -80,13 +80,14 @@ describe("the client connector never holds a database client other than the memb
     expect(offenders, "Use the member's `db` from resolveMember instead.").toEqual([]);
   });
 
-  test("the five allowed modules export only their functions, and no client", () => {
+  test("the six allowed modules export only their functions, and no client", () => {
     for (const [file, names] of [
       ["client/bind.ts", ["bindMember"]],
       ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]],
       ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
       ["client/calendar.ts", ["calendarConnections"]],
       ["client/granola.ts", ["granolaAccessToken"]],
+      ["client/mailbox.ts", ["mailboxRefreshToken"]],
     ] as const) {
       const text = readFileSync(join(SRC, file), "utf8");
       const exported = [...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);

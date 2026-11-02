@@ -14,11 +14,20 @@
 //     check-in), and tells the bot when one it opened a thread about was cancelled;
 //   - delivers to the bot: signed JSON, the contract in core's notify/agent-webhook.ts.
 //
+// Then, for every company, with or without a bot: the Gmail sync
+// (lib/inbound/gmail-sync.ts), email between members and candidates from
+// members' own mailboxes, and the replies to Tacit's own email kept for the
+// Inbox and passed to the company's bot when it has one.
+//
 // One company's failure does not stop the others. CRON_SECRET authenticates
 // Vercel's cron. NOTIFY_REMINDER_TIMERS=off turns the timers off.
 import { runNotifications } from "@tacit/core";
 import { start } from "workflow/api";
 
+import { googleCalendarConfig } from "@/lib/client/google-calendar";
+import { tacitDelegation } from "@/lib/google-delegation";
+import { syncGmail } from "@/lib/inbound/gmail-sync";
+import { pingCompanyBot } from "@/lib/notify/candidate-replied";
 import { companiesWithBots, companyCalendar, companyHub, notifierDb } from "@/lib/notify/notifier";
 import { interviewReminderTimer } from "@/workflows/interview-reminder";
 
@@ -66,5 +75,17 @@ export async function GET(request: Request): Promise<Response> {
       results.push({ orgId, status: "failed" });
     }
   }
-  return Response.json({ status: "ok", companies: results.length, results });
+  const google = googleCalendarConfig();
+  const delegation = tacitDelegation();
+  const origin = new URL(request.url).origin;
+  let gmail;
+  try {
+    gmail = google || delegation
+      ? await syncGmail(db, { google, delegation, ping: (orgId, reply) => pingCompanyBot(db, orgId, reply, origin) })
+      : null;
+  } catch (err) {
+    console.error("[cron] gmail sync failed", err instanceof Error ? err.message.slice(0, 200) : "failed");
+    gmail = { status: "failed" as const };
+  }
+  return Response.json({ status: "ok", companies: results.length, results, gmail });
 }

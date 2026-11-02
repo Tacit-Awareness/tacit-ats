@@ -63,7 +63,7 @@ export class CalendarConnectError extends Error {
 }
 
 /** The id_token's email claim. It came straight from Google's token endpoint over TLS, so it is not re-verified. */
-function emailFrom(idToken: unknown): string | null {
+export function emailFrom(idToken: unknown): string | null {
   if (typeof idToken !== "string") return null;
   try {
     const payload = JSON.parse(Buffer.from(idToken.split(".")[1] ?? "", "base64url").toString("utf8")) as {

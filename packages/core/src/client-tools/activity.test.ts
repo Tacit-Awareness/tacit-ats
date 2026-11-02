@@ -53,6 +53,8 @@ describe("getActivity", () => {
       { data: [{ id: "em-1", application_id: "app-1", author_actor_id: "actor-1", subject: "Next steps", sent_at: "2026-10-07T00:00:00Z" }] },
       // candidate_email_replies: subjects only
       { data: [{ id: "rp-1", subject: "Re: Next steps", received_at: "2026-10-07T12:00:00Z", candidate_emails: { application_id: "app-1" } }] },
+      // candidate_mail: none synced
+      { data: [] },
       // the offers' approval requests: none
       { data: [] },
       { data: [{ id: "actor-1", display_name: "Ada Admin" }, { id: "actor-2", display_name: "Ivan Interviewer" }] },
@@ -93,7 +95,8 @@ describe("getActivity", () => {
       { data: [] },
       { data: [] },
       { data: [{ id: "of-1", application_id: "app-1", status: "draft", created_by_actor_id: "actor-1", created_at: "2026-10-08T00:00:00Z", extended_at: null, resolved_at: null }] },
-      // person_tags, person_notes, candidate_emails, candidate_email_replies: none
+      // person_tags, person_notes, candidate_emails, candidate_email_replies, candidate_mail: none
+      { data: [] },
       { data: [] },
       { data: [] },
       { data: [] },
@@ -120,7 +123,7 @@ describe("getActivity", () => {
       ["offer.drafted", "Ada Admin", "of-1"],
     ]);
     expect(a.entries[0]).toMatchObject({ text: "Over band", jobTitle: "Founding Engineer", applicationId: "app-1" });
-    expect(fake.calls[9]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["of-1"] }] });
+    expect(fake.calls[10]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["of-1"] }] });
   });
 
   test("cut to the limit after merging; no applications means no pipeline reads", async () => {
@@ -134,10 +137,29 @@ describe("getActivity", () => {
       ] },
       { data: [] },
       { data: [] },
+      { data: [] },
     ]);
     const a = await getActivity(fake.asDb(), ctx("elevated"), { candidateId: "p-1", limit: 1 });
     expect(a.entries.map((e) => e.refId)).toEqual(["n-2"]);
-    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes", "candidate_emails", "candidate_email_replies"]);
+    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes", "candidate_emails", "candidate_email_replies", "candidate_mail"]);
+  });
+
+  test("email synced from Gmail: out is the member's, in is the candidate's and names no member", async () => {
+    const fake = new FakeSupabase([
+      { data: { id: "p-1" } },
+      { data: [] },
+      { data: [] },
+      { data: [] },
+      { data: [] },
+      { data: [] },
+      { data: [
+        { id: "cm-2", actor_id: "actor-1", direction: "in", subject: "Re: Coffee", sent_at: "2026-10-03T00:00:00Z" },
+        { id: "cm-1", actor_id: "actor-1", direction: "out", subject: "Coffee", sent_at: "2026-10-02T00:00:00Z" },
+      ] },
+      { data: [{ id: "actor-1", display_name: "Ada Admin" }] },
+    ]);
+    const a = await getActivity(fake.asDb(), ctx("elevated"), { candidateId: "p-1" });
+    expect(a.entries.map((e) => [e.kind, e.actor, e.text])).toEqual([["email.in", null, "Re: Coffee"], ["email.out", "Ada Admin", "Coffee"]]);
   });
 
   test("an interviewer gets their own interviews with this candidate and their notes, through my_interviews", async () => {

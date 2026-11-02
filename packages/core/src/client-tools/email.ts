@@ -1,9 +1,10 @@
 import type { Db } from "@tacit/db";
 
-import { connector, logTouch, renderTemplate } from "@tacit/core";
+import { connector, logTouch, renderTemplate, sendGmailMessage } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
 import { replyAddress } from "./email-replies.js";
+import { GMAIL_SEND_SCOPE, grantsScope, type MailboxGrant } from "./mailbox.js";
 
 /**
  * Candidate email for the client connector (20261016100000_client_email):
@@ -15,11 +16,14 @@ import { replyAddress } from "./email-replies.js";
  * emails: written by whoever can_edit_person, sent by their author only).
  * The checks here ask first only to answer with a sentence.
  *
- * Delivery is injected (ClientMailer): the staff connector's Resend sender
- * (connector/email.ts makeResendSender), From a Tacit-controlled address
- * with the member's name in the display name and Reply-To the member's own
- * address, since a client's domain is not one Tacit can send from. The
- * subject and body stay out of every audit row.
+ * Delivery is injected (ClientMailer). A member with Gmail (their company's
+ * Google Workspace, or their own connection: mailbox.ts) sends through it, as
+ * Ashby does: From their own address, in their own Sent folder, so the
+ * candidate replies to them like any email. Everyone else goes through the
+ * staff connector's Resend sender (connector/email.ts makeResendSender), From
+ * a Tacit-controlled address with the member's name in the display name, since
+ * a client's domain is not one Tacit can send from. The subject and body stay
+ * out of every audit row.
  */
 
 export const TEMPLATE_NAME_MAX = 100;
@@ -57,6 +61,19 @@ export type ClientMailer = {
    * member; unset, Reply-To is the member's own address and the ATS never sees one.
    */
   replyDomain?: string | null;
+  /** Members' own Gmail. Absent or null: everything goes through `send`. */
+  mailbox?: ClientMailbox | null;
+};
+
+/**
+ * Members' own Gmail (mailbox.ts's memberMailbox, which each app wires with
+ * its service account and its service-role read of OAuth refresh tokens).
+ * `own` is handed the member's OWN client and their ctx, and answers for them
+ * alone.
+ */
+export type ClientMailbox = {
+  own: (db: Db, ctx: ClientToolCtx) => Promise<MailboxGrant | null>;
+  fetch?: typeof fetch;
 };
 
 const turnedOff = (what: string) =>
@@ -239,21 +256,35 @@ export async function addressesOnFile(db: Db, personId: string, primary: string 
   return [...new Set(all.filter((e): e is string => connector.isPlainEmail(e)))];
 }
 
-/** Who the email is from: the member's name at the company, and their own address for replies. Exported so apps/web can show it on a draft before Send. */
-export async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer) {
+/** The member's own Gmail when it is connected and may send, else null. */
+async function ownMailbox(db: Db, ctx: ClientToolCtx, mailer: ClientMailer): Promise<MailboxGrant | null> {
+  const grant = mailer.mailbox ? await mailer.mailbox.own(db, ctx) : null;
+  return grant && grantsScope(grant, GMAIL_SEND_SCOPE) ? grant : null;
+}
+
+/**
+ * Who the email is from: the member's own Gmail address when it is connected,
+ * else their name at the company From Tacit's address, Reply-To their own.
+ * Exported so apps/web can show it on a draft before Send.
+ */
+export async function senderFor(db: Db, ctx: ClientToolCtx, mailer: ClientMailer, mailbox?: MailboxGrant | null) {
+  const own = mailbox === undefined ? await ownMailbox(db, ctx, mailer) : mailbox;
   const [me, org] = await Promise.all([
     db.from("org_members").select("display_name, email").eq("id", ctx.actorId).maybeSingle(),
     db.from("orgs").select("name").eq("id", ctx.orgId).maybeSingle(),
   ]);
   for (const r of [me, org]) if (r.error) throw new Error(r.error.message);
+  const name = me.data?.display_name?.trim() || null;
+  const company = org.data?.name?.trim() || null;
+  if (own) {
+    return { name, company, replyTo: own.accountEmail, from: connector.fromHeader(name ?? "", own.accountEmail), via: "gmail" as const };
+  }
   const replyTo = me.data?.email?.trim().toLowerCase();
   if (!connector.isPlainEmail(replyTo)) {
     throw new ClientToolError("invalid", "Your email address is not on file in Tacit, so a candidate's reply would have nowhere to go. Nothing was written or sent.");
   }
-  const name = me.data?.display_name?.trim() || null;
-  const company = org.data?.name?.trim() || null;
   const display = name && company ? `${name} at ${company}` : (name ?? company ?? "");
-  return { name, company, replyTo, from: connector.fromHeader(display, mailer.fromAddress) };
+  return { name, company, replyTo, from: connector.fromHeader(display, mailer.fromAddress), via: "resend" as const };
 }
 
 const firstName = (name: string | null) => name?.trim().split(/\s+/)[0] ?? "";
@@ -409,10 +440,11 @@ export async function sendEmail(
 ): Promise<SendEmailResult> {
   if (!mailer) throw turnedOff("Nothing was sent.");
   if (ctx.accessLevel === "limited") throw notForInterviewers();
-  if (!mailer.send) {
+  const mailbox = await ownMailbox(db, ctx, mailer);
+  const send = mailer.send;
+  if (!mailbox && !send) {
     throw new ClientToolError("forbidden", "Email sending is not set up on this Tacit deployment yet, so nothing was sent. The draft is kept.");
   }
-  const send = mailer.send;
 
   const { data, error } = await db
     .from("candidate_emails")
@@ -433,7 +465,21 @@ export async function sendEmail(
   if (!onFile.includes(draft.to_email)) {
     throw new ClientToolError("invalid", "The candidate's email on file has changed since this draft was written. Nothing was sent; write a new draft.");
   }
-  const sender = await senderFor(db, ctx, mailer);
+  const sender = await senderFor(db, ctx, mailer, mailbox);
+  // Before the draft is claimed, so a grant Google no longer accepts leaves it a draft.
+  let gmailToken: string | null = null;
+  if (mailbox) {
+    try {
+      gmailToken = await mailbox.accessToken();
+    } catch {
+      throw new ClientToolError(
+        "forbidden",
+        mailbox.via === "workspace"
+          ? `Google refused to send as ${mailbox.accountEmail} through your company's Google Workspace. An admin can check it under Settings > Google Workspace. Nothing was sent; the draft is kept.`
+          : `Google no longer accepts your Gmail connection (${mailbox.accountEmail}). Connect Gmail again in Settings. Nothing was sent; the draft is kept.`,
+      );
+    }
+  }
 
   type Done = { outcome: "sent"; result: SendEmailResult } | { outcome: "failed" };
   const done = await withAudit<Done>(db, ctx, { action: "email.send", entity: "candidate_email" }, async () => {
@@ -456,12 +502,25 @@ export async function sendEmail(
 
     const before = { status: "draft" };
     let providerId: string;
+    let threadId: string | null = null;
     try {
-      ({ id: providerId } = await send({
-        from: sender.from, replyTo: mailer.replyDomain ? replyAddress(draft.id, mailer.replyDomain) : sender.replyTo,
-        to: draft.to_email, subject: draft.subject, text: draft.body,
-        idempotencyKey: draft.id,
-      }));
+      if (mailbox && gmailToken) {
+        // From their own mailbox, so a reply comes straight back to it. Gmail takes no
+        // idempotency key: the claim above is what makes two sends of one draft one email.
+        const sent = await sendGmailMessage(
+          { accessToken: gmailToken, fetchImpl: mailer.mailbox?.fetch },
+          { fromName: sender.name ?? "", fromEmail: mailbox.accountEmail, toEmail: draft.to_email, subject: draft.subject, bodyText: draft.body },
+        );
+        if (!sent.id) throw new Error("Gmail answered without the message's id");
+        providerId = sent.id;
+        threadId = sent.threadId || null;
+      } else {
+        ({ id: providerId } = await send!({
+          from: sender.from, replyTo: mailer.replyDomain ? replyAddress(draft.id, mailer.replyDomain) : sender.replyTo,
+          to: draft.to_email, subject: draft.subject, text: draft.body,
+          idempotencyKey: draft.id,
+        }));
+      }
     } catch (err) {
       const message = (err instanceof Error ? err.message : String(err)).slice(0, 1000);
       const { error: failError } = await db.from("candidate_emails").update({ status: "failed", error: message }).eq("id", draft.id);
@@ -471,7 +530,10 @@ export async function sendEmail(
 
     // The email is out. Nothing below may report it as unsent.
     const sentAt = new Date().toISOString();
-    const { error: sentError } = await db.from("candidate_emails").update({ status: "sent", provider_id: providerId }).eq("id", draft.id);
+    const { error: sentError } = await db
+      .from("candidate_emails")
+      .update({ status: "sent", provider_id: providerId, sent_via: sender.via, thread_id: threadId })
+      .eq("id", draft.id);
     if (sentError) console.error(`[client-tools] email ${draft.id} sent, but not marked sent:`, sentError.message);
     if (draft.application_id) {
       // An email to the candidate is contact: the application is no longer stalled.
@@ -489,7 +551,7 @@ export async function sendEmail(
       },
       entityId: draft.id,
       before,
-      after: { status: "sent", candidate_id: draft.person_id, to_email: draft.to_email, provider_id: providerId },
+      after: { status: "sent", candidate_id: draft.person_id, to_email: draft.to_email, provider_id: providerId, sent_via: sender.via },
       changed: true,
     };
   });

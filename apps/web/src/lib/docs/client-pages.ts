@@ -402,6 +402,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
 | **Google Calendar** | Each member | Checks when you are busy and books interviews on your calendar. [Details](/docs/interviews#connect-your-calendar) |
+| **Gmail** | Each member who emails candidates | Sends your email to candidates from your own address, and brings their replies into the Inbox. [Details](/docs/email) |
 | **Granola** | Each member | Brings your own interview notes into Tacit and Claude. [Details](/docs/interviews#your-granola-notes) |
 | **Your team's bot** | An admin, once for the company | Tells your own bot about each interview. [Set up a Grok bot](/docs/grok-bot) |
 
@@ -865,7 +866,7 @@ Files cannot be replaced or deleted, through Claude or in tATS. To correct one, 
 1. \`draft_email\` writes a draft to a candidate and sends nothing. It starts from a template (by name or id), or from a subject and body Claude writes from what you asked for; given both, yours replace the template's. Tie it to one of their jobs to fill in the job title. Claude shows you who it goes to, the subject and the whole body exactly as saved. To change anything, it drafts again.
 2. \`send_email\` sends that draft, exactly as drafted, once you say yes. Only the person who drafted it can send it, and only once.
 
-The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
+The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. With **Gmail connected** in Settings, it goes out **from your own Gmail address**, sits in your Sent folder, and the candidate's reply comes back to your inbox like any email; if you allowed Tacit to read replies when connecting, they also show in Tacit's Inbox. Tacit reads only the threads its own emails started. Without Gmail, it comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
 
 You can do the same in Tacit itself: **Reply** on a new applicant writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
 
@@ -895,6 +896,26 @@ Tacit fills these placeholders in when it drafts:
 | \`{{sender_name}}\`, \`{{sender_first_name}}\` | Your full or first name |
 
 If a placeholder cannot be filled for this candidate (no job given for \`{{job_title}}\`, say), no draft is written and Claude tells you which one.
+
+## Sending from your own Gmail
+
+With Gmail connected, email you send a candidate goes out **from your own address**, sits in your Sent folder, and the candidate's reply comes back to your inbox like any email. Your email with candidates is also kept on their profile: what you send them from Gmail, what they send you, and their replies to Tacit's email, which show in Tacit's Inbox too. Your team sees it where they can see the candidate; interviewers never do.
+
+Tacit looks only at who each new email is between. It reads an email in full only when it is with someone on file as a candidate at your company, and never mail with anyone else, including your colleagues.
+
+**If your company uses Google Workspace**, an admin connects it once for everyone (below), and there is nothing for you to connect: **Settings** › **Gmail** says so, and has **Turn off sync** if you don't want your email with candidates kept. Email you send from Tacit still goes out from your address.
+
+**Otherwise**, connect your own: **Settings** › **Gmail** › **Connect**. Google asks for two things, to send as you and to read your mail; untick reading and Tacit only sends.
+
+### Connecting your company's Google Workspace
+
+An admin does this once, with your Google Workspace admin, in a few minutes:
+
+1. In Tacit, open **Settings** › **Google Workspace**. It shows Tacit's client ID and the two permissions to grant.
+2. Your Google Workspace admin opens the [Google Admin console](https://admin.google.com) › **Security** › **Access and data control** › **API controls** › **Manage Domain Wide Delegation**, chooses **Add new**, pastes the client ID and the permissions, and authorizes.
+3. Back in Tacit, press **Verify**. Tacit asks Google to act as you; it can take a few minutes after authorizing before Google agrees.
+
+From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer. **Disconnect** there stops it.
 
 ## Sent email is on the record
 

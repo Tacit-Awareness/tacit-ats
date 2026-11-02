@@ -87,10 +87,15 @@ export {
   CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, TEMPLATE_NAME_MAX,
   addressesOnFile, createEmailTemplate, draftEmail, listEmailReplies, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
 } from "./email.js";
+export {
+  GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE, delegatedAccessToken, delegationFrom, domainOf, grantsScope, keyDelegation, keylessDelegation,
+  memberMailbox, parseServiceAccount,
+} from "./mailbox.js";
+export type { DelegationSigner, GoogleServiceAccount, MailboxGrant, MailboxSources } from "./mailbox.js";
 export { REPLY_BODY_MAX, addressOf, parseReplyDomain, readableReply, repliedEmailId, replyAddress } from "./email-replies.js";
 export type {
-  CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
-  TemplateChange,
+  CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailbox, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate,
+  SendEmailResult, TemplateChange,
 } from "./email.js";
 export {
   APPROVAL_KINDS, APPROVAL_REASON_MAX, APPROVAL_STEPS_MAX, APPROVERS_PER_STEP_MAX,

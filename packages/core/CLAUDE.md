@@ -201,7 +201,22 @@ src/
                         the draft id, From `fromHeader("<member> at
                         <org>", mailer.fromAddress)` with Reply-To the
                         member's own address; sent, or failed with the
-                        error (the claim kept either way). A null mailer
+                        error (the claim kept either way). With
+                        ClientMailer.mailbox (2026-11-02) and a grant
+                        from mailbox.ts's memberMailbox (on the
+                        member's own client: their company's Google
+                        Workspace, as Ashby, through the service
+                        account's domain-wide delegation
+                        (delegatedAccessToken, a JWT grant signed by
+                        a DelegationSigner: keylessDelegation, the
+                        app's OIDC token through Google STS and IAM
+                        signJwt, or keyDelegation with a JSON key),
+                        for members above interviewer at its domain;
+                        else their own OAuth connection), it goes
+                        through @tacit/core's sendGmailMessage
+                        instead, From their address, and records
+                        sent_via 'gmail' and thread_id; a token Google
+                        refuses is a sentence before the claim. A null mailer
                         = email turned off; a null `send` = drafts only.
                         Subjects and bodies stay out of every audit row.
                         email-replies.ts (2026-11-01): pure, the reply

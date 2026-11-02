@@ -55,9 +55,14 @@ const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createSer
  * reads of its own granola_connections row, so it cannot name another's grant.
  * file-store.ts holds the bytes of a candidate's file, in a bucket with no
  * member policies: core calls it only after the member's own token has read or
- * inserted the row, and the path is that row's.
+ * inserted the row, and the path is that row's. mailbox.ts reads a member's own
+ * Gmail grant to send their email, as granola-notes.ts does: only the ids on the
+ * row their own token reads of mailbox_connections.
  */
-const ALLOWED = new Set([join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts"), join(SRC, "lib/client/granola-notes.ts"), join(SRC, "lib/client/file-store.ts")]);
+const ALLOWED = new Set([
+  join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts"), join(SRC, "lib/client/granola-notes.ts"), join(SRC, "lib/client/file-store.ts"),
+  join(SRC, "lib/client/mailbox.ts"),
+]);
 
 describe("the client area never holds a privileged database client", () => {
   const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
@@ -100,6 +105,7 @@ describe("the client area never holds a privileged database client", () => {
     expect(exportsOf("lib/client/bot.ts")).toEqual(["verifyCompanyBot"]);
     expect(exportsOf("lib/client/granola-notes.ts")).toEqual(["readGranolaNotes"]);
     expect(exportsOf("lib/client/file-store.ts")).toEqual(["webFileStore"]);
+    expect(exportsOf("lib/client/mailbox.ts")).toEqual(["memberMailbox"]);
   });
 });
 

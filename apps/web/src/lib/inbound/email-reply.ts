@@ -25,6 +25,15 @@ type EmailRow = {
 export async function keepReply(db: Db, mail: ReceivedEmail, forward: ReplyForwarder | null, ping?: ReplyPing): Promise<ReplyOutcome> {
   const emailId = clientTools.repliedEmailId([...(mail.to ?? []), ...(mail.cc ?? [])]);
   if (!emailId) return "not_a_reply";
+  return keepReplyTo(db, emailId, mail, forward, ping);
+}
+
+/**
+ * Keeps a reply to the email it is known to answer: by its reply+<id>@ address
+ * above, or by the Gmail thread that email started (gmail-sync.ts, which
+ * passes no forwarder, since the reply is already in the member's own mailbox).
+ */
+export async function keepReplyTo(db: Db, emailId: string, mail: ReceivedEmail, forward: ReplyForwarder | null, ping?: ReplyPing): Promise<ReplyOutcome> {
   const { data, error } = await db.from("candidate_emails").select("id, org_id, person_id, application_id, subject, author_actor_id, status, people(display_name), applications(roles(title))").eq("id", emailId).maybeSingle();
   if (error) throw new Error(error.message);
   const email = data as unknown as EmailRow | null;
