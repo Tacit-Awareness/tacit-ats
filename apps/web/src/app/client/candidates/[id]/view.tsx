@@ -6,6 +6,7 @@ import { FEED_MAX } from "@/lib/client/candidate";
 import { CANDIDATE_NOTE_MAX, noteable } from "@/lib/client/candidate-edit-rules";
 import type { CloseReason, LabelChoices, OwnerChoice } from "@/lib/client/candidate-edits";
 import { stageLabel } from "@/lib/client/crm-views";
+import { offerBoard, type Offer } from "@/lib/client/offer-rules";
 import type { PastApplication } from "@/lib/client/past-applications";
 import { ago, until } from "@/lib/client/pipeline-columns";
 import { cn, safeHttpUrl } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { LocalDay } from "../local-day";
 import { CandidateCommands } from "./commands";
 import { CandidateLabels, JobControls } from "./controls";
 import { NoteComposer } from "./note-composer";
+import { OfferBlock } from "./offer-block";
 
 // The candidate page's markup, props only (page.tsx does the reads), laid
 // out like design/tats's ticket page (#t~APP-x, `.detail`) where real data
@@ -45,6 +47,8 @@ export type CandidateViewProps = {
   } | null;
   /** The labels the member may put on or take off; null when they may not change this candidate. */
   labels?: LabelChoices | null;
+  /** Each application's offers, only for the jobs the member can manage: a job left out shows nothing. */
+  offers?: Record<string, Offer[]>;
   notice: string | null;
   error: string | null;
   now: number;
@@ -222,7 +226,7 @@ function PastApplications({ candidate, past, editing, now }: Pick<CandidateViewP
 }
 
 /** The page's content, also what the Pipeline's and the Inbox's pop-ups hold. `call`: what a pop-up wants decided, under the chips (design/tats's `nowPanel`). */
-export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, notice, error, now, call = null }: CandidateViewProps & { call?: React.ReactNode }) {
+export function CandidateBody({ candidate, activity, owners, past, editing, labels = null, offers = {}, notice, error, now, call = null }: CandidateViewProps & { call?: React.ReactNode }) {
   const name = candidate.name?.trim() || "Unnamed";
   const linkedin = safeHttpUrl(candidate.linkedinUrl);
   const subtitle = [candidate.headline, candidate.location].filter(Boolean).join(" · ") || null;
@@ -230,6 +234,11 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
   const current = candidate.applications.filter((a) => !pastIds.has(a.applicationId));
   const multi = current.length > 1;
   const sole = candidate.full && current.length === 1 ? current[0] : null;
+  // A job the member can't manage isn't in `offers`. A closed one with no offers has nothing to show.
+  const offerApps = current.filter((a) => {
+    const list = offers[a.applicationId];
+    return list && (list.length > 0 || offerBoard(a.stage, list).canDraft);
+  });
 
   const contact: [string, React.ReactNode][] = [];
   if (candidate.full) contact.push(["Email", candidate.email ? <span className="truncate">{candidate.email}</span> : <span className="text-faint">None on file</span>]);
@@ -312,6 +321,24 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
             .
           </p>
         )}
+
+        {offerApps.length ? (
+          <section aria-label="Offers">
+            <BlockHead>Offer</BlockHead>
+            <div className="grid gap-4">
+              {offerApps.map((a) => (
+                <div key={a.applicationId} className="grid gap-1.5">
+                  {offerApps.length > 1 ? <span className="text-[12.5px] text-faint">{a.jobTitle ?? "Untitled job"}</span> : null}
+                  <OfferBlock
+                    target={{ candidateId: candidate.candidateId, applicationId: a.applicationId, name }}
+                    stage={a.stage}
+                    offers={offers[a.applicationId] ?? []}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {past.length ? (
           <section aria-label="Past applications">

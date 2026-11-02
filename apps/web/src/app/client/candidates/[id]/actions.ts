@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { candidateOf, parseLabel, parseMove, parseNextAction, parseNote, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
+import { candidateOf, idOf, parseLabel, parseMove, parseNextAction, parseNote, parseOffer, parseOfferMove, parseOwner, parseTouch } from "@/lib/client/candidate-edit-rules";
 import {
   addCandidateNote,
   logCandidateTouch,
@@ -14,9 +14,10 @@ import {
   type LabelOutcome,
   type NoteOutcome,
 } from "@/lib/client/candidate-edits";
+import { askOfferApproval, moveOffer, saveOffer, type OfferOutcome } from "@/lib/client/offers";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
-import type { CandidateError, CandidateNotice, NoteState } from "./messages";
+import type { CandidateError, CandidateNotice, NoteState, OfferAnswer } from "./messages";
 
 // The candidate page's writes, one form each per job: move the stage, change
 // the owner, set or clear the next action, log a touch. lib/client/
@@ -109,6 +110,46 @@ export async function setLabelAction(form: FormData): Promise<LabelResult> {
     revalidatePath("/client/pipeline");
   }
   return outcome.ok ? { ok: true, changed: outcome.changed } : outcome;
+}
+
+/** An offer's answer, in place: the block is in the Pipeline's and the Inbox's pop-ups too. A log gets no message, since terms stay out of logs. */
+async function offerAnswer(candidateId: string | null, write: () => Promise<OfferOutcome>): Promise<OfferAnswer> {
+  let outcome: OfferOutcome;
+  try {
+    outcome = await write();
+  } catch {
+    console.error("[client-candidate] offer write failed");
+    return { ok: false, error: "failed" };
+  }
+  if (outcome.ok && outcome.notice !== "unchanged") {
+    if (candidateId) revalidatePath(`/client/candidates/${candidateId}`);
+    revalidatePath("/client/candidates");
+    revalidatePath("/client/pipeline");
+    revalidatePath("/client/inbox");
+    revalidatePath("/client");
+  }
+  return outcome;
+}
+
+export async function saveOfferAction(form: FormData): Promise<OfferAnswer> {
+  const member = await requireClient();
+  const parsed = parseOffer(form);
+  if (!parsed.ok) return parsed;
+  return offerAnswer(candidateOf(form), () => saveOffer(member.db, toolCtx(member), parsed.input));
+}
+
+export async function moveOfferAction(form: FormData): Promise<OfferAnswer> {
+  const member = await requireClient();
+  const input = parseOfferMove(form);
+  if (!input) return { ok: false, error: "offer_gone" };
+  return offerAnswer(candidateOf(form), () => moveOffer(member.db, toolCtx(member), input));
+}
+
+export async function askOfferApprovalAction(form: FormData): Promise<OfferAnswer> {
+  const member = await requireClient();
+  const offerId = idOf(form, "offerId");
+  if (!offerId) return { ok: false, error: "offer_gone" };
+  return offerAnswer(candidateOf(form), () => askOfferApproval(member.db, toolCtx(member), offerId));
 }
 
 export async function addNoteAction(prev: NoteState, form: FormData): Promise<NoteState> {
