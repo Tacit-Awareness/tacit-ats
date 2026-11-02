@@ -51,6 +51,8 @@ describe("getActivity", () => {
       { data: [{ id: "n-1", text: "Great call", actor_id: "actor-2", created_at: "2026-10-06T00:00:00Z" }] },
       // candidate_emails: sent ones only, the subject as text
       { data: [{ id: "em-1", application_id: "app-1", author_actor_id: "actor-1", subject: "Next steps", sent_at: "2026-10-07T00:00:00Z" }] },
+      // candidate_email_replies: subjects only
+      { data: [{ id: "rp-1", subject: "Re: Next steps", received_at: "2026-10-07T12:00:00Z", candidate_emails: { application_id: "app-1" } }] },
       // the offers' approval requests: none
       { data: [] },
       { data: [{ id: "actor-1", display_name: "Ada Admin" }, { id: "actor-2", display_name: "Ivan Interviewer" }] },
@@ -63,6 +65,7 @@ describe("getActivity", () => {
       ["interview.cancelled", null],
       ["offer.extended", null],
       ["offer.drafted", "Ada Admin"],
+      ["email.reply", null],
       ["email", "Ada Admin"],
       ["note", "Ivan Interviewer"],
       ["interview.scheduled", null],
@@ -76,6 +79,7 @@ describe("getActivity", () => {
     expect(a.entries.find((e) => e.kind === "application.owner_changed")).toMatchObject({ people: ["Ivan"], text: null });
     expect(a.entries.find((e) => e.kind === "interview.scheduled")).toMatchObject({ people: ["Ivan Interviewer"], text: "Onsite", startsAt: INTERVIEW.starts_at });
     expect(a.entries.find((e) => e.kind === "tag.added")).toMatchObject({ text: "Strong", refId: "pt-1" });
+    expect(a.entries.find((e) => e.kind === "email.reply")).toMatchObject({ text: "Re: Next steps", refId: "rp-1", jobTitle: "Founding Engineer" });
     expect(a.entries.find((e) => e.kind === "email")).toMatchObject({ text: "Next steps", refId: "em-1", jobTitle: "Founding Engineer" });
     expect(fake.calls[7]).toMatchObject({ table: "candidate_emails", filters: expect.arrayContaining([{ method: "eq", column: "status", value: "sent" }]) });
     // Each source asks for at most the limit, newest first.
@@ -89,7 +93,8 @@ describe("getActivity", () => {
       { data: [] },
       { data: [] },
       { data: [{ id: "of-1", application_id: "app-1", status: "draft", created_by_actor_id: "actor-1", created_at: "2026-10-08T00:00:00Z", extended_at: null, resolved_at: null }] },
-      // person_tags, person_notes, candidate_emails: none
+      // person_tags, person_notes, candidate_emails, candidate_email_replies: none
+      { data: [] },
       { data: [] },
       { data: [] },
       { data: [] },
@@ -115,7 +120,7 @@ describe("getActivity", () => {
       ["offer.drafted", "Ada Admin", "of-1"],
     ]);
     expect(a.entries[0]).toMatchObject({ text: "Over band", jobTitle: "Founding Engineer", applicationId: "app-1" });
-    expect(fake.calls[8]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["of-1"] }] });
+    expect(fake.calls[9]).toMatchObject({ table: "approval_requests", filters: [{ method: "in", column: "offer_id", value: ["of-1"] }] });
   });
 
   test("cut to the limit after merging; no applications means no pipeline reads", async () => {
@@ -128,10 +133,11 @@ describe("getActivity", () => {
         { id: "n-1", text: "first", actor_id: null, created_at: "2026-10-01T00:00:00Z" },
       ] },
       { data: [] },
+      { data: [] },
     ]);
     const a = await getActivity(fake.asDb(), ctx("elevated"), { candidateId: "p-1", limit: 1 });
     expect(a.entries.map((e) => e.refId)).toEqual(["n-2"]);
-    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes", "candidate_emails"]);
+    expect(fake.calls.map((c) => c.table)).toEqual(["people", "applications", "person_tags", "person_notes", "candidate_emails", "candidate_email_replies"]);
   });
 
   test("an interviewer gets their own interviews with this candidate and their notes, through my_interviews", async () => {

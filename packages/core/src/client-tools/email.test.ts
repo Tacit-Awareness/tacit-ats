@@ -226,6 +226,17 @@ describe("sendEmail", () => {
     expect(JSON.stringify(finish.args)).not.toMatch(/Founding|Hi Pat/);
   });
 
+  test("with a receiving domain, a reply comes back to the email's own address", async () => {
+    const send = vi.fn(async () => ({ id: "re_1" }));
+    const fake = new FakeSupabase([
+      { data: DRAFT }, { data: [] }, ME, ACME,
+      { data: "audit-1" }, { data: [{ id: "d-1" }] }, { data: null },
+      { data: [{ id: "app-1" }] }, { data: null }, { data: null },
+    ]);
+    await sendEmail(fake.asDb(), ctx("elevated"), { ...mailer(send), replyDomain: "in.tacit.test" }, { draftId: "d-1" });
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ replyTo: "reply+d-1@in.tacit.test" }));
+  });
+
   test("a draft someone else is sending is not sent twice, and the claim is given back", async () => {
     const send = vi.fn(async () => ({ id: "re_1" }));
     const fake = new FakeSupabase([{ data: DRAFT }, { data: [] }, ME, ACME, { data: "audit-1" }, { data: [] }, { data: true }, { data: null }]);

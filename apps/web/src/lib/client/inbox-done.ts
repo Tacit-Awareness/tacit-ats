@@ -8,7 +8,7 @@ import { instanceId, isIssueReason, issueKind, type Issue, type IssueInstance, t
 // The prototype shows an issue as it was when it left, which needs a snapshot of
 // wording that can carry a candidate's name or an email's subject.
 
-export const ISSUE_KEY = /^(app|appr|draft)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const ISSUE_KEY = /^(app|appr|draft|reply)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Only what `Date.parse` and the column's check both read the same way: a date in Postgres's or JavaScript's form. */
 const INSTANT = /^(\d{4})-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,9})?(Z|[+-]\d{2}(:?\d{2})?)$/;
@@ -74,7 +74,9 @@ function gone(reason: IssueInstance["reason"], s: DoneSubject): Pick<DoneItem, "
             ? `Decide on ${name}`
             : reason === "draft"
               ? `Draft to ${name}`
-              : s.approvalKind === "offer"
+              : reason === "reply"
+                ? `${name} replied`
+                : s.approvalKind === "offer"
                 ? "Approval for an offer"
                 : "Approval to open a job";
   const candidate = s.candidate && !what.includes(s.candidate.name) ? s.candidate.name : null;

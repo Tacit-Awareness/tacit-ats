@@ -13,18 +13,19 @@ import { ago, lastInterviewAt, type ColumnKey, type InterviewTimes } from "./pip
 // names and a draft's subject are plain text, never markup.
 
 export const ISSUE_KINDS = [
+  { key: "reply", label: "Replies" },
   { key: "draft", label: "Unsent drafts" },
   { key: "late", label: "Overdue" },
   { key: "decide", label: "Decisions" },
 ] as const;
 
 export type IssueKind = (typeof ISSUE_KINDS)[number]["key"];
-export type IssueReason = "draft" | "feedback" | "overdue" | "quiet" | "decide" | "approval";
+export type IssueReason = "reply" | "draft" | "feedback" | "overdue" | "quiet" | "decide" | "approval";
 
 /** A draft older than this is forgotten, not being written (the prototype's two hours for an invite). */
 export const DRAFT_LATE_MS = 2 * 3_600_000;
 
-const KIND: Record<IssueReason, IssueKind> = { draft: "draft", feedback: "late", overdue: "late", quiet: "late", decide: "decide", approval: "decide" };
+const KIND: Record<IssueReason, IssueKind> = { reply: "reply", draft: "draft", feedback: "late", overdue: "late", quiet: "late", decide: "decide", approval: "decide" };
 
 export const issueKind = (reason: IssueReason): IssueKind => KIND[reason];
 export const isIssueReason = (v: unknown): v is IssueReason => typeof v === "string" && Object.hasOwn(KIND, v);
@@ -88,6 +89,31 @@ export type InboxDraft = {
   updatedAt: string;
 };
 
+/** A candidate's reply to one of the member's emails. Its words are read only for the one open. */
+export type InboxReply = {
+  replyId: string;
+  personId: string;
+  personName: string;
+  jobTitle: string | null;
+  applicationId: string | null;
+  fromEmail: string;
+  subject: string;
+  receivedAt: string;
+};
+
+/** The member's newest email to someone: writing back is what answers a reply. */
+export type LastWrote = { personId: string; sentAt: string };
+
+/** The newest reply from each candidate, unless the member has written to them since. */
+export function unansweredReplies(replies: InboxReply[], wrote: LastWrote[]): InboxReply[] {
+  const newest = new Map<string, InboxReply>();
+  for (const r of replies) {
+    const held = newest.get(r.personId);
+    if (!held || Date.parse(r.receivedAt) > Date.parse(held.receivedAt)) newest.set(r.personId, r);
+  }
+  return [...newest.values()].filter((r) => !wrote.some((w) => w.personId === r.personId && Date.parse(w.sentAt) > Date.parse(r.receivedAt)));
+}
+
 /** What makes a draft out of date: a newer email by the same member on the same application. */
 export type LaterEmail = { applicationId: string; createdAt: string };
 
@@ -131,6 +157,8 @@ export type Issue = {
   /** An approval: the request to decide. Its terms are never here: readIssue fetches them for the one open. */
   approval: { requestId: string; kind: InboxApproval["kind"] } | null;
   draft: InboxDraft | null;
+  /** A candidate's reply, without its words: readIssue fetches them for the one open. */
+  reply: InboxReply | null;
 };
 
 /** For the order and the row's age. */
@@ -196,6 +224,7 @@ function applicationIssues(card: InboxCard, missing: InboxOutstanding[], now: nu
     nextAction: f.nextAction ?? null,
     approval: null,
     draft: null,
+    reply: null,
   }));
 }
 
@@ -223,6 +252,7 @@ function approvalIssue(a: InboxApproval): Issue {
     nextAction: null,
     approval: { requestId: a.requestId, kind: a.kind },
     draft: null,
+    reply: null,
   };
 }
 
@@ -242,10 +272,31 @@ function draftIssue(d: InboxDraft): Issue {
     nextAction: null,
     approval: null,
     draft: d,
+    reply: null,
   };
 }
 
-export type InboxInput = { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[] };
+function replyIssue(r: InboxReply): Issue {
+  return {
+    key: `reply-${r.replyId}`,
+    kind: "reply",
+    reason: "reply",
+    at: r.receivedAt,
+    what: `${r.personName} replied`,
+    why: r.subject || "No subject",
+    who: null,
+    candidate: { id: r.personId, name: r.personName },
+    job: { id: null, title: r.jobTitle },
+    applicationId: null,
+    interviewId: null,
+    nextAction: null,
+    approval: null,
+    draft: null,
+    reply: r,
+  };
+}
+
+export type InboxInput = { cards: InboxCard[]; outstanding: InboxOutstanding[]; approvals: InboxApproval[]; drafts: InboxDraft[]; replies: InboxReply[] };
 
 function missingByApplication(outstanding: InboxOutstanding[]) {
   const missing = new Map<string, InboxOutstanding[]>();
@@ -263,6 +314,7 @@ const lateDrafts = (drafts: InboxDraft[], now: number) => drafts.filter((d) => n
 export function standingIssues(input: InboxInput, now: number): Issue[] {
   const missing = missingByApplication(input.outstanding);
   return [
+    ...input.replies.map(replyIssue),
     ...lateDrafts(input.drafts, now),
     ...input.cards.flatMap((c) => applicationIssues(c, missing.get(c.applicationId) ?? [], now)),
     ...input.approvals.map(approvalIssue),
@@ -270,7 +322,7 @@ export function standingIssues(input: InboxInput, now: number): Issue[] {
 }
 
 /**
- * The queue: unsent drafts, then overdue, then decisions, newest first in each,
+ * The queue: replies, then unsent drafts, then overdue, then decisions, newest first in each,
  * as the prototype sorts. `dismissed` is instanceId()s: only those instances go,
  * so a dismissed approval gives its place back to its application's issue, and
  * a dismissed issue to the next that holds.
@@ -282,6 +334,7 @@ export function inboxIssues(input: InboxInput, now: number, dismissed: ReadonlyS
   const approving = new Set(approvals.map((a) => a.applicationId));
 
   const issues = [
+    ...input.replies.map(replyIssue).filter(kept),
     ...lateDrafts(input.drafts, now).filter(kept),
     ...input.cards.filter((c) => !approving.has(c.applicationId)).flatMap((c) => applicationIssues(c, missing.get(c.applicationId) ?? [], now).find(kept) ?? []),
     ...approvals,

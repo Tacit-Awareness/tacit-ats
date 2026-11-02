@@ -141,6 +141,7 @@ The Inbox is one card for admins and the hiring team: what is stuck and waiting 
 | --- | --- |
 | **Overdue** | Feedback not filed, a next action past its date, or nobody in touch with the candidate for a week |
 | **Decisions** | Candidates whose interviews are done with nothing booked next, and approvals waiting on you |
+| **Replies** | A candidate wrote back to your email. It's forwarded to your own mail too, and writing to them again clears it |
 | **Unsent drafts** | Your own candidate emails, left unsent for two hours |
 
 Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. A decision on a candidate opens their whole ticket: the interview loop, the feedback you can read, and everything on their page. Anything else opens with the candidate's recent history. \`Esc\`, the close button or a click outside takes you back to the card, at the same period. \`F\`, \`E\`, \`A\`, \`O\` and \`R\` work once an issue is open:

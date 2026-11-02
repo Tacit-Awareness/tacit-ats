@@ -158,6 +158,10 @@ token cannot read applications.
   Write to yourself: Review draft sends nothing and shows the stored draft;
   Send delivers it once, the ticket stays open and says who emailed. Change it
   writes a new draft, and only the newest reaches the Inbox.
+- [ ] A reply: needs `CLIENT_EMAIL_REPLY_DOMAIN` on both projects. Send to the
+  candidate address, reply from that mailbox: within a minute it is under
+  Replies in the Inbox and forwarded to your own mail, and the candidate's
+  activity says they replied. Write to them again and it leaves the queue.
 
 ### Pipeline (`/client/pipeline`)
 

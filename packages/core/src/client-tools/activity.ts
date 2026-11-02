@@ -31,7 +31,7 @@ export type ActivityKind =
   | "interview.scheduled" | "interview.done" | "interview.cancelled"
   | "offer.drafted" | "offer.extended" | "offer.accepted" | "offer.declined" | "offer.withdrawn"
   | "tag.added"
-  | "email"
+  | "email" | "email.reply"
   // An offer's approval (20261016110000_client_approvals): asked for, each
   // step's decision, and the request ending because the terms or the flow
   // changed (reset) or the offer was withdrawn (cancelled).
@@ -54,7 +54,7 @@ export type ActivityEntry = {
   /**
    * Member-written or candidate-derived text: a note, a next action, a
    * rejection reason, a source detail, an interview step, a tag, an email's
-   * subject, an approver's reason.
+   * subject or a reply's, an approver's reason.
    */
   text: string | null;
   /** When an interview is (interview entries). */
@@ -176,7 +176,7 @@ export async function getActivity(
   const detailOf = (applicationId: string) => (apps ?? []).find((a) => a.id === applicationId)?.source_detail ?? null;
 
   const none = Promise.resolve({ data: [], error: null });
-  const [events, interviews, offers, tags, noteRows, emails] = await Promise.all([
+  const [events, interviews, offers, tags, noteRows, emails, replies] = await Promise.all([
     appIds.length
       ? db.from("application_events").select("id, application_id, actor_id, kind, from_stage, to_stage, detail, created_at")
         .in("application_id", appIds).order("created_at", { ascending: false }).limit(limit)
@@ -195,8 +195,10 @@ export async function getActivity(
     // Sent emails only: a draft is its author's, and not something that happened.
     db.from("candidate_emails").select("id, application_id, author_actor_id, subject, sent_at").eq("person_id", input.candidateId)
       .eq("status", "sent").order("sent_at", { ascending: false }).limit(limit),
+    db.from("candidate_email_replies").select("id, subject, received_at, candidate_emails!inner(application_id)").eq("candidate_emails.person_id", input.candidateId)
+      .order("received_at", { ascending: false }).limit(limit),
   ]);
-  for (const r of [events, interviews, offers, tags, noteRows, emails]) if (r.error) throw new Error(r.error.message);
+  for (const r of [events, interviews, offers, tags, noteRows, emails, replies]) if (r.error) throw new Error(r.error.message);
   const notes: NoteRow[] = noteRows.data ?? [];
 
   type EventRow = {
@@ -214,6 +216,8 @@ export async function getActivity(
   const tagRows = (tags.data ?? []) as unknown as TagRow[];
   type EmailRow = { id: string; application_id: string | null; author_actor_id: string | null; subject: string; sent_at: string | null };
   const emailRows = ((emails.data ?? []) as EmailRow[]).filter((e) => e.sent_at);
+  type ReplyRow = { id: string; subject: string; received_at: string; candidate_emails: { application_id: string | null } };
+  const replyRows = (replies.data ?? []) as unknown as ReplyRow[];
 
   // The offers' approval requests and decisions: readable exactly where the offers are.
   type ApprovalRow = {
@@ -290,6 +294,10 @@ export async function getActivity(
       at: e.sent_at!, kind: "email", actor: nameOf(e.author_actor_id), applicationId: e.application_id,
       jobTitle: e.application_id ? jobOf(e.application_id) : null, text: e.subject, refId: e.id,
     })),
+    ...replyRows.map((r) => {
+      const applicationId = r.candidate_emails.application_id;
+      return entry({ at: r.received_at, kind: "email.reply", applicationId, jobTitle: applicationId ? jobOf(applicationId) : null, text: r.subject || null, refId: r.id });
+    }),
   ];
   return { candidateId: input.candidateId, full: true, entries: newestFirst(entries, limit) };
 }

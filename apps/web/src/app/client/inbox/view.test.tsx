@@ -25,6 +25,7 @@ const issue: IssueReaderProps = {
   subject: "Sam · Staff Engineer",
   card: { title: "t", detail: "d" },
   draft: null,
+  reply: null,
   fix: { type: "link", label: "Open candidate", href: "/client/candidates/p" },
   decision: null,
   terms: null,
