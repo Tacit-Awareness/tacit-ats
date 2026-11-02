@@ -15,8 +15,8 @@ import { routeApplicantAction } from "./actions";
 // I interviews, D declines, then that button takes focus, so Enter posts it and
 // no single key moves anyone. D with no reason picked focuses the reason
 // instead, since a decline needs one.
-// T picks design/tats's Testbench, which has no backend yet: it moves nobody,
-// so it has no button here and control-panel.tsx shows its message unsendable.
+// T picks design/tats's Testbench, which only picks the reply's starter: it
+// moves nobody, so it has no button here.
 // The team is read-only: a route takes no team, the job already has one.
 
 export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[]; /** Drawn in Home's tab, so the post comes back there. */ home?: boolean };
