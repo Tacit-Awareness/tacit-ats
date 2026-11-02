@@ -32,6 +32,15 @@ export async function readApplicationNotes(db: Db, applicationId: string): Promi
   return (data ?? []).flatMap((e) => (e.detail ? [e.detail] : []));
 }
 
+/** The notes on their candidate file, as many as a ticket shows, oldest first: the ones written on their page. */
+export async function readPersonNotes(db: Db, candidateId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from("person_notes").select("text").eq("person_id", candidateId).is("deleted_at", null)
+    .order("created_at", { ascending: false }).limit(NOTES_MAX);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((n) => n.text).reverse();
+}
+
 export type RejectReason = { reasonId: string; name: string };
 
 /** What the routing bar needs for one application's job: whether the member may move it, and the org's rejection reasons. */

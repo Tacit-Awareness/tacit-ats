@@ -207,7 +207,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 
 ## New Applicants
 
-**New Applicants** holds job-board applicants and referrals, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application, or for a referral who referred them and their note. Pick the next step in the panel under it, then press the button beside it:
+**New Applicants** holds job-board applicants and referrals, grouped by team, newest first, or by job if your company has no departments. Open one to read the whole application, or for a referral who referred them and their note. Any notes and files on their candidate page show there too. Pick the next step in the panel under it, then press the button beside it:
 
 | Key | What it does |
 | --- | --- |
@@ -297,7 +297,7 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 ## Referrals
 
-**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Add referral** takes a name, email, LinkedIn, job, referrer and a note, and adds them to that job.`,
+**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Add referral** takes a name, email, LinkedIn, job, referrer, a note and a resume of up to 3 MB, and adds them to that job.`,
   },
   {
     slug: "app-interviews",

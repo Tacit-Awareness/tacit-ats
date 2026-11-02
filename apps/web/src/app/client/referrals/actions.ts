@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { addReferral, type AddReferralOutcome } from "@/lib/client/referrals";
+import { webFileStore } from "@/lib/client/file-store";
+import { addReferral, referralFile, type AddReferralOutcome } from "@/lib/client/referrals";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { ReferralError, ReferralNotice } from "./messages";
@@ -29,6 +30,9 @@ export async function addReferralAction(form: FormData): Promise<void> {
   const jobId = form.get("jobId");
   if (typeof jobId !== "string" || !UUID.test(jobId)) return back({ error: "invalid_job" });
 
+  const file = await referralFile(form.get("resume"));
+  if (file === "invalid") return back({ error: "invalid_file" });
+
   let outcome: AddReferralOutcome;
   try {
     outcome = await addReferral(member.db, toolCtx(member), {
@@ -38,7 +42,8 @@ export async function addReferralAction(form: FormData): Promise<void> {
       linkedinUrl: text(form, "linkedinUrl"),
       referredBy: form.get("referredBy"),
       note: text(form, "note"),
-    });
+      file,
+    }, webFileStore());
   } catch (err) {
     console.error("[client-referrals] adding a referral failed:", err instanceof Error ? err.message : err);
     return back({ error: "failed" });
