@@ -60,7 +60,7 @@ export const TOUR: TourStep[] = [
   {
     href: "/client/pipeline",
     targets: ['[data-tour="board"]'],
-    title: "Pipeline",
+    title: "Applicant Tickets",
     body: "It opens on who's stuck, with every stage across the top; Everyone shows the rest. A row opens the person over the list. Pick a job for its board, then drag a card to another column to move them, or press S on it.",
   },
   {

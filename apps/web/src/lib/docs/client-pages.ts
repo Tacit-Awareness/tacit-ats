@@ -46,7 +46,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 ## Where to begin
 
 - **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
-- **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Pipeline & Referrals](/docs/app-candidates).
+- **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Applicant Tickets & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
 New to the app? **Tutorial**, under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
@@ -236,7 +236,7 @@ Days are counted in UTC. A page view is a page load, so your team's own visits c
   },
   {
     slug: "app-candidates",
-    title: "CRM, Pipeline & Referrals",
+    title: "CRM, Applicant Tickets & Referrals",
     category: "tATS features",
     description: "Every candidate in one table, every open job on one board, and your referrals.",
     body: `## CRM
@@ -257,7 +257,7 @@ Whoever can change a candidate's record (their hiring team or an admin) can add 
 
 Where you can edit the job, you can move the stage, reject or mark withdrawn with a reason, change the owner, set the next action and log a touch. Anyone who can open the page can leave a note: press \`C\` to write and \`⌘↵\` to save. Notes cannot be edited or deleted.
 
-Where you can change a candidate's record, **Labels** beside their chips, or \`L\`, puts your company's labels on them and takes them off. It answers in place, in the Pipeline's pop-up too. New labels are made from the CRM's bulk actions.
+Where you can change a candidate's record, **Labels** beside their chips, or \`L\`, puts your company's labels on them and takes them off. It answers in place, in Applicant Tickets' pop-up too. New labels are made from the CRM's bulk actions.
 
 Where you manage the job, the **Offer** block drafts an offer with its salary, currency, bonus, equity, start date, expiry and notes. A draft's terms can change; once it is marked as extended they can't, so what went out stays on record. Then record whether they accepted or declined, or withdraw it. If the job has an offer approval flow, **Ask for approval** sends the draft to the approvers' Inbox, and it can't be marked as extended until they approve. Changing approved terms means asking again.
 
@@ -265,9 +265,9 @@ tATS doesn't send an offer: mark it as extended once it has gone to the candidat
 
 Interviewers see a short card: the resume, their own notes and their own interviews.
 
-## Pipeline
+## Applicant Tickets
 
-**Pipeline** shows every open job's live candidates. It opens on **Stuck**, the people who have stalled; **Everyone** shows the rest. The bar across the top gives each stage its headcount and how many are stuck, and clicking a stage filters to it. A saved view, a name search or a link to a stage opens in Everyone.
+**Applicant Tickets** shows every open job's live candidates. It opens on **Stuck**, the people who have stalled; **Everyone** shows the rest. The bar across the top gives each stage its headcount and how many are stuck, and clicking a stage filters to it. A saved view, a name search or a link to a stage opens in Everyone.
 
 Each person is one row, grouped by stage: what is happening, the facts, and how long since anything happened, red once they have stalled. \`J\` and \`K\` walk the rows and \`Enter\` opens the person in a pop-up over the list: the same as their candidate page, with **Open as a page** for the page itself, \`J\` and \`K\` to walk on and \`Esc\` to close. Changing a stage, owner or next action in there takes you to their page, where it says how it went.
 
@@ -282,9 +282,9 @@ Pick one job and its board appears. **List** and **Board** at the top switch bet
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
 
-The Pipeline keeps up on its own: a move, a new applicant or a change made elsewhere shows within half a minute while the page is on screen, and as soon as you come back to the tab, without a reload. It waits while you are dragging a card, typing, or have a pop-up or menu open.
+Applicant Tickets keeps up on its own: a move, a new applicant or a change made elsewhere shows within half a minute while the page is on screen, and as soon as you come back to the tab, without a reload. It waits while you are dragging a card, typing, or have a pop-up or menu open.
 
-Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
+Hired, rejected and withdrawn candidates leave Applicant Tickets. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
 
 On a computer, rest the mouse on a name for a short card: who they are, their stage, job, source, team, owner and interviewer, each only if you can read it. The same works on a teammate's avatar and on the Interviewers page. Touch screens don't show them.
 
@@ -302,7 +302,7 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 ### Saved views
 
-**Views**, in the Pipeline's bar, saves a set of filters (department, stage, source, label) under a name. Your list of views stays in your browser, but a view's link works for a teammate too.
+**Views**, in Applicant Tickets' bar, saves a set of filters (department, stage, source, label) under a name. Your list of views stays in your browser, but a view's link works for a teammate too.
 
 ## Referrals
 
@@ -426,7 +426,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`G\` then \`C\` | CRM |
 | \`G\` then \`J\` | Job Postings |
 | \`G\` then \`T\` | New Applicants |
-| \`G\` then \`A\` | Pipeline |
+| \`G\` then \`A\` | Applicant Tickets |
 | \`G\` then \`I\` | Interviews |
 | \`[\` | Collapse or expand the sidebar |
 | \`?\` | The list of keys |
@@ -434,11 +434,11 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 
 ## On each page
 
-Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Interview Calendar](/docs/app-interviews#interview-calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
+Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Applicant Tickets](/docs/app-candidates#applicant-tickets) and [Interview Calendar](/docs/app-interviews#interview-calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
 
 ## Tutorial
 
-**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, the Pipeline, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 

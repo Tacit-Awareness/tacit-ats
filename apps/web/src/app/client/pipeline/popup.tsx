@@ -18,7 +18,7 @@ export function PersonPopup({ applicationId, title, subject, home, pageHref, chi
       subject={subject}
       home={home}
       pageHref={pageHref}
-      keysTitle="Pipeline"
+      keysTitle="Applicant Tickets"
       closeLabel="Close, back to the list"
       backTo={(id) => [rowSelector(id)]}
     >

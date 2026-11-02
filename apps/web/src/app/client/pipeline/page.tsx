@@ -52,7 +52,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
 
   if (accessLevel === "limited") {
     return (
-      <Page bar={<PageBar title="Pipeline" />}>
+      <Page bar={<PageBar title="Applicant Tickets" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
