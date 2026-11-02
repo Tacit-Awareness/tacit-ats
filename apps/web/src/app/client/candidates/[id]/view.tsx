@@ -397,12 +397,15 @@ export function CandidateBody({ candidate, activity, owners, past, editing, labe
           ) : (
             candidate.files.map((f) => (
               <Prop key={f.fileId} k={f.kind === "resume" ? "Resume" : "Attachment"}>
-                <span
-                  className="truncate"
+                <a
+                  href={`/client/files/${f.fileId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate underline decoration-[color:var(--n300)] underline-offset-2"
                   title={[f.filename, size(f.sizeBytes), f.uploadedBy, ago(f.uploadedAt, now)].filter(Boolean).join(" · ")}
                 >
                   {f.filename}
-                </span>
+                </a>
               </Prop>
             ))
           )}
