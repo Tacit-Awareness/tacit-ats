@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { FlashToast } from "@/components/flash-toast";
+import { LiveRefresh } from "@/components/live-refresh";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readSender } from "@/lib/client/email";
 import { stageLabel } from "@/lib/client/crm-views";
@@ -214,6 +215,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   return (
     <>
       <MarkSeen mark="inbox" ids={issues.map((i) => i.key)} />
+      <LiveRefresh />
       {moved ? toastOf(moved) : toast}
       <InboxView
         rows={issues.map((i) => ({

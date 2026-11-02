@@ -1,5 +1,9 @@
+import { Banner } from "@/components/banner";
+import { bannerTag } from "@/lib/banner-rules";
 import { safeHref } from "@/lib/client/applicant-queue";
 import { parseBook } from "@/lib/client/next-round-rules";
+import { awayBanner } from "@/lib/client/interviewer-profile";
+import { readAway } from "@/lib/client/interviewers";
 import { readAllInterviews, readSchedule } from "@/lib/client/schedule";
 import { readNextRound, schedulableRoles } from "@/lib/client/schedule-choices";
 import { departmentTones, isScheduleView, parseYmd, readWindow, toneFor } from "@/lib/client/schedule-layout";
@@ -34,6 +38,10 @@ import { ScheduleView, type CalendarEvent } from "./view";
 // application's id, opening Find a time on that candidate and job with their
 // plan's next step picked, read here on the member's own token. view.tsx drops
 // it from the address once the dialog is up. An interviewer gets the Calendar.
+//
+// Above it, for whoever books, the prototype's banner of interviewers who are
+// away (their Interviewers profile's "Away through"), from the profiles their
+// own token reads; dismissed in this browser until someone else is away.
 //
 // Left out from the prototype: holds. An event the member cannot change opens
 // the interview on the Interviews page.
@@ -70,7 +78,11 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
   const dept = names.includes(asDept) ? asDept : null;
 
   const ahead = (i: (typeof items)[number]) => i.status === "scheduled" && Date.parse(i.startsAt) > now.getTime();
-  const schedulable = accessLevel === "limited" ? new Set<string>() : await schedulableRoles(db, items.filter(ahead).map((i) => i.jobId));
+  const [schedulable, awayMembers] = await Promise.all([
+    accessLevel === "limited" ? new Set<string>() : schedulableRoles(db, items.filter(ahead).map((i) => i.jobId)),
+    accessLevel === "limited" ? [] : readAway(db, now),
+  ]);
+  const away = awayBanner(awayMembers, now);
 
   const events: CalendarEvent[] = (q ? items.filter((i) => matchesSearch(i, q)) : items).map((i) => ({
     id: i.interviewId,
@@ -102,6 +114,20 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
       truncated={truncated}
       canBook={accessLevel !== "limited"}
       nextRound={nextRound}
+      banner={
+        away ? (
+          <Banner
+            id={`schedule-away:${bannerTag(away.key)}`}
+            status="info"
+            size="compact"
+            title={away.title}
+            desc="Check before you book them."
+            actions={[{ label: "See interviewers", href: "/client/interviewers" }]}
+            dismissible
+            className="mx-3 mt-2.5 md:mx-5 md:mt-3"
+          />
+        ) : null
+      }
     />
   );
 }

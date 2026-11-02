@@ -50,7 +50,7 @@ export function FeedbackForm({ form, candidate }: { form: Form; candidate: strin
   const refused = "error" in state ? state : null;
   const draft: FeedbackDraft = refused?.draft ?? form.draft;
 
-  useKeyHelp("Interviews", [{ keys: "⌘↵", label: "File your feedback" }]);
+  useKeyHelp("Interview Judgement", [{ keys: "⌘↵", label: "File your feedback" }]);
 
   return (
     <details open={!form.filed || !!refused} className="group/fb border border-[color:var(--line)] bg-[color:var(--surface)]">

@@ -567,6 +567,7 @@ export function ScheduleView({
   truncated,
   canBook,
   nextRound = null,
+  banner,
 }: {
   view: View;
   /** The `?date=`; null is the browser's today. */
@@ -584,6 +585,8 @@ export function ScheduleView({
   canBook: boolean;
   /** The `?book=`, the Inbox's Next round: Find a time opens on it once, prefilled. */
   nextRound?: NextRound | null;
+  /** Above the toolbar: the page's banner, when it has one. */
+  banner?: React.ReactNode;
 }) {
   const router = useRouter();
   const timeZone = React.useSyncExternalStore(noSubscribe, browserZone, serverZone);
@@ -622,7 +625,7 @@ export function ScheduleView({
     }
   }
   useKeys(bindings);
-  useKeyHelp("Calendar", [
+  useKeyHelp("Interview Calendar", [
     { keys: "D / W / M / L", label: "Day, week, month, list" },
     ...(q ? [] : [{ keys: "← / →", label: "Previous, next" }]),
     { keys: ".", label: "Today" },
@@ -652,7 +655,7 @@ export function ScheduleView({
   return (
     <Page
       bar={
-        <PageBar title="Calendar">
+        <PageBar title="Interview Calendar">
           <div ref={search} className="contents">
             {/* Keyed by the search: the box holds what it was given, and the URL can change under it. */}
             <SearchBox key={q ?? ""} action="/client/schedule" defaultValue={q ?? ""} placeholder="Search interviews…" label="Search interviews" keep={{ view, date: anchor, dept }} />
@@ -678,6 +681,7 @@ export function ScheduleView({
       bleed
       className="grid-cols-[minmax(0,1fr)]"
     >
+      {banner}
       {/* Wraps at every width: beside the sidebar a long department name would push the pills off the edge. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:px-5 md:py-3">
         {q ? (

@@ -237,12 +237,17 @@ function changeConfirm(request: MoveRequest | CancelRequest, answer: Extract<Sch
   };
 }
 
-function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone: string; pick: (startsAt: string, endsAt: string) => void; picked?: string | null }) {
+export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone: string; pick: (startsAt: string, endsAt: string) => void; picked?: string | null }) {
   return (
     <div className="grid gap-1.5">
       {found.unknown.map((u) => (
         <p key={u.name} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
           Not checked: {u.name} {u.why}.
+        </p>
+      ))}
+      {found.limited.map((l) => (
+        <p key={l.name} className="m-0 bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words">
+          Times left out: {l.name}, {l.why}.
         </p>
       ))}
       {found.slots.length === 0 ? (

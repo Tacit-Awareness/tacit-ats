@@ -1,7 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { FlashToast } from "@/components/flash-toast";
-import { Empty, Page, PageBar, Pill, SearchBox, SubBar, Tabs, type Tab } from "@/components/page";
+import { Avatar, Empty, Page, PageBar, Pill, SearchBox, Section, SubBar, Tabs, type Tab } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 // tabs and a search in the strip under it, then its CRM-style table: a ruled
 // cell grid, one row per referral, newest first, 50 a page with the range and
 // arrows in the footer. A row opens the candidate page. "Referred by" is the
-// text someone typed, rendered as text.
+// text someone typed, rendered as text. Beside it (under it below 1100px) the
+// "Top referrers" board, `.ref-side`: each referrer's count with a bar to the
+// most, then in process and hired; a row searches the table for them.
 
 export type ReferralViewRow = {
   key: string;
@@ -24,6 +26,68 @@ export type ReferralViewRow = {
   referred: string;
   referredTitle: string;
 };
+
+export type ReferrerViewRow = {
+  name: string;
+  /** The table searched for them. */
+  href: string;
+  referred: number;
+  inProcess: number;
+  hired: number;
+};
+
+/** The board's columns: avatar, name over its bar, Referred, In process, Hired (`.ref-lb`). */
+const BOARD = "grid grid-cols-[24px_minmax(0,1fr)_54px_64px_40px] items-center gap-2";
+
+function TopReferrers({ rows, more }: { rows: ReferrerViewRow[]; more: string | null }) {
+  const most = Math.max(1, ...rows.map((r) => r.referred));
+  return (
+    <Section title="Top referrers" aria-label="Top referrers">
+      <div role="table" aria-label="Top referrers" className="grid">
+        <div role="row" className={cn(BOARD, "border-b border-[color:var(--line)] pb-1 text-[12px] whitespace-nowrap text-faint")}>
+          <span aria-hidden />
+          <span role="columnheader">Referrer</span>
+          <span role="columnheader" className="text-right">
+            Referred
+          </span>
+          <span role="columnheader" className="text-right">
+            In process
+          </span>
+          <span role="columnheader" className="text-right">
+            Hired
+          </span>
+        </div>
+        {rows.map((r) => (
+          <Link
+            role="row"
+            key={r.name}
+            href={r.href}
+            title={`Show ${r.name}'s referrals`}
+            className={cn(BOARD, "-mx-1.5 rounded-md px-1.5 py-1.5 text-[13.5px] transition-colors hover:bg-[color:var(--hover)]")}
+          >
+            <span role="cell">
+              <Avatar name={r.name} size="lg" />
+            </span>
+            <span role="cell" className="grid min-w-0 gap-1">
+              <b className="truncate font-medium">{r.name}</b>
+              <i aria-hidden className="block h-1 rounded-[2px] bg-[color:var(--soft-strong)]" style={{ width: `${(r.referred / most) * 100}%` }} />
+            </span>
+            <em role="cell" className="text-right text-muted-foreground not-italic tabular-nums">
+              {r.referred}
+            </em>
+            <em role="cell" className="text-right text-muted-foreground not-italic tabular-nums">
+              {r.inProcess}
+            </em>
+            <em role="cell" className={cn("text-right not-italic tabular-nums", r.hired ? "font-medium text-[color:var(--green)]" : "text-muted-foreground")}>
+              {r.hired}
+            </em>
+          </Link>
+        ))}
+      </div>
+      {more ? <p className="m-0 text-[12px] text-faint">{more}</p> : null}
+    </Section>
+  );
+}
 
 const GRID = "grid grid-cols-[minmax(200px,1.4fr)_minmax(150px,1fr)_minmax(150px,1.1fr)_150px_110px]";
 /** Every cell: 14px across, a hairline on its left but the first's (design/tats's `.crm-r > *`). */
@@ -73,6 +137,7 @@ export function ReferralsView({
   tabs,
   tabLabel,
   rows,
+  referrers,
   all,
   range,
   prev,
@@ -87,6 +152,8 @@ export function ReferralsView({
   tabs: Tab[];
   tabLabel: string;
   rows: ReferralViewRow[];
+  /** The board, over every referral the member can read (not the tab or the search); null with nobody named. */
+  referrers: { rows: ReferrerViewRow[]; more: string | null } | null;
   /** Every referral the member can read, faint beside the title. */
   all: string;
   range: string;
@@ -137,60 +204,63 @@ export function ReferralsView({
       }
     >
       {notice ? <FlashToast text={notice} /> : null}
-      <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
-        {empty ? (
-          <Empty className="px-4 py-3">{empty}</Empty>
-        ) : (
-          <div className="overflow-x-auto">
-            <div role="table" aria-label={tabLabel} className="grid min-w-[780px]">
-              <div role="row" className={cn(GRID, "h-[46px] border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[13.5px] text-muted-foreground")}>
-                {HEADERS.map((h) => (
-                  <span role="columnheader" key={h.label} className={cn(CELL, "gap-2")}>
-                    {ico(h.icon)}
-                    {h.label}
-                  </span>
-                ))}
+      <div className={cn("grid items-start gap-4", referrers && "min-[1100px]:grid-cols-[minmax(0,1fr)_320px]")}>
+        <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+          {empty ? (
+            <Empty className="px-4 py-3">{empty}</Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <div role="table" aria-label={tabLabel} className="grid min-w-[780px]">
+                <div role="row" className={cn(GRID, "h-[46px] border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[13.5px] text-muted-foreground")}>
+                  {HEADERS.map((h) => (
+                    <span role="columnheader" key={h.label} className={cn(CELL, "gap-2")}>
+                      {ico(h.icon)}
+                      {h.label}
+                    </span>
+                  ))}
+                </div>
+                {rows.map((r) => {
+                  const where = WHERE[r.whereTone];
+                  return (
+                    <Link
+                      role="row"
+                      key={r.key}
+                      href={r.href}
+                      className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[14px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
+                    >
+                      <span role="cell" className={cn(CELL, "gap-2.5")}>
+                        <b className="truncate font-medium">{r.name}</b>
+                      </span>
+                      <span role="cell" className={CELL} title={r.referredBy ?? undefined}>
+                        <span className="truncate">{r.referredBy ?? <span className="text-faint">Not recorded</span>}</span>
+                      </span>
+                      <span role="cell" className={CELL}>
+                        <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
+                      </span>
+                      <span role="cell" className={CELL}>
+                        <Pill tone={where.tone} className={where.className}>
+                          {r.where}
+                        </Pill>
+                      </span>
+                      <span role="cell" className={cn(CELL, "text-muted-foreground tabular-nums")} title={r.referredTitle}>
+                        {r.referred}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
-              {rows.map((r) => {
-                const where = WHERE[r.whereTone];
-                return (
-                  <Link
-                    role="row"
-                    key={r.key}
-                    href={r.href}
-                    className={cn(GRID, "min-h-[50px] border-b border-[color:var(--line)] text-[14px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)]")}
-                  >
-                    <span role="cell" className={cn(CELL, "gap-2.5")}>
-                      <b className="truncate font-medium">{r.name}</b>
-                    </span>
-                    <span role="cell" className={CELL} title={r.referredBy ?? undefined}>
-                      <span className="truncate">{r.referredBy ?? <span className="text-faint">Not recorded</span>}</span>
-                    </span>
-                    <span role="cell" className={CELL}>
-                      <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
-                    </span>
-                    <span role="cell" className={CELL}>
-                      <Pill tone={where.tone} className={where.className}>
-                        {r.where}
-                      </Pill>
-                    </span>
-                    <span role="cell" className={cn(CELL, "text-muted-foreground tabular-nums")} title={r.referredTitle}>
-                      {r.referred}
-                    </span>
-                  </Link>
-                );
-              })}
             </div>
+          )}
+          <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line-strong)] pr-3 pl-[18px] text-[13px] text-muted-foreground tabular-nums">
+            {note ? <span className="text-faint">{note}</span> : null}
+            <span className="flex-1" />
+            <span className="mr-2">{range}</span>
+            <Arrow href={prev} label="Previous page" dir="prev" />
+            <Arrow href={next} label="Next page" dir="next" />
           </div>
-        )}
-        <div className="flex h-[46px] items-center gap-1 border-t border-[color:var(--line-strong)] pr-3 pl-[18px] text-[13px] text-muted-foreground tabular-nums">
-          {note ? <span className="text-faint">{note}</span> : null}
-          <span className="flex-1" />
-          <span className="mr-2">{range}</span>
-          <Arrow href={prev} label="Previous page" dir="prev" />
-          <Arrow href={next} label="Next page" dir="next" />
-        </div>
-      </section>
+        </section>
+        {referrers ? <TopReferrers {...referrers} /> : null}
+      </div>
     </Page>
   );
 }

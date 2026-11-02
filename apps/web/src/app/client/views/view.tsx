@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 // do.
 
 const PAGES = [
-  { href: "/client/schedule", name: "Calendar", desc: "Interviews and holds by week", icon: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3" },
+  { href: "/client/schedule", name: "Interview Calendar", desc: "Interviews and holds by week", icon: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3" },
   { href: "/client/interviewers", name: "Interviewers", desc: "Who interviews, and their load", icon: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2" },
 ] as const;
 const LAYERS = "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3";

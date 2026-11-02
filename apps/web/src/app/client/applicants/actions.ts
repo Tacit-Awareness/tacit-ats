@@ -69,7 +69,9 @@ export async function draftReplyAction(_: ReplyState, form: FormData): Promise<R
 
   let outcome: Awaited<ReturnType<typeof draftReply>>;
   try {
-    outcome = await draftReply(member.db, toolCtx(member), webMailer(), { candidateId, applicationId, subject, body });
+    // The template it started from, if any: only an id, recorded on the draft; the words are what the box posted.
+    const template = id(form, "templateId");
+    outcome = await draftReply(member.db, toolCtx(member), webMailer(), { candidateId, applicationId, subject, body, ...(template ? { template } : {}) });
   } catch (err) {
     console.error("[client-applicants] draft failed:", err instanceof Error ? err.message : err);
     return { error: "That didn't work. No draft was written." };
