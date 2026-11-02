@@ -466,8 +466,10 @@ body:has(.ui-root) {
   margin-bottom: var(--sb-head-gap);
 }
 
+/* its hover block is soft-cornered like .sb-item's */
 .sb-org {
   margin-top: 3px;
+  border-radius: 8px;
 }
 
 .sb-search {
