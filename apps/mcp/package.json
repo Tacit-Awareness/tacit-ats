@@ -12,8 +12,8 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2",
     "@tacit-ats/core": "workspace:^",
-    "@tacit/core": "file:../../vendor/tacit-core-c7389c6.tgz",
-    "@tacit/db": "file:../../vendor/tacit-db-c7389c6.tgz",
+    "@tacit/core": "file:../../vendor/tacit-core-f602634.tgz",
+    "@tacit/db": "file:../../vendor/tacit-db-f602634.tgz",
     "@vercel/oidc": "4.0.1",
     "jose": "^6.2.10",
     "mcp-handler": "^2",
