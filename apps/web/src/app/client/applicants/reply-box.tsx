@@ -7,6 +7,7 @@ import { Notice } from "@/components/page";
 import type { DraftSender, ShownDraft } from "@/lib/client/email";
 import { isShown } from "@/lib/keys";
 import { REPLY_KINDS, type ReplyKind, type ReplyStarters } from "@/lib/client/reply-starters";
+import type { TemplateStarter } from "@/lib/client/email-template-rules";
 import { cn } from "@/lib/utils";
 import { draftReplyAction, sendReplyAction } from "./actions";
 import { pill, pillPrimary } from "./routing-bar";
@@ -21,7 +22,10 @@ import { pill, pillPrimary } from "./routing-bar";
 // address, the box says so and offers nothing. Replying moves nobody: the row
 // above it (routing-bar.tsx) still does that, and design/tats's one button for
 // both is split because a reply can be refused while a route lands, and the
-// reverse. The words are only ever the starters a member reads and changes.
+// reverse. The words are only ever the starters a member reads and changes:
+// the built-in ones, or the company's templates (Settings > Email templates),
+// filled in on the server (email-template-rules.ts's templateStarters). A
+// template posts only its id beside the words, which core records on the draft.
 
 export type Reply = {
   /** Drawn in Home's tab, so a post comes back there. */
@@ -38,6 +42,8 @@ export type Reply = {
   failed: { subject: string; body: string } | null;
   sent: { when: string; subject: string; by: string } | null;
   starters: ReplyStarters;
+  /** The company's live templates, filled in for this email. */
+  templates?: TemplateStarter[];
   subjectMax: number;
   bodyMax: number;
 };
@@ -119,25 +125,42 @@ function DraftReview({ reply, draft, sent, change }: { reply: Reply; draft: Show
 
 export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; suggested?: ReplyKind }) {
   const { enabled, to, draft, failed, starters } = reply;
+  const templates = reply.templates ?? [];
   // A failed send comes back open, on its own words.
   const [open, setOpen] = useState(failed !== null);
   const [changing, setChanging] = useState(false);
   const [kind, setKind] = useState<ReplyKind>(suggested);
   // The picked move picks the starter; a member can still start from another, and their edits to each stay.
   const [followed, setFollowed] = useState(suggested);
-  if (suggested !== followed) {
-    setFollowed(suggested);
-    setKind(suggested);
-  }
   const [subject, setSubject] = useState(failed?.subject ?? starters.subject);
   const [bodies, setBodies] = useState(starters.bodies);
+  // A template picked over the starters, by id, and each template's own edits, as the starters keep theirs.
+  const [pick, setPick] = useState<string | null>(null);
+  const [own, setOwn] = useState<Record<string, string>>(() => Object.fromEntries(templates.map((t) => [t.templateId, t.body])));
+  const picked = templates.find((t) => t.templateId === pick) ?? null;
+  // A subject the member hasn't touched follows the pick; one they wrote stays.
+  const startFrom = (next: { kind: ReplyKind } | { template: TemplateStarter }) => {
+    const before = picked?.subject ?? starters.subject;
+    const after = "template" in next ? next.template.subject : starters.subject;
+    if (subject === before) setSubject(after);
+    if ("template" in next) setPick(next.template.templateId);
+    else {
+      setPick(null);
+      setKind(next.kind);
+    }
+  };
+  if (suggested !== followed) {
+    setFollowed(suggested);
+    startFrom({ kind: suggested });
+  }
   // Their own words, a failed send's or the draft being changed: no starter then.
   const [mine, setMine] = useState(failed?.body ?? null);
   const [state, action, pending] = useActionState(draftReplyAction, {});
   const box = useRef<HTMLElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
 
-  const body = mine ?? bodies[kind];
+  const body = mine ?? (picked ? (own[picked.templateId] ?? picked.body) : bodies[kind]);
+  const fromTemplate = mine === null ? picked : null;
   const canWrite = enabled && to !== null && !draft;
   // Focus only follows a press: a ticket that opens on a failed send must leave J and K walking the list.
   const pressed = useRef(false);
@@ -212,6 +235,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
         <input type="hidden" name="applicationId" value={reply.applicationId} />
         <input type="hidden" name="candidateId" value={reply.candidateId} />
         {reply.home ? <input type="hidden" name="home" value="1" /> : null}
+        {fromTemplate ? <input type="hidden" name="templateId" value={fromTemplate.templateId} /> : null}
         {open ? (
           <div className={message}>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -221,11 +245,34 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
               </span>
               {mine === null ? (
                 <span role="group" aria-label="Start from" className="ml-auto flex items-center gap-1">
-                  {REPLY_KINDS.map((k) => (
-                    <button key={k} type="button" aria-pressed={k === kind} onClick={() => setKind(k)} className={cn(pill, k === kind && "bg-[color:var(--sel)]")}>
-                      {LABEL[k]}
-                    </button>
-                  ))}
+                  {REPLY_KINDS.map((k) => {
+                    const on = picked === null && k === kind;
+                    return (
+                      <button key={k} type="button" aria-pressed={on} onClick={() => startFrom({ kind: k })} className={cn(pill, on && "bg-[color:var(--sel)]")}>
+                        {LABEL[k]}
+                      </button>
+                    );
+                  })}
+                  {templates.length ? (
+                    <select
+                      aria-label="Start from a template"
+                      value={picked?.templateId ?? ""}
+                      onChange={(e) => {
+                        const t = templates.find((x) => x.templateId === e.target.value);
+                        if (t) startFrom({ template: t });
+                      }}
+                      className={cn(pill, "max-w-[180px] truncate", picked && "bg-[color:var(--sel)]")}
+                    >
+                      <option value="" disabled>
+                        Template
+                      </option>
+                      {templates.map((t) => (
+                        <option key={t.templateId} value={t.templateId}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                 </span>
               ) : null}
             </div>
@@ -244,7 +291,9 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
               maxLength={reply.bodyMax}
               value={body}
               readOnly={pending}
-              onChange={(e) => (mine === null ? setBodies({ ...bodies, [kind]: e.target.value }) : setMine(e.target.value))}
+              onChange={(e) =>
+                mine !== null ? setMine(e.target.value) : picked ? setOwn({ ...own, [picked.templateId]: e.target.value }) : setBodies({ ...bodies, [kind]: e.target.value })
+              }
               spellCheck
               className={cn(field, "block max-h-[calc(32*var(--vh))] min-h-[140px] resize-y py-2.5 leading-[1.55]")}
             />
