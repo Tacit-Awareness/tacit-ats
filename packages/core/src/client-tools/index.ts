@@ -40,8 +40,8 @@ export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./co
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";
 export type { CandidateDetail, CandidateHit, CandidateNote, JobPipeline, JobView, TeamMember } from "./reads.js";
-export { addCandidate, addCandidateContact, addNote, setApplicationNextAction, updateStage } from "./writes.js";
-export type { AddCandidateResult, ContactResult, NextActionResult, StageResult } from "./writes.js";
+export { addCandidate, addCandidateContact, addNote, updateCandidate, setApplicationNextAction, updateStage } from "./writes.js";
+export type { AddCandidateResult, CandidateUpdateResult, ContactResult, NextActionResult, StageResult } from "./writes.js";
 export {
   JOB_STATUSES, TEAM_ROLES,
   addToHiringTeam, createJob, getHiringTeam, inviteMember, listInvites, removeFromHiringTeam, setMemberAccess,

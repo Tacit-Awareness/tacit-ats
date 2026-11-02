@@ -1,4 +1,4 @@
-import type { Db } from "@tacit/db";
+import type { Db, TablesUpdate } from "@tacit/db";
 
 import {
   CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, addCandidateToRole, isApplicationStage, isCandidateSource, moveStage,
@@ -274,5 +274,34 @@ export async function addCandidateContact(
     }
     if (error) throw new Error(error.message);
     return { result: { candidateId: input.candidateId, kind: input.kind, added: true }, entityId: input.candidateId, after: { identifier_id: data.id, kind: input.kind }, changed: true };
+  });
+}
+
+export type CandidateUpdateResult = { candidateId: string; fields: string[] };
+
+const CANDIDATE_FIELDS = { headline: "headline", education: "education", currentTitle: "current_title", currentCompany: "current_company", basedIn: "based_in" } as const;
+
+/** Patch a candidate's profile fields (headline, education, current role, where they are): whoever can_edit_person. */
+export async function updateCandidate(
+  db: Db, ctx: ClientToolCtx,
+  input: { candidateId: string } & Partial<Record<keyof typeof CANDIDATE_FIELDS, string>>,
+): Promise<CandidateUpdateResult> {
+  const patch: TablesUpdate<"people"> = {};
+  for (const [k, col] of Object.entries(CANDIDATE_FIELDS)) {
+    const v = input[k as keyof typeof CANDIDATE_FIELDS];
+    if (v !== undefined) {
+      if (v.length > 500) throw new ClientToolError("invalid", `${k} is at most 500 characters.`);
+      (patch as Record<string, string>)[col] = v;
+    }
+  }
+  const fields = Object.keys(patch);
+  if (!fields.length) throw new ClientToolError("invalid", `Give at least one of ${Object.keys(CANDIDATE_FIELDS).join(", ")}.`);
+  if (!(await can(db, "can_edit_person" as "can_add_people", { p_person: input.candidateId }))) {
+    throw new ClientToolError("not_found", "No candidate with that id that you can edit.");
+  }
+  return withAudit<CandidateUpdateResult>(db, ctx, { action: "person.update", entity: "person" }, async () => {
+    const { error } = await db.from("people").update(patch).eq("id", input.candidateId);
+    if (error) throw new Error(error.message);
+    return { result: { candidateId: input.candidateId, fields }, entityId: input.candidateId, after: { fields }, changed: true };
   });
 }
