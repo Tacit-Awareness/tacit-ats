@@ -150,13 +150,15 @@ Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. An i
 | --- | --- |
 | \`J\` / \`K\` | Next, previous, through every row: **Needs you**, then what happened lately. On the card this moves between rows and \`Enter\` opens one; in a pop-up it opens the next row |
 | \`F\` | The issue's fix, such as **Mark it done**, **Log a touch** or **Send here** |
-| \`A\` | Approve an approval. On a candidate, opens their page for the next round |
+| \`A\` | Approve an approval. On a candidate, **Next round**: books their next interview |
 | \`O\` | Move a candidate to offer |
 | \`R\` | Reject, with a reason |
 | \`E\` | Dismiss to **Done**. On the card, the row you are on: an issue is dismissed, a row under it is marked read |
 | \`Z\` | Undo the dismiss |
 
 Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer (that's on their page), and rejecting someone here sends no email.
+
+**Next round** goes straight to booking their next interview: the **Calendar**'s **Find a time** opens with the candidate and their job picked, and the next step of the job's interview plan when there is one left. Choose who interviews, pick a time everyone is free, and confirm. Nothing is booked until you do, and once it is, the decision leaves your Inbox.
 
 Once you act on an issue in the pop-up, it moves to Done and the pop-up opens the next one. A message says who moved and who is next, or that you are all caught up.
 
@@ -923,7 +925,7 @@ When the job has an interview plan, the step must be one of its steps. Schedulin
 
 \`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free.
 
-On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
+On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. **Next round** on a decision in the Inbox opens Find a time on that candidate and their next step. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
 
 ## Connect your calendar
 

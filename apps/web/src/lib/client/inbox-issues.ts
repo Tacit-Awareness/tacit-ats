@@ -1,4 +1,5 @@
 import type { StalledReason } from "@tacit/core";
+import { nextRoundHref } from "./next-round-rules";
 import { ago, lastInterviewAt, type ColumnKey, type InterviewTimes } from "./pipeline-columns";
 
 // The Inbox's queue (design/tats's #inbox): what is stuck and waiting on
@@ -370,7 +371,7 @@ export type IssueFix =
   | { type: "approval"; requestId: string; kind: InboxApproval["kind"] }
   /** An unsent draft: Send here, always after a dialog showing it. `canSend` false: no mailer here, so the button is off and says why. */
   | { type: "send"; label: string; draftId: string; canSend: boolean }
-  | { type: "decide"; applicationId: string; /** Where A goes: booking a round isn't in the web app, so it is their page. */ nextRoundHref: string };
+  | { type: "decide"; applicationId: string; /** Where A goes: the Calendar's Find a time, on them and their next round (next-round-rules.ts). */ nextRoundHref: string };
 
 /** The page of its own an issue is about: the candidate, or the job when it has none. */
 export const candidateHref = (i: Issue) => (i.candidate ? `/client/candidates/${i.candidate.id}` : i.job.id ? `/client/jobs/${i.job.id}` : "/client/pipeline");
@@ -381,14 +382,14 @@ export function issueFix(i: Issue, canEdit: boolean, canSend = false): IssueFix 
   if (i.reason === "quiet" && canEdit && i.applicationId) return { type: "write", write: "touch", label: "Log a touch", applicationId: i.applicationId, nextAction: null };
   if (i.reason === "feedback" && i.interviewId) return { type: "link", label: "Open the interview", href: `/client/interviews?i=${i.interviewId}` };
   if (i.approval) return { type: "approval", requestId: i.approval.requestId, kind: i.approval.kind };
-  if (i.reason === "decide" && canEdit && i.applicationId) return { type: "decide", applicationId: i.applicationId, nextRoundHref: candidateHref(i) };
+  if (i.reason === "decide" && canEdit && i.applicationId) return { type: "decide", applicationId: i.applicationId, nextRoundHref: nextRoundHref(i.applicationId) };
   if (i.reason === "decide") return { type: "link", label: "Decide", href: candidateHref(i) };
   return { type: "link", label: "Open candidate", href: candidateHref(i) };
 }
 
 /** The page behind the issue as a second way out, when the fix is not already it and the member can open it. */
 export function secondaryLink(i: Issue, fix: IssueFix, canOpen = true): { label: string; href: string } | null {
-  if (fix.type === "decide" || !canOpen) return null;
+  if (!canOpen) return null;
   if (!i.candidate) return fix.type === "approval" ? { label: "Open the job", href: candidateHref(i) } : null;
   const href = candidateHref(i);
   return fix.type === "link" && fix.href === href ? null : { label: "Open candidate", href };

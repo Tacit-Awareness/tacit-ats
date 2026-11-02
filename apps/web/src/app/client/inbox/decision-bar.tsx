@@ -13,7 +13,8 @@ import { button, plain, primary } from "./buttons";
 import { DismissButton } from "./set-aside";
 
 // A decision in the reader, on design/tats's keys: on an approval A approves
-// and R rejects; on the team's call A is Next round (their page), O moves to
+// and R rejects; on the team's call A is Next round (the Calendar's Find a
+// time, on them and their next step: next-round-rules.ts), O moves to
 // offer and R rejects. Nothing is written until the dialog is confirmed, by
 // its button or ⌘↵, and Esc backs out: a key only opens it. The dialog is a
 // native <dialog>, modal, so keys.ts's ignoreKey stops every page and shell key
