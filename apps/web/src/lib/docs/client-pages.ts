@@ -313,7 +313,7 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 **Interview Judgement** lists what you can see, grouped as Upcoming and then past interviews by verdict: **Pass**, **Fail**, **Mixed** or **Read pending**. A verdict comes from the feedback you are allowed to read, so it follows your company's [feedback visibility](/docs/access#feedback-visibility) setting. Interviewers see only the interviews they sit on, with their own feedback.
 
-Pick one to see the candidate's whole loop and who ran each round, then this interview's recommendation, ratings and notes.
+Pick one to see the candidate's whole loop and who ran each round, then this interview's read: each interviewer's recommendation, ratings and notes, laid out as a short chat, the questions on the left and their answers on the right.
 
 When a job's plan matches your [interview process](/docs/app-interviews#interview-process), admins and the hiring team see the loop as the process itself: the candidate's branch lit, other teams' branches faded, who is up next and how many rounds are left before the offer. It shows who has filed feedback, never what they said, and rounds that aren't on the plan sit below it. Admins can open the process from there. On a phone, scroll it sideways.
 
