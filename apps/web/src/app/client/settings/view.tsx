@@ -6,6 +6,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { disconnectCalendarAction } from "../calendar/actions";
 import { CALENDAR_ERRORS, CALENDAR_NOTICES, isCalendarError, isCalendarNotice } from "../calendar/messages";
 import { disconnectGranolaAction } from "../integrations/actions";
+import { disconnectMailboxAction } from "../mailbox/actions";
+import { MAILBOX_ERRORS, MAILBOX_NOTICES, isMailboxError, isMailboxNotice } from "../mailbox/messages";
 import { BotSection, type CompanyBot } from "../integrations/bot";
 import {
   BOT_ERRORS, BOT_NOTICES, INTEGRATION_ERRORS, INTEGRATION_NOTICES, isBotError, isBotNotice, isIntegrationError, isIntegrationNotice,
@@ -16,13 +18,15 @@ import { RoutingRules } from "./routing-rules";
 // `.lrow.pol`): one ruled row per connector, Connect or its connected state,
 // the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
-// (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
+// (/client/calendar/connect and, for Gmail, /client/mailbox/connect) and
+// Granola's (/client/integrations/granola/connect).
 // Above them, design/tats's `.set-link`s to Onboarding and its Routing Rules,
 // and one of this app's own to Email templates (not for an interviewer).
 // Props only, so page.tsx does every read.
 export function SettingsView({
   calendar,
   granola,
+  mailbox,
   calendarConfigured,
   bot,
   botConnected,
@@ -34,6 +38,8 @@ export function SettingsView({
 }: {
   calendar: { accountEmail: string } | null;
   granola: { accountEmail: string | null } | null;
+  /** The member's own Gmail for candidate email; undefined for an interviewer, who sends none. */
+  mailbox?: { accountEmail: string; readsReplies: boolean } | null;
   calendarConfigured: boolean;
   /** Null for anyone but an admin, who gets the company's bot section. */
   bot: { set: CompanyBot | null } | null;
@@ -48,10 +54,12 @@ export function SettingsView({
 }) {
   const noticeText = isIntegrationNotice(notice) ? INTEGRATION_NOTICES[notice]
     : isCalendarNotice(notice) ? CALENDAR_NOTICES[notice]
-      : isBotNotice(notice) ? BOT_NOTICES[notice] : null;
+      : isMailboxNotice(notice) ? MAILBOX_NOTICES[notice]
+        : isBotNotice(notice) ? BOT_NOTICES[notice] : null;
   const errorText = isIntegrationError(error) ? INTEGRATION_ERRORS[error]
     : isCalendarError(error) ? CALENDAR_ERRORS[error]
-      : isBotError(error) ? BOT_ERRORS[error] : null;
+      : isMailboxError(error) ? MAILBOX_ERRORS[error]
+        : isBotError(error) ? BOT_ERRORS[error] : null;
 
   return (
     <Page narrow bar={<PageBar title="Settings" />}>
@@ -104,6 +112,34 @@ export function SettingsView({
               ) : null
             }
           />
+          {mailbox !== undefined ? (
+            <div id="gmail" className="grid scroll-mt-4">
+              <ConnectorRow
+                icon={
+                  <AppTile>
+                    <GoogleG className="size-4 bg-transparent" />
+                  </AppTile>
+                }
+                name="Gmail"
+                detail={
+                  mailbox
+                    ? mailbox.readsReplies
+                      ? `Candidate email goes out from ${mailbox.accountEmail}, and replies come back to the Inbox`
+                      : `Candidate email goes out from ${mailbox.accountEmail}; replies stay in your Gmail`
+                    : calendarConfigured
+                      ? "Email candidates from your own address, and see their replies in the Inbox"
+                      : "Not set up on this Tacit deployment yet"
+                }
+                action={
+                  mailbox ? (
+                    <Connected disconnect={disconnectMailboxAction} manageHref={calendarConfigured ? "/client/mailbox/connect" : undefined} />
+                  ) : calendarConfigured ? (
+                    <ActionLink href="/client/mailbox/connect">Connect</ActionLink>
+                  ) : null
+                }
+              />
+            </div>
+          ) : null}
           <div id="granola" className="grid scroll-mt-4">
             <ConnectorRow
               icon={<GranolaIcon className="size-[30px]" />}

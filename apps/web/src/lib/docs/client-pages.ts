@@ -396,6 +396,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
 | **Google Calendar** | Each member | Checks when you are busy and books interviews on your calendar. [Details](/docs/interviews#connect-your-calendar) |
+| **Gmail** | Each member who emails candidates | Sends your email to candidates from your own address, and brings their replies into the Inbox. [Details](/docs/email) |
 | **Granola** | Each member | Brings your own interview notes into Tacit and Claude. [Details](/docs/interviews#your-granola-notes) |
 | **Your team's bot** | An admin, once for the company | Tells your own bot about each interview. [Set up a Grok bot](/docs/grok-bot) |
 
@@ -859,7 +860,7 @@ Files cannot be replaced or deleted through Claude. To correct one, add the righ
 1. \`draft_email\` writes a draft to a candidate and sends nothing. It starts from a template (by name or id), or from a subject and body Claude writes from what you asked for; given both, yours replace the template's. Tie it to one of their jobs to fill in the job title. Claude shows you who it goes to, the subject and the whole body exactly as saved. To change anything, it drafts again.
 2. \`send_email\` sends that draft, exactly as drafted, once you say yes. Only the person who drafted it can send it, and only once.
 
-The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. It comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
+The email goes to the candidate's address on file, or to another address on file for them if you name it; Claude cannot type in an address. With **Gmail connected** in Settings, it goes out **from your own Gmail address**, sits in your Sent folder, and the candidate's reply comes back to your inbox like any email; if you allowed Tacit to read replies when connecting, they also show in Tacit's Inbox. Tacit reads only the threads its own emails started. Without Gmail, it comes **from your name at your company** on a Tacit sending address, and **replies come to your own email**.
 
 You can do the same in Tacit itself: **Reply** on a new applicant writes a draft for you to read before **Send**, and an unsent draft in your Inbox has **Send here**, which shows it again and asks first. A draft can't be edited: changing one writes a new one, and your Inbox keeps only the newest.
 

@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { clientTools } from "@tacit-ats/core";
 import { googleCalendarConfig } from "@/lib/client/google-calendar";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../refusal";
@@ -17,8 +18,9 @@ export default async function ClientSettings({
 
   const { notice, error } = await searchParams;
   const admin = gate.ctx.accessLevel === "admin";
-  const [calendar, granola, bot, botConnected] = await Promise.all([
+  const [calendar, mailbox, granola, bot, botConnected] = await Promise.all([
     gate.ctx.db.from("calendar_connections").select("account_email").maybeSingle(),
+    gate.ctx.db.from("mailbox_connections").select("account_email, scopes").maybeSingle(),
     gate.ctx.db.from("granola_connections").select("account_email").maybeSingle(),
     // The company's bot: only an admin's token reads the row (never its secret).
     admin
@@ -33,6 +35,7 @@ export default async function ClientSettings({
         ).then((r) => ({ data: r.data, error: r.error })),
   ]);
   if (calendar.error) throw new Error(calendar.error.message);
+  if (mailbox.error) throw new Error(mailbox.error.message);
   if (granola.error) throw new Error(granola.error.message);
   if (bot.error) throw new Error(bot.error.message);
   if (botConnected.error) throw new Error(botConnected.error.message);
@@ -44,6 +47,14 @@ export default async function ClientSettings({
     <SettingsView
       calendar={calendar.data ? { accountEmail: calendar.data.account_email } : null}
       granola={granola.data ? { accountEmail: granola.data.account_email } : null}
+      mailbox={
+        // An interviewer doesn't email candidates, so has nothing to send from.
+        gate.ctx.accessLevel === "limited"
+          ? undefined
+          : mailbox.data
+            ? { accountEmail: mailbox.data.account_email, readsReplies: clientTools.grantsScope(mailbox.data, clientTools.GMAIL_READ_SCOPE) }
+            : null
+      }
       calendarConfigured={googleCalendarConfig() !== null}
       bot={admin ? { set: bot.data ? { url: bot.data.url, enabled: bot.data.enabled, verifiedAt: bot.data.verified_at } : null } : null}
       botConnected={admin ? undefined : !!botConnected.data}

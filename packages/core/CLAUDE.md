@@ -201,7 +201,14 @@ src/
                         the draft id, From `fromHeader("<member> at
                         <org>", mailer.fromAddress)` with Reply-To the
                         member's own address; sent, or failed with the
-                        error (the claim kept either way). A null mailer
+                        error (the claim kept either way). With
+                        ClientMailer.mailbox (2026-11-02) and the
+                        member's own Gmail grant (`own(db)`, from the
+                        row their token reads), it goes through
+                        @tacit/core's sendGmailMessage instead, From
+                        their address, and records sent_via 'gmail'
+                        and thread_id; a refresh Google refuses is a
+                        sentence before the claim. A null mailer
                         = email turned off; a null `send` = drafts only.
                         Subjects and bodies stay out of every audit row.
                         email-replies.ts (2026-11-01): pure, the reply

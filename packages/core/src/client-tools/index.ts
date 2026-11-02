@@ -82,13 +82,13 @@ export type { Activity, ActivityEntry, ActivityKind } from "./activity.js";
 export { TAG_NAME_MAX, archiveTag, createTag, listTags, tagCandidate, untagCandidate } from "./tags.js";
 export type { CreateTagResult, Tag, TagResult } from "./tags.js";
 export {
-  CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, TEMPLATE_NAME_MAX,
-  addressesOnFile, createEmailTemplate, draftEmail, listEmailReplies, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
+  CLIENT_SENDS_PER_HOUR, EMAIL_BODY_MAX, EMAIL_PLACEHOLDERS, EMAIL_SUBJECT_MAX, GMAIL_READ_SCOPE, GMAIL_SEND_SCOPE, TEMPLATE_NAME_MAX,
+  addressesOnFile, createEmailTemplate, draftEmail, grantsScope, listEmailReplies, listEmailTemplates, listEmails, sendEmail, senderFor, updateEmailTemplate,
 } from "./email.js";
 export { REPLY_BODY_MAX, addressOf, parseReplyDomain, readableReply, repliedEmailId, replyAddress } from "./email-replies.js";
 export type {
-  CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate, SendEmailResult,
-  TemplateChange,
+  CandidateEmail, CandidateEmailReply, CandidateEmailWithBody, ClientMailbox, ClientMailer, DraftEmailResult, EmailPlaceholder, EmailTemplate,
+  MailboxGrant, SendEmailResult, TemplateChange,
 } from "./email.js";
 export {
   APPROVAL_KINDS, APPROVAL_REASON_MAX, APPROVAL_STEPS_MAX, APPROVERS_PER_STEP_MAX,

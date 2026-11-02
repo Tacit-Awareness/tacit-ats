@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from "vitest";
 
 vi.mock("../calendar/actions", () => ({ disconnectCalendarAction: async () => {} }));
 vi.mock("../integrations/actions", () => ({ disconnectGranolaAction: async () => {} }));
+vi.mock("../mailbox/actions", () => ({ disconnectMailboxAction: async () => {} }));
 vi.mock("../integrations/bot", () => ({ BotSection: () => null }));
 
 import { SettingsView } from "./view";
@@ -33,5 +34,17 @@ describe("SettingsView", () => {
 
   test("says the rules change nothing yet", () => {
     expect(html).toContain("A preview");
+  });
+
+  test("offers Gmail to anyone who emails candidates, and says where replies go once connected", () => {
+    expect(html).not.toContain('href="/client/mailbox/connect"');
+    const offered = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null} />,
+    );
+    expect(offered).toContain('href="/client/mailbox/connect"');
+    const sendOnly = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={{ accountEmail: "ada@acme.test", readsReplies: false }} calendarConfigured bot={null} orgName="Acme" botCallbackUrl={null} />,
+    );
+    expect(sendOnly).toContain("goes out from ada@acme.test; replies stay in your Gmail");
   });
 });

@@ -2,6 +2,7 @@ import "server-only";
 
 import { connector } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
+import { memberMailbox } from "./mailbox";
 
 type Env = Record<string, string | undefined>;
 
@@ -14,6 +15,7 @@ type Env = Record<string, string | undefined>;
  * it off whatever else is, so a deployment with neither can write nothing and
  * send nothing. Null = off, and the pages say so instead of offering a Send.
  * CLIENT_EMAIL_REPLY_DOMAIN turns on receiving replies (core's ClientMailer).
+ * A member who has connected Gmail sends through it instead (mailbox.ts).
  */
 export function webMailer(env: Env = process.env): clientTools.ClientMailer | null {
   if (env.CLIENT_EMAIL_DISABLED?.trim()) return null;
@@ -24,5 +26,5 @@ export function webMailer(env: Env = process.env): clientTools.ClientMailer | nu
     console.error("[client-email] CLIENT_EMAIL_FROM is not an email address; candidate email is off");
     return null;
   }
-  return { send: connector.makeResendSender({ apiKey }), fromAddress, replyDomain: clientTools.parseReplyDomain(env.CLIENT_EMAIL_REPLY_DOMAIN) };
+  return { send: connector.makeResendSender({ apiKey }), fromAddress, replyDomain: clientTools.parseReplyDomain(env.CLIENT_EMAIL_REPLY_DOMAIN), mailbox: memberMailbox(env) };
 }
