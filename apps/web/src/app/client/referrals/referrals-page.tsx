@@ -5,6 +5,7 @@ import { ago } from "@/lib/client/pipeline-columns";
 import { REFERRAL_PAGE_SIZE, REFERRAL_TABS, inTab, parseReferralQuery, referralTable, referralsHref, whereTheyAre, type ReferralQuery } from "@/lib/client/referral-table";
 import { REFERRALS_SCAN_MAX, readReferrals } from "@/lib/client/referrals";
 import { resolveClient } from "@/lib/client/session";
+import { topReferrers } from "@/lib/client/top-referrers";
 import { Refusal } from "../refusal";
 import { REFERRAL_NOTICES, isReferralNotice } from "./messages";
 import { ReferralsView } from "./view";
@@ -42,6 +43,7 @@ export async function ReferralsContent({ sp, home = false }: { sp: Record<string
   const query = parseReferralQuery(sp);
   const [{ referrals, truncated }, canAdd] = await Promise.all([readReferrals(db), db.rpc("can_add_people")]);
   const table = referralTable(referrals, query);
+  const board = topReferrers(referrals);
   const now = Date.now();
   const at = (next: Partial<ReferralQuery>) => referralsHref({ ...query, page: 1, ...next }, base);
   const notice = Array.isArray(sp.notice) ? sp.notice[0] : sp.notice;
@@ -65,6 +67,14 @@ export async function ReferralsContent({ sp, home = false }: { sp: Record<string
           referredTitle: r.referredAt.slice(0, 10),
         };
       })}
+      referrers={
+        board.rows.length
+          ? {
+              rows: board.rows.map((r) => ({ ...r, href: referralsHref({ tab: "all", q: r.name.slice(0, 100), page: 1 }, base) })),
+              more: board.more ? `And ${board.more.toLocaleString("en-US")} more` : null,
+            }
+          : null
+      }
       all={referrals.length.toLocaleString("en-US")}
       range={table.total ? `${first.toLocaleString("en-US")}–${(first + table.rows.length - 1).toLocaleString("en-US")} of ${table.total.toLocaleString("en-US")}` : "0"}
       prev={table.page > 1 ? referralsHref({ ...query, page: table.page - 1 }, base) : null}

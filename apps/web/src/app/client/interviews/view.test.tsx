@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import type { RouteNode, RouteView } from "@/lib/client/interview-loop";
 
-import { Feedback, Loop, type LoopRound, type Reader } from "./view";
+import { Feedback, Loop, ReadThread, type FeedbackCard, type LoopRound, type Reader } from "./view";
 
 const round = (n: number, over: Partial<LoopRound>): LoopRound => ({
   key: `step-${n}`, n, name: `Round ${n}`, status: "Not booked", people: [], when: null, place: "later", next: false, href: null, ...over,
@@ -117,5 +117,77 @@ describe("your feedback", () => {
     const html = renderToStaticMarkup(<Feedback reader={reader([])} own={<form id="own" />} />);
     expect(html.indexOf('id="own"')).toBeLessThan(html.indexOf("No feedback filed yet."));
     expect(renderToStaticMarkup(<Feedback reader={reader([])} />)).not.toContain("<form");
+  });
+
+  test("and above the reads already filed", () => {
+    const html = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing()] }} own={<form id="own" />} />);
+    expect(html.indexOf('id="own"')).toBeLessThan(html.indexOf("Dana&#x27;s read"));
+  });
+});
+
+const filing = (over: Partial<FeedbackCard> = {}): FeedbackCard => ({
+  feedbackId: "f1",
+  interviewer: "Dana",
+  recommendation: "Strong yes",
+  verdict: "pass",
+  rating: 4,
+  submitted: "Filed 2h ago",
+  ratings: [{ attribute: "System design", rating: 3, note: "Sharded it cleanly" }],
+  notes: "Hire them.\nProbe on-call next.",
+  ...over,
+});
+
+describe("the post-interview read as a chat transcript", () => {
+  const html = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing()] }} />);
+
+  test("asks the form's questions in its order and answers each with the filing", () => {
+    const order = ["Dana&#x27;s read · Filed 2h ago", "Would you hire Ada?", "Strong yes", "4 / 4 overall", "on the scorecard", "System design", "Sharded it cleanly", "3 / 4", "What did you see?", "Hire them."];
+    const at = order.map((s) => html.indexOf(s));
+    expect(at.every((n) => n >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+
+  test("the answers are bubbles on the right; only the last says who, under it", () => {
+    expect(html.match(/self-end/g)).toHaveLength(3);
+    expect(html.match(/self-start/g)).toHaveLength(3);
+    expect(html.match(/>Dana</g)).toHaveLength(1);
+    expect(html.lastIndexOf(">Dana<")).toBeGreaterThan(html.indexOf("Hire them."));
+  });
+
+  test("the interviewer's words stay text, line breaks and all", () => {
+    const bad = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing({ notes: "<img src=x onerror=alert(1)>", ratings: [{ attribute: "<b>x</b>", rating: 2, note: "<i>n</i>" }] })] }} />);
+    expect(bad).not.toContain("<img");
+    expect(bad).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(bad).toContain("&lt;b&gt;x&lt;/b&gt;");
+    expect(bad).toContain("&lt;i&gt;n&lt;/i&gt;");
+    expect(html).toContain("whitespace-pre-wrap");
+  });
+
+  test("a filing without a scorecard or notes asks only what it answered", () => {
+    const bare = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing({ ratings: [], notes: "", rating: null })] }} />);
+    expect(bare).toContain("Would you hire Ada?");
+    expect(bare).not.toContain("scorecard");
+    expect(bare).not.toContain("What did you see?");
+    expect(bare).not.toContain("overall");
+    expect(bare.lastIndexOf(">Dana<")).toBeGreaterThan(bare.indexOf("Strong yes"));
+  });
+
+  test("your own filing reads as yours", () => {
+    expect(renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing({ interviewer: "You" })] }} />)).toContain("Your read · Filed 2h ago");
+  });
+
+  test("without the hire question it starts at the scorecard, and with nothing to say it draws nothing", () => {
+    const rest = renderToStaticMarkup(<ReadThread feedback={filing()} />);
+    expect(rest).not.toContain("Would you hire");
+    expect(rest).not.toContain("Strong yes");
+    expect(rest.indexOf("on the scorecard")).toBeLessThan(rest.indexOf("Hire them."));
+    expect(renderToStaticMarkup(<ReadThread feedback={filing({ ratings: [], notes: "" })} />)).toBe("");
+  });
+
+  test("each filing is its own transcript, colours from tokens", () => {
+    const two = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing(), filing({ feedbackId: "f2", interviewer: "Eli" })] }} />);
+    expect(two.match(/read-thread/g)).toHaveLength(2);
+    expect(two).toContain('aria-label="Eli&#x27;s read"');
+    expect(two).not.toMatch(/#[0-9a-f]{3,6}\b/i);
   });
 });

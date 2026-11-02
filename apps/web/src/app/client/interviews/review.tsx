@@ -105,7 +105,7 @@ export function ReviewKey() {
     },
     !!saved,
   );
-  useKeyHelp("Interviews", saved ? [{ keys: "E", label: "Mark reviewed, or not" }] : []);
+  useKeyHelp("Interview Judgement", saved ? [{ keys: "E", label: "Mark reviewed, or not" }] : []);
   return null;
 }
 

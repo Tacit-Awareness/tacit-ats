@@ -14,7 +14,8 @@ import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 // each, a past one with its reviewed check (review.tsx). The reader is one
 // card: its head, the candidate's loop as a path (each round, who ran it and whether
 // they filed; held ones solid, this one outlined, the next marked, later ones
-// stepped back), then this interview's feedback as far as the member may read it, then the member's own
+// stepped back), then this interview's feedback as far as the member may read it, each filing
+// a chat transcript (ReadThread), then the member's own
 // Granola notes when page.tsx passes them (./granola.tsx). Notes are the
 // interviewer's own words: plain text, never markup.
 
@@ -117,7 +118,7 @@ function SentimentBar({ counts }: { counts: { verdict: Verdict; n: number }[] })
 
 function InterviewList({ groups, counts }: { groups: ListGroup[]; counts: { verdict: Verdict; n: number }[] }) {
   return (
-    <KeyList title="Interviews" next="Next interview" mode="select" className="-mx-2 -mt-2 grid content-start" data-tour="interviews">
+    <KeyList title="Interview Judgement" next="Next interview" mode="select" className="-mx-2 -mt-2 grid content-start" data-tour="interviews">
       <SentimentBar counts={counts} />
       {groups.length === 0 ? <Empty className="px-[18px] pt-3">No interviews yet.</Empty> : null}
       {groups.map((g) => (
@@ -354,30 +355,101 @@ export function Loop({ reader }: { reader: LoopProps }) {
   );
 }
 
-/** One filing's scorecard and notes, also under the read on the Inbox's ticket. */
-export function FeedbackDetail({ feedback: f }: { feedback: FeedbackCard }) {
+/** A question the filing answered, as the transcript's assistant: plain text, left. */
+function Ask({ i, children }: { i: number; children: React.ReactNode }) {
   return (
-    <>
-      {f.ratings.length ? (
-        <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 text-[13px]">
+    <p style={{ "--i": i } as React.CSSProperties} className="m-0 max-w-[85%] self-start text-[14px] leading-[1.55]">
+      {children}
+    </p>
+  );
+}
+
+/** The interviewer's answer, as the transcript's user: a soft accent bubble, right; the last one says who under it. */
+function Answer({ i, who, children }: { i: number; who: string | null; children: React.ReactNode }) {
+  return (
+    <div style={{ "--i": i } as React.CSSProperties} className="flex max-w-[85%] min-w-0 origin-bottom-right flex-col items-end gap-0.5 self-end">
+      <div className="max-w-full rounded-[18px] bg-[color:color-mix(in_oklch,var(--accent)_11%,var(--paper))] px-3.5 py-2 text-[14px] leading-normal [overflow-wrap:anywhere]">{children}</div>
+      {who ? <span className="flex h-6 items-center px-1 text-xs text-faint">{who}</span> : null}
+    </div>
+  );
+}
+
+const possessive = (name: string) => (name === "You" ? "Your" : `${name}'s`);
+
+/**
+ * One filing as design/tats's post-interview read: a chat transcript (after
+ * Fluid Functionalism's ChatMessage), the questions the feedback form asks on
+ * the left, the interviewer's answers in bubbles on the right, in the form's
+ * order. `ask` is the hire question; without it (the Inbox's ticket, whose
+ * card already heads the read with who and the verdict) it starts at the
+ * scorecard. Every answer is the interviewer's own words, as text.
+ */
+export function ReadThread({ feedback: f, ask = null }: { feedback: FeedbackCard; ask?: string | null }) {
+  const msgs: React.ReactNode[] = [];
+  const answer = (body: React.ReactNode, last: boolean) => (
+    <Answer key={msgs.length} i={msgs.length} who={last ? f.interviewer : null}>
+      {body}
+    </Answer>
+  );
+  const scorecard = f.ratings.length > 0;
+  if (ask) {
+    msgs.push(
+      <p key="day" className="m-0 mb-1 self-center text-xs text-faint">
+        {possessive(f.interviewer)} read · {f.submitted}
+      </p>,
+    );
+    msgs.push(
+      <Ask key={msgs.length} i={msgs.length}>
+        {ask}
+      </Ask>,
+    );
+    msgs.push(
+      answer(
+        <span className="inline-flex flex-wrap items-center gap-x-1.5">
+          <i aria-hidden className={cn("size-[7px] flex-none rounded-full", f.verdict === "pending" ? "bg-[color:var(--faint)]" : DOT[f.verdict])} />
+          <b className="font-medium">{f.recommendation}</b>
+          {f.rating !== null ? <span className="text-muted-foreground tabular-nums">· {f.rating} / 4 overall</span> : null}
+        </span>,
+        !scorecard && !f.notes,
+      ),
+    );
+  }
+  if (scorecard) {
+    msgs.push(
+      <Ask key={msgs.length} i={msgs.length}>
+        How did they do on the scorecard, 1 to 4?
+      </Ask>,
+    );
+    msgs.push(
+      answer(
+        <dl className="m-0 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 text-[13.5px]">
           {f.ratings.map((r, i) => (
             <div key={i} className="contents">
-              <dt className="text-muted-foreground">
+              <dt>
                 {r.attribute}
-                {r.note ? <span className="block whitespace-pre-wrap text-faint">{r.note}</span> : null}
+                {r.note ? <span className="block whitespace-pre-wrap text-muted-foreground">{r.note}</span> : null}
               </dt>
               <dd className="m-0 text-right tabular-nums">{r.rating} / 4</dd>
             </div>
           ))}
-        </dl>
-      ) : null}
-      {f.notes ? <p className="m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 text-[14px] leading-normal break-words whitespace-pre-wrap">{f.notes}</p> : null}
-    </>
-  );
+        </dl>,
+        !f.notes,
+      ),
+    );
+  }
+  if (f.notes) {
+    msgs.push(
+      <Ask key={msgs.length} i={msgs.length}>
+        What did you see?
+      </Ask>,
+    );
+    msgs.push(answer(<span className="block break-words whitespace-pre-wrap">{f.notes}</span>, true));
+  }
+  return msgs.length ? <div className="read-thread flex flex-col gap-3">{msgs}</div> : null;
 }
 
 /** `own` is the member's own feedback form (./feedback-form.tsx), passed in so the Inbox's ticket, which draws this too, imports no action. */
-export function Feedback({ reader, own = null }: { reader: Pick<Reader, "feedback" | "feedbackNote">; own?: React.ReactNode }) {
+export function Feedback({ reader, own = null }: { reader: Pick<Reader, "candidate" | "feedback" | "feedbackNote">; own?: React.ReactNode }) {
   return (
     <section aria-label="Feedback" className="grid gap-3.5 px-4 pt-5 pb-[22px] @2xl:px-[26px]">
       <div className="flex items-baseline justify-between gap-3 text-[14.5px]">
@@ -387,15 +459,8 @@ export function Feedback({ reader, own = null }: { reader: Pick<Reader, "feedbac
       {own}
       {reader.feedback.length === 0 ? <Empty className="my-0">{reader.feedbackNote ?? "No feedback filed yet."}</Empty> : null}
       {reader.feedback.map((f) => (
-        <article key={f.feedbackId} className="grid gap-2.5 border-t border-[color:var(--line)] pt-3.5 first-of-type:border-t-0 first-of-type:pt-0">
-          <header className="flex flex-wrap items-center gap-2">
-            <Avatar name={f.interviewer} size="lg" />
-            <b className="text-[13.5px] font-medium">{f.interviewer}</b>
-            <VerdictPill verdict={f.verdict} label={f.recommendation} small />
-            {f.rating !== null ? <span className="text-xs text-muted-foreground tabular-nums">{f.rating} / 4</span> : null}
-            <span className="ml-auto text-xs text-faint">{f.submitted}</span>
-          </header>
-          <FeedbackDetail feedback={f} />
+        <article key={f.feedbackId} aria-label={`${possessive(f.interviewer)} read`} className="border-t border-[color:var(--line)] pt-3.5 first-of-type:border-t-0 first-of-type:pt-0">
+          <ReadThread feedback={f} ask={`Would you hire ${reader.candidate}?`} />
         </article>
       ))}
       {reader.feedback.length > 0 && reader.feedbackNote ? <p className="m-0 text-xs text-faint">{reader.feedbackNote}</p> : null}
@@ -409,7 +474,7 @@ function InterviewReader({ reader, own, granola, base }: { reader: Reader; own: 
     <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
         <Link href={base} className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
-          ← Interviews
+          ← Interview Judgement
         </Link>
         <div className="grid min-w-0 flex-1">
           <h1 className="m-0 truncate text-[19px] font-medium tracking-[-0.01em]">{reader.title}</h1>
@@ -468,7 +533,7 @@ export function InterviewsView({
               <ReviewCount />
             </div>
           ) : (
-            <PageBar title="Interviews" count={<ReviewCount />} />
+            <PageBar title="Interview Judgement" count={<ReviewCount />} />
           )
         }
         list={

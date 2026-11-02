@@ -264,16 +264,17 @@ export async function addCandidateContact(
     throw new ClientToolError("not_found", "No candidate with that id that you can edit.");
   }
   return withAudit<ContactResult>(db, ctx, { action: "person.contact", entity: "person" }, async () => {
-    const { data, error } = await db
-      .from("person_identifiers")
-      .insert({ person_id: input.candidateId, org_id: ctx.orgId, kind: input.kind, value })
-      .select("id")
-      .single();
-    if (error?.code === "23505") {
-      return { result: { candidateId: input.candidateId, kind: input.kind, added: false }, entityId: input.candidateId, after: {}, changed: false };
-    }
+    // The member token has no insert on person_identifiers; client_add_contact
+    // is the definer door (can_edit_person inside; null = already on file).
+    const { data, error } = await db.rpc("client_add_contact", { p_person: input.candidateId, p_kind: input.kind, p_value: value });
+    if (error?.code === "42501") throw new ClientToolError("not_found", "No candidate with that id that you can edit.");
+    if (error?.code === "22023") throw new ClientToolError("invalid", error.message);
     if (error) throw new Error(error.message);
-    return { result: { candidateId: input.candidateId, kind: input.kind, added: true }, entityId: input.candidateId, after: { identifier_id: data.id, kind: input.kind }, changed: true };
+    const added = data !== null;
+    return {
+      result: { candidateId: input.candidateId, kind: input.kind, added },
+      entityId: input.candidateId, after: added ? { identifier_id: data, kind: input.kind } : {}, changed: added,
+    };
   });
 }
 

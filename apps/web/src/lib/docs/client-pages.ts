@@ -45,7 +45,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 
 ## Where to begin
 
-- **Interviewer**: open **Interviews**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
+- **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Pipeline & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
@@ -158,6 +158,8 @@ Click an issue, or press \`Enter\` on it, to open it in a pop-up, then act. An i
 
 Decisions always show what will change and wait for you to confirm. Moving someone to offer does not draft an offer (that's on their page), and rejecting someone here sends no email.
 
+The Inbox keeps up on its own: when a candidate moves, arrives or changes in another tab, or for a teammate, it catches up within half a minute while it is on screen, and as soon as you come back to the tab. It waits while you are typing or have a pop-up or menu open.
+
 Once you act on an issue in the pop-up, it moves to Done and the pop-up opens the next one. A message says who moved and who is next, or that you are all caught up.
 
 Dismissing changes only your own queue. **Done**, at the foot of the card, lists what you dismissed or fixed from here, **Move back to Inbox** brings back an issue that still stands, and **Inbox** at the top of Done takes you back.
@@ -190,6 +192,7 @@ Admins add a job with **Add a role**. Whoever manages a job can edit its post in
 - **The post**: its title, location and description.
 - **The application form**: name and email are always asked. Phone, LinkedIn and a resume link are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
 - **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
+- **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left.
 - **Preview as applicant**: the page exactly as an applicant will see it.
 
 **Publish** puts a post live and **Close post** takes it down. A post can go live only while its job is open, and edits to a live post reach applicants when you save. If a teammate saved first, Tacit asks before replacing their work.
@@ -218,7 +221,7 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. **Template** starts it from one of your company's email templates instead, filled in for this candidate; the words are still yours to change. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
@@ -275,6 +278,8 @@ Pick one job and its board appears. **List** and **Board** at the top switch bet
 | **Your call** | Interviews held, nothing booked next |
 | **Offer** | At the offer stage |
 
+The Pipeline keeps up on its own: a move, a new applicant or a change made elsewhere shows within half a minute while the page is on screen, and as soon as you come back to the tab, without a reload. It waits while you are dragging a card, typing, or have a pop-up or menu open.
+
 Hired, rejected and withdrawn candidates leave the Pipeline. Filter by department, job or name. A row opens the pop-up, and a card the candidate page. When a name filter also finds people with a closed application, a line under the bar says how many, counting only those you can see, and links to them in the [CRM](/docs/app-candidates#crm).
 
 On a computer, rest the mouse on a name for a short card: who they are, their stage, job, source, team, owner and interviewer, each only if you can read it. The same works on a teammate's avatar and on the Interviewers page. Touch screens don't show them.
@@ -297,18 +302,18 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 ## Referrals
 
-**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Add referral** takes a name, email, LinkedIn, job, referrer, a note and a resume of up to 3 MB, and adds them to that job.`,
+**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Top referrers** beside it ranks who referred the most, with how many are in process and how many were hired; click a name to see their referrals. A referrer is counted by the name as it was typed, so two spellings of one person (Sam and Sam Lee) show as two rows. **Add referral** takes a name, email, LinkedIn, job, referrer, a note and a resume of up to 3 MB, and adds them to that job.`,
   },
   {
     slug: "app-interviews",
-    title: "Interviews, Calendar & Onboarding",
+    title: "Interview Judgement, Calendar & Onboarding",
     category: "tATS features",
     description: "Review interview feedback, book and move interviews, and manage who interviews.",
-    body: `## Interviews
+    body: `## Interview Judgement
 
-**Interviews** lists what you can see, grouped as Upcoming and then past interviews by verdict: **Pass**, **Fail**, **Mixed** or **Read pending**. A verdict comes from the feedback you are allowed to read, so it follows your company's [feedback visibility](/docs/access#feedback-visibility) setting. Interviewers see only the interviews they sit on, with their own feedback.
+**Interview Judgement** lists what you can see, grouped as Upcoming and then past interviews by verdict: **Pass**, **Fail**, **Mixed** or **Read pending**. A verdict comes from the feedback you are allowed to read, so it follows your company's [feedback visibility](/docs/access#feedback-visibility) setting. Interviewers see only the interviews they sit on, with their own feedback.
 
-Pick one to see the candidate's whole loop and who ran each round, then this interview's recommendation, ratings and notes.
+Pick one to see the candidate's whole loop and who ran each round, then this interview's read: each interviewer's recommendation, ratings and notes, laid out as a short chat, the questions on the left and their answers on the right.
 
 When a job's plan matches your [interview process](/docs/app-interviews#interview-process), admins and the hiring team see the loop as the process itself: the candidate's branch lit, other teams' branches faded, who is up next and how many rounds are left before the offer. It shows who has filed feedback, never what they said, and rounds that aren't on the plan sit below it. Admins can open the process from there. On a phone, scroll it sideways.
 
@@ -318,9 +323,9 @@ Press \`E\`, or the round button on a row, to mark a past interview as reviewed.
 
 If you connected Granola, your own notes appear on interviews you sat on, with the transcript a click away. Only your own notes are ever read.
 
-## Calendar
+## Interview Calendar
 
-**Calendar** shows every interview you can see by day, week or month, or as a list, in your own time zone.
+**Interview Calendar** shows every interview you can see by day, week or month, or as a list, in your own time zone.
 
 | Key | What it does |
 | --- | --- |
@@ -386,7 +391,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams and Interview process, and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
@@ -422,7 +427,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 
 ## On each page
 
-Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Calendar](/docs/app-interviews#calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
+Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applicants](/docs/app-postings#new-applicants), [Pipeline](/docs/app-candidates#pipeline) and [Interview Calendar](/docs/app-interviews#interview-calendar). In the CRM, \`J\` and \`K\` walk the rows and \`Enter\` opens one.
 
 ## Tutorial
 
@@ -430,7 +435,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme, **Warmth fix** and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.\n\n**Warmth fix** undoes a display's Night Shift or True Tone tint: if whites look yellow, pick 1 to 4 until they look neutral, or Off. It is remembered in this browser for this screen, by day and by night separately, and comes back by itself when the window moves to that screen or the evening starts. Nothing is saved to your account.`,
   },
   {
     slug: "connect",
@@ -866,7 +871,7 @@ Interview feedback, scorecard ratings, offer terms and private notes. Claude lea
 
 ## Templates
 
-Templates are your company's reusable emails, shared by the team.
+Templates are your company's reusable emails, shared by the team. In Tacit they are in **Settings → Email templates**: everyone but interviewers can read them, and admins make, change, archive and bring them back there. The reply box on New Applicants offers them under **Template**.
 
 | Tool | |
 | --- | --- |
@@ -923,11 +928,11 @@ When the job has an interview plan, the step must be one of its steps. Schedulin
 
 \`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free. No time falls on a day an interviewer is away, or in a week they already have their weekly limit of interviews in, as set on their Interviewers profile; Claude says whose limits left times out.
 
-On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
+On the **Interview Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
 
 ## Connect your calendar
 
-Open **Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
+Open **Interview Calendar** in Tacit's member area and choose **Connect Google Calendar**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
 
 \`update_interview\` moves an interview, changes its interviewers or location, or sets its status: \`scheduled\`, \`done\` or \`cancelled\`. Only what you mention changes, and Claude confirms first. When the interview is on a calendar, the event follows: a move is checked against the interviewers' calendars, new interviewers are invited, and cancelling removes the event, with Google telling everyone on it. A move or a cancellation comes with a draft email to the candidate, sent only after your yes.
 
@@ -961,7 +966,7 @@ Filing again replaces your earlier feedback, ratings included.
 
 ## Your Granola notes
 
-If you take interview notes in Granola, click **Connect** next to Granola in **Settings** and sign in to Granola. Then your own notes show on **Interviews** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
+If you take interview notes in Granola, click **Connect** next to Granola in **Settings** and sign in to Granola. Then your own notes show on **Interview Judgement** for an interview you were on, with a link to the transcript, and \`get_interview_notes\` brings them to Claude: Granola's summary, what you typed, and the transcript if you ask for it (transcripts need a paid Granola plan). Ask Claude to "write my feedback from my Granola notes" and it drafts \`submit_feedback\` for you to check.
 
 The note is found by the calendar event Tacit booked, the candidate's email, or its start time, and Tacit says which. When nothing matches, you get the notes you took around then to pick from. Only your own notes are ever read, never a colleague's, and they are private like feedback.`,
   },
