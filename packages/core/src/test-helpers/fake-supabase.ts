@@ -10,7 +10,7 @@ export type RecordedCall = {
   /** upsert options ({ onConflict, ignoreDuplicates }) */
   options?: unknown;
   filters: Array<{
-    method: "eq" | "neq" | "ilike" | "like" | "in" | "is" | "gt" | "gte" | "lt" | "lte" | "not" | "or";
+    method: "eq" | "neq" | "ilike" | "like" | "in" | "overlaps" | "is" | "gt" | "gte" | "lt" | "lte" | "not" | "or";
     /** The filtered column -- "" for `or`, whose whole statement is its value. */
     column: string;
     /** for `not`: { operator, value } */
@@ -116,6 +116,10 @@ export class FakeSupabase {
       },
       in(column: string, value: unknown[]) {
         call.filters.push({ method: "in", column, value });
+        return builder;
+      },
+      overlaps(column: string, value: unknown[]) {
+        call.filters.push({ method: "overlaps", column, value });
         return builder;
       },
       is(column: string, value: unknown) {

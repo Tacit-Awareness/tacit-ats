@@ -2,6 +2,7 @@ import { connector, refreshGoogleAccessToken } from "@tacit/core";
 import type { Db } from "@tacit/db";
 
 import { ClientToolError, type ClientToolCtx } from "./context.js";
+import { awayOn, fullIn, limitedIn, readInterviewerLimits, type LimitedInterviewer } from "./interviewer-limits.js";
 
 /**
  * Calendar scheduling for the client connector: a member's own Google
@@ -215,13 +216,18 @@ export type FoundTimes = {
   slots: Slot[];
   checked: Array<Person & { via: "their_calendar" | "your_calendar" }>;
   unknown: Array<Person & { reason: UnknownReason }>;
+  /** Interviewers whose own limits took times out: a day away, or a week already at their cap. */
+  limited: LimitedInterviewer[];
 };
 
 /**
  * Times in the window, inside working hours in `timezone`, when every
  * interviewer whose calendar could be read is free. Interviewers whose
- * calendar could not be read are listed, not assumed free or busy. Spread
- * across days: the earliest slot of each day first, then the next.
+ * calendar could not be read are listed, not assumed free or busy. A day
+ * any interviewer is away, and a week any of them already has their cap of
+ * interviews in, has no times, whether or not their calendar could be read;
+ * they are listed under `limited` (interviewer-limits.ts). Spread across
+ * days: the earliest slot of each day first, then the next.
  */
 export async function findInterviewTimes(
   db: Db,
@@ -280,6 +286,8 @@ export async function findInterviewTimes(
     );
   }
 
+  const limits = await readInterviewerLimits(db, ids, { from, to });
+
   // Every candidate start, day by day in the zone.
   const step = SLOT_STEP_MINUTES * 60_000;
   const length = minutes * 60_000;
@@ -291,12 +299,13 @@ export async function findInterviewTimes(
     const open = zonedInstant(y, m, day, Math.floor(dayStart / 60), dayStart % 60, tz);
     if (open >= to) break;
     if (!input.includeWeekends && [0, 6].includes(wallClock(open, tz).weekday)) continue;
+    if (awayOn(limits, isoDate(y, m, day)).length) continue;
     const close = zonedInstant(y, m, day, Math.floor(dayEnd / 60), dayEnd % 60, tz);
     const slots: Interval[] = [];
     // Starts on the half hour of the working day, from the first one not before `from`.
     let s = open + Math.max(0, Math.ceil((from - open) / step)) * step;
     for (; s + length <= Math.min(close, to); s += step) {
-      if (!busyIn(avail, s, s + length).length) slots.push({ start: s, end: s + length });
+      if (!busyIn(avail, s, s + length).length && !fullIn(limits, s).length) slots.push({ start: s, end: s + length });
     }
     if (slots.length) byDay.push(slots);
   }
@@ -314,8 +323,13 @@ export async function findInterviewTimes(
     })),
     checked: [...avail.checked].map(([id, c]) => ({ userId: id, name: name(id), via: c.via })),
     unknown: [...avail.unknown].map(([id, reason]) => ({ userId: id, name: name(id), reason })),
+    limited: limitedIn(limits, people.map((p) => ({ userId: p.id, name: p.name })), {
+      from, to, firstDay: isoDate(first.year, first.month, first.day),
+    }),
   };
 }
+
+const isoDate = (y: number, m: number, d: number) => `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
 // ---------------------------------------------------------------------------
 // Shared checks (also used by interviews.ts)

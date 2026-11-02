@@ -25,7 +25,11 @@ const base = {
   interviewerIds: ["actor-2", "actor-3"], windowStart: "2026-10-19T00:00:00-04:00", windowEnd: "2026-10-21T00:00:00-04:00",
   timezone: "America/New_York",
 };
-const members = () => new FakeSupabase([{ data: TEAM.map(({ id }) => ({ id })) }, { data: TEAM }]);
+type ProfileRow = { actor_id: string; weekly_interview_cap: number | null; away_until: string | null };
+type BookedRow = { starts_at: string; interviewer_actor_ids: string[] };
+/** The interviewers, their details, then the profiles and interviews their limits are read from. */
+const members = (profiles: ProfileRow[] = [], booked: BookedRow[] = []) =>
+  new FakeSupabase([{ data: TEAM.map(({ id }) => ({ id })) }, { data: TEAM }, { data: profiles }, { data: booked }]);
 
 describe("wall-clock time in a zone", () => {
   test("9am is 13:00Z in summer time and 14:00Z once New York falls back", () => {
@@ -126,5 +130,58 @@ describe("findInterviewTimes", () => {
     ]);
     const err = await refusal(findInterviewTimes(fake.asDb(), ctx("elevated"), fakeGoogle().calendarWith({}), { ...base, applicationId: "app-1" }, NOW));
     expect(err.code).toBe("forbidden");
+  });
+});
+
+describe("findInterviewTimes and the interviewers' own limits", () => {
+  const google = () => fakeGoogle({ busy: { "at-me": { "alice@co.test": [], "bob@co.test": [] } } });
+  const calendarOf = (g: ReturnType<typeof fakeGoogle>) => g.calendarWith({ "actor-1": { accountEmail: "me@co.test", refreshToken: "rt-me" } });
+
+  test("no day an interviewer is away, through their last day; a date gone by is no limit", async () => {
+    const fake = members([
+      { actor_id: "actor-2", weekly_interview_cap: null, away_until: "2026-10-19" },
+      { actor_id: "actor-3", weekly_interview_cap: null, away_until: "2026-10-01" },
+    ]);
+    const found = await findInterviewTimes(fake.asDb(), ctx(), calendarOf(google()), { ...base, maxResults: 25 }, NOW);
+    expect(found.slots.length).toBeGreaterThan(0);
+    expect(found.slots.every((s) => s.startsAt.startsWith("2026-10-20"))).toBe(true);
+    expect(found.limited).toEqual([{ userId: "actor-2", name: "Alice", awayThrough: "2026-10-19", fullWeeks: [] }]);
+  });
+
+  test("no time in a week an interviewer already has their cap of interviews in", async () => {
+    const fake = members(
+      [{ actor_id: "actor-3", weekly_interview_cap: 2, away_until: null }],
+      [
+        { starts_at: "2026-10-19T15:00:00Z", interviewer_actor_ids: ["actor-3", "actor-9"] },
+        { starts_at: "2026-10-22T15:00:00Z", interviewer_actor_ids: ["actor-3"] },
+        // Next week's one is under the cap there.
+        { starts_at: "2026-10-27T15:00:00Z", interviewer_actor_ids: ["actor-3"] },
+      ],
+    );
+    const found = await findInterviewTimes(fake.asDb(), ctx(), calendarOf(google()), {
+      ...base, windowStart: "2026-10-23T09:00:00-04:00", windowEnd: "2026-10-27T00:00:00-04:00", maxResults: 25,
+    }, NOW);
+    // Friday is in the full week; Monday the 26th starts the next.
+    expect(found.slots.length).toBeGreaterThan(0);
+    expect(found.slots.every((s) => s.startsAt.startsWith("2026-10-26"))).toBe(true);
+    expect(found.limited).toEqual([{ userId: "actor-3", name: "Bob", awayThrough: null, fullWeeks: [{ weekOf: "2026-10-19", booked: 2, cap: 2 }] }]);
+
+    // Read on the caller's token: their interviews, not cancelled, from the Monday of the window's first week to the one after its last.
+    const read = fake.calls.find((c) => c.table === "interviews")!;
+    expect(read.filters).toEqual(expect.arrayContaining([
+      { method: "overlaps", column: "interviewer_actor_ids", value: ["actor-2", "actor-3"] },
+      { method: "neq", column: "status", value: "cancelled" },
+      { method: "gte", column: "starts_at", value: "2026-10-19T00:00:00.000Z" },
+      { method: "lt", column: "starts_at", value: "2026-11-02T00:00:00.000Z" },
+    ]));
+  });
+
+  test("a cap of 0 is no interviews at all; no profile the caller may read is no limit", async () => {
+    const none = await findInterviewTimes(members([{ actor_id: "actor-2", weekly_interview_cap: 0, away_until: null }]).asDb(), ctx(), calendarOf(google()), base, NOW);
+    expect(none.slots).toEqual([]);
+    expect(none.limited).toEqual([{ userId: "actor-2", name: "Alice", awayThrough: null, fullWeeks: [{ weekOf: "2026-10-19", booked: 0, cap: 0 }] }]);
+    const open = await findInterviewTimes(members().asDb(), ctx(), calendarOf(google()), base, NOW);
+    expect(open.slots.length).toBe(10);
+    expect(open.limited).toEqual([]);
   });
 });

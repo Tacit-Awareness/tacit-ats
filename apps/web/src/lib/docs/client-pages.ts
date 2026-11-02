@@ -341,7 +341,7 @@ Changing an interview's interviewers or location is done through [Claude or tats
 
 **Interviewers** has one row per person who interviews: their jobs, interviews this week, next week and in the last 30 days, and, for those allowed to read it, how often they file feedback on time.
 
-Each person can fill in their own profile with **Edit**, and an admin can edit anyone's: whether they like interviewing, a weekly limit, what they know, how to reach them and when they are away. For now the profile is for your team to read: scheduling does not act on it yet.
+Each person can fill in their own profile with **Edit**, and an admin can edit anyone's: whether they like interviewing, a weekly limit, what they know, how to reach them and when they are away. **Find a time** leaves out every day someone is away, through their last day, and every week (Monday to Sunday) they already have their weekly limit of interviews in, and says so. Booking a time yourself does not check the profile.
 
 ## Members and invitations
 
@@ -921,7 +921,7 @@ When the job has an interview plan, the step must be one of its steps. Schedulin
 
 > When are Dana and Lee both free for an hour next week?
 
-\`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free.
+\`find_interview_times\` reads the interviewers' calendars, busy times only and never what is on them, and suggests times in a window of up to two weeks when all of them are free, inside working hours (9 to 5 on weekdays unless you say otherwise) in your timezone. Each interviewer is read through their own connected calendar, or else through yours when your company shares calendars within its Google Workspace. Anyone Tacit cannot read is named, not assumed free. No time falls on a day an interviewer is away, or in a week they already have their weekly limit of interviews in, as set on their Interviewers profile; Claude says whose limits left times out.
 
 On the **Calendar** page you can do the same without Claude: **Book**, or **Find a time** for times everyone is free, or drag in the week or day grid; open an interview to reschedule or cancel it, or drag it to a new time. Nothing changes until you confirm, and the confirmation says whose calendar it goes on and who Google will email.
 
