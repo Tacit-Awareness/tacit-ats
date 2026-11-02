@@ -234,6 +234,10 @@ describe("a decision's whole ticket", () => {
     expect(sheet).toContain('aria-label="Your call"');
     expect(sheet).toContain("Dana&#x27;s read");
     expect(sheet.indexOf("Hire them.")).toBeLessThan(sheet.indexOf("The whole candidate"));
+    // The head carries who and the verdict; the transcript under it starts past the hire question.
+    expect(sheet).toContain("read-thread");
+    expect(sheet).toContain("What did you see?");
+    expect(sheet).not.toContain("Would you hire");
   });
 
   test("with no loop to show it still has the candidate", () => {

@@ -837,6 +837,21 @@ body:has(.ui-root) {
   }
 }
 
+/* The post-interview read as a chat transcript (interviews/view.tsx's ReadThread):
+   its messages rise in one after another, fading and un-blurring, quickly. */
+@media (prefers-reduced-motion: no-preference) {
+  .read-thread > * {
+    animation: read-in 0.2s var(--spring) calc(var(--i, 0) * 30ms) both;
+  }
+}
+@keyframes read-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    filter: blur(4px);
+  }
+}
+
 /* The Inbox's opening (inbox/opening-card.tsx, design/tats's `.ibx-think`): each
    source ticks off, the panel folds away, then the rows arrive group by group.
    Nothing here exists under reduced motion, so the card is simply there. */
