@@ -8,6 +8,8 @@ import { readApplicantQueue, readApplicationNotes, readPersonNotes, readRouting 
 import { readDepartments } from "@/lib/client/departments";
 import { viewerFiles } from "@/lib/client/file-view-rules";
 import { readReply } from "@/lib/client/email";
+import { templateStarters } from "@/lib/client/email-template-rules";
+import { readTemplates } from "@/lib/client/email-templates";
 import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
 import { replyStarters } from "@/lib/client/reply-starters";
@@ -59,7 +61,7 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
   const open = selected(order, one(sp.a));
   const mailer = webMailer();
   const referral = open !== null && isReferral(open);
-  const [routing, reply, notes, personNotes, files] = open
+  const [routing, reply, notes, personNotes, files, templates] = open
     ? await Promise.all([
         readRouting(db, open.jobId),
         readReply(db, toolCtx(gate.ctx), mailer, { candidateId: open.candidateId, applicationId: open.applicationId }),
@@ -67,8 +69,9 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
         referral ? readApplicationNotes(db, open.applicationId) : [],
         readPersonNotes(db, open.candidateId),
         clientTools.listFiles(db, toolCtx(gate.ctx), { candidateId: open.candidateId }),
+        readTemplates(db, toolCtx(gate.ctx)),
       ])
-    : [null, null, [], [], []];
+    : [null, null, [], [], [], []];
 
   let ticket: Ticket | null = null;
   if (open) {
@@ -102,6 +105,7 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
             failed: reply.failed,
             sent: reply.sent ? { when: ago(reply.sent.at, now), subject: reply.sent.subject, by: reply.sent.by } : null,
             starters: replyStarters({ candidateName: open.name, jobTitle: open.jobTitle, company: org.name, sender: user.name }),
+            templates: templateStarters(templates, { candidateName: open.name, jobTitle: open.jobTitle, company: org.name, sender: user.name }),
             subjectMax: clientTools.EMAIL_SUBJECT_MAX,
             bodyMax: clientTools.EMAIL_BODY_MAX,
             home,

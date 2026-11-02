@@ -2,6 +2,7 @@ import type { Db } from "@tacit/db";
 import { ACTIVE_STAGES } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
 import type { Member } from "./interviews";
+import type { NextRound } from "./next-round-rules";
 
 // What the Calendar's Book and Find a time dialogs choose from, on the member's
 // OWN client: the people still in process on a job they may schedule on, and
@@ -78,4 +79,25 @@ export async function readBookingChoices(db: Db, member: Member): Promise<Bookin
     interviewers: (people.data ?? []).flatMap((p) => (p.id && p.display_name ? [{ actorId: p.id, name: p.display_name }] : [])),
     truncated: (apps.data ?? []).length > CHOICES_MAX,
   };
+}
+
+/**
+ * Next round's prefill (next-round-rules.ts): the plan's first step not yet
+ * booked or held, from core's getInterviewPlan on the member's own token. No
+ * step when they can't read the application or the job, or its plan has no
+ * step left: the dialog still opens on the candidate, and says so when they
+ * aren't someone it can book for. A read, so the source writes no audit row.
+ */
+export async function readNextRound(db: Db, member: Member, applicationId: string): Promise<NextRound> {
+  const none: NextRound = { applicationId, step: null };
+  const app = await db.from("applications").select("role_id").eq("id", applicationId).maybeSingle();
+  if (app.error) throw new Error(app.error.message);
+  if (!app.data) return none;
+  try {
+    const plan = await clientTools.getInterviewPlan(db, { ...member, source: "claude" }, { jobId: app.data.role_id, applicationId });
+    return { applicationId, step: plan.candidate?.nextStep ?? null };
+  } catch (err) {
+    if (err instanceof clientTools.ClientToolError) return none;
+    throw err;
+  }
 }

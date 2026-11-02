@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Avatar } from "@/components/page";
 import { SNAP_MINUTES, spanAt, todayIn, zoned, type Ymd } from "@/lib/client/schedule-layout";
+import { prefill, type NextRound } from "@/lib/client/next-round-rules";
 import type { ApplicationChoice, BookingChoices } from "@/lib/client/schedule-choices";
 import { bookLines, changeLines, conflictLines, doneSentence } from "@/lib/client/schedule-copy";
 import {
@@ -22,7 +23,8 @@ import { bookingChoicesAction } from "./actions";
 // the write itself, turns the button into "anyway", pressed on purpose. All of
 // it goes to the one route that can reach calendar grants (SCHEDULE_API); the
 // choices are read when a dialog opens. Times are the browser's zone, as on the
-// grid.
+// grid. A book flow with `next` is the Inbox's Next round: Find a time with the
+// candidate and their plan's next step already picked (next-round-rules.ts).
 
 export type CalendarEventRef = {
   id: string;
@@ -41,7 +43,7 @@ export type CalendarEventRef = {
 };
 
 export type Flow =
-  | { kind: "book"; find: boolean; at?: { day: Ymd; minutes: number; length: number } }
+  | { kind: "book"; find: boolean; at?: { day: Ymd; minutes: number; length: number }; /** The Inbox's Next round: who, and the step, picked once the choices are read. */ next?: NextRound }
   | { kind: "event"; event: CalendarEventRef }
   | { kind: "move"; event: CalendarEventRef; to?: { startsAt: string; endsAt: string } }
   | { kind: "cancel"; event: CalendarEventRef };
@@ -235,12 +237,17 @@ function changeConfirm(request: MoveRequest | CancelRequest, answer: Extract<Sch
   };
 }
 
-function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone: string; pick: (startsAt: string, endsAt: string) => void; picked?: string | null }) {
+export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone: string; pick: (startsAt: string, endsAt: string) => void; picked?: string | null }) {
   return (
     <div className="grid gap-1.5">
       {found.unknown.map((u) => (
         <p key={u.name} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
           Not checked: {u.name} {u.why}.
+        </p>
+      ))}
+      {found.limited.map((l) => (
+        <p key={l.name} className="m-0 bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words">
+          Times left out: {l.name}, {l.why}.
         </p>
       ))}
       {found.slots.length === 0 ? (
@@ -286,15 +293,25 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
   const [pickedAt, setPickedAt] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** Next round asked for someone the choices don't have: said once, over the picker. */
+  const [missing, setMissing] = React.useState(false);
   // One per dialog: a retry of a booking that went through finds it, rather than booking twice.
   const [interviewId] = React.useState(() => globalThis.crypto.randomUUID());
   const first = React.useRef<HTMLInputElement>(null);
+  const ivSearch = React.useRef<HTMLInputElement>(null);
+  const next = flow.next;
 
   React.useEffect(() => {
     let live = true;
     void bookingChoicesAction().then(
       (c) => {
-        if (live) setChoices(c);
+        if (!live) return;
+        // Next round's candidate and step, picked before the form shows, so the first thing left is who interviews.
+        const p = prefill(c.applications, next);
+        setApplicationId(p.applicationId);
+        setStep(p.step);
+        setMissing(p.missing);
+        setChoices(c);
       },
       () => {
         if (live) setChoices({ applications: [], interviewers: [], truncated: false, failed: true });
@@ -303,8 +320,8 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
     return () => {
       live = false;
     };
-  }, []);
-  React.useEffect(() => first.current?.focus(), [choices]);
+  }, [next]);
+  React.useEffect(() => (first.current ?? ivSearch.current)?.focus(), [choices]);
 
   const app = choices?.applications.find((a) => a.applicationId === applicationId) ?? null;
   const steps = app?.steps ?? [];
@@ -374,7 +391,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
     <>
       <Head
         id="schedule-dialog-title"
-        title={flow.find ? "Find a time" : "Book an interview"}
+        title={next ? (app ? `Next round for ${app.candidate}` : "Next round") : flow.find ? "Find a time" : "Book an interview"}
         sub={flow.find ? "Picks from the times every interviewer is free, in the next two weeks." : `Times are in ${timeZone.replace(/_/g, " ")}.`}
       />
       <div className="grid gap-3 overflow-y-auto px-5 pt-3 pb-4">
@@ -388,6 +405,11 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
           <p className="m-0 text-[13px] text-muted-foreground">Nobody in process on a job you schedule for.</p>
         ) : (
           <>
+            {missing && !app ? (
+              <p className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
+                They aren&apos;t someone you can book for here: their application has closed, or you don&apos;t schedule for that job. Pick who to book.
+              </p>
+            ) : null}
             <fieldset className="m-0 grid gap-1.5 border-0 p-0">
               <legend className="mb-1 p-0 text-[12.5px] text-muted-foreground">Candidate</legend>
               {app ? (
@@ -421,7 +443,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
 
             <fieldset className="m-0 grid gap-1.5 border-0 p-0">
               <legend className="mb-1 p-0 text-[12.5px] text-muted-foreground">Interviewers</legend>
-              <input value={ivQ} onChange={(e) => setIvQ(e.target.value)} placeholder="Search teammates" aria-label="Search teammates" className={field} autoComplete="off" />
+              <input ref={ivSearch} value={ivQ} onChange={(e) => setIvQ(e.target.value)} placeholder="Search teammates" aria-label="Search teammates" className={field} autoComplete="off" />
               <ul aria-label="Interviewers" className="m-0 grid max-h-[148px] list-none overflow-y-auto p-0">
                 {people.map((p) => {
                   const on = interviewerIds.includes(p.actorId);

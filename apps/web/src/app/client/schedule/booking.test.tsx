@@ -4,7 +4,28 @@ import { describe, expect, test, vi } from "vitest";
 vi.mock("./actions", () => ({ bookingChoicesAction: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-import { Panels } from "./booking";
+import { Panels, ScheduleDialog, Slots } from "./booking";
+
+// The Inbox's Next round opens Find a time, titled for it, before the choices
+// are read. Which candidate and step it then picks is next-round-rules.test.ts.
+describe("Next round's dialog", () => {
+  const dialog = (next?: { applicationId: string; step: string | null }) =>
+    renderToStaticMarkup(
+      <ScheduleDialog flow={{ kind: "book", find: true, ...(next ? { next } : {}) }} timeZone="UTC" now={0} go={() => {}} close={() => {}} done={() => {}} />,
+    );
+
+  test("says what it is for, and finds times rather than taking one", () => {
+    const out = dialog({ applicationId: "11111111-2222-4333-8444-555555555555", step: "Onsite" });
+    expect(out).toContain("Next round");
+    expect(out).toContain("Find times");
+    expect(out).not.toContain("Find a time");
+  });
+
+  test("Find a time on its own is unchanged", () => {
+    expect(dialog()).toContain("Find a time");
+    expect(dialog()).not.toContain("Next round");
+  });
+});
 
 // Back from the Confirm card must find the form as it was left. BookForm holds
 // the booking's one id, so a form that unmounts for the card comes back empty
@@ -28,5 +49,23 @@ describe("the Confirm card over a form", () => {
     expect(html(false)).toMatch(/class="[^"]*\bflex\b[^"]*"><input/);
     expect(html(false)).toContain("Other");
     expect(html(true)).not.toContain("Other");
+  });
+});
+
+describe("Find a time's answer", () => {
+  test("names whose limits left times out, and why, beside who was not checked", () => {
+    const out = renderToStaticMarkup(
+      <Slots
+        timeZone="UTC"
+        pick={vi.fn()}
+        found={{
+          timezone: "UTC", durationMinutes: 60, checked: ["Dana"], slots: [],
+          unknown: [{ name: "Lee", why: "has not connected a calendar" }],
+          limited: [{ name: "Sam", why: "away through Jan 9" }],
+        }}
+      />,
+    );
+    expect(out).toContain("Not checked: Lee has not connected a calendar.");
+    expect(out).toContain("Times left out: Sam, away through Jan 9.");
   });
 });

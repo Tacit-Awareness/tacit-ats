@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
+import { LiveRefresh } from "@/components/live-refresh";
 import { Empty, Page, PageBar, SearchBox, SubBar, Tabs, pillOption, pillTrack, type Tab } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { Board, FilterKeys, LayoutKey } from "./board";
@@ -157,6 +158,7 @@ export function PipelineView({
           <span className="min-w-0 [overflow-wrap:anywhere]">{past.label}</span>
         </Link>
       ) : null}
+      <LiveRefresh />
       <FilterKeys enabled={!popup} />
       {empty ? null : <LayoutKey to={layout.on === "list" ? layout.board : layout.list} refusal={NO_BOARD} enabled={!popup} />}
       {empty ? (

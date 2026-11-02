@@ -69,6 +69,20 @@ describe("the reply box", () => {
     expect(out).not.toContain("<textarea");
   });
 
+  test("templates change nothing until one is picked: the preview is the starter's, with no template id", () => {
+    const out = html({ templates: [{ templateId: "t1", name: "Intro", subject: "From the template", body: "Template words" }] });
+    expect(out).toMatch(/type="hidden" name="body" value="Hi Nia, meet us"/);
+    expect(out).not.toContain('name="templateId"');
+    expect(out).not.toContain("Template words");
+  });
+
+  test("a failed send reopens on its own words, with no template to start from", () => {
+    const out = html({ failed: { subject: "s", body: "my words" }, templates: [{ templateId: "t1", name: "Intro", subject: "x", body: "y" }] });
+    expect(out).toContain("my words");
+    expect(out).not.toContain("Start from a template");
+    expect(out).not.toContain('name="templateId"');
+  });
+
   test("the preview starts from the suggested starter", () => {
     const out = renderToStaticMarkup(<ReplyBox reply={reply()} suggested="decline" />);
     expect(out).toMatch(/type="hidden" name="body" value="Hi Nia, no"/);

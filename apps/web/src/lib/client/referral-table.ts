@@ -9,9 +9,8 @@ import { stageLabel } from "./crm-views";
 // page reads, this arranges.
 //
 // "Referred by" is the application's `source_detail` as it was typed: free
-// text, untrusted, never matched to a member. So there is no "Top referrers"
-// board: counting by a string would split one person over every spelling of
-// their name. A real referrer needs a `referred_by` column (tacit-internal).
+// text, untrusted, never matched to a member. The "Top referrers" board beside
+// the table counts by it (lib/client/top-referrers.ts).
 
 export const REFERRAL_TABS = [
   { key: "all", label: "All" },

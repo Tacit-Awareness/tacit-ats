@@ -15,6 +15,7 @@ import {
 } from "@/lib/client/posting-draft";
 import type { StepSeeds } from "@/lib/client/process-stages";
 import type { SaveResult } from "@/lib/client/posting-edits";
+import type { JobSettings } from "@/lib/client/job-settings-rules";
 import type { DepartmentChoice } from "@/lib/client/postings";
 import type { PostBlock } from "@/lib/public/post-text";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import {
 } from "./[id]/post/sheet";
 import { createRoleAction, savePostingAction } from "./actions";
 import { Editable } from "./editable";
+import { JobSettingsPanel } from "./job-settings";
 import { POSTING_ERRORS, POSTING_NOTICES, QUESTION_ERRORS, type PostingError, type PostingNotice } from "./messages";
 
 // design/tats's posting editor (#jobs~<role>, #jobs~new): the post as applicants
@@ -312,6 +314,7 @@ export function PostingEditor({
   tab: firstTab,
   notice,
   seeds = null,
+  settings = null,
 }: {
   /** `id` is null for a role not made yet. */
   job: { id: string | null; title: string; status: string };
@@ -324,6 +327,8 @@ export function PostingEditor({
   notice: PostingNotice | null;
   /** On a new role: each department's way through the company's process. */
   seeds?: StepSeeds | null;
+  /** On a job that exists: its own title, status and openings, saved apart from the post (job-settings.tsx). */
+  settings?: JobSettings | null;
 }) {
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
@@ -441,7 +446,7 @@ export function PostingEditor({
 
   const isNew = !job.id;
   const jobOpen = job.status === "open";
-  const notPublishable = jobOpen ? undefined : `Its job is ${job.status.replace(/_/g, " ")}: a post goes live only on an open job.`;
+  const notPublishable = jobOpen ? undefined : `Its job is ${job.status.replace(/_/g, " ")}: a post goes live only on an open job. Its status is under "Only your team sees this".`;
   
 
   const bar = (
@@ -620,6 +625,7 @@ export function PostingEditor({
         {preview ? null : (
           <section className="border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
             <h3 className="m-0 mb-1.5 text-xs font-medium tracking-[0.04em] text-faint uppercase">Only your team sees this</h3>
+            {settings ? <JobSettingsPanel settings={settings} /> : null}
             <p className="m-0 mb-2 text-[13px] font-semibold">Hiring steps</p>
             <Lines
               lines={draft.steps}

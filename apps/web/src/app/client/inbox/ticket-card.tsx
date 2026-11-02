@@ -1,13 +1,13 @@
 import { Avatar } from "@/components/page";
 import { cn } from "@/lib/utils";
-import { FeedbackDetail, VerdictPill, type FeedbackCard } from "../interviews/view";
+import { ReadThread, VerdictPill, type FeedbackCard } from "../interviews/view";
 
 // What a ticket opened from the Inbox wants of the member, under its chips:
 // design/tats's `.call-card` for a decision, the read and the buttons together,
 // and its `.sit` for everything else, where it stands and what moves it on.
 // Props only. Everything a member or a candidate wrote renders as text.
 
-/** design/tats's `.cc-head`: the interviewer, when they filed, the verdict right. */
+/** design/tats's `.cc-head`: the interviewer, when they filed, the verdict right; then the rest of the read as its chat transcript. */
 function Read({ feedback: f }: { feedback: FeedbackCard }) {
   return (
     <article className="grid gap-3">
@@ -19,7 +19,7 @@ function Read({ feedback: f }: { feedback: FeedbackCard }) {
         </div>
         <VerdictPill verdict={f.verdict} label={f.recommendation} />
       </header>
-      <FeedbackDetail feedback={f} />
+      <ReadThread feedback={f} />
     </article>
   );
 }

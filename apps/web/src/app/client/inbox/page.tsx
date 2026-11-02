@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { FlashToast } from "@/components/flash-toast";
+import { LiveRefresh } from "@/components/live-refresh";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { readSender } from "@/lib/client/email";
 import { stageLabel } from "@/lib/client/crm-views";
@@ -47,7 +48,7 @@ function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
     case "decide":
       return {
         title: "The team's call",
-        detail: decidable ? `${i.why}. Next round opens their page: booking one is the client connector's schedule_interview for now.` : `${i.why}. Move them on or close them from their page.`,
+        detail: decidable ? `${i.why}. Next round finds a time for their next interview.` : `${i.why}. Move them on or close them from their page.`,
       };
     case "approval":
       return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
@@ -214,6 +215,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   return (
     <>
       <MarkSeen mark="inbox" ids={issues.map((i) => i.key)} />
+      <LiveRefresh />
       {moved ? toastOf(moved) : toast}
       <InboxView
         rows={issues.map((i) => ({
