@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { toolCtx } from "@/lib/client/candidate";
+import { readJobSettings } from "@/lib/client/job-settings";
 import { draftFromPost } from "@/lib/client/posting-draft";
 import { leadPost } from "@/lib/client/posting-groups";
 import { readPosting, readPostingEditing } from "@/lib/client/postings";
@@ -15,7 +16,8 @@ import { PostingView } from "./view";
 // (lib/client/postings.ts). The lead post shows unless `?post=` picks another
 // of the job's posts; `?tab=application` shows its form. A job the member
 // cannot see is a 404, the same as no such job. Whoever may manage the job
-// edits it in place (../../editor.tsx); everyone else reads it.
+// edits it in place (../../editor.tsx), with the job's own title, status and
+// openings beside it (../../job-settings.tsx); everyone else reads it.
 
 export default async function ClientJobPost({
   params,
@@ -60,6 +62,7 @@ export default async function ClientJobPost({
     return <PostingView job={read.job} post={post} postTabs={postTabs} tab={tab} tabHref={(t) => href({ tab: t })} link={link} />;
   }
   const notice = one(sp.notice);
+  const settings = await readJobSettings(gate.ctx.db, ctx, read.job);
   return (
     <PostingEditor
       // A save keeps the same post, so what was typed survives its refresh; picking another post starts over.
@@ -72,6 +75,7 @@ export default async function ClientJobPost({
       link={link}
       tab={tab}
       notice={isPostingNotice(notice) ? notice : null}
+      settings={settings}
     />
   );
 }

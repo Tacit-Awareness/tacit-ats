@@ -190,6 +190,7 @@ Admins add a job with **Add a role**. Whoever manages a job can edit its post in
 - **The post**: its title, location and description.
 - **The application form**: name and email are always asked. Phone, LinkedIn and a resume link are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
 - **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
+- **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left.
 - **Preview as applicant**: the page exactly as an applicant will see it.
 
 **Publish** puts a post live and **Close post** takes it down. A post can go live only while its job is open, and edits to a live post reach applicants when you save. If a teammate saved first, Tacit asks before replacing their work.
