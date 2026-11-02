@@ -1052,6 +1052,7 @@ Once someone accepts and signs in, they appear in \`list_team\` and can [connect
 | \`list_team\` | Your company's members and their access | Everyone | |
 | \`add_candidate\` | Add someone to a job at sourced, with a source | Job managers | |
 | \`add_contact\` | Attach an email, phone or LinkedIn to a candidate on file | Anyone who can edit the candidate | |
+| \`update_candidate\` | Set profile fields: headline, education, role, where they live | Anyone who can edit the candidate | |
 | \`update_stage\` | Move an application, with a reason when closing | Job managers | Yes |
 | \`set_next_action\` | Set or clear what happens next, with a due date | Job managers | |
 | \`add_note\` | A note the team can read | Everyone | |

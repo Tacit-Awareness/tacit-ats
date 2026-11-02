@@ -459,6 +459,34 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
       );
 
       server.registerTool(
+        "update_candidate",
+        {
+          title: "Update a candidate's profile fields",
+          description:
+            "Set the profile fields on a candidate already on file: headline (one line of who they are), " +
+            "education (school), current_title and current_company (their role), based_in (where they " +
+            "live). The place for things like school and past roles rather than a note. Needs edit access " +
+            "to the candidate; empty fields are left alone.",
+          inputSchema: z.object({
+            candidate_id: uuid("candidate_id"),
+            headline: z.string().max(500).optional(),
+            education: z.string().max(500).optional(),
+            current_title: z.string().max(500).optional(),
+            current_company: z.string().max(500).optional(),
+            based_in: z.string().max(500).optional(),
+          }),
+        },
+        (args) =>
+          run("update_candidate", "write", { ...args, headline: undefined, education: undefined, current_title: undefined, current_company: undefined, based_in: undefined }, async () => {
+            const r = await clientTools.updateCandidate(db, ctx, {
+              candidateId: args.candidate_id, headline: args.headline, education: args.education,
+              currentTitle: args.current_title, currentCompany: args.current_company, basedIn: args.based_in,
+            });
+            return { summary: `Set ${r.fields.join(", ")} on them.`, data: r, candidateIds: [r.candidateId] };
+          }),
+      );
+
+      server.registerTool(
         "update_stage",
         {
           title: "Move a candidate to another stage",
