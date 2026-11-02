@@ -47,4 +47,13 @@ describe("SettingsView", () => {
     );
     expect(sendOnly).toContain("goes out from ada@acme.test; replies stay in your Gmail");
   });
+
+  test("tells an admin the client ID their Google admin trusts, and nobody else", () => {
+    expect(html).not.toContain("trusting Tacit");
+    const admin = renderToStaticMarkup(
+      <SettingsView calendar={null} granola={null} mailbox={null} calendarConfigured googleClientId="123.apps.googleusercontent.com" bot={null} orgName="Acme" botCallbackUrl={null} />,
+    );
+    expect(admin).toContain("123.apps.googleusercontent.com");
+    expect(admin).toContain('href="/client/docs/email"');
+  });
 });

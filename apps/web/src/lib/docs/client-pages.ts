@@ -891,6 +891,20 @@ Tacit fills these placeholders in when it drafts:
 
 If a placeholder cannot be filled for this candidate (no job given for \`{{job_title}}\`, say), no draft is written and Claude tells you which one.
 
+## Sending from your own Gmail
+
+In **Settings**, **Gmail** › **Connect** asks Google for two things: to send email as you, and to read replies. Leave both ticked and a candidate's replies show in Tacit's Inbox as well as your own; untick reading and Tacit only sends. Tacit reads only the threads its own emails started, never the rest of your mailbox. Disconnect there at any time, and email goes out from Tacit's address again.
+
+### For your Google Workspace admin
+
+Until Google has finished reviewing Tacit's Gmail access, a company on Google Workspace may see Google block the connection, or warn that the app is unverified. An admin can allow it for everyone in about two minutes:
+
+1. In the [Google Admin console](https://admin.google.com), open **Security** › **Access and data control** › **API controls**.
+2. Under **App access control**, choose **Manage Third-Party App Access**, then **Add app** › **OAuth App Name Or Client ID**.
+3. Paste Tacit's client ID (an admin sees it in Tacit's **Settings**, under Gmail), pick the app, and set it to **Trusted**.
+
+Then everyone in the company can connect Gmail from Settings. Trusting the app changes nothing about what it reads: each person still chooses on Google's screen, and Tacit still reads only its own threads.
+
 ## Sent email is on the record
 
 \`list_emails\` shows what candidates wrote back under \`replies\`, and the emails to one candidate, newest first, with their bodies: every one sent or being sent, and your own drafts, each with its status (\`draft\`, \`sending\`, \`sent\`, \`failed\`). A sent email also appears in \`get_candidate\` and \`get_activity\`, and counts as contact on the job it was tied to.

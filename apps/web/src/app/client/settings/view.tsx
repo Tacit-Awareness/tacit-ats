@@ -28,6 +28,7 @@ export function SettingsView({
   granola,
   mailbox,
   calendarConfigured,
+  googleClientId = null,
   bot,
   botConnected,
   orgName,
@@ -41,6 +42,8 @@ export function SettingsView({
   /** The member's own Gmail for candidate email; undefined for an interviewer, who sends none. */
   mailbox?: { accountEmail: string; readsReplies: boolean } | null;
   calendarConfigured: boolean;
+  /** For an admin: the Google OAuth client ID their Workspace admin trusts so members can connect Gmail. */
+  googleClientId?: string | null;
   /** Null for anyone but an admin, who gets the company's bot section. */
   bot: { set: CompanyBot | null } | null;
   /** For everyone else: just whether the bot is connected (one-time, org-wide). */
@@ -122,13 +125,22 @@ export function SettingsView({
                 }
                 name="Gmail"
                 detail={
-                  mailbox
-                    ? mailbox.readsReplies
-                      ? `Candidate email goes out from ${mailbox.accountEmail}, and replies come back to the Inbox`
-                      : `Candidate email goes out from ${mailbox.accountEmail}; replies stay in your Gmail`
-                    : calendarConfigured
-                      ? "Email candidates from your own address, and see their replies in the Inbox"
-                      : "Not set up on this Tacit deployment yet"
+                  <>
+                    {mailbox
+                      ? mailbox.readsReplies
+                        ? `Candidate email goes out from ${mailbox.accountEmail}, and replies come back to the Inbox`
+                        : `Candidate email goes out from ${mailbox.accountEmail}; replies stay in your Gmail`
+                      : calendarConfigured
+                        ? "Email candidates from your own address, and see their replies in the Inbox"
+                        : "Not set up on this Tacit deployment yet"}
+                    {googleClientId ? (
+                      <span className="mt-1 block text-xs">
+                        On Google Workspace? Your Google admin can let everyone connect by trusting Tacit&apos;s app, client ID{" "}
+                        <code className="break-all font-mono">{googleClientId}</code>.{" "}
+                        <Link href="/client/docs/email" className="underline underline-offset-2">How</Link>
+                      </span>
+                    ) : null}
+                  </>
                 }
                 action={
                   mailbox ? (

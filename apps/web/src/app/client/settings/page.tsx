@@ -56,6 +56,8 @@ export default async function ClientSettings({
             : null
       }
       calendarConfigured={googleCalendarConfig() !== null}
+      // Public (it is in every consent URL); an admin pastes it into Google Admin to trust Tacit.
+      googleClientId={admin ? (googleCalendarConfig()?.clientId ?? null) : null}
       bot={admin ? { set: bot.data ? { url: bot.data.url, enabled: bot.data.enabled, verifiedAt: bot.data.verified_at } : null } : null}
       botConnected={admin ? undefined : !!botConnected.data}
       orgName={gate.ctx.org.name}
