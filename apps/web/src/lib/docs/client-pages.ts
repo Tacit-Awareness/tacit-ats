@@ -297,7 +297,7 @@ A move changes the stage and nothing else: it does not cancel an interview. Mark
 
 ## Referrals
 
-**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Add referral** takes a name, email, LinkedIn, job, referrer, a note and a resume of up to 3 MB, and adds them to that job.`,
+**Referrals** lists every referred candidate, open and closed, with who referred them. Use the tabs (All, In process, Hired, Closed) and the search. **Top referrers** beside it ranks who referred the most, with how many are in process and how many were hired; click a name to see their referrals. A referrer is counted by the name as it was typed, so two spellings of one person (Sam and Sam Lee) show as two rows. **Add referral** takes a name, email, LinkedIn, job, referrer, a note and a resume of up to 3 MB, and adds them to that job.`,
   },
   {
     slug: "app-interviews",
