@@ -385,6 +385,12 @@
 
 /* a list-and-reader page (page.tsx ListReader) fills the panel edge to edge:
    the shell's page wrapper drops its padding and width cap around it */
+/* the account menu's warmth fix (lib/warmth.ts): the whole page through one colour matrix, only while this
+   display has a level set; Off has no class and no filter. On the root element a filter doesn't trap fixed pop-ups. */
+html.warmth-on {
+  filter: url(#tats-warmth);
+}
+
 /* one scale for the signed-in shell (lib/ui-scale.ts). The public pages have no .ui-root, so they never zoom. */
 body:has(.ui-root) {
   zoom: var(--ui-scale);

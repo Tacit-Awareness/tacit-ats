@@ -430,7 +430,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.`,
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme, **Warmth fix** and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.\n\n**Warmth fix** undoes a display's Night Shift or True Tone tint: if whites look yellow, pick 1 to 4 until they look neutral, or Off. It is remembered in this browser for this screen, by day and by night separately, and comes back by itself when the window moves to that screen or the evening starts. Nothing is saved to your account.`,
   },
   {
     slug: "connect",

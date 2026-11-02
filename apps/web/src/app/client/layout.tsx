@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ShellFrame, type ShellJob } from "@/components/app-shell/shell-frame";
+import { WarmthFilter } from "@/components/app-shell/warmth";
 import { BrandStyle } from "@/components/brand-style";
 import { LEVELS } from "@/lib/client/levels";
 import { resolveClient } from "@/lib/client/session";
@@ -38,6 +39,8 @@ export default async function ClientLayout({ children }: { children: React.React
       {/* Before paint, so the first frame is already the right size. */}
       <script dangerouslySetInnerHTML={{ __html: UI_SCALE_SCRIPT }} />
       <BrandStyle accent={org.brandAccent} />
+      {/* The account menu's warmth fix, per display, from this browser only. */}
+      <WarmthFilter />
       <ShellFrame
         actorId={actorId}
         org={org.name}
