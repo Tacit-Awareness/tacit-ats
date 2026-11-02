@@ -95,10 +95,35 @@ export type ReferralInput = {
   linkedinUrl: string | null;
   referredBy: unknown;
   note: string | null;
+  file?: ReferralFile | null;
 };
 
+/** A referral's resume, checked and ready for core's addFile. */
+export type ReferralFile = { filename: string; contentType: string; contentBase64: string };
+
+/** What the form's file input takes. */
+export const RESUME_ACCEPT = Object.values(clientTools.FILE_TYPES).flatMap((t) => t.extensions.map((e) => `.${e}`)).join(",");
+
+/** A name core's addFile takes: anything else in it becomes a space, and the extension stays. */
+function resumeName(raw: string, ext: string): string {
+  const stem = raw.slice(0, raw.lastIndexOf(".")).replace(/[^\p{L}\p{N} ._()&,+'-]/gu, " ").replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s+/g, " ").trim().slice(0, 150);
+  return `${stem || "Resume"}.${ext}`;
+}
+
+/** The form's file: null when none was picked, "invalid" when core would refuse it, so nobody is added first. */
+export async function referralFile(value: FormDataEntryValue | null): Promise<ReferralFile | null | "invalid"> {
+  if (!(value instanceof File) || (value.size === 0 && value.name === "")) return null;
+  const ext = value.name.includes(".") ? value.name.slice(value.name.lastIndexOf(".") + 1).toLowerCase() : "";
+  const found = Object.entries(clientTools.FILE_TYPES).find(([, t]) => t.extensions.includes(ext));
+  if (!found || value.size === 0 || value.size > clientTools.FILE_MAX_BYTES) return "invalid";
+  const [contentType, type] = found;
+  const bytes = new Uint8Array(await value.arrayBuffer());
+  if (!type.looksRight(bytes)) return "invalid";
+  return { filename: resumeName(value.name, ext), contentType, contentBase64: Buffer.from(bytes).toString("base64") };
+}
+
 export type AddReferralOutcome =
-  | { ok: true; status: "added" | "added_existing" | "added_no_note" | "exists"; applicationId: string; personId: string }
+  | { ok: true; status: "added" | "added_existing" | "added_no_note" | "added_no_file" | "added_no_extras" | "exists"; applicationId: string; personId: string }
   | { ok: false; error: "forbidden" | "rate_limited" | "invalid_name" | "invalid_email" | "invalid_linkedin" | "invalid_referrer" };
 
 const INVALID_FIELD = { name: "invalid_name", email: "invalid_email", linkedin: "invalid_linkedin" } as const;
@@ -108,10 +133,16 @@ const isInvalidField = (f: string | undefined): f is keyof typeof INVALID_FIELD 
  * A referral into a job: the person (found by an email the member can see, or
  * made), their application with source `referral` and `source_detail` the
  * referrer as typed, and the note as the application's first note (core's
- * logTouch). Someone already in the job keeps the application and source they
- * had: nothing changes, and the note is not added.
+ * logTouch), and the file as their resume (core's addFile). Someone already in
+ * the job keeps the application and source they had: nothing changes, and
+ * neither the note nor the file is added.
  */
-export async function addReferral(db: Db, ctx: clientTools.ClientToolCtx, input: ReferralInput): Promise<AddReferralOutcome> {
+export async function addReferral(
+  db: Db,
+  ctx: clientTools.ClientToolCtx,
+  input: ReferralInput,
+  store: clientTools.FileStore | null = null,
+): Promise<AddReferralOutcome> {
   const referredBy = cleanReferrer(input.referredBy);
   if (!referredBy) return { ok: false, error: "invalid_referrer" };
 
@@ -137,15 +168,28 @@ export async function addReferral(db: Db, ctx: clientTools.ClientToolCtx, input:
   const { applicationId, candidateId: personId } = added;
   if (added.outcome === "already_in_pipeline") return { ok: true, status: "exists", applicationId, personId };
 
+  // They're in by now, so a note or a file that fails can't say nobody was added.
+  let noteSaved = true;
   const note = input.note?.replaceAll("\0", "");
   if (note) {
-    // They're in by now, so a note that fails can't say nobody was added.
     try {
       await logTouch(db, { applicationId, actorId: ctx.actorId, note });
     } catch (err) {
       console.error("[client-referrals] the note failed:", err instanceof Error ? err.message : err);
-      return { ok: true, status: "added_no_note", applicationId, personId };
+      noteSaved = false;
     }
+  }
+  let fileSaved = true;
+  if (input.file) {
+    try {
+      await clientTools.addFile(db, ctx, store, { candidateId: personId, kind: "resume", ...input.file });
+    } catch (err) {
+      console.error("[client-referrals] the file failed:", err instanceof Error ? err.message : err);
+      fileSaved = false;
+    }
+  }
+  if (!noteSaved || !fileSaved) {
+    return { ok: true, status: !fileSaved ? (noteSaved ? "added_no_file" : "added_no_extras") : "added_no_note", applicationId, personId };
   }
   return { ok: true, status: added.newCandidate ? "added" : "added_existing", applicationId, personId };
 }

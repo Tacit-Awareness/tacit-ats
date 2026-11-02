@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import type { Db } from "@tacit/db";
 import { clientTools } from "@tacit-ats/core";
-import { addReferral, type ReferralInput } from "./referrals";
+import { addReferral, referralFile, type ReferralInput } from "./referrals";
 
-const { addCandidate, logTouch } = vi.hoisted(() => ({ addCandidate: vi.fn(), logTouch: vi.fn() }));
+const { addCandidate, addFile, logTouch } = vi.hoisted(() => ({ addCandidate: vi.fn(), addFile: vi.fn(), logTouch: vi.fn() }));
 
 vi.mock("@tacit-ats/core", async (original) => {
   const real = await original<typeof import("@tacit-ats/core")>();
-  return { ...real, clientTools: { ...real.clientTools, addCandidate } };
+  return { ...real, clientTools: { ...real.clientTools, addCandidate, addFile } };
 });
 vi.mock("@tacit/core", async (original) => ({ ...(await original<typeof import("@tacit/core")>()), logTouch }));
 
@@ -18,6 +18,7 @@ const ADDED = { outcome: "added", applicationId: "app-1", candidateId: "person-1
 
 beforeEach(() => {
   addCandidate.mockReset();
+  addFile.mockReset();
   logTouch.mockReset();
 });
 
@@ -83,5 +84,52 @@ describe("addReferral", () => {
     await expect(addReferral(DB, CTX, INPUT)).rejects.toThrow("connection reset");
     addCandidate.mockRejectedValue(new clientTools.ClientToolError("not_found", "No such job."));
     await expect(addReferral(DB, CTX, INPUT)).rejects.toThrow("No such job.");
+  });
+});
+
+describe("addReferral with a resume", () => {
+  const file = { filename: "cv.pdf", contentType: "application/pdf", contentBase64: "JVBERi0=" };
+  const store = { put: vi.fn(), signedUrl: vi.fn() };
+
+  test("stores it on the person, through the member's own client", async () => {
+    addCandidate.mockResolvedValue(ADDED);
+    expect(await addReferral(DB, CTX, { ...INPUT, file }, store)).toMatchObject({ ok: true, status: "added" });
+    expect(addFile).toHaveBeenCalledWith(DB, CTX, store, { candidateId: "person-1", kind: "resume", ...file });
+  });
+
+  test("someone already in the job gets nothing added", async () => {
+    addCandidate.mockResolvedValue({ ...ADDED, outcome: "already_in_pipeline" });
+    expect(await addReferral(DB, CTX, { ...INPUT, file }, store)).toMatchObject({ status: "exists" });
+    expect(addFile).not.toHaveBeenCalled();
+  });
+
+  test("a file that fails still adds them, and says so", async () => {
+    addCandidate.mockResolvedValue(ADDED);
+    addFile.mockRejectedValue(new Error("storage down"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await addReferral(DB, CTX, { ...INPUT, file }, store)).toMatchObject({ ok: true, status: "added_no_file" });
+    logTouch.mockRejectedValue(new Error("db down"));
+    expect(await addReferral(DB, CTX, { ...INPUT, file }, store)).toMatchObject({ ok: true, status: "added_no_extras" });
+  });
+});
+
+describe("referralFile", () => {
+  const pdf = (name: string, size = 8) => new File([new Uint8Array(size).fill(0x25).map((b, i) => [0x25, 0x50, 0x44, 0x46, 0x2d][i] ?? b)], name, { type: "application/pdf" });
+
+  test("no file picked is no file", async () => {
+    expect(await referralFile(null)).toBeNull();
+    expect(await referralFile(new File([], ""))).toBeNull();
+  });
+
+  test("takes the type from the extension and cleans the name for core", async () => {
+    expect(await referralFile(pdf("[Jane] CV #2.PDF"))).toMatchObject({ filename: "Jane CV 2.pdf", contentType: "application/pdf" });
+    expect(await referralFile(pdf("###.pdf"))).toMatchObject({ filename: "Resume.pdf" });
+  });
+
+  test("refuses what core would, before anyone is added", async () => {
+    expect(await referralFile(pdf("cv.exe"))).toBe("invalid");
+    expect(await referralFile(pdf("noextension"))).toBe("invalid");
+    expect(await referralFile(new File(["not a pdf"], "cv.pdf"))).toBe("invalid");
+    expect(await referralFile(pdf("big.pdf", 3 * 1024 * 1024 + 1))).toBe("invalid");
   });
 });

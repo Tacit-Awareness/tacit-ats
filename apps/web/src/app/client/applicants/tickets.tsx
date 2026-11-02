@@ -4,7 +4,7 @@ import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { homeSubBase, hrefAt } from "@/lib/client/home-tabs";
 import { groupByTeam, inOrder, isReferral, neighbour, readerAnswers, selected, referralTag, sourceWords } from "@/lib/client/applicant-queue";
-import { readApplicantQueue, readApplicationNotes, readRouting } from "@/lib/client/applicants";
+import { readApplicantQueue, readApplicationNotes, readPersonNotes, readRouting } from "@/lib/client/applicants";
 import { readDepartments } from "@/lib/client/departments";
 import { readReply } from "@/lib/client/email";
 import { webMailer } from "@/lib/client/mailer";
@@ -58,14 +58,16 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
   const open = selected(order, one(sp.a));
   const mailer = webMailer();
   const referral = open !== null && isReferral(open);
-  const [routing, reply, notes] = open
+  const [routing, reply, notes, personNotes, files] = open
     ? await Promise.all([
         readRouting(db, open.jobId),
         readReply(db, toolCtx(gate.ctx), mailer, { candidateId: open.candidateId, applicationId: open.applicationId }),
         // A referral has no form to read; what the referrer said is its note.
         referral ? readApplicationNotes(db, open.applicationId) : [],
+        readPersonNotes(db, open.candidateId),
+        clientTools.listFiles(db, toolCtx(gate.ctx), { candidateId: open.candidateId }),
       ])
-    : [null, null, []];
+    : [null, null, [], [], []];
 
   let ticket: Ticket | null = null;
   if (open) {
@@ -81,7 +83,8 @@ export async function ApplicantsContent({ sp, home = false }: { sp: Record<strin
       applied: ago(open.appliedAt, now),
       referral,
       source: sourceWords(open),
-      notes,
+      notes: [...notes, ...personNotes],
+      files: files.map((f) => ({ fileId: f.fileId, label: f.kind === "resume" ? "Resume" : "Attachment", filename: f.filename, href: `/client/files/${f.fileId}` })),
       team: group?.isTeam ? group.title : null,
       answers,
       routing: routing?.canEdit

@@ -39,8 +39,10 @@ export type Ticket = {
   referral: boolean;
   /** Where they came from, in words. */
   source: string;
-  /** The team's notes; only a referral's are read. */
+  /** The team's notes: those on their file, and a referral's on the application. */
   notes: string[];
+  /** Their file's resumes and attachments, each opened through /client/files. */
+  files: { fileId: string; label: string; filename: string; href: string }[];
   /** The job's team, or null when the list isn't by team. */
   team: string | null;
   answers: ReaderAnswer[];
@@ -137,6 +139,19 @@ function Paper({ ticket }: { ticket: Ticket }) {
           )}
         </section>
       ))}
+      {ticket.files.length > 0 ? (
+        <section>
+          <h2 className={h2}>Files</h2>
+          {ticket.files.map((f) => (
+            <p key={f.fileId} className="m-0 mb-1 break-words">
+              <span className="text-[color:var(--n700)]">{f.label}: </span>
+              <a href={f.href} target="_blank" rel="noopener noreferrer" className="break-all text-[color:var(--n900)] underline decoration-[color:var(--n300)] underline-offset-2">
+                {f.filename}
+              </a>
+            </p>
+          ))}
+        </section>
+      ) : null}
       {ticket.notes.length > 0 ? (
         <section>
           <h2 className={h2}>Notes</h2>

@@ -1,6 +1,7 @@
+import { clientTools } from "@tacit-ats/core";
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
-import { readAddForm } from "@/lib/client/referrals";
+import { RESUME_ACCEPT, readAddForm } from "@/lib/client/referrals";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
 import { addReferralAction } from "../actions";
@@ -36,5 +37,5 @@ export default async function ClientAddReferral({ searchParams }: { searchParams
   const sp = await searchParams;
   const error = Array.isArray(sp.error) ? sp.error[0] : sp.error;
   const { jobs, teammates } = await readAddForm(db);
-  return <AddReferralView action={addReferralAction} jobs={jobs} teammates={teammates} error={isReferralError(error) ? REFERRAL_ERRORS[error] : null} />;
+  return <AddReferralView action={addReferralAction} jobs={jobs} teammates={teammates} error={isReferralError(error) ? REFERRAL_ERRORS[error] : null} resumeMaxBytes={clientTools.FILE_MAX_BYTES} resumeAccept={RESUME_ACCEPT} />;
 }
