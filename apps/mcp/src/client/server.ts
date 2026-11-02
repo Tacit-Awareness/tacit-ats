@@ -921,7 +921,9 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
             "the window when all of them are free, inside working hours in the timezone, a few per day. Each " +
             "interviewer is read through their own connected Google Calendar, or else through yours (which " +
             "Google answers inside one company Workspace); anyone who cannot be read is listed under unknown, " +
-            "not assumed free. window_start and window_end are ISO 8601 with their offset, at most 14 days " +
+            "not assumed free. No time falls on a day an interviewer is away, or in a week (Monday to Sunday, UTC) " +
+            "they already have their weekly limit of interviews in; they are listed under limited with why. " +
+            "window_start and window_end are ISO 8601 with their offset, at most 14 days " +
             "apart. Pass application_id when it is for a candidate. Offer the user a few of the times; then " +
             "schedule_interview books the one they pick. Needs a connected calendar (yours, or the interviewers').",
           inputSchema: z.object({
@@ -949,6 +951,9 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
             const unknown = r.unknown.length
               ? ` Not checked: ${r.unknown.map((u) => `${u.name} (${clientTools.unknownText(u.reason)})`).join("; ")}.`
               : "";
+            const limited = r.limited.length
+              ? ` Times left out: ${r.limited.map((l) => `${l.name} (${clientTools.limitText(l)})`).join("; ")}.`
+              : "";
             return {
               summary: (r.slots.length
                 ? `${r.slots.length} time${r.slots.length === 1 ? "" : "s"} when everyone checked is free (${r.timezone}).`
@@ -959,6 +964,10 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
                 slots: r.slots.map((s) => ({ starts_at: s.startsAt, ends_at: s.endsAt, local: s.local })),
                 checked: r.checked.map((p) => ({ user_id: p.userId, name: p.name, via: p.via })),
                 unknown: r.unknown.map((p) => ({ user_id: p.userId, name: p.name, reason: p.reason })),
+                limited: r.limited.map((p) => ({
+                  user_id: p.userId, name: p.name, away_through: p.awayThrough,
+                  full_weeks: p.fullWeeks.map((w) => ({ week_of: w.weekOf, booked: w.booked, cap: w.cap })),
+                })),
               },
               candidateIds: [],
             };

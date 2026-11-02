@@ -213,3 +213,12 @@ describe("the widgets' numbers", () => {
     expect(p.more?.label).toBe("All 6 in the Inbox");
   });
 });
+
+describe("outstanding feedback", () => {
+  test("leads to Interview Judgement, by the page's name", () => {
+    const row = { userId: "a", name: "Ann", interviews: 7, feedbackFiled: 0, onTime: 0, late: 0, notFiled: 7, medianHoursToFeedback: null };
+    const p = props({ feedback: [row] });
+    expect(p.outstanding?.more).toEqual({ href: "/client/interviews", label: "All 7 in Interview Judgement" });
+    expect(p.bottlenecks.find((b) => b.key === "feedback")).toMatchObject({ label: "Open Interview Judgement", href: "/client/interviews" });
+  });
+});

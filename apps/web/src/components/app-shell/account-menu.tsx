@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TourButton } from "@/components/app-shell/shell-tour";
+import { useWarmth } from "@/components/app-shell/warmth";
 import { Kbd } from "@/components/keys";
 import { SIGN_OUT_KEYS, menuKey, stepIndex } from "@/lib/keys";
 import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
 import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
+import { MAX_WARMTH, warmthHint } from "@/lib/warmth";
 
 // design/tats's account menu: your name alone as a quiet button at the bottom
 // of the sidebar, opening who you are, Onboarding, Settings, Tutorial, the theme and Sign out. On the
 // rail the name has no room, so a person glyph opens the same menu: the theme
-// and Sign out stay a click away. The menu is portalled to <body>: the sidebar
+// and Sign out stay a click away. Under the theme, the warmth fix for this
+// display (Off, 1-4; app-shell/warmth.tsx). The menu is portalled to <body>: the sidebar
 // clips, and on a phone its transform would trap a fixed box.
 
 const GLYPHS = {
@@ -48,11 +51,17 @@ function applyTheme(choice: ThemeChoice) {
   document.cookie = themeCookie(choice);
 }
 
+const WARMTH_STEPS = Array.from({ length: MAX_WARMTH + 1 }, (_, k) => k);
+
+const pillCls = "grid h-7 place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]";
+const pillState = (on: boolean) => (on ? "bg-[color:var(--ink)] text-[color:var(--paper)]" : "text-muted-foreground hover:text-foreground");
+
 const optionCls = "flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13.5px] outline-none hover:bg-[color:var(--hover)] focus:bg-[color:var(--hover)]";
 
 export function AccountMenu({ user, rail, pathname }: { user: { name: string; email: string; level: string }; rail: boolean; pathname: string }) {
   const [at, setAt] = useState<{ left: number; bottom: number } | null>(null);
   const [theme, setTheme] = useState<ThemeChoice>("system");
+  const warmth = useWarmth();
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const open = at !== null;
@@ -171,12 +180,31 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                         applyTheme(t.value);
                         setTheme(t.value);
                       }}
-                      className={cn(
-                        "grid h-7 w-[34px] place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]",
-                        theme === t.value ? "bg-[color:var(--ink)] text-[color:var(--paper)]" : "text-muted-foreground hover:text-foreground",
-                      )}
+                      className={cn(pillCls, "w-[34px]", pillState(theme === t.value))}
                     >
                       <Glyph name={t.value} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 border-t border-[color:var(--line)] py-1.5 pr-2 pl-4 text-[13.5px]">
+                <span className="inline-flex items-center gap-2.5" title={warmthHint(warmth.night)}>
+                  <Glyph name="system" className="text-muted-foreground" />
+                  Warmth fix
+                </span>
+                <div role="group" aria-label="Warmth correction for this display" className="pill-track inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
+                  {WARMTH_STEPS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={warmth.level === k}
+                      aria-label={k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "Off, no correction"}
+                      title={k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "No correction"}
+                      onClick={() => warmth.set(k)}
+                      className={cn(pillCls, "min-w-[26px] px-[7px] text-[12px] tabular-nums", pillState(warmth.level === k))}
+                    >
+                      {k ? k : "Off"}
                     </button>
                   ))}
                 </div>

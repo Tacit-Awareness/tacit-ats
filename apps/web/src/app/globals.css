@@ -385,6 +385,12 @@
 
 /* a list-and-reader page (page.tsx ListReader) fills the panel edge to edge:
    the shell's page wrapper drops its padding and width cap around it */
+/* the account menu's warmth fix (lib/warmth.ts): the whole page through one colour matrix, only while this
+   display has a level set; Off has no class and no filter. On the root element a filter doesn't trap fixed pop-ups. */
+html.warmth-on {
+  filter: url(#tats-warmth);
+}
+
 /* one scale for the signed-in shell (lib/ui-scale.ts). The public pages have no .ui-root, so they never zoom. */
 body:has(.ui-root) {
   zoom: var(--ui-scale);
@@ -834,6 +840,21 @@ body:has(.ui-root) {
   *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* The post-interview read as a chat transcript (interviews/view.tsx's ReadThread):
+   its messages rise in one after another, fading and un-blurring, quickly. */
+@media (prefers-reduced-motion: no-preference) {
+  .read-thread > * {
+    animation: read-in 0.2s var(--spring) calc(var(--i, 0) * 30ms) both;
+  }
+}
+@keyframes read-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    filter: blur(4px);
   }
 }
 

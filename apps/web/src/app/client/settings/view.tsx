@@ -17,7 +17,8 @@ import { RoutingRules } from "./routing-rules";
 // the same page shape as Interviewers. Both Connects run a sign-in on
 // the provider's own page and come back here: Google's consent
 // (/client/calendar/connect) and Granola's (/client/integrations/granola/connect).
-// Above them, design/tats's `.set-link`s to Onboarding and its Routing Rules.
+// Above them, design/tats's `.set-link`s to Onboarding and its Routing Rules,
+// and one of this app's own to Email templates (not for an interviewer).
 // Props only, so page.tsx does every read.
 export function SettingsView({
   calendar,
@@ -27,6 +28,7 @@ export function SettingsView({
   botConnected,
   orgName,
   botCallbackUrl,
+  templates = false,
   notice,
   error,
 }: {
@@ -39,6 +41,8 @@ export function SettingsView({
   botConnected?: boolean;
   orgName: string;
   botCallbackUrl: string | null;
+  /** Link Email templates: everyone but an interviewer, who doesn't email candidates. */
+  templates?: boolean;
   notice?: string;
   error?: string;
 }) {
@@ -66,6 +70,14 @@ export function SettingsView({
         title="Interview process"
         sub="Draw the steps from applying to an offer, who runs each one and how long it takes. The Grokbots route by it"
       />
+      {templates ? (
+        <SetLink
+          href="/client/settings/templates"
+          icon={MAIL}
+          title="Email templates"
+          sub="Your company's reusable emails to candidates. The reply box on New Applicants starts from them"
+        />
+      ) : null}
       <RoutingRules />
 
       <Section flush title="Integrations">
@@ -119,6 +131,7 @@ export function SettingsView({
 
 const USERS = "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2";
 const ROUTE = "M3 2.5h4v3.5H3ZM9 10h4v3.5H9ZM5 6v3a2 2 0 0 0 2 2h2";
+const MAIL = "M2 3.5h12v9H2ZM2.5 4l5.5 4.5L13.5 4";
 const ARROW = "M3 8h10M9 4l4 4-4 4";
 
 function LinkIcon({ path }: { path: string }) {
