@@ -1,14 +1,16 @@
 import type { Db, TablesUpdate } from "@tacit/db";
 
 import {
-  CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, addCandidateToRole, isApplicationStage, isCandidateSource, moveStage,
-  parseDueDate, setNextAction, type AddCandidateResult as CandidateOutcome, type ApplicationStage, type CandidateSource,
+  CANDIDATE_SOURCES, NEXT_ACTION_MAX, SOURCE_DETAIL_MAX, addToPipeline, isApplicationStage, isCandidateSource, moveStage,
+  parseCandidateIdentity, parseDueDate, setNextAction, type AddCandidateResult as CandidateOutcome, type ApplicationStage,
+  type CandidateSource,
 } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, NOTE_MAX, type ClientToolCtx } from "./context.js";
 import { ANONYMIZED_NAME } from "./merge.js";
 import { reasonForStage } from "./offers.js";
 import { openingFilledBy, type HireOpening } from "./openings.js";
+import { findOrAddPerson } from "./people.js";
 
 const REJECTION_NOTE_MAX = 2000;
 
@@ -61,11 +63,15 @@ export async function addCandidate(
     throw new ClientToolError("forbidden", "You can't add candidates to that job. Ask an admin at your company for hiring-team access to it.");
   }
   const result = await withAudit<CandidateOutcome>(db, ctx, { action: "application.add", entity: "application" }, async () => {
-    const r = await addCandidateToRole(db, {
-      orgId: ctx.orgId, roleId: input.jobId, actorId: ctx.actorId,
-      name: input.name, email: input.email, linkedinUrl: input.linkedinUrl, source, sourceDetail,
+    const who = parseCandidateIdentity(input);
+    if ("status" in who) return { result: who, entityId: null, changed: false };
+    // Find-or-create by email here rather than in @tacit/core's addCandidateToRole,
+    // so a parallel add of the same address lands on one person (people.ts).
+    const person = await findOrAddPerson(db, ctx, who);
+    const added = await addToPipeline(db, {
+      personId: person.personId, roleId: input.jobId, actorId: ctx.actorId, source, sourceDetail,
     });
-    if (r.status === "invalid") return { result: r, entityId: null, changed: false };
+    const r: CandidateOutcome = { ...added, personId: person.personId, personCreated: person.created };
     return {
       result: r,
       entityId: r.applicationId,
