@@ -24,7 +24,10 @@ describe("the sidebar's foot", () => {
     expect(tools).toContain('href="/client/settings"');
     expect(tools.indexOf("Tutorial")).toBeLessThan(tools.indexOf("Settings"));
     expect(foot.indexOf("Account: Sam")).toBeLessThan(foot.indexOf('class="sb-tools"'));
-    expect(foot.indexOf("Keyboard shortcuts")).toBeLessThan(foot.indexOf("Account: Sam"));
+    // Documentation and the keys are in the account menu now.
+    const sidebar = foot.slice(0, foot.indexOf("</aside>"));
+    expect(sidebar).not.toContain("Keyboard shortcuts");
+    expect(sidebar).not.toContain('href="/client/docs"');
   });
 
   test("has no Integrations link: its panels are in Settings", () => {

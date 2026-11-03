@@ -85,7 +85,7 @@ export const TOUR: TourStep[] = [
     href: null,
     targets: ['[data-tour="keys"]'],
     title: "One key per action",
-    body: "G then a letter goes to a page, J and K move through a list, and ? shows every key on the page you're on.",
+    body: "G then a letter goes to a page, J and K move through a list, and ? shows every key on the page you're on. Your name opens the list too, and the documentation.",
   },
 ];
 

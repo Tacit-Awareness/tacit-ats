@@ -6,7 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { HoverCard } from "@/components/hover-card";
-import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
+import { ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { PillGlass } from "@/components/app-shell/pill-glass";
 import { ShellMemory, useMarks, useOpenCount, useViews } from "@/components/app-shell/shell-memory";
 import { START_EVENT, ShellTour, TourButton } from "@/components/app-shell/shell-tour";
@@ -20,7 +20,8 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 
 // design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
 // far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking) and Onboarding, with Documentation, the keys, your name, then Tutorial and Settings at the bottom.
+// sections (Top of Funnel, Routing & Tracking) and Onboarding, with your name, then Tutorial and Settings at the bottom.
+// Documentation and the keys are in the menu your name opens (account-menu.tsx).
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
 // edge to open it again), ⌘K opens the command menu. The sidebar is for getting
@@ -474,12 +475,6 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         </Section>
 
         <div className="sb-foot">
-          <nav className="sb-group" aria-label="Help">
-            <NavItem link={DOCS} active={isActive(DOCS)} rail={rail} />
-            <KeysButton className={cn(itemCls(false), "max-md:hidden")}>
-              <span className="sb-label">Keyboard shortcuts</span>
-            </KeysButton>
-          </nav>
           <AccountMenu user={user} rail={rail} pathname={pathname} />
           {/* design/tats's foot: Tutorial and Settings side by side under your name. */}
           <div className="sb-tools">

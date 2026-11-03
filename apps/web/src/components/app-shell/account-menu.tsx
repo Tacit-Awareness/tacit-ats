@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { openKeys } from "@/components/app-shell/shell-keys";
 import { TourButton } from "@/components/app-shell/shell-tour";
 import { useWarmth } from "@/components/app-shell/warmth";
 import { Kbd } from "@/components/keys";
@@ -13,7 +14,8 @@ import { cn } from "@/lib/utils";
 import { MAX_WARMTH, warmthHint } from "@/lib/warmth";
 
 // design/tats's account menu: your name alone as a quiet button at the bottom
-// of the sidebar, opening who you are, Onboarding, Settings, Tutorial, the theme and Sign out. On the
+// of the sidebar, opening who you are, Onboarding, Settings, Tutorial, Documentation,
+// the keyboard shortcuts, the theme and Sign out. On the
 // rail the name has no room, so a person glyph opens the same menu: the theme
 // and Sign out stay a click away. Under the theme, the warmth fix for this
 // display (Off, 1-4; app-shell/warmth.tsx). The menu is portalled to <body>: the sidebar
@@ -24,6 +26,8 @@ const GLYPHS = {
   sliders: "M2.5 5h6M11.5 5h2M2.5 11h2M7.5 11h6M10 3.5v3M6 9.5v3",
   gear: "M12.61 6.05 L14.22 6.48 L14.22 9.52 L12.61 9.95 L12.63 9.88 L13.47 11.32 L11.32 13.47 L9.88 12.63 L9.95 12.61 L9.52 14.22 L6.48 14.22 L6.05 12.61 L6.12 12.63 L4.68 13.47 L2.53 11.32 L3.37 9.88 L3.39 9.95 L1.78 9.52 L1.78 6.48 L3.39 6.05 L3.37 6.12 L2.53 4.68 L4.68 2.53 L6.12 3.37 L6.05 3.39 L6.48 1.78 L9.52 1.78 L9.95 3.39 L9.88 3.37 L11.32 2.53 L13.47 4.68 L12.63 6.12Z M10.2 8a2.2 2.2 0 1 1-4.4 0a2.2 2.2 0 1 1 4.4 0Z",
   tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
+  help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
+  keys: "M2 4.5h12v7H2ZM4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.5h6",
   signout: "M6.5 3H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2.5M9.5 5.2 12.3 8l-2.8 2.8M12.3 8H6",
   light: "M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1",
   dark: "M13.5 9.4A5.8 5.8 0 0 1 6.6 2.5a5.8 5.8 0 1 0 6.9 6.9Z",
@@ -123,7 +127,8 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account: ${name}`}
-        title="Account, theme and sign out"
+        title="Account, help, theme and sign out"
+        data-tour="keys"
         className="sb-acct"
       >
         <Glyph name="person" className="sb-acct-glyph" />
@@ -161,6 +166,27 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                   <Glyph name="tour" className="text-muted-foreground" />
                   Tutorial
                 </TourButton>
+              </div>
+              <div className="border-t border-[color:var(--line)] p-1">
+                <Link href="/client/docs" role="menuitem" onClick={close} className={optionCls}>
+                  <Glyph name="help" className="text-muted-foreground" />
+                  Documentation
+                </Link>
+                {/* No phone has the keys, so no phone gets the sheet. */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  aria-keyshortcuts="?"
+                  onClick={() => {
+                    close();
+                    openKeys();
+                  }}
+                  className={cn(optionCls, "max-md:hidden")}
+                >
+                  <Glyph name="keys" className="text-muted-foreground" />
+                  <span className="flex-1">Keyboard shortcuts</span>
+                  <Kbd decorative>?</Kbd>
+                </button>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-[color:var(--line)] py-1.5 pr-2 pl-4 text-[13.5px]">
                 <span className="inline-flex items-center gap-2.5">
