@@ -154,6 +154,37 @@ describe("updateJob", () => {
     expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
   });
 
+  test("a status picked against one the job no longer has is refused, nothing claimed", async () => {
+    // Read open; someone paused it since; this caller still thinks it is closed.
+    const fake = new FakeSupabase([{ data: { ...JOB, status: "paused" } }, { data: true }]);
+    const err = await refusal(updateJob(fake.asDb(), ctx(), { jobId: "role-1", title: "Staff engineer", status: "open", expectedStatus: "closed" }));
+    expect(err.code).toBe("invalid");
+    expect(err.message).toMatch(/status changed since it was read/);
+    expect(fake.calls.map((c) => c.table)).toEqual(["roles", "can_on_role"]);
+  });
+
+  test("the expected status is a condition on the write, and a write that misses it is the same refusal", async () => {
+    const ok = new FakeSupabase([{ data: JOB }, { data: true }, { data: "audit-1" }, { data: [{ id: "role-1" }] }, { data: null }]);
+    expect(await updateJob(ok.asDb(), ctx(), { jobId: "role-1", status: "paused", expectedStatus: "open" })).toEqual({ outcome: "updated", changed: ["status"] });
+    expect(ok.calls.find((c) => c.op === "update")?.filters).toEqual([
+      { method: "eq", column: "id", value: "role-1" }, { method: "eq", column: "status", value: "open" },
+    ]);
+
+    // Moved on between the read and the write: no row matched, the claim is given back.
+    const raced = new FakeSupabase([{ data: JOB }, { data: true }, { data: "audit-1" }, { data: [] }, { data: null }]);
+    expect((await refusal(updateJob(raced.asDb(), ctx(), { jobId: "role-1", status: "paused", expectedStatus: "open" }))).message).toMatch(/status changed/);
+    expect(lastFinish(raced)?.args).toMatchObject({ p_keep: false });
+  });
+
+  test("an expected status that does not match is no refusal when the status is not changing", async () => {
+    // A title alone, or the status it already has: the status is not written, so it is not checked.
+    const fake = new FakeSupabase([{ data: { ...JOB, status: "paused" } }, { data: true }, { data: "audit-1" }, { data: [{ id: "role-1" }] }, { data: null }]);
+    expect(await updateJob(fake.asDb(), ctx(), { jobId: "role-1", title: "Staff engineer", status: "paused", expectedStatus: "open" }))
+      .toEqual({ outcome: "updated", changed: ["title"] });
+    expect(fake.calls.find((c) => c.op === "update")?.args).not.toHaveProperty("status");
+    expect(fake.calls.find((c) => c.op === "update")?.filters).toEqual([{ method: "eq", column: "id", value: "role-1" }]);
+  });
+
   test("seeing a job is not managing it", async () => {
     const fake = new FakeSupabase([{ data: JOB }, { data: false }]);
     expect((await refusal(updateJob(fake.asDb(), ctx("elevated"), { jobId: "role-1", status: "closed" }))).code).toBe("forbidden");

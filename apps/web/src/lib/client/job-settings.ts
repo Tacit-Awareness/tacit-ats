@@ -40,7 +40,7 @@ export async function readJobSettings(
   return { jobId: job.id, title: job.title, status: job.status, openings };
 }
 
-export const changeJob = (db: Db, ctx: clientTools.ClientToolCtx, input: { jobId: string; title?: string; status?: SettableStatus }) =>
+export const changeJob = (db: Db, ctx: clientTools.ClientToolCtx, input: { jobId: string; title?: string; status?: SettableStatus; expectedStatus?: string }) =>
   refused(() => clientTools.updateJob(db, ctx, input));
 
 export const addJobOpenings = (db: Db, ctx: clientTools.ClientToolCtx, input: { jobId: string; count: number }) =>

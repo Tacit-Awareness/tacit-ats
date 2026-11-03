@@ -100,7 +100,12 @@ export async function saveJobAction(_prev: JobFormState, form: FormData): Promis
     settingsFailed(err);
     return { error: "failed", draft: parsed.draft };
   }
-  if (!outcome.ok) return { error: outcome.error, draft: parsed.draft };
+  if (!outcome.ok) {
+    // The status moved on since the page read it: nothing was saved, and the
+    // page is read again so the form opens on the status the job has now.
+    if (outcome.error === "status_changed") revalidatePath("/client", "layout");
+    return { error: outcome.error, draft: parsed.draft };
+  }
   // Its title and status are on Job Postings, the board, Home and every page that names the job.
   revalidatePath("/client", "layout");
   return { notice: outcome.value.outcome === "updated" ? "saved" : "unchanged" };
