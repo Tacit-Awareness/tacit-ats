@@ -28,6 +28,8 @@
 
 /* The flowchart. */
 .fc { position: relative; height: max(520px, calc(100 * var(--vh) - 380px)); overflow: hidden; background: var(--surface); border: 1px solid var(--line); user-select: none; }
+/* Over Interview Judgement (interviews/process-sheet.tsx), the canvas takes what the sheet leaves. */
+.proc-sheet .fc { height: max(360px, calc(100 * var(--vh) - 250px)); }
 .fc-vp { position: absolute; inset: 0; cursor: grab; background-image: radial-gradient(circle, var(--line-strong) 1px, transparent 1.2px); touch-action: none; }
 .fc-vp:active { cursor: grabbing; }
 .fc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }

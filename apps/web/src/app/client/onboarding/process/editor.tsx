@@ -21,7 +21,8 @@ import { SAVE_ERRORS, STALE_SAVE } from "./messages";
 
 type Said = { tone: "info" | "error"; text: string } | null;
 
-export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: boolean }) {
+/** `onDirty` hears whether there is anything unsaved, for a sheet that has to ask before it closes. */
+export function ProcessEditor({ read, canEdit, onDirty }: { read: ProcessRead; canEdit: boolean; onDirty?: (dirty: boolean) => void }) {
   const [state, dispatch] = useReducer(editorReducer, read.graph, editorState);
   const [view, setView] = useState<"canvas" | "list">("canvas");
   const [saved, setSaved] = useState(() => ({ text: JSON.stringify(read.graph), updatedAt: read.updatedAt, drawn: read.drawn }));
@@ -33,6 +34,8 @@ export function ProcessEditor({ read, canEdit }: { read: ProcessRead; canEdit: b
   const dirty = useMemo(() => JSON.stringify(state.graph) !== saved.text, [state.graph, saved.text]);
   const { problems, gaps } = useMemo(() => validateGraph(state.graph, read.lookup), [state.graph, read.lookup]);
   const flagged = useMemo(() => new Set(problems.flatMap((p) => p.nodeId ?? [])), [problems]);
+
+  useEffect(() => onDirty?.(dirty && canEdit), [dirty, canEdit, onDirty]);
 
   // Closing the tab, and a link in the app, which changes page with no `beforeunload`.
   useEffect(() => {

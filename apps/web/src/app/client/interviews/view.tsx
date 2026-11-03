@@ -6,6 +6,7 @@ import type { GroupKey, Verdict } from "@/lib/client/interview-groups";
 import type { LoopPerson, LoopRound as Round, RouteNode, RouteState, RouteView } from "@/lib/client/interview-loop";
 import { cn } from "@/lib/utils";
 import { LoopRow, RouteRow } from "./loop-row";
+import { ProcessSheet } from "./process-sheet";
 import { ReviewCount, ReviewKey, ReviewProvider, ReviewRow } from "./review";
 
 // The Interviews page's markup, props only (page.tsx does the reads):
@@ -56,7 +57,7 @@ export type Reader = {
   rounds: LoopRound[];
   /** The company's process with this candidate on it; null keeps the row of rounds. */
   route: RouteView<LoopRound> | null;
-  /** Where an admin changes the process. Null for anyone else. */
+  /** Onboarding's process step, which an admin's Edit the process opens over the reader (process-sheet.tsx). Null for anyone else. */
   editProcess: string | null;
   /** Plan steps this member cannot see, an interviewer reading only their own interviews. */
   partial: boolean;
@@ -331,7 +332,10 @@ export function Loop({ reader }: { reader: LoopProps }) {
           <b className="font-medium">{reader.candidate}</b>
           <span className="text-muted-foreground"> · {reader.loopLine}</span>
         </p>
-        <span className="inline-flex h-6 flex-none items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
+        <span className="flex flex-none items-center gap-2">
+          <span className="inline-flex h-6 flex-none items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
+          {reader.editProcess ? <ProcessSheet href={reader.editProcess} /> : null}
+        </span>
       </div>
       {route ? <Route route={route} /> : null}
       {route && route.offPlan.length ? <p className="m-0 text-xs text-faint">Not on the plan</p> : null}
@@ -344,11 +348,6 @@ export function Loop({ reader }: { reader: LoopProps }) {
             </li>
           ))}
         </LoopRow>
-      ) : null}
-      {reader.editProcess ? (
-        <Link href={reader.editProcess} className="justify-self-start text-[12.5px] font-medium text-[color:var(--accent)] hover:underline hover:underline-offset-3">
-          Edit the process →
-        </Link>
       ) : null}
       {reader.partial ? <p className="m-0 text-xs text-faint">You see the rounds you interview on; the rest of the loop is the hiring team&apos;s.</p> : null}
     </section>

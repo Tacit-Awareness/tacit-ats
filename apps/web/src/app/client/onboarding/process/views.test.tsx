@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test, vi } from "vitest";
 
-vi.mock("./actions", () => ({ saveProcessAction: vi.fn(), previewApplyAction: vi.fn(), applyProcessAction: vi.fn() }));
+vi.mock("./actions", () => ({ readProcessAction: vi.fn(), saveProcessAction: vi.fn(), previewApplyAction: vi.fn(), applyProcessAction: vi.fn() }));
 
 import type { ProcessRead } from "@/lib/client/process";
 import { editorState } from "@/lib/client/process-editor";
