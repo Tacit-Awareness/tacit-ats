@@ -94,7 +94,7 @@ function Menu({ anchor, options, carried, onFlip, onClose }: { anchor: DOMRect; 
       role="menu"
       aria-label="Labels"
       style={{ width: WIDTH }}
-      className="fixed z-[55] flex max-h-[280px] flex-col gap-px overflow-y-auto border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+      className="fixed z-[55] flex max-h-[280px] flex-col gap-px overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
     >
       <p className="m-0 flex-none px-2 py-1 text-[12px] text-faint">Labels</p>
       {options.map((o, i) => {

@@ -156,7 +156,7 @@ export function ShellTour() {
         aria-modal="true"
         aria-labelledby="tour-title"
         aria-live="polite"
-        className={cn("absolute w-[320px] max-w-[calc(100vw-32px)] bg-raised p-5 text-foreground shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
+        className={cn("absolute w-[320px] max-w-[calc(100vw-32px)] rounded-[12px] bg-raised p-5 text-foreground shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
         style={placed?.card}
       >
         <div className="text-[12.5px] font-medium text-[color:var(--accent)]">

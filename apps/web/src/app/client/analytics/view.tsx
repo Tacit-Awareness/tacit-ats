@@ -217,7 +217,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
   const fill = (j: number) => ({ background: p.segments[j].color });
   return (
     <Page bar={<Bar {...header} />}>
-      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         <div className="flex items-baseline px-4 pt-5 min-[768px]:px-6">
           <h2 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">Pipeline</h2>
           <span className="flex-1" />

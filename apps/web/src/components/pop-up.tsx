@@ -115,7 +115,7 @@ export function PopUp({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pop-dialog flex w-full max-w-[1280px] min-w-0 flex-col overflow-hidden bg-[color:var(--paper)] shadow-[var(--pop-shadow)]"
+        className="pop-dialog flex w-full max-w-[1280px] min-w-0 flex-col overflow-hidden sm:rounded-[12px] bg-[color:var(--paper)] shadow-[var(--pop-shadow)]"
       >
         <header className="flex min-h-14 flex-none items-center gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] py-2 pr-3 pl-4 md:pl-6">
           <div className="grid min-w-0 flex-1 gap-0.5">

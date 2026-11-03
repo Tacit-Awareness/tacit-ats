@@ -99,7 +99,7 @@ export function MoveMenu({ at, onPick, onClose, focusRow }: { at: MenuAt; onPick
       role="menu"
       aria-label={`Move ${at.card.name}`}
       style={{ width: MENU_WIDTH }}
-      className="fixed z-50 grid gap-px border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+      className="fixed z-50 grid gap-px rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
     >
       {at.open ? (
         <Link href={at.open.href} scroll={at.open.scroll} role="menuitem" tabIndex={-1} onClick={onClose} className={MENU_ITEM}>

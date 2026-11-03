@@ -66,7 +66,7 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
         className="h-[30px] w-full border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--accent)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--accent)_18%,transparent)]"
       />
       {query.trim() ? (
-        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
+        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 rounded-[10px] border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
           {results.length ? (
             results.map((p) => (
               <Link

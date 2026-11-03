@@ -16,10 +16,12 @@
    cookie, which the root layout renders as <html data-theme>, so there is no
    flash of the wrong theme and no before-paint script.
 
-   Structure is square and anything you press is a pill: --radius is 0, and a
-   pill says rounded-full. A set of options is one grey pill track with the
-   picked one dark (`pillTrack` and `pillOption` in components/page.tsx). A
-   sidebar row is the exception, 8px (.sb-item).
+   Anything you press is a pill (rounded-full), and a set of options is one
+   grey pill track with the picked one dark (`pillTrack` and `pillOption` in
+   components/page.tsx). Structure keeps its own rounding, as design/tats-ui-update
+   does since it dropped the prototype's square rule: a panel, section, card or
+   dialog 12px, a menu or popover 10px, a sidebar row, board card or field 8px.
+   Tailwind's named radii are its own again.
 
    Until 2026-10-29 these were tacit-internal's apps/internal tokens (its
    green-black Overseer skin); the names stayed, so the components did not
@@ -136,7 +138,6 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --radius: 0px; /* structure is square; see the header */
   color-scheme: light;
 
   /* legacy names still referenced by components; mapped onto the palette */
@@ -334,16 +335,6 @@
   --color-positive-soft: var(--green-soft);
   --color-negative: var(--red);
   --color-negative-soft: var(--red-soft);
-
-  /* square by default: Tailwind's named radii all resolve to --radius, so a
-     stray rounded-lg stays square. A pill or a dot is rounded-full. */
-  --radius-xs: var(--radius);
-  --radius-sm: var(--radius);
-  --radius-md: var(--radius);
-  --radius-lg: var(--radius);
-  --radius-xl: var(--radius);
-  --radius-2xl: var(--radius);
-  --radius-3xl: var(--radius);
 }
 
 @layer base {
@@ -366,6 +357,16 @@
   ::selection {
     background: var(--accent-soft);
     color: var(--ink);
+  }
+  /* the rounding a component does not set itself (see the header); a utility wins */
+  dialog {
+    border-radius: 12px;
+  }
+  input:not([type="checkbox"], [type="radio"], [type="range"]),
+  select,
+  textarea,
+  .toast {
+    border-radius: 8px;
   }
 }
 

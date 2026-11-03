@@ -294,7 +294,7 @@ export function BulkBar({ options }: { options: BulkOptions }) {
         <div
           role="toolbar"
           aria-label="Bulk actions"
-          className="sticky bottom-[18px] z-[2] mx-auto my-2 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-0.5 border border-[color:var(--line-strong)] bg-raised py-1 pr-1 pl-3 text-[13.5px] shadow-[var(--pop-shadow)]"
+          className="sticky bottom-[18px] z-[2] mx-auto my-2 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-0.5 rounded-[12px] border border-[color:var(--line-strong)] bg-raised py-1 pr-1 pl-3 text-[13.5px] shadow-[var(--pop-shadow)]"
         >
           <span role="status" className="mr-1.5 font-medium tabular-nums">
             {picked.size.toLocaleString("en-US")} selected

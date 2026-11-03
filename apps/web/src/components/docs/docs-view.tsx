@@ -127,7 +127,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                   <code className="bg-[color:var(--soft-strong)] px-[5px] py-px font-mono text-[12.5px] text-foreground">{children}</code>
                 ),
               pre: ({ children }) => (
-                <div className="mt-3 overflow-hidden border border-[color:var(--line)] bg-card">
+                <div className="mt-3 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-card">
                   <div className="flex items-center justify-between border-b border-border px-3 py-0.5">
                     <span className="font-mono text-[11.5px] text-muted-foreground">{codeLanguage(children)}</span>
                     <CopyButton value={textOf(children).replace(/\n$/, "")} label="Copy" />
@@ -136,7 +136,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                 </div>
               ),
               table: ({ children }) => (
-                <div className="mt-3 overflow-x-auto border border-[color:var(--line)] bg-card">
+                <div className="mt-3 overflow-x-auto rounded-[12px] border border-[color:var(--line)] bg-card">
                   <table className="w-full border-collapse text-left text-[13px]">{children}</table>
                 </div>
               ),

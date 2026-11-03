@@ -130,7 +130,7 @@ export function SearchBox({
   return (
     <form action={action} method="get" role="search" className="w-full sm:w-[220px]">
       {Object.entries(keep ?? {}).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
-      <label className="flex h-7 items-center gap-2 border border-[color:var(--line)] bg-[color:var(--paper)] pr-1.5 pl-2.5 text-faint focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
+      <label className="flex h-7 items-center gap-2 rounded-[8px] border border-[color:var(--line)] bg-[color:var(--paper)] pr-1.5 pl-2.5 text-faint focus-within:border-[color:var(--line-strong)] focus-within:shadow-[var(--shadow)]">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" className="size-[13px] shrink-0" aria-hidden>
           <path d="M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3" />
         </svg>
@@ -206,7 +206,7 @@ export function StatStrip({ stats, className }: { stats: Stat[]; className?: str
         // outside the clipped box. So the strip stays ruled when it wraps onto
         // a second row in a narrow column, and a short last row leaves card,
         // not a grey hole.
-        "grid overflow-hidden border border-[color:var(--line)] bg-card [grid-template-columns:repeat(auto-fit,minmax(118px,1fr))]",
+        "grid overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-card [grid-template-columns:repeat(auto-fit,minmax(118px,1fr))]",
         className,
       )}
     >
@@ -285,7 +285,7 @@ export function Section({
   return (
     <section
       className={cn(
-        "grid min-w-0 content-start border border-[color:var(--line)] bg-card text-[13px] shadow-[var(--shadow)]",
+        "grid min-w-0 content-start rounded-[12px] border border-[color:var(--line)] bg-card text-[13px] shadow-[var(--shadow)]",
         flush ? "grid-cols-[minmax(0,1fr)] gap-0 overflow-hidden" : "gap-2.5 px-4 py-3.5",
         className,
       )}
@@ -605,7 +605,7 @@ export function AppTile({ children, className }: { children: React.ReactNode; cl
   return (
     <span
       className={cn(
-        "grid size-[30px] flex-none place-items-center border border-[color:var(--line)] bg-[color:var(--paper)]",
+        "grid size-[30px] flex-none place-items-center rounded-[8px] border border-[color:var(--line)] bg-[color:var(--paper)]",
         className,
       )}
     >

@@ -139,7 +139,7 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
               role="menu"
               aria-label="Account"
               style={at}
-              className="fixed z-[60] max-h-[calc(100*var(--vh)-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
+              className="fixed z-[60] max-h-[calc(100*var(--vh)-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
             >
               <div className="grid gap-1 px-4 pt-4 pb-3">
                 <div className="flex min-w-0 items-center gap-2">

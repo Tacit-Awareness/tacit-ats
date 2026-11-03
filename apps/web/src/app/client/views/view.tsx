@@ -41,7 +41,7 @@ function Glyph({ d, className }: { d: string; className?: string }) {
 
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+    <section aria-label={title} className="overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
       <h2 className="m-0 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-[18px] pt-3.5 pb-2.5 text-[14px] font-semibold">{title}</h2>
       {children}
     </section>

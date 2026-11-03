@@ -205,7 +205,7 @@ export function ReferralsView({
     >
       {notice ? <FlashToast text={notice} /> : null}
       <div className={cn("grid items-start gap-4", referrers && "min-[1100px]:grid-cols-[minmax(0,1fr)_320px]")}>
-        <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+        <section aria-label={tabLabel} className="grid min-w-0 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
           {empty ? (
             <Empty className="px-4 py-3">{empty}</Empty>
           ) : (

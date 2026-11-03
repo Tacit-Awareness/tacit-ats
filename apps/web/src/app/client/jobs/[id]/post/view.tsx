@@ -76,7 +76,7 @@ export function PostingView({
     >
       {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
-      <article className="border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
+      <article className="rounded-[12px] border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
         <h2 className="m-0 mb-5 text-[28px] leading-[1.15] font-medium tracking-[-0.025em] sm:mb-9 sm:text-[38px]">{post.title}</h2>
         <div className="grid gap-5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-12">
           <aside className="flex flex-col">

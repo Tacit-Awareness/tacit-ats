@@ -231,7 +231,7 @@ export function InterviewersView({
   const grid = gridOf(feedback);
   return (
     <Page bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
-      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3.5 text-[13.5px] font-medium">
           Interviewers
           {empty ? null : <Count>{total}</Count>}

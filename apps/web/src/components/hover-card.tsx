@@ -132,7 +132,7 @@ export function HoverCard() {
 /** `.hcard`: the avatar and who, the stage, the rows, the way on. A row with nothing to say isn't in `rows`. */
 export function CardBody({ card }: { card: HoverCardData }) {
   return (
-    <div className="grid gap-2.5 border border-[color:var(--line-strong)] bg-raised p-3 text-[13px] shadow-[var(--pop-shadow)]">
+    <div className="grid gap-2.5 rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-3 text-[13px] shadow-[var(--pop-shadow)]">
       <div className="flex min-w-0 items-center gap-2.5">
         <Avatar name={card.name} size="xl" candidate={card.kind === "candidate"} />
         <div className="grid min-w-0 gap-0.5">

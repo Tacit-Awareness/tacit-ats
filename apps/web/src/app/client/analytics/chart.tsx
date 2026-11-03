@@ -142,7 +142,7 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
             )}
             <div
               className={cn(
-                "pointer-events-none absolute top-1 z-[3] grid gap-px bg-raised px-2.5 py-2 text-[12px] whitespace-nowrap shadow-[var(--pop-shadow)]",
+                "pointer-events-none absolute top-1 z-[3] grid gap-px rounded-[8px] bg-raised px-2.5 py-2 text-[12px] whitespace-nowrap shadow-[var(--pop-shadow)]",
                 hx > 70 ? "-translate-x-[calc(100%+12px)]" : "translate-x-3",
               )}
               style={{ left: `${hx}%` }}

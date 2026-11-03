@@ -133,7 +133,7 @@ export function CrmView({
         </>
       }
     >
-      <section aria-label={viewLabel} className="min-w-0 border border-[color:var(--line)] bg-[color:var(--paper)]">
+      <section aria-label={viewLabel} className="min-w-0 rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
         {empty ? (
           <Empty className="px-4 py-3">{empty}</Empty>
         ) : (
