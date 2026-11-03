@@ -45,7 +45,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 
 ## Where to begin
 
-- **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings**, and read [Access levels](/docs/access) to see what you can reach.
+- **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings** (unless your company connected its Google Workspace, which does it for you), and read [Access levels](/docs/access) to see what you can reach.
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Applicant Tickets & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
 
@@ -915,7 +915,7 @@ An admin does this once, with your Google Workspace admin, in a few minutes:
 2. Your Google Workspace admin opens the [Google Admin console](https://admin.google.com) › **Security** › **Access and data control** › **API controls** › **Manage Domain Wide Delegation**, chooses **Add new**, pastes the client ID and the permissions, and authorizes.
 3. Back in Tacit, press **Verify**. Tacit asks Google to act as you; it can take a few minutes after authorizing before Google agrees.
 
-From then on it covers everyone at your address's domain who has signed in to Tacit, above interviewer: their candidate email goes out from their own address, and interviews are booked on their own Google Calendar, with busy times read from it. Anyone it doesn't cover, an interviewer included, connects their own calendar in **Settings** if they want one. **Disconnect** there stops it.
+From then on it covers everyone at your address's domain who has signed in to Tacit: interviews are booked on their own Google Calendar, with busy times read from it, interviewers included, and candidate email goes out from their own address (everyone above interviewer, since interviewers don't email candidates). Nobody connects anything. Only someone at another domain connects their own calendar or Gmail in **Settings**. **Disconnect** there stops it.
 
 **Connected before Calendar was part of it?** **Settings** › **Google Workspace** says so to an admin, with the permissions to add. Your Google Workspace admin edits Tacit's entry under **Manage Domain Wide Delegation** and adds the two calendar permissions, then an admin presses **Verify again**. Until then, anyone who connected their own calendar keeps booking through it.
 
@@ -961,7 +961,7 @@ On the **Interview Calendar** page you can do the same without Claude: **Book**,
 
 ## Connect your calendar
 
-**If your company has connected its Google Workspace** ([how](/docs/email#connecting-your-companys-google-workspace)), there is nothing to connect: Tacit books on your work calendar through it, and **Settings** › **Google Calendar** says so. That covers everyone at your company's domain who has signed in, above interviewer.
+**If your company has connected its Google Workspace** ([how](/docs/email#connecting-your-companys-google-workspace)), there is nothing to connect: Tacit books on your work calendar through it, and **Settings** › **Google Calendar** says so. That covers everyone at your company's domain who has signed in, interviewers included.
 
 Otherwise, open **Settings** › **Google Calendar** and choose **Connect**. Tacit asks Google for two things: to see when you are busy, and to add and change the interview events it books. You can disconnect there at any time. Microsoft Outlook calendars are not supported yet.
 

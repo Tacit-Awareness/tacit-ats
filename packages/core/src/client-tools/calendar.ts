@@ -24,10 +24,10 @@ import { delegatedAccessToken, domainOf, type DelegationSigner } from "./mailbox
  * Before any of that, the company's Google Workspace (2026-11-02), the way
  * Ashby has one admin setup for Gmail and Calendar: the admin who delegated
  * Gmail to Tacit's service account (mailbox.ts) adds the two calendar scopes
- * to the same entry, and every member it covers (signed in, above
- * interviewer, their address at the verified domain: the rule memberMailbox
- * applies to the caller) is booked AS themselves through it, with nothing to
- * connect. Their own connection, if they made one, stays as the fallback for
+ * to the same entry, and every member it covers (signed in, their address
+ * at the verified domain; interviewers too, unlike Gmail, since theirs are
+ * the calendars interviews go on) is booked AS themselves through it, with
+ * nothing to connect. Their own connection, if they made one, stays as the fallback for
  * when Google refuses the Workspace's grant (a company that has not added the
  * calendar scopes yet).
  */
@@ -199,7 +199,7 @@ export async function readCalendarConnections(
     serviceDb.from("calendar_connections").select("actor_id, account_email, refresh_token").eq("org_id", orgId).eq("provider", "google").in("actor_id", ids),
     opts.workspace ? serviceDb.from("google_workspace_connections").select("domain").eq("org_id", orgId).maybeSingle() : none,
     opts.workspace
-      ? serviceDb.from("actors").select("id, email, access_level, auth_subject").eq("org_id", orgId).is("archived_at", null).in("id", ids)
+      ? serviceDb.from("actors").select("id, email, auth_subject").eq("org_id", orgId).is("archived_at", null).in("id", ids)
       : none,
   ]);
   if (own.error) throw new Error(`calendar_connections: ${own.error.message}`);
@@ -212,7 +212,8 @@ export async function readCalendarConnections(
   if (!domain) return found;
   for (const a of actors.data ?? []) {
     const email = a.email?.trim().toLowerCase();
-    if (!a.auth_subject || a.access_level === "limited" || !email || domainOf(email) !== domain) continue;
+    // Every signed-in member at the domain, interviewers included: their calendars are the ones interviews go on.
+    if (!a.auth_subject || !email || domainOf(email) !== domain) continue;
     const mine = found.get(a.id);
     found.set(a.id, { accountEmail: email, workspace: true, own: mine && !("workspace" in mine) ? mine : null });
   }

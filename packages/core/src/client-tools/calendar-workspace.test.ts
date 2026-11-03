@@ -19,20 +19,20 @@ describe("readCalendarConnections", () => {
   const ACTORS = [
     { id: "actor-1", email: "Me@Co.test", access_level: "admin", auth_subject: "user_me" },
     { id: "actor-2", email: "lee@co.test", access_level: "elevated", auth_subject: "user_lee" },
-    // An interviewer, someone invited and not signed in, and someone at another domain: not covered.
+    // An interviewer is covered too; someone invited and not signed in, and someone at another domain, are not.
     { id: "actor-3", email: "ivy@co.test", access_level: "limited", auth_subject: "user_ivy" },
     { id: "actor-4", email: "new@co.test", access_level: "admin", auth_subject: null },
     { id: "actor-5", email: "sam@elsewhere.test", access_level: "admin", auth_subject: "user_sam" },
   ];
 
   // The fake answers in the order queries finish: the Workspace's maybeSingle first, then the two lists.
-  test("covers a signed-in member above interviewer at the verified domain, keeping their own connection as the fallback", async () => {
+  test("covers every signed-in member at the verified domain, interviewers too, keeping their own connection as the fallback", async () => {
     const fake = new FakeSupabase([{ data: { domain: "co.test" } }, { data: OWN }, { data: ACTORS }]);
     const found = await readCalendarConnections(fake.asDb(), "org-1", ["actor-1", "actor-2", "actor-3", "actor-4", "actor-5", "actor-1"], { workspace: true });
     expect(found).toEqual(new Map([
       ["actor-1", { accountEmail: "me@co.test", workspace: true, own: { accountEmail: "me@gmail.test", refreshToken: "rt-me" } }],
       ["actor-2", { accountEmail: "lee@co.test", workspace: true, own: null }],
-      ["actor-3", { accountEmail: "ivy@co.test", refreshToken: "rt-ivy" }],
+      ["actor-3", { accountEmail: "ivy@co.test", workspace: true, own: { accountEmail: "ivy@co.test", refreshToken: "rt-ivy" } }],
     ]));
     // Every read is the org's own, for the members asked about, once each.
     for (const call of fake.calls) expect(call.filters).toContainEqual(expect.objectContaining({ column: "org_id", value: "org-1" }));

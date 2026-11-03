@@ -472,6 +472,7 @@ describe("through the company's Google Workspace", () => {
     "at-ws-ada@sw.test": { "ada@sw.test": [], "ivy@sw.test": [] },
     "at-ws-lee@sw.test": { "lee@sw.test": [] },
     "at-ws-hana@sw.test": { "ivy@sw.test": [] },
+    "at-ws-ivy@sw.test": { "ivy@sw.test": [] },
   };
 
   test("books on the admin's work calendar AS them, not through the connection they made, asking only the calendar scopes", async () => {
@@ -498,6 +499,15 @@ describe("through the company's Google Workspace", () => {
     expect(google.eventCalls()).toEqual([expect.objectContaining({ token: "at-ws-lee@sw.test" })]);
   });
 
+  test("an interviewer's own calendar is read AS them, and holds the event they interview on", async () => {
+    await verified();
+    const google = fakeGoogle({ busy: wsFree });
+    const answer = await runScheduleRequest(lead.db, lead.ctx, book({ interviewerIds: [IVY], confirmed: true }), { calendar: workspaceCalendarOf(google), now });
+    expect(answer).toMatchObject({ ok: true, kind: "booked", calendar: { status: "invited", organizer: { userId: IVY } } });
+    expect(await row(NEW_ID)).toMatchObject({ calendar_actor_id: IVY });
+    expect(google.eventCalls()).toEqual([expect.objectContaining({ method: "POST", token: "at-ws-ivy@sw.test" })]);
+  });
+
   test("a move follows to the event with the holder's Workspace grant", async () => {
     await verified();
     const google = fakeGoogle({ busy: wsFree });
@@ -508,20 +518,20 @@ describe("through the company's Google Workspace", () => {
 
   test("Google refusing the Workspace (calendar scopes not delegated yet) falls back to the member's own connection", async () => {
     await verified();
-    const google = fakeGoogle({ busy: free, workspaceRefused: ["ada@sw.test"] });
+    const google = fakeGoogle({ busy: { ...free, "at-ws-ivy@sw.test": { "ivy@sw.test": [] } }, workspaceRefused: ["ada@sw.test"] });
     expect(await runScheduleRequest(admin.db, admin.ctx, book({ confirmed: true }), { calendar: workspaceCalendarOf(google), now })).toMatchObject({ ok: true, kind: "booked" });
     expect(google.eventCalls()).toEqual([expect.objectContaining({ token: "at-ada" })]);
   });
 
-  test("covers only members of the verified company, signed in, above interviewer, at its domain", async () => {
+  test("covers only members of the verified company, signed in, at its domain: interviewers too", async () => {
     await verified();
     must(await db().from("actors").update({ auth_subject: null }).eq("id", HANA));
     const read = (orgId: string, ids: string[]) => clientTools.readCalendarConnections(db(), orgId, ids, { workspace: true });
     const acme = await read(ACME, [ADMIN, LEAD, IVY, HANA]);
     expect(acme.get(ADMIN)).toEqual({ accountEmail: "ada@sw.test", workspace: true, own: { accountEmail: "ada@sw.test", refreshToken: "rt-ada" } });
     expect(acme.get(LEAD)).toEqual({ accountEmail: "lee@sw.test", workspace: true, own: null });
-    // An interviewer is not covered; someone not signed in keeps only the connection they made.
-    expect(acme.has(IVY)).toBe(false);
+    // An interviewer is covered like anyone; someone not signed in keeps only the connection they made.
+    expect(acme.get(IVY)).toEqual({ accountEmail: "ivy@sw.test", workspace: true, own: null });
     expect(acme.get(HANA)).toEqual({ accountEmail: "hana@sw.test", refreshToken: "rt-hana" });
     // Gus is at the same domain, but Globex verified no Workspace, and Acme's is not his company's.
     expect((await read(GLOBEX, [GUS])).size).toBe(0);
