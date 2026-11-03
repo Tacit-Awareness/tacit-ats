@@ -121,6 +121,17 @@ describe("referralFile", () => {
     expect(await referralFile(new File([], ""))).toBeNull();
   });
 
+  test("an empty file input is no file, whatever name it arrives with", async () => {
+    // Production posts the untouched input as a zero-byte File named "blob" or "undefined".
+    for (const name of ["", "blob", "undefined", "cv.pdf"]) expect(await referralFile(new File([], name))).toBeNull();
+    expect(await referralFile(new File([], "blob", { type: "application/octet-stream" }))).toBeNull();
+  });
+
+  test("a real file is still taken", async () => {
+    expect(await referralFile(pdf("cv.pdf"))).toMatchObject({ filename: "cv.pdf", contentType: "application/pdf" });
+    expect(await referralFile(new File(["Jane Doe\nEngineer"], "cv.txt"))).toMatchObject({ filename: "cv.txt", contentType: "text/plain" });
+  });
+
   test("takes the type from the extension and cleans the name for core", async () => {
     expect(await referralFile(pdf("[Jane] CV #2.PDF"))).toMatchObject({ filename: "Jane CV 2.pdf", contentType: "application/pdf" });
     expect(await referralFile(pdf("###.pdf"))).toMatchObject({ filename: "Resume.pdf" });

@@ -27,3 +27,6 @@ export type ReferralError = keyof typeof REFERRAL_ERRORS;
 
 export const isReferralNotice = (v: unknown): v is ReferralNotice => typeof v === "string" && Object.hasOwn(REFERRAL_NOTICES, v);
 export const isReferralError = (v: unknown): v is ReferralError => typeof v === "string" && Object.hasOwn(REFERRAL_ERRORS, v);
+
+/** What addReferralAction answers the form on a refusal: a code, worded in place so what was typed stays. Once added it redirects. */
+export type ReferralState = { status: "idle" } | { status: "error"; error: ReferralError };

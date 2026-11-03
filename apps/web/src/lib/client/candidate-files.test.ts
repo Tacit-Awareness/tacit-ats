@@ -45,6 +45,8 @@ describe("uploadFile", () => {
     expect(await uploadFile(null, "Resume")).toBe("file_missing");
     expect(await uploadFile("text", "Resume")).toBe("file_missing");
     expect(await uploadFile(new File([], ""), "Resume")).toBe("file_missing");
+    // An untouched input can arrive as a zero-byte File with a name. A picked empty file is the browser's file_empty first.
+    for (const name of ["blob", "undefined", "cv.pdf"]) expect(await uploadFile(new File([], name), "Resume")).toBe("file_missing");
   });
 
   test("a PDF, by its extension and its bytes, base64 for core", async () => {
@@ -59,7 +61,6 @@ describe("uploadFile", () => {
 
   test("refusals say which rule", async () => {
     expect(await uploadFile(new File([PDF], "cv.html"), "Resume")).toBe("file_type");
-    expect(await uploadFile(new File([], "cv.pdf"), "Resume")).toBe("file_empty");
     expect(await uploadFile(new File([PNG], "cv.pdf"), "Resume")).toBe("file_mismatch");
     expect(await uploadFile(new File([new Uint8Array(clientTools.FILE_MAX_BYTES + 1)], "cv.pdf"), "Resume")).toBe("file_big");
   });

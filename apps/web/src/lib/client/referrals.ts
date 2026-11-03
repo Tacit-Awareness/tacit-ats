@@ -110,12 +110,17 @@ function resumeName(raw: string, ext: string): string {
   return `${stem || "Resume"}.${ext}`;
 }
 
-/** The form's file: null when none was picked, "invalid" when core would refuse it, so nobody is added first. */
+/**
+ * The form's file: null when none was picked, "invalid" when core would refuse
+ * it, so nobody is added first. An empty file input can reach the server with a
+ * name ("blob", "undefined", by browser and runtime), so any zero-byte upload
+ * counts as none picked.
+ */
 export async function referralFile(value: FormDataEntryValue | null): Promise<ReferralFile | null | "invalid"> {
-  if (!(value instanceof File) || (value.size === 0 && value.name === "")) return null;
+  if (!(value instanceof File) || value.size === 0) return null;
   const ext = value.name.includes(".") ? value.name.slice(value.name.lastIndexOf(".") + 1).toLowerCase() : "";
   const found = Object.entries(clientTools.FILE_TYPES).find(([, t]) => t.extensions.includes(ext));
-  if (!found || value.size === 0 || value.size > clientTools.FILE_MAX_BYTES) return "invalid";
+  if (!found || value.size > clientTools.FILE_MAX_BYTES) return "invalid";
   const [contentType, type] = found;
   const bytes = new Uint8Array(await value.arrayBuffer());
   if (!type.looksRight(bytes)) return "invalid";

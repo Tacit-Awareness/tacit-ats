@@ -5,7 +5,6 @@ import { RESUME_ACCEPT, readAddForm } from "@/lib/client/referrals";
 import { resolveClient } from "@/lib/client/session";
 import { Refusal } from "../../refusal";
 import { addReferralAction } from "../actions";
-import { REFERRAL_ERRORS, isReferralError } from "../messages";
 import { AddReferralView } from "./view";
 
 // "Add referral" (design/tats's referral form): the open jobs the member may
@@ -13,7 +12,7 @@ import { AddReferralView } from "./view";
 // (lib/client/referrals.ts's readAddForm). The action checks again, and the
 // policies after it.
 
-export default async function ClientAddReferral({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function ClientAddReferral() {
   const gate = await resolveClient();
   if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
   const { db, accessLevel } = gate.ctx;
@@ -34,8 +33,6 @@ export default async function ClientAddReferral({ searchParams }: { searchParams
     );
   }
 
-  const sp = await searchParams;
-  const error = Array.isArray(sp.error) ? sp.error[0] : sp.error;
   const { jobs, teammates } = await readAddForm(db);
-  return <AddReferralView action={addReferralAction} jobs={jobs} teammates={teammates} error={isReferralError(error) ? REFERRAL_ERRORS[error] : null} resumeMaxBytes={clientTools.FILE_MAX_BYTES} resumeAccept={RESUME_ACCEPT} />;
+  return <AddReferralView action={addReferralAction} jobs={jobs} teammates={teammates} resumeMaxBytes={clientTools.FILE_MAX_BYTES} resumeAccept={RESUME_ACCEPT} />;
 }
