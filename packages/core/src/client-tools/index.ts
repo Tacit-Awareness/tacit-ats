@@ -40,6 +40,8 @@ export { CONNECTOR_ACCESS, getConnectorSettings, setConnectorAccess } from "./co
 export type { ConnectorAccess, ConnectorSettings } from "./connector.js";
 export { getCandidate, getJobPipeline, listJobs, listTeam, searchCandidates } from "./reads.js";
 export type { CandidateDetail, CandidateHit, CandidateNote, JobPipeline, JobView, TeamMember } from "./reads.js";
+export { UNIQUE_VIOLATION, findOrAddPerson, findPersonByEmail, isUniqueViolation, normalizeEmail } from "./people.js";
+export type { FoundOrAdded } from "./people.js";
 export { addCandidate, addCandidateContact, addNote, updateCandidate, setApplicationNextAction, updateStage } from "./writes.js";
 export type { AddCandidateResult, CandidateUpdateResult, ContactResult, NextActionResult, StageResult } from "./writes.js";
 export {

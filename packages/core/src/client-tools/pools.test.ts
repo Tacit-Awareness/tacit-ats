@@ -200,7 +200,9 @@ describe("prospects", () => {
 
   test("a new prospect: their row under an id made in code, in the member's org, with the source; the detail stays out of the audit", async () => {
     const fake = new FakeSupabase([
-      { data: true }, { data: null }, { data: "audit-1" }, { data: null }, { data: null },
+      // can_add_people, the email identifier and the people row (no one), the claim, the insert,
+      // the email identifier claimed for the new row, then finish_write.
+      { data: true }, { data: null }, { data: [] }, { data: "audit-1" }, { data: null }, { data: "ident-1" }, { data: null },
     ]);
     const r = await addProspect(fake.asDb(), ctx("elevated"), {
       name: " Pat   Prospect ", email: "PAT@example.com", source: "referral", sourceDetail: "Ada Lovelace",

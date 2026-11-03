@@ -1,11 +1,12 @@
 import type { Db } from "@tacit/db";
 
 import {
-  CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, addToPipeline, findPersonByIdentifier, isCandidateSource, parseCandidateIdentity,
+  CANDIDATE_SOURCES, SOURCE_DETAIL_MAX, addToPipeline, isCandidateSource, parseCandidateIdentity,
   type AddToPipelineResult, type CandidateSource,
 } from "@tacit/core";
 import { withAudit } from "./audit.js";
 import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
+import { findOrAddPerson, findPersonByEmail } from "./people.js";
 
 /**
  * Prospects and talent pools for the client connector
@@ -412,29 +413,29 @@ export async function addProspect(
   }
 
   // Only someone the member can see is found: a person in the org they cannot see gets a second row, as in add_candidate.
-  const existing = who.email ? await findPersonByIdentifier(db, "email", who.email, ctx.orgId) : null;
+  const existing = who.email ? await findPersonByEmail(db, ctx.orgId, who.email) : null;
   if (existing) {
     return { outcome: "exists", candidateId: existing, pool: pool ? await putInPool(db, ctx, pool, existing, undefined) : null };
   }
 
-  const candidateId = globalThis.crypto.randomUUID();
-  await withAudit(db, ctx, { action: "prospect.add", entity: "person" }, async () => {
-    // Named, not left to the tenant trigger, and not read back: the people read
-    // policy's helpers cannot see a row inserted by the same statement.
-    const { error } = await db.from("people").insert({
-      id: candidateId,
-      org_id: ctx.orgId,
-      display_name: who.name,
-      email: who.email,
-      linkedin_url: who.linkedinUrl,
-      added_by_actor_id: ctx.actorId,
-      ...(source ? { prospect_source: source } : {}),
-      ...(sourceDetail ? { prospect_source_detail: sourceDetail } : {}),
+  const added = await withAudit(db, ctx, { action: "prospect.add", entity: "person" }, async () => {
+    const person = await findOrAddPerson(db, ctx, {
+      ...who,
+      lookedUp: true,
+      extra: {
+        ...(source ? { prospect_source: source } : {}),
+        ...(sourceDetail ? { prospect_source_detail: sourceDetail } : {}),
+      },
     });
-    if (error) throw new Error(error.message);
+    // Another add of this address landed between the lookup and the insert: theirs is the one, and nothing changed.
+    if (!person.created) return { result: person, entityId: null, changed: false };
     // The source is the record; its detail can name a person and stays with the prospect.
-    return { result: null, entityId: candidateId, after: { candidate_id: candidateId, prospect: true, source }, changed: true };
+    return { result: person, entityId: person.personId, after: { candidate_id: person.personId, prospect: true, source }, changed: true };
   });
+  const candidateId = added.personId;
+  if (!added.created) {
+    return { outcome: "exists", candidateId, pool: pool ? await putInPool(db, ctx, pool, candidateId, undefined) : null };
+  }
   return { outcome: "added", candidateId, pool: pool ? await putInPool(db, ctx, pool, candidateId, undefined) : null };
 }
 
