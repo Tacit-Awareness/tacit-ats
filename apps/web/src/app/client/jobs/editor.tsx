@@ -532,7 +532,7 @@ export function PostingEditor({
         </div>
         {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
-        <article className="border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
+        <article className="rounded-[12px] border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
           {preview ? null : (
             <p className="m-0 mb-2.5 text-[13px] text-faint">
               This is what applicants see. Click any text to change it.

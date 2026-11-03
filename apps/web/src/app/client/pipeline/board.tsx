@@ -72,7 +72,7 @@ function Card({
       onDragEnd={onDragEnd}
       onContextMenu={(e) => onContext(card, e)}
       className={cn(
-        "group relative border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
+        "group relative rounded-[8px] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
         dragged && "opacity-40",
       )}
     >

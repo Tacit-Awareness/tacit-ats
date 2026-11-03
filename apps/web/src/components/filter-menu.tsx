@@ -66,7 +66,7 @@ export function FilterMenu({ label, value, on, options }: { label: string; value
           id={id}
           role="menu"
           aria-label={label}
-          className="absolute right-0 z-50 mt-1 grid max-h-[340px] max-w-[300px] min-w-[220px] gap-px overflow-y-auto border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+          className="absolute right-0 z-50 mt-1 grid max-h-[340px] max-w-[300px] min-w-[220px] gap-px overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
         >
           {options.map((o) => (
             <Link

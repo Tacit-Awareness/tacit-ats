@@ -118,7 +118,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
         aria-modal="true"
         aria-label="Command menu"
         onMouseDown={(e) => e.stopPropagation()}
-        className="pop-dialog w-full max-w-[640px] overflow-hidden border border-[color:var(--line-strong)] bg-raised shadow-[var(--pop-shadow)]"
+        className="pop-dialog w-full max-w-[640px] overflow-hidden rounded-[12px] border border-[color:var(--line-strong)] bg-raised shadow-[var(--pop-shadow)]"
       >
         {ctx ? (
           <div className="flex px-3 pt-3">

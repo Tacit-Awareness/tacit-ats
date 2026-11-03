@@ -470,7 +470,7 @@ export function Feedback({ reader, own = null }: { reader: Pick<Reader, "candida
 /** One `.rc` card: the head, the loop, the feedback, the member's Granola notes. */
 function InterviewReader({ reader, own, granola, base }: { reader: Reader; own: React.ReactNode; granola: React.ReactNode; base: string }) {
   return (
-    <article className="@container mx-auto max-w-[860px] overflow-hidden border border-[color:var(--line)] bg-[color:var(--paper)]">
+    <article className="@container mx-auto max-w-[860px] overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
       <header className="flex flex-wrap items-center gap-4 border-b border-[color:var(--line)] px-4 py-4 @2xl:px-[26px] @2xl:py-[22px]">
         <Link href={base} className="text-[12.5px] text-muted-foreground hover:text-foreground md:hidden">
           ← Interview Judgement

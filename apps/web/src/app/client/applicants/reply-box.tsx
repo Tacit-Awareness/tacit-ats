@@ -57,7 +57,7 @@ const shell = "grid grid-cols-[minmax(0,1fr)] gap-2";
 /** `.cp-main`: the message, then the button. */
 const main = "grid grid-cols-[minmax(0,1fr)] items-stretch gap-4 md:grid-cols-[minmax(0,1fr)_auto]";
 /** `.cp-msg`. */
-const message = "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2 border border-[color:var(--line)] bg-[color:var(--raised)] px-4 py-3 text-left";
+const message = "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--raised)] px-4 py-3 text-left";
 /** `.cp-send`. */
 const sendColumn = "grid content-end justify-items-stretch gap-2 md:w-[220px] md:justify-items-end md:text-right";
 /** `.cp-send .cx-primary`. */

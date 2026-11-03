@@ -33,7 +33,7 @@ export function ShareLinks({ url }: { url: string }) {
         <svg viewBox="0 0 10 10" className="ml-1 size-2.5" aria-hidden><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open ? (
-        <span className="absolute right-0 top-8 z-20 flex w-36 flex-col border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]">
+        <span className="absolute right-0 top-8 z-20 flex w-36 flex-col rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]">
           {SHARE.map(([channel, label]) => (
             <button
               key={channel}
