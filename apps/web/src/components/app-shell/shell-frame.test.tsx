@@ -47,11 +47,11 @@ describe("the sidebar's Onboarding section", () => {
     return html.slice(at, html.indexOf("</nav>", at));
   };
 
-  test("is Team, Interview process and CRM, in that order, and CRM has left the top", () => {
+  test("is Team, Interview Process and CRM, in that order, and CRM has left the top", () => {
     const html = section();
     expect(html).toContain('href="/client/onboarding/people"');
-    expect(html.indexOf(">Team<")).toBeLessThan(html.indexOf(">Interview process<"));
-    expect(html.indexOf(">Interview process<")).toBeLessThan(html.indexOf(">CRM<"));
+    expect(html.indexOf(">Team<")).toBeLessThan(html.indexOf(">Interview Process<"));
+    expect(html.indexOf(">Interview Process<")).toBeLessThan(html.indexOf(">CRM<"));
     const all = shell(false);
     const top = all.slice(all.indexOf('aria-label="Home"'), all.indexOf('aria-label="Top of Funnel"'));
     expect(top).not.toContain(">CRM<");

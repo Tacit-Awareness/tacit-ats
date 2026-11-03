@@ -92,7 +92,7 @@ const TEAM: NavLink = {
   icon: "team",
   activeUnder: ["/client/onboarding/teams", "/client/onboarding/skills", "/client/onboarding/review"],
 };
-const PROCESS: NavLink = { href: "/client/onboarding/process", label: "Interview process", icon: "route" };
+const PROCESS: NavLink = { href: "/client/onboarding/process", label: "Interview Process", icon: "route" };
 const SETTINGS: NavLink = { href: "/client/settings", label: "Settings", icon: "gear" };
 const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
 // G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
