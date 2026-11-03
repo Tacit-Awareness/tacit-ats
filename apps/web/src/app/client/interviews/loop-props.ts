@@ -32,7 +32,9 @@ export function loopProps(input: {
     loopLine: `${input.jobTitle} · ${held} of ${rounds.length} ${rounds.length === 1 ? "round" : "rounds"} held`,
     rounds,
     route,
-    editProcess: route && input.isAdmin ? "/client/onboarding/process" : null,
+    // As design/tats's processTree: always there for an admin, with or without the graph. Before
+    // anything is saved, or while this job's plan doesn't match, the sheet is where they fix that.
+    editProcess: input.isAdmin ? "/client/onboarding/process" : null,
     partial: !progress.seesAllInterviews,
   };
 }
