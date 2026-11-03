@@ -9,6 +9,7 @@ import { describe, expect, test, vi } from "vitest";
 // lib/client/inbox-popup.test.ts for the helpers and a look at the page for the rest.
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/client/inbox", useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
+vi.mock("../onboarding/process/actions", () => ({ readProcessAction: vi.fn(), saveProcessAction: vi.fn(), previewApplyAction: vi.fn(), applyProcessAction: vi.fn() }));
 vi.mock("./actions", () => ({ dismissIssueAction: vi.fn(), restoreIssueAction: vi.fn(), fixIssueAction: vi.fn(), decideIssueAction: vi.fn(), markDigestReadAction: vi.fn(), markAllDigestReadAction: vi.fn() }));
 
 import { ignoreKey, modalOpen } from "@/lib/keys";

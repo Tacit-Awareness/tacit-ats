@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { applyProcess, previewApply, saveProcess, type ApplyAnswer } from "@/lib/client/process";
+import { onboardingAccess } from "@/lib/client/onboarding";
+import { applyProcess, previewApply, readProcess, saveProcess, type ApplyAnswer, type ProcessRead } from "@/lib/client/process";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { SaveAnswer } from "./messages";
@@ -9,6 +10,14 @@ import type { SaveAnswer } from "./messages";
 // The process's writes, on the signed-in admin's own client: core's audited tools
 // and the policies decide. Answers, not redirects: the drawing is on the page and a
 // refusal has to leave it there.
+
+/** The process for the sheet over Interview Judgement, which opens it in place. Null for anyone Onboarding refuses. */
+export async function readProcessAction(): Promise<{ read: ProcessRead; canEdit: boolean } | null> {
+  const member = await requireClient();
+  const access = await onboardingAccess(member.db, member.accessLevel);
+  if (access === "none") return null;
+  return { read: await readProcess(member.db, toolCtx(member)), canEdit: access === "edit" };
+}
 
 export async function saveProcessAction(input: { graph: unknown; expectedUpdatedAt: string | null }): Promise<SaveAnswer> {
   const member = await requireClient();

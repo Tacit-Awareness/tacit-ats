@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import type { RouteNode, RouteView } from "@/lib/client/interview-loop";
+
+vi.mock("../onboarding/process/actions", () => ({ readProcessAction: vi.fn(), saveProcessAction: vi.fn(), previewApplyAction: vi.fn(), applyProcessAction: vi.fn() }));
 
 import { Feedback, Loop, ReadThread, type FeedbackCard, type LoopRound, type Reader } from "./view";
 
@@ -99,11 +101,11 @@ describe("the routing graph", () => {
     expect(html).toContain("width:400px");
   });
 
-  test("an admin gets a link to the process, nobody else, and the graph itself edits nothing", () => {
+  test("an admin gets Edit the process, which opens a sheet, nobody else, and the graph itself edits nothing", () => {
     expect(html).not.toContain("Edit the process");
     const admin = renderToStaticMarkup(<Loop reader={withRoute({ editProcess: "/client/onboarding/process" })} />);
-    expect(admin).toContain('href="/client/onboarding/process"');
-    expect(admin).toContain("Edit the process");
+    expect(admin).toMatch(/<button[^>]*aria-haspopup="dialog"[^>]*>Edit the process<\/button>/);
+    expect(admin.indexOf("Edit the process")).toBeLessThan(admin.indexOf("<svg"));
   });
 
   test("colours are tokens, so dark mode follows", () => {
