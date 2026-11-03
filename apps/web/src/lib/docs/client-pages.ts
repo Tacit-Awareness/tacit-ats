@@ -362,7 +362,7 @@ These moved to Onboarding, and the Interviewers page links there. **Team**, in t
 
 ## Onboarding
 
-**Onboarding** is your company's setup, in five steps with a checklist beside them: People, Teams, Interview skills, Interview process and Review. Open it from **Team** or **Interview process** in the sidebar, or from the menu under your name. Nothing makes you finish it, and Home stays where you start. The checklist is worked out from what your company has set up, so undoing something takes its tick back.
+**Onboarding** is your company's setup, in five steps with a checklist beside them: People, Teams, Interview skills, Interview process and Review. Open it from **Team** or **Interview Process** in the sidebar, or from the menu under your name. Nothing makes you finish it, and Home stays where you start. The checklist is worked out from what your company has set up, so undoing something takes its tick back.
 
 | Who | What they get |
 | --- | --- |
