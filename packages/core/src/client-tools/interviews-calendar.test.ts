@@ -311,4 +311,65 @@ describe("updateInterview on a calendar", () => {
     expect(r).toMatchObject({ outcome: "updated", calendar: "none" });
     expect(google.calls).toEqual([]);
   });
+
+  const finished = { ...booked, status: "done" };
+  const loadedDone = (...more: Array<{ data?: unknown; error?: unknown }>) =>
+    new FakeSupabase([{ data: finished }, { data: "role-1" }, { data: true }, ...more]);
+
+  test("cancelling a done interview still cancels its event", async () => {
+    const google = fakeGoogle();
+    const fake = loadedDone({ data: people }, { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null });
+    const r = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", status: "cancelled" }, {
+      calendar: google.calendarWith({ "actor-9": HOLDER }), now,
+    });
+    expect(r).toMatchObject({ outcome: "updated", changed: ["status"], calendar: "cancelled" });
+    expect(google.eventCalls()).toMatchObject([{ method: "DELETE", token: "at-hana" }]);
+    expect(google.eventCalls()[0].url).toContain("/events/evt1?sendUpdates=all");
+  });
+
+  test("moving a done interview moves its event, without the past or clash checks, and drafts nothing", async () => {
+    const google = fakeGoogle();
+    const fake = loadedDone({ data: people }, { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null });
+    const r = await updateInterview(fake.asDb(), ctx, {
+      interviewId: "int-1", startsAt: "2026-10-01T19:30:00Z", endsAt: "2026-10-01T20:30:00Z",
+    }, { calendar: google.calendarWith({ "actor-9": HOLDER }), now, mailer: null });
+    expect(r).toMatchObject({ outcome: "updated", changed: ["starts_at", "ends_at"], calendar: "moved", candidateDraft: null });
+    expect(google.eventCalls()).toMatchObject([{ method: "PATCH", token: "at-hana", body: { start: { dateTime: "2026-10-01T19:30:00.000Z" } } }]);
+  });
+
+  test("moving a done interview whose holder is not connected is refused, not skipped", async () => {
+    const google = fakeGoogle();
+    const fake = loadedDone({ data: people });
+    const err = await refusal(updateInterview(fake.asDb(), ctx, {
+      interviewId: "int-1", startsAt: "2026-10-01T19:30:00Z", endsAt: "2026-10-01T20:30:00Z",
+    }, { calendar: google.calendarWith({}), now }));
+    expect(err.message).toMatch(/on Hana's calendar, which is not connected now/);
+    expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
+  });
+
+  test("a cancelled interview whose event was cancelled cannot be scheduled again, dry or not", async () => {
+    const google = fakeGoogle();
+    const cancelled = { ...booked, status: "cancelled" };
+    const input = { interviewId: "int-1", status: "scheduled", startsAt: "2026-10-22T19:00:00Z", endsAt: "2026-10-22T20:00:00Z" } as const;
+    const deps = { calendar: google.calendarWith({ "actor-9": HOLDER }), now };
+    for (const dryRun of [false, true]) {
+      const fake = new FakeSupabase([{ data: cancelled }, { data: "role-1" }, { data: true }]);
+      const err = await refusal(dryRun
+        ? updateInterview(fake.asDb(), ctx, { ...input, dryRun: true }, deps)
+        : updateInterview(fake.asDb(), ctx, input, deps));
+      expect(err.message).toMatch(/cannot be scheduled again\. Book a new one with schedule_interview/);
+      expect(fake.calls.filter((c) => c.op === "update")).toEqual([]);
+      expect(fake.calls.map((c) => c.table)).not.toContain("client_claim_write");
+    }
+    expect(google.calls).toEqual([]);
+  });
+
+  test("a cancelled interview never on a calendar can be scheduled again", async () => {
+    const fake = new FakeSupabase([
+      { data: { ...booked, status: "cancelled", google_event_id: null } }, { data: "role-1" }, { data: true },
+      { data: "audit-1" }, { data: [{ id: "int-1" }] }, { data: null },
+    ]);
+    const r = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", status: "scheduled" }, { calendar: fakeGoogle().calendarWith({}), now });
+    expect(r).toMatchObject({ outcome: "updated", changed: ["status"], calendar: "none" });
+  });
 });

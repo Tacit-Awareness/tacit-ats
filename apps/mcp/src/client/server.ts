@@ -1063,8 +1063,10 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
             "Only what you pass changes. When it is on a calendar, the event follows, through the calendar of " +
             "whoever booked it: a move is checked against the interviewers' calendars first (conflicts are " +
             "returned and nothing changes, unless book_despite_conflicts: true) and Google tells the attendees; " +
-            "new interviewers are invited and removed ones told; cancelled deletes the event. A location change " +
-            "and done do not touch the event. update_calendar: false changes Tacit's record only. A move or a " +
+            "new interviewers are invited and removed ones told; cancelled deletes the event. This holds for a done " +
+            "interview too (its move is not checked for clashes or the past). A location change and done do not " +
+            "touch the event. A cancelled interview that was on a calendar cannot be scheduled again: book a new " +
+            "one with schedule_interview. update_calendar: false changes Tacit's record only. A move or a " +
             "cancellation returns a draft email to the candidate (draft_candidate_email: false skips it), sent " +
             "with send_email only after the user's yes. Needs the right to schedule on that job. Tell the user " +
             "what will change and wait for a yes. " + TIMEZONE_HELP,
