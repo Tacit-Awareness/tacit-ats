@@ -178,7 +178,7 @@ function ConfirmDialog({
         </h2>
         <p className="m-0 mt-1 text-[13px] break-words text-muted-foreground">{copy.body}</p>
         {terms ? (
-          <div className="mt-3 bg-[color:var(--soft)] px-3 py-2">
+          <div className="mt-3 rounded-[8px] bg-[color:var(--soft)] px-3 py-2">
             <OfferTerms lines={terms} />
           </div>
         ) : null}

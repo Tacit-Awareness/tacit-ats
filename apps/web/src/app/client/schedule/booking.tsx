@@ -246,7 +246,7 @@ export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; ti
         </p>
       ))}
       {found.limited.map((l) => (
-        <p key={l.name} className="m-0 bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words">
+        <p key={l.name} className="m-0 rounded-[8px] bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words">
           Times left out: {l.name}, {l.why}.
         </p>
       ))}

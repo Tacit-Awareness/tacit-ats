@@ -27,7 +27,7 @@ export function FileUpload({ candidateId, accept, extensions, maxBytes }: { cand
     <form key={state.added} action={action} className="grid gap-2">
       <input type="hidden" name="candidateId" value={candidateId} />
       {error ? <Notice tone="error">{FILE_ERRORS[error]}</Notice> : null}
-      <div className="flex flex-wrap items-center gap-2 border border-dashed border-[color:var(--line-strong)] bg-[color:var(--paper)] px-3 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-dashed border-[color:var(--line-strong)] bg-[color:var(--paper)] px-3 py-2.5">
         <label className="min-w-0 flex-1 text-[13px]">
           <span className="sr-only">File</span>
           <input

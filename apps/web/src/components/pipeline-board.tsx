@@ -130,12 +130,12 @@ function CardView({
         (links.role ? (
           <Link
             href={`${links.role}/${roleId}`}
-            className="mt-1.5 inline-block bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+            className="mt-1.5 inline-block rounded-full bg-[color:var(--soft)] px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
           >
             {card.roleTitle}
           </Link>
         ) : (
-          <span className="mt-1.5 inline-block bg-[color:var(--soft)] px-1.5 py-0.5 text-[11px] text-muted-foreground">
+          <span className="mt-1.5 inline-block rounded-full bg-[color:var(--soft)] px-2 py-0.5 text-[11px] text-muted-foreground">
             {card.roleTitle}
           </span>
         ))}

@@ -23,7 +23,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
     return (
       <span className="flex gap-2">
         {["Yes", "No"].map((v) => (
-          <i key={v} className="inline-grid h-8 place-items-center border border-[color:var(--line-strong)] px-[18px] text-[13px] text-muted-foreground not-italic">
+          <i key={v} className="inline-grid h-8 place-items-center rounded-full border border-[color:var(--line-strong)] px-[18px] text-[13px] text-muted-foreground not-italic">
             {v}
           </i>
         ))}
@@ -34,7 +34,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
     return (
       <span className="flex flex-wrap gap-1.5">
         {(q.options ?? []).map((o) => (
-          <i key={o} className="border border-[color:var(--line)] px-2 py-0.5 text-[12.5px] text-muted-foreground not-italic">
+          <i key={o} className="rounded-full border border-[color:var(--line)] px-2.5 py-0.5 text-[12.5px] text-muted-foreground not-italic">
             {o}
           </i>
         ))}
@@ -46,7 +46,7 @@ export function Answer({ q }: { q: Pick<clientTools.Question, "type" | "options"
 
 export function ResumeBox() {
   return (
-    <div className="flex flex-col items-center gap-1 border-[1.5px] border-dashed border-[color:var(--line-strong)] p-6 text-[13.5px] text-muted-foreground">
+    <div className="flex flex-col items-center gap-1 rounded-[12px] border-[1.5px] border-dashed border-[color:var(--line-strong)] p-6 text-[13.5px] text-muted-foreground">
       <svg viewBox="0 0 16 16" className="mb-1 size-[18px] fill-none stroke-current text-faint [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
         <path d="M4 1.75h5.5L12.5 4.75v9.5h-8.5z M9.25 1.75v3.25h3.25" />
       </svg>

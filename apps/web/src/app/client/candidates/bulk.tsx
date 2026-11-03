@@ -131,7 +131,7 @@ function Report({ action, summary, onClose }: { action: BulkAction; summary: Bul
       {summary.problems.length ? (
         <div className="grid gap-1.5">
           <h3 className="m-0 text-[12.5px] font-medium text-muted-foreground">{plural(summary.problems.length, "row")} not changed</h3>
-          <ul className="m-0 grid max-h-[320px] list-none gap-1 overflow-y-auto border border-[color:var(--line)] p-2">
+          <ul className="m-0 grid max-h-[320px] list-none gap-1 overflow-y-auto rounded-[8px] border border-[color:var(--line)] p-2">
             {summary.problems.map((p) => (
               <li key={p.id} className="grid gap-0.5 text-[13px]">
                 <b className="truncate font-medium">{p.label}</b>

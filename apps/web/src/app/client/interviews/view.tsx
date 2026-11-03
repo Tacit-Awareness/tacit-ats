@@ -181,7 +181,7 @@ function RoundCard({ round: r }: { round: LoopRound }) {
   const body = (
     <>
       <span className="flex items-start gap-2 text-[13.5px] leading-5">
-        <span className="grid size-5 flex-none place-items-center bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
+        <span className="grid size-5 flex-none place-items-center rounded-full bg-[color:var(--soft)] text-[11.5px] text-muted-foreground tabular-nums">{r.n}</span>
         <b className="min-w-0 font-medium [overflow-wrap:anywhere]">{r.name}</b>
       </span>
       <span className="flex flex-wrap gap-x-1.5 text-[11.5px] leading-4">
@@ -333,7 +333,7 @@ export function Loop({ reader }: { reader: LoopProps }) {
           <span className="text-muted-foreground"> · {reader.loopLine}</span>
         </p>
         <span className="flex flex-none items-center gap-2">
-          <span className="inline-flex h-6 flex-none items-center bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
+          <span className="inline-flex h-6 flex-none items-center rounded-full bg-[color:var(--soft)] px-2.5 text-[12.5px] font-medium whitespace-nowrap text-muted-foreground">{reader.tag}</span>
           {reader.editProcess ? <ProcessSheet href={reader.editProcess} /> : null}
         </span>
       </div>

@@ -53,7 +53,7 @@ export function FeedbackForm({ form, candidate }: { form: Form; candidate: strin
   useKeyHelp("Interview Judgement", [{ keys: "⌘↵", label: "File your feedback" }]);
 
   return (
-    <details open={!form.filed || !!refused} className="group/fb border border-[color:var(--line)] bg-[color:var(--surface)]">
+    <details open={!form.filed || !!refused} className="group/fb overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--surface)]">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3.5 py-2.5 text-[13.5px] font-medium [&::-webkit-details-marker]:hidden">
         {form.filed ? "Edit your feedback" : "File your feedback"}
         <span aria-hidden className="text-faint transition-transform group-open/fb:rotate-90">
