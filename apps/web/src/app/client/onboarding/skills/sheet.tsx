@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Avatar, Chip, Chips, Section } from "@/components/page";
+import { Avatar, Chip, Chips } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyRun, runState, type RunState, type SheetPerson, type SheetType, type SkillSheet } from "@/lib/client/skill-sheet";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { TagInput } from "../../interviewers/tag-input";
 import type { Refused } from "../step-refusal";
 import { addTypeAction, archiveTypeAction, renameTypeAction, saveSkillsAction, setRunAction, setStarAction } from "./actions";
+import { StepCard } from "../step-card";
 
 // design/tats's `#setup~skills`: the interview types a company runs, then each
 // person's skills and the types they run, with a star for who to ask first. Every
@@ -225,7 +226,14 @@ export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: b
   const { people, types } = sheet;
   return (
     <>
-      <Section title="Interview types" count={types.length || undefined}>
+      <StepCard
+        title={
+          <>
+            Interview types{types.length ? <span className="ml-2 text-sm font-normal text-faint tabular-nums">{types.length}</span> : null}
+          </>
+        }
+        sub="The kinds of interview your company runs. Each person then says which they run."
+      >
         {types.length ? (
           <ul className="m-0 grid list-none p-0">
             {types.map((t) => (
@@ -236,17 +244,17 @@ export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: b
           <p className="m-0 text-[13px] text-muted-foreground">{editable ? "Add an interview type to say who runs it." : "No interview types yet."}</p>
         )}
         {editable ? <AddType first={!types.length} /> : null}
-      </Section>
-      <Section title="Say what each person interviews for">
-        <p className="m-0 text-[13px] text-muted-foreground">
-          {editable ? "Tap an interview type if they run it, and star it to ask them first." : "What each person knows, and the interview types they run. A star means ask them first."}
-        </p>
+      </StepCard>
+      <StepCard
+        title="Say what each person interviews for"
+        sub={editable ? "Tap an interview type if they run it, and star it to ask them first." : "What each person knows, and the interview types they run. A star means ask them first."}
+      >
         <ul className="m-0 grid list-none p-0">
           {people.map((p) => (
             <PersonCard key={p.id} person={p} types={types} editable={editable} />
           ))}
         </ul>
-      </Section>
+      </StepCard>
     </>
   );
 }

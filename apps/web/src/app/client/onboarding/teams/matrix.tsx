@@ -1,13 +1,14 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Avatar, avatarColor, Section } from "@/components/page";
+import { Avatar, avatarColor } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyTeamChange, isMultidisciplinary, teamsOf, type MatrixPerson, type MatrixTeam, type TeamChange, type TeamMatrix } from "@/lib/client/team-matrix";
 import { showToast } from "@/lib/toasts";
 import { cn } from "@/lib/utils";
 import { createTeamAction, setTeamLeadAction, setTeamMemberAction } from "./actions";
+import { StepCard } from "../step-card";
 
 // design/tats's `#setup~teams`: people down the side, teams across the top, each
 // under its team key, each tick saved at once. It shows the change straight away
@@ -219,8 +220,9 @@ export function TeamsStep({ matrix, editable }: { matrix: TeamMatrix; editable: 
   const empty = !shown.teams.length;
   const writer = editable ? save : undefined;
   return (
-    <Section
+    <StepCard
       title="Put people on teams"
+      sub="Put someone on more than one team when they can interview across both."
       aside={
         editable && !adding && !empty ? (
           <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -232,7 +234,6 @@ export function TeamsStep({ matrix, editable }: { matrix: TeamMatrix; editable: 
         ) : null
       }
     >
-      <p className="m-0 text-[13px] text-muted-foreground">Put someone on more than one team when they can interview across both.</p>
       {adding ? <NewTeam onClose={() => setAdding(false)} /> : null}
       {empty ? (
         <div className="grid justify-items-start gap-2 py-3">
@@ -249,6 +250,6 @@ export function TeamsStep({ matrix, editable }: { matrix: TeamMatrix; editable: 
           <PersonList matrix={shown} save={writer} />
         </>
       )}
-    </Section>
+    </StepCard>
   );
 }

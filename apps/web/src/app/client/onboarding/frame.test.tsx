@@ -31,16 +31,21 @@ describe("the frame", () => {
     expect(html).toContain("Just you so far");
   });
 
-  test("the checklist comes first in the markup, so it stacks above the step on a phone, and moves beside it after", () => {
+  test("the checklist sits beside the step, and under it below 1180px, as the prototype's", () => {
     const html = frame();
-    expect(html.indexOf("Setup checklist")).toBeLessThan(html.indexOf("the step"));
-    expect(html).toContain("lg:order-last");
+    expect(html.indexOf("the step")).toBeLessThan(html.indexOf("Setup checklist"));
+    expect(html).toContain("min-[1180px]:grid-cols-[minmax(0,760px)_300px]");
+  });
+
+  test("the process step drops the checklist for the canvas's width", () => {
+    path.now = "/client/onboarding/process";
+    expect(frame()).not.toContain("Setup checklist");
   });
 
   test("the first step has no Back, a later one does, and the last opens tATS", () => {
     expect(frame()).not.toMatch(/>Back</);
     path.now = "/client/onboarding/teams";
-    expect(frame()).toMatch(/href="\/client\/onboarding\/people"[^>]*>Back</);
+    expect(frame()).toMatch(/href="\/client\/onboarding\/people"[^>]*>(?:<svg.*?<\/svg>)?Back</);
     path.now = "/client/onboarding/review";
     expect(frame()).toMatch(/href="\/client"[^>]*>Open tATS</);
   });
