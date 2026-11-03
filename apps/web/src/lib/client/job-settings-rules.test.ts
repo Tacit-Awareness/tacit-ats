@@ -43,7 +43,11 @@ describe("parseJobForm", () => {
   test("only what changed is sent", () => {
     expect(parseJobForm(job({}))).toMatchObject({ ok: true, change: {} });
     expect(parseJobForm(job({ title: "  Staff   engineer " }))).toMatchObject({ ok: true, jobId: JOB, change: { title: "Staff engineer" } });
-    expect(parseJobForm(job({ status: "paused" }))).toMatchObject({ ok: true, change: { status: "paused" } });
+    expect(parseJobForm(job({ status: "paused" }))).toMatchObject({ ok: true, change: { status: "paused", expectedStatus: "open" } });
+    // A title alone carries no status at all, not even the one it was read on.
+    expect(parseJobForm(job({ "was:status": "paused", status: "paused", title: "Lead" }))).toEqual({
+      ok: true, jobId: JOB, change: { title: "Lead" }, draft: { title: "Lead", status: "paused" },
+    });
     // Spacing alone is no rename.
     expect(parseJobForm(job({ title: " Engineer\n" }))).toMatchObject({ ok: true, change: {} });
   });
@@ -107,6 +111,7 @@ describe("jobSettingsRefusal", () => {
   test("the ones that need the database, by their sentences", () => {
     expect(jobSettingsRefusal("invalid", "Not saved: opening this job needs an approval. request_approval with the job_id asks for it.")).toBe("needs_approval");
     expect(jobSettingsRefusal("invalid", "That opening is filled. Moving its hire out of hired opens it again; then it can be closed.")).toBe("opening_filled");
+    expect(jobSettingsRefusal("invalid", "Not saved: the job's status changed since it was read (it was open, it is now paused). Read the job again and decide from there.")).toBe("status_changed");
     expect(jobSettingsRefusal("not_found", "No job with that id that you can see.")).toBe("not_found");
     expect(jobSettingsRefusal("rate_limited", "You have made 300 changes")).toBe("rate_limited");
     expect(jobSettingsRefusal("invalid", "Something new")).toBe("failed");

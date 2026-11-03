@@ -31,11 +31,18 @@ function Said({ state }: { state: JobFormState | OpeningsFormState }) {
 function JobForm({ settings }: { settings: Settings }) {
   const [state, action] = useActionState<JobFormState, FormData>(saveJobAction, FIRST);
   const draft = state.draft ?? { title: settings.title, status: settings.status };
+  // After a refusal for a status that moved on, the form opens on the job's status now, not the one picked.
+  const status = state.draft && state.error !== "status_changed" ? state.draft.status : settings.status;
   const statuses: string[] = (SETTABLE_STATUSES as readonly string[]).includes(settings.status) ? [...SETTABLE_STATUSES] : [settings.status, ...SETTABLE_STATUSES];
   return (
     <form action={action} className="grid gap-2">
       <input type="hidden" name="jobId" value={settings.jobId} />
       <input type="hidden" name="was:title" value={settings.title} />
+      {/* The status the select was drawn against, kept with it: a select only
+          reads its defaultValue when it mounts, so it is keyed on the page's
+          status and drawn again whenever that moves on (this form's own save,
+          another tab, the connector). Otherwise it would keep the old status
+          while was:status moved on, and a title-only save would send it back. */}
       <input type="hidden" name="was:status" value={settings.status} />
       <Said state={state} />
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto] sm:items-end">
@@ -45,7 +52,7 @@ function JobForm({ settings }: { settings: Settings }) {
         </label>
         <label className="grid gap-1 text-[12.5px] text-muted-foreground">
           Status
-          <select name="status" defaultValue={draft.status} className={selectClass}>
+          <select key={`${settings.status}:${status}`} name="status" defaultValue={status} className={selectClass}>
             {statuses.map((s) => (
               <option key={s} value={s}>
                 {JOB_STATUS_LABEL[s] ?? s.replace(/_/g, " ")}

@@ -28,6 +28,7 @@ export type JobSettingsError =
   | "title_too_long"
   | "bad_status"
   | "needs_approval"
+  | "status_changed"
   | "bad_count"
   | "reason_required"
   | "reason_too_long"
@@ -42,6 +43,7 @@ export const JOB_SETTINGS_ERRORS: Record<JobSettingsError, string> = {
   title_too_long: `A title is at most ${JOB_TITLE_MAX} characters.`,
   bad_status: "Pick Open, Paused or Closed.",
   needs_approval: "Opening this job needs an approval first, so nothing was changed. Ask for one with the connector's request_approval.",
+  status_changed: "Someone changed this job's status while you had it open, so nothing was saved. The page now shows its status: pick again if you still want to change it.",
   bad_count: `Add between 1 and ${OPENINGS_ADD_MAX} openings at a time.`,
   reason_required: "Say why you're closing it.",
   reason_too_long: `A reason is at most ${CLOSE_REASON_MAX} characters.`,
@@ -95,11 +97,14 @@ export const isSettableStatus = (v: unknown): v is SettableStatus => typeof v ==
  * The job form: `jobId`, `title`, `status`. Only what differs from what the
  * page opened on (`was:title`, `was:status`) is sent, so a save never puts
  * back a title or status someone else changed meanwhile unless this member
- * changed it too. A status the page drew but a member cannot pick (filled,
- * pending approval) is left as it is.
+ * changed it too. A status change carries `expectedStatus`, the `was:status`
+ * it was picked against, so core refuses it if the job has moved on since
+ * rather than put an old view's status back; a title alone never touches the
+ * status. A status the page drew but a member cannot pick (filled, pending
+ * approval) is left as it is.
  */
 export function parseJobForm(form: FormData):
-  | { ok: true; jobId: string; change: { title?: string; status?: SettableStatus }; draft: JobDraft }
+  | { ok: true; jobId: string; change: { title?: string; status?: SettableStatus; expectedStatus?: string }; draft: JobDraft }
   | { ok: false; error: JobSettingsError; draft: JobDraft }
   | { ok: false; error: null } {
   const jobId = line(form.get("jobId"));
@@ -108,14 +113,16 @@ export function parseJobForm(form: FormData):
   const status = line(form.get("status"));
   const draft: JobDraft = { title, status };
 
-  const change: { title?: string; status?: SettableStatus } = {};
+  const change: { title?: string; status?: SettableStatus; expectedStatus?: string } = {};
   const next = tidy(title);
   if (!next) return { ok: false, error: "title_required", draft };
   if (next.length > JOB_TITLE_MAX) return { ok: false, error: "title_too_long", draft };
   if (next !== tidy(line(form.get("was:title")))) change.title = next;
-  if (status !== line(form.get("was:status"))) {
+  const was = line(form.get("was:status"));
+  if (status !== was) {
     if (!isSettableStatus(status)) return { ok: false, error: "bad_status", draft };
     change.status = status;
+    change.expectedStatus = was;
   }
   return { ok: true, jobId, change, draft };
 }
@@ -155,6 +162,7 @@ export function jobSettingsRefusal(code: string, message: string): JobSettingsEr
   if (code === "rate_limited") return "rate_limited";
   if (code !== "invalid") return "failed";
   if (/approval/i.test(message)) return "needs_approval";
+  if (/status changed since it was read/i.test(message)) return "status_changed";
   if (/is filled/i.test(message)) return "opening_filled";
   if (/needs a reason/i.test(message)) return "reason_required";
   if (/close reason/i.test(message)) return "reason_too_long";

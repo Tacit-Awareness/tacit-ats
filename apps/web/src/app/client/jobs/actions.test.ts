@@ -53,7 +53,7 @@ describe("saveJobAction", () => {
 
   test("sends only what changed, as the member, source dashboard", async () => {
     expect(await saveJobAction({}, jobForm({ status: "paused", title: "Staff engineer" }))).toEqual({ notice: "saved" });
-    expect(updateJob).toHaveBeenCalledWith(MEMBER.db, CTX, { jobId: JOB, title: "Staff engineer", status: "paused" });
+    expect(updateJob).toHaveBeenCalledWith(MEMBER.db, CTX, { jobId: JOB, title: "Staff engineer", status: "paused", expectedStatus: "open" });
     expect(revalidatePath).toHaveBeenCalledWith("/client", "layout");
   });
 
@@ -75,6 +75,23 @@ describe("saveJobAction", () => {
     updateJob.mockRejectedValue(new clientTools.ClientToolError("invalid", "Not saved: opening needs an approval. request_approval with the job_id asks for it."));
     expect(await saveJobAction({}, jobForm({ "was:status": "paused", status: "open" }))).toMatchObject({ error: "needs_approval" });
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  test("a title alone, after the status moved on, never touches the status", async () => {
+    // The form after a save (or the CLI) paused the job: its select is drawn again on paused, with was:status.
+    updateJob.mockResolvedValue({ outcome: "updated", changed: ["title"] });
+    expect(await saveJobAction({}, jobForm({ "was:status": "paused", status: "paused", title: "Staff engineer" }))).toEqual({ notice: "saved" });
+    expect(updateJob).toHaveBeenCalledWith(MEMBER.db, CTX, { jobId: JOB, title: "Staff engineer" });
+  });
+
+  test("a status picked on a page the job has moved on from is refused, and the page read again", async () => {
+    // The page read open; the CLI paused it since; the member picks closed.
+    updateJob.mockRejectedValue(new clientTools.ClientToolError("invalid", "Not saved: the job's status changed since it was read (it was open, it is now paused). Read the job again and decide from there."));
+    expect(await saveJobAction({}, jobForm({ status: "closed", title: "Staff engineer" }))).toEqual({
+      error: "status_changed", draft: { title: "Staff engineer", status: "closed" },
+    });
+    expect(updateJob).toHaveBeenCalledWith(MEMBER.db, CTX, { jobId: JOB, title: "Staff engineer", status: "closed", expectedStatus: "open" });
+    expect(revalidatePath).toHaveBeenCalledWith("/client", "layout");
   });
 
   test("a failed request is a failure, not a crash", async () => {

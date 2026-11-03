@@ -152,15 +152,24 @@ async function canManage(db: Db, jobId: string): Promise<boolean> {
 
 export type JobChange = Partial<Omit<JobInput, "title">> & { title?: string };
 
+const statusMovedOn = (now: string | null, expected: string) =>
+  new ClientToolError(
+    "invalid",
+    `Not saved: the job's status changed since it was read (it was ${expected}${now ? `, it is now ${now}` : ""}). Read the job again and decide from there.`,
+  );
+
 /**
  * Changes what is given. `department` is an id or name, or null to clear;
  * `offices` is the job's whole set of offices, [] for none. `changed` names
- * the columns, plus "department" and "offices".
+ * the columns, plus "department" and "offices". `expectedStatus`, the status
+ * the caller last read, makes a status change conditional on it: when the job
+ * has moved on since (another tab, the connector, tats), nothing is saved
+ * rather than an old view's status put back.
  */
 export async function updateJob(
   db: Db,
   ctx: ClientToolCtx,
-  input: { jobId: string } & JobChange,
+  input: { jobId: string; expectedStatus?: string } & JobChange,
 ): Promise<{ outcome: "updated" | "unchanged"; changed: string[] }> {
   const next: Partial<Record<Exclude<keyof JobRow, "id" | "department_id">, string | null>> = {};
   if (input.title !== undefined) {
@@ -180,6 +189,8 @@ export async function updateJob(
   const job = await visibleJob(db, input.jobId);
   if (!(await canManage(db, job.id))) throw new ClientToolError("forbidden", "You can see that job but not change it. Ask an admin at your company.");
   const columns = (Object.keys(next) as Array<keyof typeof next>).filter((k) => next[k] !== job[k]);
+  const expectedStatus = columns.includes("status") ? input.expectedStatus : undefined;
+  if (expectedStatus !== undefined && job.status !== expectedStatus) throw statusMovedOn(job.status, expectedStatus);
   const patch: Record<string, string | null> = Object.fromEntries(columns.map((k) => [k, next[k] ?? null]));
   const before: Record<string, unknown> = Object.fromEntries(columns.map((k) => [k, job[k]]));
   const changed: string[] = [...columns];
@@ -211,13 +222,16 @@ export async function updateJob(
   return withAudit(db, ctx, { action: "role.update", entity: "role" }, async () => {
     let ok = false;
     if (Object.keys(patch).length) {
-      const { data, error } = await db
-        .from("roles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", job.id).select("id");
+      let update = db.from("roles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", job.id);
+      // Moved on between the read above and this write: the same refusal, nothing written.
+      if (expectedStatus !== undefined) update = update.eq("status", expectedStatus);
+      const { data, error } = await update.select("id");
       // 22023: the job_open approval gate (20261016110000_client_approvals) refused opening it.
       if (error?.code === "22023") {
         throw new ClientToolError("invalid", `Not saved: ${error.message}. request_approval with the job_id asks for it.`);
       }
       if (error) throw new Error(error.message);
+      if (expectedStatus !== undefined && !data?.length) throw statusMovedOn(null, expectedStatus);
       ok = !!data?.length;
     }
     if (officesRemove.length) {
