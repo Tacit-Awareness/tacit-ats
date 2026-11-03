@@ -52,25 +52,9 @@ function HelpSection({ section }: { section: KeyHelpSection }) {
   );
 }
 
-/** A button that opens the sheet, so it is never reachable by `?` alone. */
-export function KeysButton({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      data-tour="keys"
-      aria-label="Keyboard shortcuts (?)"
-      title="Keyboard shortcuts (?)"
-      className={className}
-    >
-      <span className="grid size-5 shrink-0 place-items-center">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className="size-[15px]" aria-hidden>
-          <path d="M2 4.5h12v7H2ZM4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.5h6" />
-        </svg>
-      </span>
-      {children}
-    </button>
-  );
+/** Opens the sheet, as `?` does. */
+export function openKeys() {
+  window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
 export function ShellKeys({ go }: { go: GoKey[] }) {
