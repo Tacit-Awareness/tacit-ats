@@ -124,7 +124,7 @@ export function DocsView({ site, page }: { site: DocsSite; page: DocPage }) {
                 className ? (
                   <code className={className}>{children}</code>
                 ) : (
-                  <code className="bg-[color:var(--soft-strong)] px-[5px] py-px font-mono text-[12.5px] text-foreground">{children}</code>
+                  <code className="rounded-[4px] bg-[color:var(--soft-strong)] px-[5px] py-px font-mono text-[12.5px] text-foreground">{children}</code>
                 ),
               pre: ({ children }) => (
                 <div className="mt-3 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-card">

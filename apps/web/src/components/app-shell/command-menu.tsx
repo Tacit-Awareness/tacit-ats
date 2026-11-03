@@ -122,7 +122,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
       >
         {ctx ? (
           <div className="flex px-3 pt-3">
-            <span className="inline-flex h-6 max-w-full items-center truncate bg-[color:var(--soft)] px-[9px] text-[12.5px]">{ctx.name}</span>
+            <span className="inline-flex h-6 max-w-full items-center truncate rounded-full bg-[color:var(--soft)] px-[9px] text-[12.5px]">{ctx.name}</span>
           </div>
         ) : null}
         <input

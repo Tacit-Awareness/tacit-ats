@@ -72,7 +72,7 @@ export function ReviewStep({ coverage, ready, canEdit, truncated }: { coverage: 
   const n = coverage.gaps.length;
   return (
     <StepCard title={ready && coverage.state === "covered" ? "Ready for tATS" : "Review your setup"} sub="Here's who runs each kind of interview.">
-      <div className={cn("grid grid-cols-2 gap-px border border-[color:var(--line)] bg-[color:var(--line)] sm:grid-cols-4")}>
+      <div className={cn("grid grid-cols-2 gap-px overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--line)] sm:grid-cols-4")}>
         <Total n={coverage.interviewers} label={coverage.interviewers === 1 ? "interviewer" : "interviewers"} />
         <Total n={coverage.teams} label={coverage.teams === 1 ? "team" : "teams"} />
         <Total n={coverage.multidisciplinary} label="multidisciplinary" />

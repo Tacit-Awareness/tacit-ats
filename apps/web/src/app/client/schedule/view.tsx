@@ -342,7 +342,7 @@ function TimeGrid({
                 {ghost?.day === day ? (
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
+                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden rounded-[6px] border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
                     style={{ top: (ghost.start / 60) * HOUR_PX + 2, height: ((ghost.end - ghost.start) / 60) * HOUR_PX - 4 }}
                   >
                     <b className="truncate font-semibold">{ghost.label}</b>

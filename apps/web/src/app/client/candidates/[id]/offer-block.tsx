@@ -231,7 +231,7 @@ function OpenOffer({ target, offer }: { target: Target; offer: Offer }) {
   };
 
   return (
-    <section ref={box} tabIndex={-1} aria-label="Open offer" className="grid gap-3 border border-[color:var(--line)] bg-[color:var(--pane)] p-3 outline-none">
+    <section ref={box} tabIndex={-1} aria-label="Open offer" className="grid gap-3 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--pane)] p-3 outline-none">
       <div className="flex items-center gap-2">
         <Pill tone={offer.status === "extended" ? "green" : "grey"}>{offerStatusWord(offer.status)}</Pill>
         {offer.createdBy ? <span className="truncate text-[12.5px] text-faint">by {offer.createdBy}</span> : null}

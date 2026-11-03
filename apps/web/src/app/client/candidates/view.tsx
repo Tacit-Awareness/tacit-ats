@@ -181,7 +181,7 @@ export function CrmView({
                     <span role="cell" className={cn(CELL, "gap-1.5")}>
                       {r.jobs.length ? (
                         <>
-                          <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-[9px] text-[12.5px]">{r.jobs[0]}</span>
+                          <span className="inline-flex h-6 min-w-0 items-center truncate rounded-full bg-[color:var(--soft)] px-[9px] text-[12.5px]">{r.jobs[0]}</span>
                           {r.jobs.length > 1 ? (
                             <span className="text-xs text-faint" title={r.jobs.slice(1).join(", ")}>
                               +{r.jobs.length - 1}

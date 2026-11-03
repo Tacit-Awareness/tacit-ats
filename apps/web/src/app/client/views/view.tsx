@@ -52,7 +52,7 @@ function Band({ title, children }: { title: string; children: React.ReactNode })
 function Row({ href, icon, name, desc, count, children }: { href: string; icon: string; name: string; desc: string; count?: string; children?: React.ReactNode }) {
   return (
     <div className="group relative grid min-h-14 grid-cols-[28px_minmax(0,1fr)_auto_32px_32px] items-center gap-x-3 border-b border-[color:var(--line)] py-1.5 pr-3 pl-[18px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)] max-sm:grid-cols-[28px_minmax(0,1fr)_32px_32px]">
-      <span className="grid size-7 place-items-center bg-[color:var(--soft)] text-muted-foreground">
+      <span className="grid size-7 place-items-center rounded-[8px] bg-[color:var(--soft)] text-muted-foreground">
         <Glyph d={icon} />
       </span>
       <Link href={href} title={desc} className="truncate text-[14px] font-medium outline-none after:absolute after:inset-0 focus-visible:underline">

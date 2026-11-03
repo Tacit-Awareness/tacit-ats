@@ -135,11 +135,6 @@ export function useMarks(activeMark: MarkKey | null): Record<MarkKey, boolean> {
   return Object.fromEntries(MARKS.map((m) => [m, m !== activeMark && hasNew(current[m], value[m])])) as Record<MarkKey, boolean>;
 }
 
-/** How many are open on a marked page, from the list the marks already hold, so it costs no read of its own. Null until that is known. */
-export function useOpenCount(mark: MarkKey): number | null {
-  return useShellMemory().current[mark]?.length ?? null;
-}
-
 /** Rendered by a marked page with what it is showing, so its link clears, and stays clear until something else arrives. */
 export function MarkSeen({ mark, ids }: { mark: MarkKey; ids: string[] }) {
   const { show } = useShellMemory();

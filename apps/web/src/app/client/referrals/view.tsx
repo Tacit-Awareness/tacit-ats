@@ -235,7 +235,7 @@ export function ReferralsView({
                         <span className="truncate">{r.referredBy ?? <span className="text-faint">Not recorded</span>}</span>
                       </span>
                       <span role="cell" className={CELL}>
-                        <span className="inline-flex h-6 min-w-0 items-center truncate bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
+                        <span className="inline-flex h-6 min-w-0 items-center truncate rounded-full bg-[color:var(--soft)] px-2 text-[12.5px]">{r.job}</span>
                       </span>
                       <span role="cell" className={CELL}>
                         <Pill tone={where.tone} className={where.className}>

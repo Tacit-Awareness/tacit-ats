@@ -8,7 +8,7 @@ import { CommandMenu, type CommandItem } from "@/components/app-shell/command-me
 import { HoverCard } from "@/components/hover-card";
 import { KeysButton, ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { PillGlass } from "@/components/app-shell/pill-glass";
-import { ShellMemory, useMarks, useOpenCount, useViews } from "@/components/app-shell/shell-memory";
+import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { START_EVENT, ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
 import { Toaster } from "@/components/toasts";
@@ -24,8 +24,7 @@ import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-vie
 // A section only appears once it has a page; each new page adds its own link.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
 // edge to open it again), ⌘K opens the command menu. The sidebar is for getting
-// around, not a report, so there is one count, what's open in the Inbox, which
-// has no other place now its card has no tabs. The one signal is design/tats's
+// around, not a report, so it carries no counts. The one signal is design/tats's
 // mark, a faint red tint on Inbox or New Applicants when something arrived
 // since you last opened it (shell-memory.tsx, which holds both).
 // Saved views you pin sit under Pipeline.
@@ -126,8 +125,8 @@ const itemCls = (active: boolean, fresh = false) =>
     active ? "nav-on font-medium" : fresh ? "nav-new font-[450]" : "font-[450] hover:bg-[color:var(--hover)]",
   );
 
-/** `fresh` is the mark's tooltip, when something new is there. `count` is what's open, gone on the rail with the label. */
-function NavItem({ link, active, rail, fresh, count }: { link: NavLink; active: boolean; rail: boolean; fresh?: string | null; count?: number | null }) {
+/** `fresh` is the mark's tooltip, when something new is there. */
+function NavItem({ link, active, rail, fresh }: { link: NavLink; active: boolean; rail: boolean; fresh?: string | null }) {
   return (
     <Link
       href={link.href}
@@ -142,12 +141,6 @@ function NavItem({ link, active, rail, fresh, count }: { link: NavLink; active: 
         <Icon name={link.icon} />
       </span>
       <span className="sb-label">{link.label}</span>
-      {count ? (
-        <span className="sb-label ml-auto text-[12.5px] font-normal text-faint tabular-nums">
-          {count}
-          <span className="sr-only"> open</span>
-        </span>
-      ) : null}
     </Link>
   );
 }
@@ -226,7 +219,7 @@ function OrgLogo({ org, logoUrl }: { org: string; logoUrl: string | null }) {
     return <img src={logoUrl} alt="" className="size-[22px] shrink-0 bg-white object-contain" />;
   }
   return (
-    <span className="grid size-[22px] shrink-0 place-items-center bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
+    <span className="grid size-[22px] shrink-0 place-items-center rounded-[6px] bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
       {initialsOf(org).slice(0, 1)}
     </span>
   );
@@ -260,7 +253,6 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   const side = useRef<HTMLElement>(null);
   const views = useViews();
   const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : null);
-  const openInInbox = useOpenCount("inbox");
   // The drag's start and where it has got to: the release saves `now`, not the
   // state from the last render, which may not have caught up. `snapUntil` is how
   // long the edge eases after a snap before it follows the pointer again.
@@ -448,7 +440,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
 
         <nav className="sb-group" aria-label="Home">
           <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
-          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} count={openInInbox} />
+          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} />
         </nav>
 
         <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")}>
@@ -518,7 +510,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-12 md:py-2.5 md:pr-2.5 md:pl-1.5">
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-card md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-card md:rounded-[10px] md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
           <div className="shell-page mx-auto w-full max-w-7xl px-4 py-8 md:px-8">{children}</div>
         </main>
       </div>

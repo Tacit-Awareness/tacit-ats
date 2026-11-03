@@ -104,7 +104,7 @@ function Lines({
         {lines.map((line, i) => (
           <li key={i} className={cn("group/line flex gap-2.5 text-muted-foreground", numbered ? "items-center border-b border-[color:var(--line)] py-2 text-foreground" : "items-start py-[3px]")}>
             {numbered ? (
-              <em className="grid size-5 flex-none place-items-center bg-[color:var(--soft-strong)] text-[11.5px] font-medium text-muted-foreground not-italic">{i + 1}</em>
+              <em className="grid size-5 flex-none place-items-center rounded-full bg-[color:var(--soft-strong)] text-[11.5px] font-medium text-muted-foreground not-italic">{i + 1}</em>
             ) : (
               <span className="mt-[9px] size-[5px] flex-none bg-[color:var(--faint)]" />
             )}
@@ -205,7 +205,7 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
 
   return (
     <div className="text-[14px] leading-[1.55]">
-      <p className="m-0 mb-1 bg-[color:var(--soft)] px-3 py-2.5 text-[13px] text-muted-foreground">
+      <p className="m-0 mb-1 rounded-[8px] bg-[color:var(--soft)] px-3 py-2.5 text-[13px] text-muted-foreground">
         Name and email are on every application. Everything else here is yours to change.
       </p>
       {resume.map((q) => (
@@ -623,7 +623,7 @@ export function PostingEditor({
         </article>
 
         {preview ? null : (
-          <section className="border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
+          <section className="rounded-[12px] border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
             <h3 className="m-0 mb-1.5 text-xs font-medium tracking-[0.04em] text-faint uppercase">Only your team sees this</h3>
             {settings ? <JobSettingsPanel settings={settings} /> : null}
             <p className="m-0 mb-2 text-[13px] font-semibold">Hiring steps</p>

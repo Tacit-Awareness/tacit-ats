@@ -132,7 +132,7 @@ const chevron = (up: boolean) => (
 export function CareersView({ header, p }: { header: AnalyticsHeader; p: CareersProps }) {
   return (
     <Page bar={<Bar {...header} />}>
-      <div className="grid gap-2 bg-[color:var(--soft)] p-2">
+      <div className="grid gap-2 rounded-[12px] bg-[color:var(--soft)] p-2">
         <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3 pb-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Careers page</h2>
           <span className="flex-1" />
@@ -171,7 +171,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
           ))}
         </div>
 
-        <div className="overflow-hidden bg-[color:var(--paper)] shadow-[var(--shadow),0_0_0_1px_var(--line)]">
+        <div className="overflow-hidden rounded-[10px] bg-[color:var(--paper)] shadow-[var(--shadow),0_0_0_1px_var(--line)]">
           <div className="flex flex-wrap items-center gap-2.5 px-5 pt-4 pb-1.5">
             <span className="inline-flex items-center gap-2 text-[13.5px] font-medium">
               <i className="block h-[3px] w-3.5 bg-[color:var(--accent)]" />
