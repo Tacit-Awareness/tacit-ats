@@ -6,7 +6,7 @@ import { webFileStore } from "@/lib/client/file-store";
 import { addReferral, referralFile, type AddReferralOutcome } from "@/lib/client/referrals";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
-import type { ReferralError, ReferralNotice } from "./messages";
+import type { ReferralError, ReferralState } from "./messages";
 
 // "Add referral": lib/client/referrals.ts's addReferral runs the audited
 // clientTools.addCandidate on the signed-in member's own client, with source
@@ -21,17 +21,17 @@ function text(form: FormData, key: string): string | null {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
 }
 
-// Only codes go in the URL, never a name, an address or a message.
-const back = (params: { error: ReferralError } | { notice: ReferralNotice }): never =>
-  redirect("error" in params ? `/client/referrals/new?error=${params.error}` : `/client/referrals?notice=${params.notice}`);
+// A refusal answers the form, which keeps what was typed; once added, the list
+// says so. Only codes go in the URL, never a name, an address or a message.
+const refused = (error: ReferralError): ReferralState => ({ status: "error", error });
 
-export async function addReferralAction(form: FormData): Promise<void> {
+export async function addReferralAction(_prev: ReferralState, form: FormData): Promise<ReferralState> {
   const member = await requireClient();
   const jobId = form.get("jobId");
-  if (typeof jobId !== "string" || !UUID.test(jobId)) return back({ error: "invalid_job" });
+  if (typeof jobId !== "string" || !UUID.test(jobId)) return refused("invalid_job");
 
   const file = await referralFile(form.get("resume"));
-  if (file === "invalid") return back({ error: "invalid_file" });
+  if (file === "invalid") return refused("invalid_file");
 
   let outcome: AddReferralOutcome;
   try {
@@ -46,13 +46,13 @@ export async function addReferralAction(form: FormData): Promise<void> {
     }, webFileStore());
   } catch (err) {
     console.error("[client-referrals] adding a referral failed:", err instanceof Error ? err.message : err);
-    return back({ error: "failed" });
+    return refused("failed");
   }
-  if (!outcome.ok) return back({ error: outcome.error });
+  if (!outcome.ok) return refused(outcome.error);
 
   revalidatePath("/client/referrals");
   revalidatePath("/client/applicants");
   revalidatePath("/client/pipeline");
   revalidatePath(`/client/jobs/${jobId}`);
-  return back({ notice: outcome.status });
+  redirect(`/client/referrals?notice=${outcome.status}`);
 }

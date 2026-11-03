@@ -32,9 +32,13 @@ export function uploadName(raw: string, ext: string, fallback: string): string {
   return `${stem || fallback}.${ext}`;
 }
 
-/** The form's file, by the type its extension names and bytes that are that type; or which rule it broke. */
+/**
+ * The form's file, by the type its extension names and bytes that are that
+ * type; or which rule it broke. An empty file input can reach the server with a
+ * name ("blob", "undefined"), so any zero-byte upload counts as none picked.
+ */
 export async function uploadFile(value: FormDataEntryValue | null, fallback: string): Promise<UploadFile | FileError> {
-  if (!(value instanceof File) || (value.size === 0 && value.name === "")) return "file_missing";
+  if (!(value instanceof File) || value.size === 0) return "file_missing";
   const picked = pickedFileError(value, FILE_EXTENSIONS, clientTools.FILE_MAX_BYTES);
   if (picked) return picked;
   const ext = value.name.slice(value.name.lastIndexOf(".") + 1).toLowerCase();
