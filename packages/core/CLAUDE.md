@@ -503,9 +503,9 @@ src/
                         ({accountEmail, workspace: true, own}), as Ashby:
                         readCalendarConnections(serviceDb, orgId, ids,
                         {workspace}) is the one read both apps and the
-                        notifier use (service role; covers a signed-in
-                        member, auth_subject, above interviewer at the
-                        verified domain, as memberMailbox does the caller),
+                        notifier use (service role; covers every signed-in
+                        member, auth_subject, at the verified domain,
+                        interviewers too, unlike memberMailbox's Gmail),
                         and calendarAccess mints a delegated token
                         (ClientCalendar.delegation, WORKSPACE_CALENDAR_SCOPES:
                         calendar.events, calendar.events.freebusy), falling

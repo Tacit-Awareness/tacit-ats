@@ -44,9 +44,10 @@ export default async function ClientSettings({
   if (syncOff.error) throw new Error(syncOff.error.message);
   const myEmail = gate.ctx.user.email.trim().toLowerCase();
   const delegation = tacitDelegation();
-  // As core's memberMailbox (and, for Calendar, readCalendarConnections) decides: the company's Workspace covers a member above interviewer at its domain.
-  const throughWorkspace =
-    !!delegation && !!workspace.data && gate.ctx.accessLevel !== "limited" && clientTools.domainOf(myEmail) === workspace.data.domain;
+  // As core decides: the company's Workspace covers every member at its domain for Calendar (readCalendarConnections),
+  // and those above interviewer for Gmail (memberMailbox), since an interviewer emails no candidate.
+  const atWorkspaceDomain = !!delegation && !!workspace.data && clientTools.domainOf(myEmail) === workspace.data.domain;
+  const throughWorkspace = atWorkspaceDomain && gate.ctx.accessLevel !== "limited";
   // An admin at the verified domain: does Google give Tacit their calendar too? (Companies connected before Calendar was part of it don't.)
   const calendarCheck =
     admin && delegation && workspace.data && clientTools.domainOf(myEmail) === workspace.data.domain
@@ -73,7 +74,7 @@ export default async function ClientSettings({
       }
       throughWorkspace={throughWorkspace ? { accountEmail: myEmail, syncOn: !syncOff.data } : null}
       // Booking needs the Google app as well (lib/member-calendar/grants.ts), so without it the Workspace books nothing.
-      calendarThroughWorkspace={throughWorkspace && googleCalendarConfig() !== null ? { accountEmail: myEmail } : null}
+      calendarThroughWorkspace={atWorkspaceDomain && googleCalendarConfig() !== null ? { accountEmail: myEmail } : null}
       workspace={
         admin
           ? {
