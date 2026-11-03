@@ -169,6 +169,18 @@ describe("updateInterview, dry run", () => {
     expect(google.eventCalls()).toEqual([]);
   });
 
+  test("a done interview's cancel and move say its event follows, as the real call", async () => {
+    const google = fakeGoogle();
+    const finished = { ...booked, status: "done" };
+    const cancel = await updateInterview(loaded(finished, { data: people }, APP).asDb(), ctx, { interviewId: "int-1", status: "cancelled", dryRun: true }, { calendar: google.calendarWith({ "actor-9": HOLDER }), now });
+    expect(cancel).toMatchObject({ outcome: "preview", calendar: { status: "would_follow", action: "cancel" } });
+    const fake = loaded(finished, { data: people }, APP);
+    const move = await updateInterview(fake.asDb(), ctx, { interviewId: "int-1", startsAt: "2026-10-01T19:00:00Z", endsAt: "2026-10-01T20:00:00Z", dryRun: true }, { calendar: google.calendarWith({ "actor-9": HOLDER }), now });
+    expect(move).toMatchObject({ outcome: "preview", calendar: { status: "would_follow", action: "move" } });
+    wroteNothing(fake);
+    expect(google.eventCalls()).toEqual([]);
+  });
+
   test("a move checks the new time and reports a clash instead of stopping", async () => {
     const google = fakeGoogle({ busy: { "at-hana": { "alice@co.test": [["2026-10-22T19:30:00Z", "2026-10-22T20:00:00Z"]] } } });
     const fake = loaded(booked, { data: people }, { data: { ...APP.data, people: { display_name: "Pat Lee", email: null } } });

@@ -703,11 +703,21 @@ export async function updateInterview(
   const moved = "starts_at" in next || "ends_at" in next;
   const cancelling = next.status === "cancelled";
   const reinvite = "interviewer_actor_ids" in next;
-
-  // The calendar side, decided before anything is written: the event is moved
-  // or cancelled with the grant of whoever holds it.
   const eventId = current.google_event_id;
-  const touchesEvent = !!eventId && current.status === "scheduled" && (cancelling || (next.status === undefined && (moved || reinvite)));
+  // Cancelling cancelled the event in Google, which is not brought back, and the calendar
+  // sync cancels again a scheduled row whose event is gone: a new booking is the way.
+  if (eventId && current.status === "cancelled" && next.status === "scheduled") {
+    const book = ctx.source === "dashboard" ? "Book a new one on the Calendar." : "Book a new one with schedule_interview.";
+    throw new ClientToolError("invalid", `This interview was cancelled, and its calendar event with it, so it cannot be scheduled again. ${book} Nothing was changed.`);
+  }
+
+  // The calendar side, decided before anything is written: the event of any interview not
+  // cancelled (scheduled or done) is moved, re-invited or cancelled with the grant of
+  // whoever holds it. A cancelled interview's event is cancelled already.
+  const touchesEvent = !!eventId && current.status !== "cancelled" && (cancelling || moved || reinvite);
+  // Only an interview still to happen is checked for the past and for clashes: moving a
+  // done one corrects the record, and its event just follows.
+  const stillScheduled = (next.status ?? current.status) === "scheduled";
   let google: {
     token: string; holder: string; people: Array<{ id: string; name: string; email: string | null }>; avail: Pick<Availability, "connections">;
   } | null = null;
@@ -727,7 +737,7 @@ export async function updateInterview(
     const holder = current.calendar_actor_id ?? ctx.actorId;
     const people = await interviewerDetails(db, [...new Set([holder, ...ids])]);
     const interviewing = people.filter((p) => ids.includes(p.id));
-    if (moved && !cancelling) {
+    if (moved && !cancelling && stillScheduled) {
       const now = (deps.now ?? (() => new Date()))();
       if (Date.parse(startsAt) <= now.getTime()) throw new ClientToolError("invalid", "That time is in the past. Nothing was changed.");
       const avail = await availability(calendar, ctx, interviewing, { startIso: startsAt, endIso: endsAt }, holder);
@@ -807,7 +817,7 @@ export async function updateInterview(
   let drafted: { candidateDraft: DraftEmailResult | null; noDraftBecause: string | null } = { candidateDraft: null, noDraftBecause: null };
   // Only about an interview still ahead: moved to the future, or cancelled before it happened.
   const ahead = Date.parse(cancelling ? current.starts_at : startsAt) > (deps.now ?? (() => new Date()))().getTime();
-  if (done.outcome === "updated" && (moved || cancelling) && ahead && input.draftCandidateEmail !== false && deps.mailer !== undefined) {
+  if (done.outcome === "updated" && ((moved && stillScheduled) || cancelling) && ahead && input.draftCandidateEmail !== false && deps.mailer !== undefined) {
     const detail = await applicationDetail(db, current.application_id);
     const what = current.step ?? "interview";
     drafted = await draftToCandidate(db, ctx, deps.mailer, cancelling
