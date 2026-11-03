@@ -2,11 +2,11 @@ import { FlashToast } from "@/components/flash-toast";
 import { Notice } from "@/components/page";
 import { onboardingAccess, readPeople } from "@/lib/client/onboarding";
 import { resolveClient } from "@/lib/client/session";
-import { TeamSections } from "../../interviewers/team";
+import { PeopleCard } from "./people-card";
 import { TEAM_ERRORS, TEAM_NOTICES, isTeamError, isTeamNotice } from "../messages";
 
 // Onboarding's first step: who is on the team, and for an admin who is invited,
-// access, titles and the invite form (interviewers/team.tsx), read with the
+// access, titles and the invite row (people-card.tsx), read with the
 // member's own token. The layout gates too, but it keeps its render across a step
 // change, so this page reads nothing for someone with no access: they get only
 // what their last action said, above the layout's pointer home.
@@ -29,8 +29,16 @@ export default async function OnboardingPeople({ searchParams }: { searchParams:
   return (
     <>
       {notices}
-      {members.length + pending.length === 1 && isAdmin ? <Notice>It&apos;s just you so far. Invite the people who interview, and anyone else who works on hiring.</Notice> : null}
-      <TeamSections members={members} membersTruncated={truncated} pending={pending} actorId={actorId} isAdmin={isAdmin} titles={titles} rendered={Date.now()} />
+      <PeopleCard
+        members={members}
+        membersTruncated={truncated}
+        pending={pending}
+        actorId={actorId}
+        isAdmin={isAdmin}
+        titles={titles}
+        rendered={Date.now()}
+        notice={members.length + pending.length === 1 && isAdmin ? <Notice>It&apos;s just you so far. Invite the people who interview, and anyone else who works on hiring.</Notice> : null}
+      />
     </>
   );
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Avatar, Section, textLink } from "@/components/page";
+import { Avatar, textLink } from "@/components/page";
 import type { Coverage, CoverageRow } from "@/lib/client/coverage";
 import { cn } from "@/lib/utils";
+import { StepCard } from "../step-card";
 
 // Onboarding's Review step, props only (page.tsx reads): design/tats's "Ready for
 // tATS", the totals and who runs each kind of interview. A gap is said in words
@@ -70,8 +71,7 @@ function Lead({ coverage, canEdit }: { coverage: Coverage; canEdit: boolean }) {
 export function ReviewStep({ coverage, ready, canEdit, truncated }: { coverage: Coverage; /** Every other step is done. */ ready: boolean; canEdit: boolean; truncated: boolean }) {
   const n = coverage.gaps.length;
   return (
-    <Section title={ready && coverage.state === "covered" ? "Ready for tATS" : "Review your setup"}>
-      <p className="m-0 text-[13px] text-muted-foreground">Here&apos;s who runs each kind of interview.</p>
+    <StepCard title={ready && coverage.state === "covered" ? "Ready for tATS" : "Review your setup"} sub="Here's who runs each kind of interview.">
       <div className={cn("grid grid-cols-2 gap-px border border-[color:var(--line)] bg-[color:var(--line)] sm:grid-cols-4")}>
         <Total n={coverage.interviewers} label={coverage.interviewers === 1 ? "interviewer" : "interviewers"} />
         <Total n={coverage.teams} label={coverage.teams === 1 ? "team" : "teams"} />
@@ -97,6 +97,6 @@ export function ReviewStep({ coverage, ready, canEdit, truncated }: { coverage: 
         </p>
       ) : null}
       {truncated ? <p className="m-0 text-xs text-faint">This stopped short of your whole team.</p> : null}
-    </Section>
+    </StepCard>
   );
 }

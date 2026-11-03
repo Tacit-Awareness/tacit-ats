@@ -1,10 +1,10 @@
-import { Section } from "@/components/page";
 import { onboardingAccess } from "@/lib/client/onboarding";
 import { readProcess } from "@/lib/client/process";
 import { resolveClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import "../onboarding.css";
 import { ProcessEditor } from "./editor";
+import { StepCard } from "../step-card";
 
 // Onboarding's Interview process step (design/tats's `#setup~process`). One process
 // per company, with a branch per team. Admins edit; the company's own hiring team
@@ -19,9 +19,8 @@ export default async function ProcessPage() {
   if (access === "none") return null;
   const read = await readProcess(member.db, toolCtx(member));
   return (
-    <Section title="Design your interview process">
-      <p className="m-0 text-[13px] text-muted-foreground">Draw the steps from applying to an offer. Each job keeps its own plan: this changes one only when you apply it.</p>
+    <StepCard title="Design your interview process" sub="Draw the steps from applying to an offer. Each job keeps its own plan: this changes one only when you apply it.">
       <ProcessEditor read={read} canEdit={access === "edit"} />
-    </Section>
+    </StepCard>
   );
 }
