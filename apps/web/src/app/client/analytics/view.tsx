@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Empty, Page, PageBar, SubBar, Tabs, pillOption, pillTrack } from "@/components/page";
+import { Empty, Page, PageBar, Tabs, pillOption, pillTrack } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { CareersChart, type ChartPoint } from "./chart";
@@ -51,12 +51,13 @@ const LABELLED = 10;
 
 const ICON = "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5";
 
-/** The page bar (the crumb, the department chip) and the tabs under it, as Home's. */
+/** The page bar: the crumb, then Job Postings / Pipeline beside it (design/tats-ui-update's `.cx-bar`), the department chip right. */
 function Bar({ filters, tabs }: AnalyticsHeader) {
   return (
     <>
       <PageBar
         title="Analytics"
+        lead={<Tabs strip label="Analytics" tabs={tabs} />}
         icon={
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" aria-hidden>
             <path d={ICON} />
@@ -67,9 +68,6 @@ function Bar({ filters, tabs }: AnalyticsHeader) {
           <FilterMenu key={f.label} {...f} />
         ))}
       </PageBar>
-      <SubBar>
-        <Tabs strip label="Analytics" tabs={tabs} />
-      </SubBar>
     </>
   );
 }
@@ -83,6 +81,27 @@ function Segmented({ items, label }: { items: Link_[]; label: string }) {
           {i.label}
         </Link>
       ))}
+    </div>
+  );
+}
+
+/** design/tats's `.an-tog`: line or bars, as two icon buttons on a soft track. */
+function ChartToggle({ line, bar, bars }: { line: string; bar: string; bars: boolean }) {
+  const btn = (on: boolean) =>
+    cn("grid h-[26px] w-[30px] place-items-center rounded-[7px] transition-colors", on ? "bg-[color:var(--paper)] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.08)]" : "text-faint hover:text-foreground");
+  const icon = (d: string) => (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-3.5" aria-hidden>
+      <path d={d} />
+    </svg>
+  );
+  return (
+    <div role="group" aria-label="Chart" className="inline-flex rounded-[9px] bg-[color:var(--soft)] p-0.5">
+      <Link href={line} aria-label="Line chart" aria-current={!bars ? "true" : undefined} className={btn(!bars)}>
+        {icon("M2 11.5l3.5-4 3 2.5L14 4")}
+      </Link>
+      <Link href={bar} aria-label="Bar chart" aria-current={bars ? "true" : undefined} className={btn(bars)}>
+        {icon(ICON)}
+      </Link>
     </div>
   );
 }
@@ -102,12 +121,12 @@ export function Ranked({ title, col, rows }: { title: string; col: string; rows:
         rows.map((r) => {
           const inner = (
             <>
-              <i className="absolute inset-y-0 left-0 bg-[color:var(--accent-soft)]" style={{ width: `${Math.max(4, (r.n / max) * 100)}%` }} />
+              <i className="absolute inset-y-0 left-0 rounded-[8px] bg-[color:var(--accent-soft)]" style={{ width: `${Math.max(4, (r.n / max) * 100)}%` }} />
               <span className="relative truncate">{r.label}</span>
               <b className="relative font-medium tabular-nums">{r.n.toLocaleString("en-US")}</b>
             </>
           );
-          const cls = "relative flex h-9 items-center justify-between gap-3 px-2.5 text-[13.5px]";
+          const cls = "relative flex h-9 items-center justify-between gap-3 rounded-[8px] px-2.5 text-[13.5px]";
           return r.href ? (
             <Link key={r.href} href={r.href} className={cn(cls, "hover:bg-[color:var(--hover)]")} title={`${r.n} applications`}>
               {inner}
@@ -132,7 +151,7 @@ const chevron = (up: boolean) => (
 export function CareersView({ header, p }: { header: AnalyticsHeader; p: CareersProps }) {
   return (
     <Page bar={<Bar {...header} />}>
-      <div className="grid gap-2 rounded-[12px] bg-[color:var(--soft)] p-2">
+      <div className="mx-auto grid w-full max-w-[1120px] gap-2 rounded-[20px] bg-[color:var(--soft)] p-2">
         <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3 pb-1.5">
           <h2 className="m-0 text-[17px] font-semibold">Careers page</h2>
           <span className="flex-1" />
@@ -140,7 +159,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
           <ExportButton rows={p.exportRows} filename={p.exportName} />
         </div>
 
-        <div className="grid grid-cols-2 gap-1 min-[768px]:grid-cols-4 min-[768px]:gap-2">
+        <div className="grid grid-cols-2 gap-2 min-[768px]:grid-cols-4">
           {p.cards.map((c) => (
             <Link
               key={c.key}
@@ -148,8 +167,8 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
               aria-current={c.active ? "true" : undefined}
               title={c.def}
               className={cn(
-                "grid min-w-0 content-start justify-items-start gap-1.5 px-3 py-3 transition-[background,box-shadow] min-[768px]:px-[18px] min-[768px]:py-4",
-                c.active ? "bg-[color:var(--paper)] text-foreground shadow-[var(--shadow),0_0_0_1px_var(--line)]" : "text-faint hover:bg-[color-mix(in_srgb,var(--paper)_55%,transparent)]",
+                "grid min-w-0 content-start justify-items-start gap-1.5 rounded-[14px] px-3.5 py-3 transition-[background,box-shadow] min-[768px]:px-[18px] min-[768px]:py-4",
+                c.active ? "bg-[color:var(--paper)] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--line)]" : "text-faint hover:bg-[color-mix(in_srgb,var(--paper)_55%,transparent)]",
               )}
             >
               <span className={cn("text-[13px]", c.active && "text-muted-foreground")}>{c.label}</span>
@@ -171,26 +190,20 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
           ))}
         </div>
 
-        <div className="overflow-hidden rounded-[10px] bg-[color:var(--paper)] shadow-[var(--shadow),0_0_0_1px_var(--line)]">
-          <div className="flex flex-wrap items-center gap-2.5 px-5 pt-4 pb-1.5">
+        <div className="overflow-hidden rounded-[14px] bg-[color:var(--paper)] shadow-[0_1px_2px_rgba(0,0,0,0.05),0_0_0_1px_var(--line)]">
+          <div className="flex flex-wrap items-center gap-2.5 px-3.5 pt-3.5 pb-1 min-[768px]:px-5 min-[768px]:pt-4 min-[768px]:pb-1.5">
             <span className="inline-flex items-center gap-2 text-[13.5px] font-medium">
-              <i className="block h-[3px] w-3.5 bg-[color:var(--accent)]" />
+              <i className="block h-[3px] w-3.5 rounded-[2px] bg-[color:var(--accent)]" />
               {p.metric}
               {p.chart.compare ? (
                 <>
-                  <i className="ml-2 block h-[3px] w-3.5 bg-[color:var(--faint)]" />
+                  <i className="ml-2 block h-[3px] w-3.5 rounded-[2px] bg-[color:var(--faint)]" />
                   <span className="font-normal text-faint">Period before</span>
                 </>
               ) : null}
             </span>
             <span className="flex-1" />
-            <Segmented
-              label="Chart"
-              items={[
-                { href: p.toggles.line, label: "Line", active: !p.chart.bars },
-                { href: p.toggles.bar, label: "Bars", active: p.chart.bars },
-              ]}
-            />
+            <ChartToggle line={p.toggles.line} bar={p.toggles.bar} bars={p.chart.bars} />
             <Link href={p.toggles.compare} role="switch" aria-checked={p.chart.compare} className="inline-flex items-center gap-2 text-[13px] text-muted-foreground">
               <span className={cn("relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors", p.chart.compare ? "bg-[color:var(--accent)]" : "bg-[color:var(--soft-strong)]")}>
                 <i className={cn("absolute top-0.5 left-0.5 size-3.5 rounded-full bg-[color:var(--n0)] shadow-[var(--shadow)] transition-transform", p.chart.compare && "translate-x-3")} />
@@ -200,7 +213,7 @@ export function CareersView({ header, p }: { header: AnalyticsHeader; p: Careers
           </div>
           <CareersChart {...p.chart} />
           <div className="mt-3 grid border-t border-[color:var(--line)] min-[768px]:grid-cols-2 min-[768px]:[&>*+*]:border-l max-[767px]:[&>*+*]:border-t [&>*+*]:border-[color:var(--line)]">
-            <Ranked title="Top jobs" col="Applications" rows={p.jobs} />
+            <Ranked title="Top postings" col="Applications" rows={p.jobs} />
             <Ranked title="Where they came from" col="Applications" rows={p.sources} />
           </div>
         </div>
@@ -217,8 +230,8 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
   const fill = (j: number) => ({ background: p.segments[j].color });
   return (
     <Page bar={<Bar {...header} />}>
-      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
-        <div className="flex items-baseline px-4 pt-5 min-[768px]:px-6">
+      <section className="mx-auto box-border w-full max-w-[900px] overflow-hidden rounded-[14px] border border-[color:var(--line)] bg-[color:var(--paper)]">
+        <div className="flex items-baseline px-4 pt-[22px] min-[768px]:px-6">
           <h2 className="m-0 text-[20px] font-semibold tracking-[-0.01em]">Pipeline</h2>
           <span className="flex-1" />
           <span className="text-[13px] text-muted-foreground">
@@ -229,7 +242,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
           {p.picks.map((f) => (
             <div key={f.label} className="grid gap-1.5">
               <span className="pl-0.5 text-[12.5px] text-faint">{f.label}</span>
-              <FilterMenu {...f} />
+              <FilterMenu {...f} block />
             </div>
           ))}
         </div>
@@ -247,7 +260,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
                 ))}
                 {p.rows.map((r) => (
                   <div key={r.key} className="relative flex items-end justify-center" title={`${r.label} · ${r.total} ${p.unit}`}>
-                    <div className="flex w-[18px] flex-col-reverse gap-0.5" style={{ height: `${(r.total / p.top) * 100}%` }}>
+                    <div className="flex w-[18px] flex-col-reverse gap-0.5 [&>i:last-child]:rounded-t-[4px]" style={{ height: `${(r.total / p.top) * 100}%` }}>
                       {r.by.map((v, j) =>
                         v ? <i key={j} className="block min-h-[3px] hover:opacity-80" style={{ flex: v, ...fill(j) }} title={`${p.segments[j].label}: ${v}`} /> : null,
                       )}
@@ -277,12 +290,12 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
             <div className="overflow-x-auto border-t border-[color:var(--line)]">
               <table className="w-full min-w-[560px] border-collapse text-[13.5px]">
                 <thead>
-                  <tr className="h-10 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-[12.5px] text-faint">
+                  <tr className="h-10 border-b border-[color:var(--line)] text-[12.5px] text-faint">
                     <th className="pl-4 text-left font-normal min-[768px]:pl-6">{p.slice}</th>
                     <th className="px-2 text-right font-normal">{p.measure}</th>
                     {p.segments.map((s, j) => (
                       <th key={s.label} className="px-2 text-right font-normal whitespace-nowrap last:pr-4 min-[768px]:last:pr-6">
-                        <i className="mr-1.5 inline-block size-[9px]" style={fill(j)} />
+                        <i className="mr-1.5 inline-block size-[9px] rounded-[2px]" style={fill(j)} />
                         {s.label}
                       </th>
                     ))}
@@ -306,7 +319,7 @@ export function ExplorerView({ header, p }: { header: AnalyticsHeader; p: Explor
             <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-4 pt-4 pb-5 text-[13px] text-muted-foreground min-[768px]:px-6">
               {p.segments.map((s, j) => (
                 <span key={s.label} className="inline-flex items-center">
-                  <i className="mr-1.5 inline-block size-[9px]" style={fill(j)} />
+                  <i className="mr-1.5 inline-block size-[9px] rounded-[2px]" style={fill(j)} />
                   {s.label}
                 </span>
               ))}

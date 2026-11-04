@@ -13,7 +13,20 @@ import { cn } from "@/lib/utils";
 
 export type FilterOption = { href: string; label: string; active: boolean };
 
-export function FilterMenu({ label, value, on, options }: { label: string; value: string; on: boolean; options: FilterOption[] }) {
+export function FilterMenu({
+  label,
+  value,
+  on,
+  options,
+  block,
+}: {
+  label: string;
+  value: string;
+  on: boolean;
+  options: FilterOption[];
+  /** design/tats's `.ex-sel`: a full-width 36px select rather than a chip (Analytics' explorer). */
+  block?: boolean;
+}) {
   const [open, setOpen] = React.useState(false);
   const root = React.useRef<HTMLDivElement>(null);
   const menu = React.useRef<HTMLDivElement>(null);
@@ -43,7 +56,7 @@ export function FilterMenu({ label, value, on, options }: { label: string; value
   }, [open]);
 
   return (
-    <div ref={root} className="relative">
+    <div ref={root} className={cn("relative", block && "w-full")}>
       <button
         type="button"
         aria-label={`${label}: ${value}`}
@@ -51,8 +64,10 @@ export function FilterMenu({ label, value, on, options }: { label: string; value
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] whitespace-nowrap text-foreground transition-colors",
-          on ? "border-transparent bg-[color:var(--sel)]" : "border-[color:var(--line)] bg-[color:var(--paper)] hover:border-[color:var(--line-strong)]",
+          block
+            ? "flex h-9 w-full items-center justify-between gap-1.5 rounded-[8px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] px-3 text-[13.5px] font-medium whitespace-nowrap text-foreground shadow-[var(--shadow)] transition-colors hover:bg-[color:var(--hover)]"
+            : "inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] whitespace-nowrap text-foreground transition-colors",
+          !block && (on ? "border-transparent bg-[color:var(--sel)]" : "border-[color:var(--line)] bg-[color:var(--paper)] hover:border-[color:var(--line-strong)]"),
         )}
       >
         <span className="truncate">{value}</span>
