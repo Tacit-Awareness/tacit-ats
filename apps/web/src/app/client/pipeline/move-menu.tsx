@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import type { CardMoves, StageMove } from "@/lib/client/pipeline-moves";
 import { menuKey } from "@/lib/keys";
-import { cssPx } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // The stage menu, design/tats's `statusMenu`, for a board card and a list row:
@@ -51,8 +50,8 @@ export function MoveMenu({ at, onPick, onClose, focusRow }: { at: MenuAt; onPick
     const height = el.offsetHeight;
     const below = at.rect.bottom + (at.open ? 0 : 4);
     const left = at.open ? at.rect.left : at.rect.right - MENU_WIDTH;
-    el.style.top = `${below + height + gap > cssPx(window.innerHeight) ? Math.max(gap, at.rect.top - height - (at.open ? 0 : 4)) : below}px`;
-    el.style.left = `${Math.max(gap, Math.min(left, cssPx(window.innerWidth) - MENU_WIDTH - gap))}px`;
+    el.style.top = `${below + height + gap > window.innerHeight ? Math.max(gap, at.rect.top - height - (at.open ? 0 : 4)) : below}px`;
+    el.style.left = `${Math.max(gap, Math.min(left, window.innerWidth - MENU_WIDTH - gap))}px`;
     el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
   }, [at]);
 

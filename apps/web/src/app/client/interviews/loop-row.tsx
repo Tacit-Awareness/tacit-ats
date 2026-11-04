@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { cssPx } from "@/lib/ui-scale";
 
 const BLEED = "-mx-4 px-4 @2xl:-mx-[26px] @2xl:px-[26px]";
 
@@ -14,7 +13,7 @@ function useCentred<E extends HTMLElement>(current: string | null) {
     if (!el || !card) return;
     const box = el.getBoundingClientRect();
     const at = card.getBoundingClientRect();
-    el.scrollLeft += cssPx(at.left - box.left - (box.width - at.width) / 2);
+    el.scrollLeft += at.left - box.left - (box.width - at.width) / 2;
   }, [current]);
   return row;
 }

@@ -5,7 +5,7 @@ import { NODE_SIZE, OWNERS, type NodeKind, type Owner, type ProcessDoc, type Pro
 // The flowchart editor, the pure half (design/tats's fcCommit, fcUndo, fcAddNode,
 // fcRemoveNode and its pointer math): a reducer over the graph with undo, and the
 // view's arithmetic. onboarding/process/canvas.tsx is the half that touches the DOM,
-// and every pointer position reaches here already in CSS pixels (lib/ui-scale.ts).
+// and every pointer position reaches here in the page's own pixels.
 
 export type Selection = { t: "n" | "e"; id: string } | null;
 

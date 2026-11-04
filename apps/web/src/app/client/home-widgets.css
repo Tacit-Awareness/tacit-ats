@@ -107,7 +107,7 @@ dialog.wg-galm::backdrop { background: rgb(0 0 0 / 0.4); }
 .wg-gal-h { margin-bottom: var(--space-4); }
 .wg-gal-h h2 { margin: 0; font-size: 15px; font-weight: 600; }
 .wg-gal-h p { margin: var(--space-1) 0 0; color: var(--muted-text); font-size: 13px; }
-.wg-gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); max-height: calc(66 * var(--vh, 1vh)); overflow: auto; padding: 2px; }
+.wg-gal { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); max-height: 66vh; overflow: auto; padding: 2px; }
 .wg-tile { position: relative; display: grid; align-content: start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--line); background: var(--raised); text-align: left; }
 .wg-tile:not(.off):hover { border-color: var(--line-strong); box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.2); }
 .wg-tile.off .wg-prev { opacity: 0.55; }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import * as React from "react";
 import { fitShift } from "@/lib/menu-fit";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 
 // design/tats's filter chip: the current value and a chevron, opening a menu
@@ -51,8 +50,8 @@ export function FilterMenu({
   React.useLayoutEffect(() => {
     const el = menu.current;
     if (!el) return;
-    const box = cssRect(el.getBoundingClientRect());
-    el.style.right = `${-fitShift(box.x, box.x + box.width, cssPx(innerWidth))}px`;
+    const box = el.getBoundingClientRect();
+    el.style.right = `${-fitShift(box.x, box.x + box.width, innerWidth)}px`;
   }, [open]);
 
   return (

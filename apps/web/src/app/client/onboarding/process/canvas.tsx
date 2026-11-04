@@ -8,15 +8,13 @@ import {
 } from "@/lib/client/process-editor";
 import { NODE_SIZE, defaultGraph, edgeName, formatMins, stepWho, summaryOf, type ProcessLookup, type ProcessNode } from "@/lib/client/process-graph";
 import { isShown } from "@/lib/keys";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import { Inspector } from "./inspector";
 
 // The flowchart (design/tats's flowInner and its document listeners), by hand: no
-// library. The page is under CSS `zoom`, so every pointer position and rect is
-// turned into the page's CSS pixels here, through cssPx and cssRect, before
-// lib/client/process-editor.ts does the arithmetic. elementFromPoint alone takes
-// the raw screen position. A pointer's view: the list beside it is the keyboard's.
+// library. Pointer positions and rects are the page's own pixels (the shell has
+// no zoom), and lib/client/process-editor.ts does the arithmetic. A pointer's
+// view: the list beside it is the keyboard's.
 
 const icon = "size-[15px] flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.5]";
 const PATHS = {
@@ -95,13 +93,13 @@ export function ProcessCanvas({
 
   // A rect's and pointer's screen pixels, as the page's CSS pixels inside the viewport.
   const inViewport = useCallback((clientX: number, clientY: number): Point => {
-    const r = cssRect(vp.current!.getBoundingClientRect());
-    return { x: cssPx(clientX) - r.left, y: cssPx(clientY) - r.top };
+    const r = vp.current!.getBoundingClientRect();
+    return { x: clientX - r.left, y: clientY - r.top };
   }, []);
 
   const fit = useCallback(() => {
     if (!vp.current) return;
-    const r = cssRect(vp.current.getBoundingClientRect());
+    const r = vp.current.getBoundingClientRect();
     const next = fitView(latest.current.graph, r.width, r.height);
     if (next) setView(next);
   }, []);
@@ -130,7 +128,7 @@ export function ProcessCanvas({
       e.preventDefault();
       const v = latest.current.view;
       if (e.ctrlKey || e.metaKey) setView(zoomAt(v, inViewport(e.clientX, e.clientY), v.z * Math.exp(-e.deltaY * 0.01)));
-      else setView({ ...v, x: v.x - cssPx(e.deltaX), y: v.y - cssPx(e.deltaY) });
+      else setView({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -208,7 +206,7 @@ export function ProcessCanvas({
         const p = world(ev.clientX, ev.clientY);
         dispatch({ type: "drag", id: drag.id, x: p.x - drag.dx, y: p.y - drag.dy });
       } else {
-        setView({ ...latest.current.view, x: drag.vx + cssPx(ev.clientX - drag.sx), y: drag.vy + cssPx(ev.clientY - drag.sy) });
+        setView({ ...latest.current.view, x: drag.vx + ev.clientX - drag.sx, y: drag.vy + ev.clientY - drag.sy });
       }
     };
     const finish = (ev: PointerEvent) => {
@@ -229,7 +227,7 @@ export function ProcessCanvas({
   };
 
   const add = (kind: "stage" | "route" | "note", at?: Point) => {
-    const r = cssRect(vp.current!.getBoundingClientRect());
+    const r = vp.current!.getBoundingClientRect();
     const c = at ?? toWorld(view, { x: r.width / 2, y: r.height / 2 });
     dispatch({ type: "add", node: newNode(kind, newId("n"), c) });
     // The inspector for it exists after this render.
@@ -252,7 +250,7 @@ export function ProcessCanvas({
   };
 
   const zoomBy = (factor: number) => {
-    const r = cssRect(vp.current!.getBoundingClientRect());
+    const r = vp.current!.getBoundingClientRect();
     setView(zoomAt(view, { x: r.width / 2, y: r.height / 2 }, clampZoom(view.z * factor)));
   };
 

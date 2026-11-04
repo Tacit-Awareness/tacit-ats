@@ -4,7 +4,7 @@
 // width on the first paint and the panel never jumps.
 export const SIDEBAR_COOKIE = "tacit-sidebar";
 
-export const SIDEBAR_DEFAULT = 272;
+export const SIDEBAR_DEFAULT = 240;
 export const SIDEBAR_MIN = 200;
 export const SIDEBAR_MAX = 380;
 /** Dragged narrower than this, the sidebar collapses; dragged out of the rail past it, it opens. */

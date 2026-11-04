@@ -1,5 +1,4 @@
 import type { CardMoves } from "@/lib/client/pipeline-moves";
-import { uiScale } from "@/lib/ui-scale";
 
 // The Pipeline board's data as the client holds it, and the two pure steps a
 // move needs. Unit-tested in board-state.test.ts.
@@ -68,9 +67,8 @@ export function takesRowMenu(e: { shiftKey: boolean; pointerType?: string }, des
 
 /** Where the menu sits: the pointer, or the row when the menu key sent it, which comes with no position. */
 export function menuSpot(x: number, y: number, row: { left: number; bottom: number }) {
-  const z = uiScale();
-  const left = (x || y ? x : row.left) / z;
-  const top = (x || y ? y : row.bottom) / z;
+  const left = x || y ? x : row.left;
+  const top = x || y ? y : row.bottom;
   return { left, right: left, top, bottom: top };
 }
 

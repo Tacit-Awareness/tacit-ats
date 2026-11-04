@@ -5,7 +5,6 @@ import { useKeyHelp, useKeys } from "@/components/keys";
 import { Chip } from "@/components/page";
 import { showToast } from "@/components/toasts";
 import { menuKey } from "@/lib/keys";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import { setLabelAction, type LabelResult } from "./actions";
 import { CANDIDATE_ERRORS, type CandidateError } from "./messages";
@@ -47,8 +46,8 @@ function Menu({ anchor, options, carried, onFlip, onClose }: { anchor: DOMRect; 
     if (!el) return;
     const gap = 8;
     const below = anchor.bottom + 4;
-    el.style.top = `${below + el.offsetHeight + gap > cssPx(window.innerHeight) ? Math.max(gap, anchor.top - el.offsetHeight - 4) : below}px`;
-    el.style.left = `${Math.max(gap, Math.min(anchor.left, cssPx(window.innerWidth) - WIDTH - gap))}px`;
+    el.style.top = `${below + el.offsetHeight + gap > window.innerHeight ? Math.max(gap, anchor.top - el.offsetHeight - 4) : below}px`;
+    el.style.left = `${Math.max(gap, Math.min(anchor.left, window.innerWidth - WIDTH - gap))}px`;
     el.querySelector<HTMLElement>("[role=menuitemcheckbox]")?.focus();
   }, [anchor]);
 
@@ -122,7 +121,7 @@ export function LabelMenu({ candidateId, labels, options }: { candidateId: strin
   const button = useRef<HTMLButtonElement>(null);
 
   const open = () => {
-    if (button.current) setAnchor(cssRect(button.current.getBoundingClientRect()));
+    if (button.current) setAnchor(button.current.getBoundingClientRect());
   };
   const close = useCallback((refocus: boolean) => {
     setAnchor(null);
