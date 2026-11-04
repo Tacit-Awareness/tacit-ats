@@ -6,7 +6,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { showToast } from "@/components/toasts";
 import { useKeyHelp, useKeys } from "@/components/keys";
 import { WIDGETS, WIDGET_KEYS, WIDGETS_COOKIE, SIZE_NAMES, addWidget, cycleSize, defaultWidgets, formatWidgets, moveWidget, parseWidgets, removeWidget, type Placed, type WidgetKey } from "@/lib/client/home-widgets";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import "./home-widgets.css";
 
@@ -72,7 +71,7 @@ export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, 
   /** Before a change: where each widget is, so it can slide from there. */
   const measure = () => {
     if (calm()) return;
-    before.current = new Map(items().map((el) => [el.dataset.wk!, cssRect(el.getBoundingClientRect())]));
+    before.current = new Map(items().map((el) => [el.dataset.wk!, el.getBoundingClientRect()]));
   };
 
   const place = useCallback(() => {
@@ -81,7 +80,7 @@ export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, 
     // Measured with no transform, so a reorder or a scroll under the widget is already in the number.
     d.el.style.transform = "none";
     const r = d.el.getBoundingClientRect();
-    d.el.style.transform = `translate(${cssPx(d.x - d.grabX - r.left)}px, ${cssPx(d.y - d.grabY - r.top)}px) scale(1.03)`;
+    d.el.style.transform = `translate(${d.x - d.grabX - r.left}px, ${d.y - d.grabY - r.top}px) scale(1.03)`;
   }, []);
 
   useLayoutEffect(() => {
@@ -92,7 +91,7 @@ export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, 
     for (const el of items()) {
       const was = from.get(el.dataset.wk!);
       if (!was || el === drag.current?.el) continue;
-      const now = cssRect(el.getBoundingClientRect());
+      const now = el.getBoundingClientRect();
       const dx = was.left - now.left;
       const dy = was.top - now.top;
       if (dx || dy) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: 300, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" });

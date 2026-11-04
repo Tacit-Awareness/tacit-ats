@@ -112,7 +112,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
   };
 
   return (
-    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[calc(12*var(--vh))] pb-4" onMouseDown={onClose}>
+    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[12vh] pb-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -141,7 +141,7 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
           onKeyDown={onKey}
           className="h-[50px] w-full bg-transparent px-4 text-[15px] outline-none placeholder:text-faint"
         />
-        <div id={listId} role="listbox" aria-label="Results" className="max-h-[calc(52*var(--vh))] overflow-y-auto border-t border-[color:var(--line)] p-1.5">
+        <div id={listId} role="listbox" aria-label="Results" className="max-h-[52vh] overflow-y-auto border-t border-[color:var(--line)] p-1.5">
           {shown.length === 0 && !searching && !failed ? <p className="m-0 px-2.5 py-2 text-[13px] text-muted-foreground">Nothing matches.</p> : null}
           {shown.map((item, i) => (
             <div key={`${item.group}:${item.href ?? item.label}`}>

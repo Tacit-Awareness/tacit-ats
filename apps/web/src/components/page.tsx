@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 // composes these instead of restating the classes, so the pages cannot drift apart.
 
 /**
- * The page column: the mockup's 1180px measure, 16px between blocks. With a
+ * The page column: up to 1600px with a gutter that grows with the window
+ * (`--page-gutter`), as other dashboards fill the panel; 16px between blocks. With a
  * `bar` (a `PageBar`, and a `SubBar` under it), the bar runs edge to edge
  * across the panel and the column sits under it (the shell drops its own
  * padding around it, `.shell-page:has(> .page-top)` in globals.css), as
@@ -40,7 +41,7 @@ export function Page({
     <div
       className={cn(
         "mx-auto grid w-full content-start",
-        bleed ? "gap-0" : cn("gap-4", narrow ? "max-w-[760px]" : "max-w-[1180px]", bar ? "px-4 pt-6 pb-10 md:px-8" : ""),
+        bleed ? "gap-0" : cn("gap-4", narrow ? "max-w-[760px]" : "max-w-[1600px]", bar ? "px-[var(--page-gutter)] pt-6 pb-10" : ""),
         className,
       )}
       {...props}

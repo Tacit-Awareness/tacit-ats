@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/page";
 import { CARD_FRESH_MS, parseHoverTarget, placeCard, raisesCard, restMs, type HoverCardData } from "@/lib/hover-card";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 
 // design/tats's hover cards (`.hcard`): rest a mouse or a pen on a name marked
 // `data-hc` (lib/hover-card.ts's hoverAttr) to see who it is. Mounted once in the
@@ -116,7 +115,7 @@ export function HoverCard() {
   useLayoutEffect(() => {
     const el = box.current;
     if (!el || !up) return;
-    const spot = placeCard(cssRect(up.anchor.getBoundingClientRect()), { width: el.offsetWidth, height: el.offsetHeight }, { width: cssPx(window.innerWidth), height: cssPx(window.innerHeight) });
+    const spot = placeCard(up.anchor.getBoundingClientRect(), { width: el.offsetWidth, height: el.offsetHeight }, { width: window.innerWidth, height: window.innerHeight });
     el.style.left = `${spot.left}px`;
     el.style.top = `${spot.top}px`;
   }, [up]);

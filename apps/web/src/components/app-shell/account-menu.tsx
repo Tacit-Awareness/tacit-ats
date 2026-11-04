@@ -9,7 +9,6 @@ import { useWarmth } from "@/components/app-shell/warmth";
 import { Kbd } from "@/components/keys";
 import { SIGN_OUT_KEYS, menuKey, stepIndex } from "@/lib/keys";
 import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
-import { cssPx, cssRect } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import { MAX_WARMTH, warmthHint } from "@/lib/warmth";
 
@@ -75,9 +74,8 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
   const show = () => {
     const box = button.current?.getBoundingClientRect();
     if (!box) return;
-    const r = cssRect(box);
     setTheme(themeChoice(document.documentElement.dataset.theme));
-    setAt({ left: Math.max(8, r.left), bottom: Math.max(8, cssPx(innerHeight) - r.top + 6) });
+    setAt({ left: Math.max(8, box.left), bottom: Math.max(8, innerHeight - box.top + 6) });
   };
 
   // It sits on the button: when the button moves or the page changes, it goes.
@@ -144,7 +142,7 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
               role="menu"
               aria-label="Account"
               style={at}
-              className="fixed z-[60] max-h-[calc(100*var(--vh)-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
+              className="fixed z-[60] max-h-[calc(100vh-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
             >
               <div className="grid gap-1 px-4 pt-4 pb-3">
                 <div className="flex min-w-0 items-center gap-2">

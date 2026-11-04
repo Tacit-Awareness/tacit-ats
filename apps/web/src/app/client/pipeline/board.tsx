@@ -15,7 +15,6 @@ import { CANDIDATE_ERRORS, CANDIDATE_NOTICES } from "../candidates/[id]/messages
 import { moveCardAction, type BoardMoveResult } from "./actions";
 import { DESKTOP_POINTER, menuSpot, moveForm, neighbourOf, shiftCard, takesRowMenu, type BoardCard, type BoardColumn } from "./board-state";
 import { MoveMenu, type MenuAt } from "./move-menu";
-import { cssRect } from "@/lib/ui-scale";
 
 // The board's columns and cards, and what moves one: a drag, the menu on the
 // card, or a key. All three are the same move (moveCardAction, the stage the
@@ -224,7 +223,7 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
 
   const openMenu = (card: BoardCard) => {
     const button = cardEl(card.applicationId)?.querySelector("button");
-    if (button) setMenu({ card, rect: cssRect(button.getBoundingClientRect()) });
+    if (button) setMenu({ card, rect: button.getBoundingClientRect() });
   };
 
   const closeMenu = useCallback(() => setMenu(null), []);

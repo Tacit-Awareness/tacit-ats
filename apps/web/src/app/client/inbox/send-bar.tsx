@@ -84,7 +84,7 @@ function SendDialog({ draftId, draft, instance, next, range, close }: { draftId:
           Send this to {draft.to}?
         </h2>
         <p className="m-0 mt-1 text-[13px] text-muted-foreground">It goes out exactly as written, and can&apos;t be called back.</p>
-        <div className="mt-3 grid max-h-[calc(50*var(--vh))] gap-2 overflow-y-auto rounded-[8px] bg-[color:var(--soft)] px-3 py-2">
+        <div className="mt-3 grid max-h-[50vh] gap-2 overflow-y-auto rounded-[8px] bg-[color:var(--soft)] px-3 py-2">
           <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
             {draft.from ? (
               <>

@@ -13,7 +13,6 @@ import { START_EVENT, ShellTour, TourButton } from "@/components/app-shell/shell
 import { initialsOf } from "@/components/page";
 import { Toaster } from "@/components/toasts";
 import { modalOpen } from "@/lib/keys";
-import { cssPx, cssRect, setUiScale } from "@/lib/ui-scale";
 import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, clampSidebar, dragSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
 import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
@@ -315,15 +314,9 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    setUiScale();
-    window.addEventListener("resize", setUiScale);
-    return () => window.removeEventListener("resize", setUiScale);
-  }, []);
-
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const box = side.current?.getBoundingClientRect();
-    drag.current = { x: cssPx(e.clientX), w: box ? cssRect(box).width : sb.width, from: sb.width, now: sb, snapUntil: 0 };
+    drag.current = { x: e.clientX, w: box ? box.width : sb.width, from: sb.width, now: sb, snapUntil: 0 };
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -334,7 +327,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
   const onMove = (e: React.PointerEvent) => {
     const d = drag.current;
     if (!d) return;
-    const next = dragSidebar(d.w + cssPx(e.clientX) - d.x, d.from);
+    const next = dragSidebar(d.w + e.clientX - d.x, d.from);
     if (next.collapsed !== d.now.collapsed) {
       // A snap eases: the drag's no-transition comes off for its length.
       document.body.classList.remove("sb-dragging");
@@ -506,7 +499,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
 
       <div className="flex min-w-0 flex-1 flex-col pt-12 md:py-2.5 md:pr-2.5 md:pl-1.5">
         <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-card md:rounded-[10px] md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
-          <div className="shell-page mx-auto w-full max-w-7xl px-4 py-8 md:px-8">{children}</div>
+          <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-8">{children}</div>
         </main>
       </div>
 
