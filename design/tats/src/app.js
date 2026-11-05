@@ -1127,13 +1127,13 @@ function openWidgetGallery() {
 function wgArrive(k) {
   const el = $(`.wg[data-wk="${k}"]`); if (!el) return;
   el.scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" });
-  motion((g) => g.from(el, { scale: 0.85, opacity: 0, duration: 0.35, ease: "back.out(1.6)", clearProps: "transform,opacity" }));
+  motion((g) => g.from(el, { scale: 0.95, opacity: 0, duration: 0.2, ease: "power4.out", clearProps: "transform,opacity" }));
 }
 // Rearranging: the widgets move as one set (Flip), so a removed or resized one closes its gap smoothly.
 function wgFlip(change) {
   const els = $$(".wg-grid .wg"), st = FL && !calm() ? FL.getState(els) : null;
   change(); render();
-  if (st) FL.from(st, { targets: $$(".wg-grid .wg"), duration: 0.32, ease: "power3.out", absolute: false, nested: true, prune: true });
+  if (st) FL.from(st, { targets: $$(".wg-grid .wg"), duration: 0.24, ease: "power3.inOut", absolute: false, nested: true, prune: true });
 }
 const wgActs = {
   wgEdit: () => { state.hmEdit = true; if (state.route.name !== "home") go("home"); else render(); },
@@ -1143,7 +1143,7 @@ const wgActs = {
   wgGallery: () => openWidgetGallery(),
   wgRemove: (el) => {
     const k = el.dataset.k, w = el.closest(".wg"), drop = () => wgFlip(() => { state.widgets = state.widgets.filter((x) => x.k !== k); saveWidgets(); });
-    if (G && !calm()) { G.to(w, { scale: 0.7, opacity: 0, duration: 0.18, ease: "power2.in" }); setTimeout(drop, 180); } else drop();
+    if (G && !calm()) { G.to(w, { scale: 0.95, opacity: 0, duration: 0.15, ease: "power4.out" }); setTimeout(drop, 150); } else drop();
   },
   wgSize: (el) => wgFlip(() => { const x = state.widgets.find((y) => y.k === el.dataset.k), s = WIDGETS[x.k].sizes; x.w = s[(s.indexOf(x.w) + 1) % s.length]; saveWidgets(); }),
 };
@@ -1175,7 +1175,7 @@ const wgActs = {
       over.parentNode.insertBefore(d.el, fwd ? over.nextElementSibling : over);
       d.lock = Date.now() + 300;
       place();
-      if (st) FL.from(st, { targets: others, duration: 0.28, ease: "power3.out" });
+      if (st) FL.from(st, { targets: others, duration: 0.24, ease: "power3.inOut" });
     }
     // Near the top or bottom of the page, scroll it.
     if (d.sc) { const r = d.sc.getBoundingClientRect(), v = d.y < r.top + 60 ? -12 : d.y > r.bottom - 60 ? 12 : 0; if (v) { d.sc.scrollTop += v; place(); } }
@@ -3136,7 +3136,7 @@ if (G && FL) G.registerPlugin(FL);
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const motion = (fn) => { if (G && !calm()) { try { fn(G); } catch {} } };
 // One feel everywhere: 0.2s with a slight spring, like Motion's { duration: 0.2, bounce: 0.2 }.
-const DUR = 0.2, SPRING = "back.out(1.25)";
+const DUR = 0.2, SPRING = "power4.out", MOVE = "power3.inOut"; // motion after raphaelsalaja/skills: ease-out in and out, in-out to move, no overshoot
 if (G) G.defaults({ duration: DUR, ease: SPRING });
 const LIVE_ROWS = ".ib, .ivr, .trow, .af-r, .ck-r, .mrow, .vw-r, .card, .jp-row, .iv-r, .runrow";
 const nodeKey = (n) => (n.id ? n.id : n.dataset && n.dataset.tid ? `t:${n.dataset.tid}` : undefined);
@@ -3160,18 +3160,18 @@ function patch(el, html) {
     onNodeAdded: (n) => { if (n.nodeType === 1 && (n.matches(LIVE_ROWS) || n.matches(".drawer, .toast, .af-new, .blk"))) added.push(n); return n; },
   });
   motion((g) => {
-    if (flip) FL.from(flip, { duration: DUR, ease: SPRING, targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
+    if (flip) FL.from(flip, { duration: DUR, ease: MOVE, targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
     const fresh = added.filter((n) => n.isConnected).slice(0, 24);
     if (fresh.length) g.fromTo(fresh, { opacity: 0, y: (i, n) => (n.matches(".drawer") ? 0 : -4), x: (i, n) => (n.matches(".drawer") ? 24 : 0) }, { opacity: 1, y: 0, x: 0, duration: DUR, ease: SPRING, stagger: 0.01, clearProps: "opacity,transform" });
-    if (bumped.length) g.fromTo(bumped, { scale: 1.2 }, { scale: 1, duration: DUR, ease: SPRING, clearProps: "transform" });
+    if (bumped.length) g.fromTo(bumped, { scale: 1.04 }, { scale: 1, duration: DUR, ease: SPRING, clearProps: "transform" });
   });
 }
 // A new page eases in; the same page with a new selection only eases the reader.
 // Every entrance states both ends, so elements with their own CSS fade never get stuck at 0.
 const IN = (from, to) => [{ opacity: 0, ...from }, { opacity: 1, x: 0, y: 0, scale: 1, clearProps: "opacity,transform", ...to }];
 // Pages arrive whole: one quick fade, nothing staggered, nothing sliding, so nothing twitches.
-function enterPage(el) { if (tour) return; motion((g) => g.fromTo(el, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power1.out", clearProps: "opacity" })); }
-function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); if (r) g.fromTo(r, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power1.out", clearProps: "opacity" }); }); }
+function enterPage(el) { if (tour) return; motion((g) => g.fromTo(el, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power4.out", clearProps: "opacity" })); }
+function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); if (r) g.fromTo(r, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power4.out", clearProps: "opacity" }); }); }
 // Menus, dialogs and the command menu open with a short scale and fade; toasts rise.
 // Overlays, menus and toasts enter with CSS keyframes (style.css, v45), so they never wait on a tween to become visible.
 
@@ -4644,6 +4644,12 @@ window.addEventListener("hashchange", () => {
 
 /* ---------------- layer: menus, command menu, modals, toasts ---------------- */
 let menu = null, palette = null, modal = null;
+// A pop-up scales from its trigger: the edge it hangs off and the side it lines up with.
+function originFrom(el, r) {
+  const x = parseFloat(el.style.left), top = parseFloat(el.style.top) >= r.top;
+  const left = Math.abs(x - r.left) <= Math.abs(x + el.offsetWidth - r.right);
+  el.style.setProperty("--origin", `${top ? "top" : "bottom"} ${left ? "left" : "right"}`);
+}
 function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   closeLayer();
   const rect = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
@@ -4655,6 +4661,7 @@ function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   el.style.left = Math.max(12, Math.min(rect.left, innerWidth - el.offsetWidth - 12)) + "px";
   el.style.top = rect.bottom + 6 + "px";
   if (above || rect.bottom + el.offsetHeight > innerHeight - 12) el.style.top = Math.max(12, rect.top - el.offsetHeight - 6) + "px";
+  originFrom(el, rect);
   const opts = $$(".opt", el);
   menu = { el, opts, hi: Math.max(0, opts.findIndex((b) => items[+b.dataset.i].checked)), restore };
   menu.hl = () => opts.forEach((b, k) => b.classList.toggle("hi", k === menu.hi));
@@ -4681,6 +4688,9 @@ document.addEventListener("pointerout", (e) => {
 const THEMES = [["light", "sun", "Light"], ["dark", "moon", "Dark"], ["system", "monitor", "Match the system"]];
 const themeNow = () => document.documentElement.dataset.theme || "system";
 function setTheme(t) {
+  const root = document.documentElement;
+  root.classList.add("theme-switching");
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.toggle("theme-switching", false)));
   if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   try { t === "system" ? localStorage.removeItem("tats-theme") : localStorage.setItem("tats-theme", t); } catch {}
 }
@@ -4700,6 +4710,7 @@ function openAcct(anchor) {
   const r = anchor.getBoundingClientRect();
   el.style.left = Math.max(8, r.left) + "px";
   el.style.top = Math.max(12, r.top - el.offsetHeight - 6) + "px";
+  originFrom(el, r);
   const opts = $$(".opt", el);
   menu = { el, opts, hi: 0 };
   menu.hl = () => opts.forEach((b, k) => b.classList.toggle("hi", k === menu.hi));
@@ -4726,7 +4737,7 @@ function closeLayer() {
     ghost.className = "layer-ghost";
     [...layer.children].forEach((k) => ghost.appendChild(k));
     document.body.appendChild(ghost);
-    G.to(ghost, { opacity: 0, duration: 0.14, ease: "power1.in", onComplete: () => ghost.remove() });
+    G.to(ghost, { opacity: 0, duration: 0.12, ease: "power4.out", onComplete: () => ghost.remove() });
     setTimeout(() => ghost.remove(), 400);
   }
   layer.innerHTML = "";
@@ -4749,7 +4760,7 @@ function toast(msg, { undo, open } = {}) {
   const fn = undo && (() => { undo(); el.remove(); toast.undo = null; render(); });
   if (fn) toast.undo = fn;
   el.addEventListener("click", (e) => { if (e.target.closest("[data-undo]") && fn) fn(); if (e.target.closest("[data-open]")) { el.remove(); go(`t~${open}`); } });
-  setTimeout(() => { if (toast.undo === fn) toast.undo = null; if (G && !calm() && el.isConnected) { G.to(el, { opacity: 0, y: 8, duration: 0.22, ease: "power2.in", onComplete: () => el.remove() }); setTimeout(() => el.remove(), 500); } else el.remove(); }, 6000);
+  setTimeout(() => { if (toast.undo === fn) toast.undo = null; if (G && !calm() && el.isConnected) { G.to(el, { opacity: 0, y: 8, duration: 0.15, ease: "power4.out", onComplete: () => el.remove() }); setTimeout(() => el.remove(), 500); } else el.remove(); }, 6000);
 }
 // ⌘K: jump anywhere, find anyone, and act on the ticket you're on.
 function openPalette(ctx) {
@@ -5124,7 +5135,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.id === "chatIn" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(e.target.value); return; }
   const k = e.key, lk = k.toLowerCase();
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && lk === "k") { e.preventDefault(); palette ? closeLayer() : openPalette(); return; }
+  if (mod && lk === "k") { e.preventDefault(); if (palette) closeLayer(); else { openPalette(); $("#layer").lastElementChild?.classList.add("kbd"); } return; }
   if (mod && k === ",") { e.preventDefault(); closeLayer(); go("settings"); return; }
   if (menu) {
     if (k === "Escape") { e.preventDefault(); const r = closeLayer(); if (r) r(); return; }
@@ -5179,7 +5190,7 @@ document.addEventListener("keydown", (e) => {
     if (lk === "e") { e.preventDefault(); ibDone(id); return; }
     const iss = issueOf(A[id]);
     if (lk === "f" && iss && iss.k !== "decide") { e.preventDefault(); ACT[iss.act.a]({ dataset: { id: iss.act.id } }); return; }
-    if (k === "/") { e.preventDefault(); openPalette(id); return; }
+    if (k === "/") { e.preventDefault(); openPalette(id); $("#layer").lastElementChild?.classList.add("kbd"); return; }
     if (iss && iss.k === "decide" && ["a", "o", "r"].includes(lk)) { e.preventDefault(); ACT[{ a: "advance", o: "offer", r: "reject" }[lk]]({ dataset: { id } }); return; }
     if (k === "Enter") { e.preventDefault(); go(`t~${id}`); return; }
     return;
