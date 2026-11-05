@@ -61,6 +61,30 @@ describe("submitApplication", () => {
   });
 });
 
+describe("submitApplication with a resume", () => {
+  beforeEach(() => rpc.mockReset());
+  const resume = { filename: "Nia CV.pdf", contentType: "application/pdf", sizeBytes: 2048 };
+
+  test("goes to the six-argument form with every argument, and hands back the path it answers", async () => {
+    rpc.mockResolvedValue({ data: "o/p/f", error: null });
+    expect(await submitApplication(SLUG, { name: "Nia" }, "", {}, null, resume)).toEqual({ status: "ok", resumePath: "o/p/f" });
+    expect(rpc).toHaveBeenCalledWith("submit_job_application", {
+      p_slug: SLUG, p_answers: { name: "Nia" }, p_honeypot: "", p_eeoc: {}, p_channel: null,
+      p_resume: { filename: "Nia CV.pdf", content_type: "application/pdf", size_bytes: 2048 },
+    });
+  });
+
+  test("no path (someone already in the job, a honeypot) is still a success, with nothing to store", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    expect(await submitApplication(SLUG, { name: "Nia" }, "", {}, "direct", resume)).toEqual({ status: "ok", resumePath: null });
+  });
+
+  test("a refusal is the same outcome as without a file", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "resume: too_long" } });
+    expect(await submitApplication(SLUG, { name: "Nia" }, "", {}, null, resume)).toEqual({ status: "invalid", reason: "too_long", questionId: "resume" });
+  });
+});
+
 describe("recordJobPostView", () => {
   beforeEach(() => {
     rpc.mockReset().mockResolvedValue({ error: null });

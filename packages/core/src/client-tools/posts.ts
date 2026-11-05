@@ -32,7 +32,7 @@ const DEFAULT_LABELS: Partial<Record<QuestionType, string>> = {
   email: "Email",
   phone: "Phone",
   linkedin: "LinkedIn profile",
-  resume: "Link to your resume",
+  resume: "Resume",
 };
 /** Where an applicant lands: the first stage. "applied" is listed for a pipeline that grows one. */
 export const INBOX_STAGES = ["applied", "sourced"] as const;
@@ -89,7 +89,7 @@ const newQuestionId = () => `q_${globalThis.crypto.randomUUID().replace(/-/g, ""
 
 /**
  * The checked question list, name and email first. Undefined gives the
- * default form: name, email, and optional phone, LinkedIn and resume link.
+ * default form: name, email, and optional phone, LinkedIn and resume.
  * `existing` lets an edit keep each custom question's id when it is passed
  * again by label.
  */

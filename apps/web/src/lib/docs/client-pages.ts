@@ -192,7 +192,7 @@ Each group lists its six newest. A row opens the whole candidate in a pop-up ove
 Admins add a job with **Add a role**. Whoever manages a job can edit its post in place:
 
 - **The post**: its title, location and description.
-- **The application form**: name and email are always asked. Phone, LinkedIn and a resume link are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
+- **The application form**: name and email are always asked. Phone, LinkedIn and a resume upload are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
 - **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
 - **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left.
 - **Preview as applicant**: the page exactly as an applicant will see it.
@@ -208,7 +208,7 @@ Anyone with the link can read these, with no sign-in:
 | Careers board | \`/careers/<company>\` | Your live roles by department |
 | A job | \`/jobs/<post>\` | The post and its application form |
 
-Applicants can answer voluntary US equal-opportunity questions. Nobody at your company can read one person's answers ([EEOC](/docs/client-tools#eeoc)). Applicants cannot upload a resume yet, so the resume question takes a link.
+Applicants can answer voluntary US equal-opportunity questions. Nobody at your company can read one person's answers ([EEOC](/docs/client-tools#eeoc)). The resume question takes a file (PDF, Word, plain text, PNG or JPEG, up to 3 MB), which lands in the candidate's files with their application.
 
 ## New Applicants
 

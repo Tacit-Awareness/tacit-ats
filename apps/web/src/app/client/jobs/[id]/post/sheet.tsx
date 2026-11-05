@@ -50,8 +50,8 @@ export function ResumeBox() {
       <svg viewBox="0 0 16 16" className="mb-1 size-[18px] fill-none stroke-current text-faint [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
         <path d="M4 1.75h5.5L12.5 4.75v9.5h-8.5z M9.25 1.75v3.25h3.25" />
       </svg>
-      <b className="font-medium">Paste a link to your resume</b>
-      <small className="text-xs text-faint">A link for now: no upload yet</small>
+      <b className="font-medium">Drop your resume or browse</b>
+      <small className="text-xs text-faint">PDF, Word, text, PNG or JPEG, up to 3 MB</small>
     </div>
   );
 }

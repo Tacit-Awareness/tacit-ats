@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { getSupabaseServiceClient } from "@tacit/db";
 
+import { storeApplicantResume } from "../applicant-resume/store";
 import { recordJobPostView, submitApplication } from "./jobs";
 
 /**
@@ -28,7 +29,7 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 }
 
 async function clear() {
-  for (const table of ["application_answers", "application_events", "applications", "job_post_attempts", "people", "job_post_views", "job_posts", "roles", "companies"] as const) {
+  for (const table of ["person_files", "application_answers", "application_events", "applications", "job_post_attempts", "people", "job_post_views", "job_posts", "roles", "companies"] as const) {
     must(await db().from(table).delete().eq("org_id", ORG));
   }
   await db().from("orgs").delete().eq("id", ORG);
@@ -53,6 +54,7 @@ beforeEach(async () => {
   const questions = [
     { id: "name", type: "name", label: "Name", required: true },
     { id: "email", type: "email", label: "Email", required: true },
+    { id: "resume", type: "resume", label: "Resume", required: false },
   ];
   must(await db().from("job_posts").insert([
     { id: LIVE_POST, org_id: ORG, role_id: ROLE, title: "Engineer", slug: LIVE, questions },
@@ -122,6 +124,40 @@ describe("the channel on apply", () => {
   test("a post that is not live is still the same not found", async () => {
     expect(await apply("nia@capture.test", "linkedin", DRAFT)).toEqual({ status: "not_found" });
     expect(await apply("nia@capture.test", "linkedin", ON_CLOSED_JOB)).toEqual({ status: "not_found" });
+  });
+});
+
+describe("an uploaded resume (20261108120000)", () => {
+  const resume = { filename: "Nia CV.pdf", contentType: "application/pdf", sizeBytes: 1024 };
+  const files = async () =>
+    (await db().from("person_files").select("id, org_id, person_id, kind, filename, storage_path, uploaded_by_actor_id").eq("org_id", ORG)).data ?? [];
+
+  test("lands its row on the new candidate, at the path the call answers", async () => {
+    const outcome = await submitApplication(LIVE, { name: "Nia", email: "cv@capture.test" }, "", {}, "linkedin", resume);
+    const [file] = await files();
+    expect(outcome).toEqual({ status: "ok", resumePath: `${ORG}/${file.person_id}/${file.id}` });
+    expect(file).toMatchObject({ kind: "resume", filename: "Nia CV.pdf", storage_path: outcome.status === "ok" ? outcome.resumePath : null, uploaded_by_actor_id: null });
+    const { data: answers } = await db().from("application_answers").select("answers").eq("org_id", ORG).single();
+    expect(JSON.stringify(answers?.answers)).toContain('"value":"Nia CV.pdf"');
+    expect((await channels())[0].channel).toBe("linkedin");
+  });
+
+  test("someone already in the job gets no second file, and no path", async () => {
+    await submitApplication(LIVE, { name: "Nia", email: "cv@capture.test" }, "", {}, null, resume);
+    expect(await submitApplication(LIVE, { name: "Nia", email: "cv@capture.test" }, "", {}, null, resume)).toEqual({ status: "ok", resumePath: null });
+    expect(await files()).toHaveLength(1);
+  });
+
+  test("a store that fails takes its row away again, and a path that is no row's is never tried", async () => {
+    const outcome = await submitApplication(LIVE, { name: "Nia", email: "lost@capture.test" }, "", {}, null, resume);
+    const path = outcome.status === "ok" ? outcome.resumePath! : "";
+    // The local stack has no org-files bucket, so the upload fails as a real outage would.
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await storeApplicantResume(path, new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]), "application/pdf")).toBe(false);
+    errors.mockRestore();
+    expect(await files()).toEqual([]);
+    expect((await channels()).length).toBe(1);
+    expect(await storeApplicantResume("../somewhere/else", new Uint8Array([1]), "application/pdf")).toBe(false);
   });
 });
 

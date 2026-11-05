@@ -129,6 +129,16 @@
   & .input::placeholder { color: var(--faint); }
   & .input:hover { box-shadow: inset 0 0 0 1px rgba(84, 81, 74, 0.5); }
   & .input:focus { box-shadow: var(--ring); }
+  /* The resume's drop box (design/careers' .je-drop) around the browser's own file input. */
+  & .drop { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px 18px; border: 1.5px dashed var(--border); border-radius: 10px; background: var(--field); color: var(--muted); font-size: 13.5px; text-align: center; transition: border-color 160ms ease; }
+  & .drop:hover { border-color: rgba(84, 81, 74, 0.5); }
+  & .drop:focus-within { border-color: transparent; box-shadow: var(--ring); }
+  & .drop .ico { width: 18px; height: 18px; margin-bottom: 2px; color: var(--faint); }
+  & .drop b { color: var(--ink); font-weight: 500; }
+  & .drop small { color: var(--faint); font-size: 12px; }
+  & .drop-input { width: 100%; max-width: 340px; margin-top: 10px; color: var(--muted); font-size: 13px; }
+  & .drop-input::file-selector-button { margin-right: 10px; height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; }
+  & .drop-input:focus { outline: none; }
   & textarea.input { height: auto; min-height: 120px; padding: 10px 12px; resize: vertical; line-height: 1.55; }
   & select.input { appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-opacity='0.45' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='m8 10 4 4 4-4'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; }
   & .yn { display: inline-flex; justify-self: start; padding: 2px; border-radius: 5px; background: var(--wash); }

@@ -86,9 +86,10 @@ const QUESTION = z.object({
 });
 const QUESTIONS_HELP =
   "questions is the application form, in order: built-ins name and email (always asked, always required, " +
-  "added if you leave them out), phone, linkedin and resume (a link to it: the public form takes no " +
-  "uploads), and custom short_text, long_text, yes_no and select (with 2-50 options), each with a label " +
-  "and required. Left out on a new post: name, email, and optional phone, LinkedIn and resume link.";
+  "added if you leave them out), phone, linkedin and resume (the applicant uploads a file: PDF, Word, " +
+  "text, PNG or JPEG, up to 3 MB, which lands on their candidate record), and custom short_text, " +
+  "long_text, yes_no and select (with 2-50 options), each with a label and required. Left out on a new " +
+  "post: name, email, and optional phone, LinkedIn and resume.";
 
 export function buildClientHandler(member: ClientMember, source: clientTools.ClientToolCtx["source"], deps: ClientHandlerDeps) {
   const db = member.db;

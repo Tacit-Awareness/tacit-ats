@@ -6,6 +6,16 @@ import type { PublicQuestion } from "./jobs";
 
 const ABOUT_YOU: ReadonlyArray<PublicQuestion["type"]> = ["name", "email", "phone", "linkedin"];
 
+/**
+ * A question's label as the applicant reads it. Posts made before the resume
+ * was an upload carry the old default, "Link to your resume", which now asks
+ * for the wrong thing: that one is read as "Resume". Anything a team typed
+ * stays as they typed it.
+ */
+export function questionLabel(q: Pick<PublicQuestion, "type" | "label">): string {
+  return q.type === "resume" && q.label.trim().toLowerCase() === "link to your resume" ? "Resume" : q.label;
+}
+
 /** A post's questions by section, each in the post's own order. */
 export function formSections(questions: PublicQuestion[]): { resume: PublicQuestion[]; about: PublicQuestion[]; custom: PublicQuestion[] } {
   return {
@@ -19,6 +29,8 @@ const NOTICES: Record<string, (label: string | null) => string> = {
   required: (label) => (label ? `Please answer: ${label}` : "Please answer every required question."),
   too_long: (label) => (label ? `That answer is too long: ${label}` : "One of your answers is too long."),
   invalid: (label) => (label ? `Please check your answer to: ${label}` : "Please check your answers."),
+  resume_too_big: () => "Your resume is over 3 MB. Please upload a smaller file.",
+  resume_invalid: () => "Your resume needs to be a PDF, Word document, plain text file, PNG or JPEG.",
   busy: () => "Too many applications from here just now. Please try again in an hour.",
   failed: () => "Something went wrong on our side. Please try again.",
 };
@@ -37,7 +49,7 @@ export function guideSteps(questions: PublicQuestion[], fieldOf: (q: PublicQuest
   const step = (key: string, title: string, list: PublicQuestion[]): GuideStep => ({
     key,
     title,
-    items: list.filter((q) => q.required).map((q) => ({ field: fieldOf(q), label: q.label })),
+    items: list.filter((q) => q.required).map((q) => ({ field: fieldOf(q), label: questionLabel(q) })),
   });
   return [step("resume", "Resume", resume), step("about", "About you", about), step("questions", "Questions", custom)].filter((s) => s.items.length > 0);
 }
