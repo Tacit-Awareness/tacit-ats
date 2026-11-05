@@ -1,28 +1,50 @@
 import { Ico, ICON } from "@/components/careers/frame";
-import { formSections } from "@/lib/public/application";
+import { formSections, questionLabel } from "@/lib/public/application";
 import { VIA, type Channel } from "@/lib/public/channel";
-import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, type PublicQuestion } from "@/lib/public/jobs";
+import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, RESUME_FIELD, type PublicQuestion } from "@/lib/public/jobs";
+import { RESUME_ACCEPT, RESUME_TYPES_WORDS } from "@/lib/resume-file";
 import { APPLY_FORM } from "./guide";
 
 // The application (design/careers), one form that posts with no script: the
 // browser's own required / maxLength / type checks first, then the route. Each
-// answer's field is a_<question id>. The prototype's resume upload and reading,
-// note writer, consent box and undo have nothing behind them yet: the resume
-// question takes a link, as the database does.
+// answer's field is a_<question id>. The resume is a file, posted with the
+// rest as multipart (the route checks and stores it). The prototype's resume
+// reading, note writer, consent box and undo have nothing behind them yet.
 
 export const answerField = (q: PublicQuestion) => `${ANSWER_PREFIX}${q.id}`;
 
 function Label({ q }: { q: PublicQuestion }) {
   return (
     <>
-      {q.label}
+      {questionLabel(q)}
       {q.required ? <span className="req"> *</span> : null}
     </>
   );
 }
 
+/**
+ * design/careers' drop box, around the browser's own file input, so it works
+ * with no script: the input takes a dropped file and names the one picked.
+ */
+function ResumeDrop({ q }: { q: PublicQuestion }) {
+  return (
+    <label className="field">
+      <span className="lbl">
+        <Label q={q} />
+      </span>
+      <span className="drop">
+        <Ico d={ICON.file} />
+        <b>Drop your resume or browse</b>
+        <small>{RESUME_TYPES_WORDS}, up to 3 MB</small>
+        <input className="drop-input" type="file" name={RESUME_FIELD} accept={RESUME_ACCEPT} required={q.required} />
+      </span>
+    </label>
+  );
+}
+
 function Question({ q }: { q: PublicQuestion }) {
   const name = answerField(q);
+  if (q.type === "resume") return <ResumeDrop q={q} />;
   if (q.type === "yes_no") {
     return (
       <fieldset className="field">
@@ -60,7 +82,6 @@ function Question({ q }: { q: PublicQuestion }) {
       email: { type: "email", maxLength: 254, autoComplete: "email" },
       phone: { type: "tel", maxLength: 40, autoComplete: "tel" },
       linkedin: { type: "url", maxLength: 300, placeholder: "https://www.linkedin.com/in/…" },
-      resume: { type: "url", maxLength: 500, placeholder: "https://…" },
       short_text: { type: "text", maxLength: 300 },
     }[q.type];
     input = <input className="input" name={name} required={q.required} {...kind} />;
@@ -78,7 +99,7 @@ function Question({ q }: { q: PublicQuestion }) {
 export function ApplicationForm({ slug, company, questions, notice, channel }: { slug: string; company: string; questions: PublicQuestion[]; notice: string | null; channel: Channel }) {
   const { resume, about, custom } = formSections(questions);
   return (
-    <form id={APPLY_FORM} className="form" method="post" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
+    <form id={APPLY_FORM} className="form" method="post" encType="multipart/form-data" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
       {notice ? (
         <p className="notice" role="alert">
           {notice}

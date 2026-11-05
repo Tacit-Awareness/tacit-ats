@@ -1,6 +1,7 @@
 import type { Db } from "@tacit/db";
 import { logTouch } from "@tacit/core";
 import { clientTools } from "@tacit-ats/core";
+import { RESUME_ACCEPT as SHARED_ACCEPT, checkResume } from "../resume-file";
 import { cleanReferrer, type Referral } from "./referral-table";
 
 // Referrals' read and its one write, on the member's OWN client (never a
@@ -102,13 +103,7 @@ export type ReferralInput = {
 export type ReferralFile = { filename: string; contentType: string; contentBase64: string };
 
 /** What the form's file input takes. */
-export const RESUME_ACCEPT = Object.values(clientTools.FILE_TYPES).flatMap((t) => t.extensions.map((e) => `.${e}`)).join(",");
-
-/** A name core's addFile takes: anything else in it becomes a space, and the extension stays. */
-function resumeName(raw: string, ext: string): string {
-  const stem = raw.slice(0, raw.lastIndexOf(".")).replace(/[^\p{L}\p{N} ._()&,+'-]/gu, " ").replace(/^[^\p{L}\p{N}]+/u, "").replace(/\s+/g, " ").trim().slice(0, 150);
-  return `${stem || "Resume"}.${ext}`;
-}
+export const RESUME_ACCEPT = SHARED_ACCEPT;
 
 /**
  * The form's file: null when none was picked, "invalid" when core would refuse
@@ -117,14 +112,10 @@ function resumeName(raw: string, ext: string): string {
  * counts as none picked.
  */
 export async function referralFile(value: FormDataEntryValue | null): Promise<ReferralFile | null | "invalid"> {
-  if (!(value instanceof File) || value.size === 0) return null;
-  const ext = value.name.includes(".") ? value.name.slice(value.name.lastIndexOf(".") + 1).toLowerCase() : "";
-  const found = Object.entries(clientTools.FILE_TYPES).find(([, t]) => t.extensions.includes(ext));
-  if (!found || value.size > clientTools.FILE_MAX_BYTES) return "invalid";
-  const [contentType, type] = found;
-  const bytes = new Uint8Array(await value.arrayBuffer());
-  if (!type.looksRight(bytes)) return "invalid";
-  return { filename: resumeName(value.name, ext), contentType, contentBase64: Buffer.from(bytes).toString("base64") };
+  const checked = await checkResume(value);
+  if (checked === null) return null;
+  if (checked === "too_big" || checked === "invalid") return "invalid";
+  return { filename: checked.filename, contentType: checked.contentType, contentBase64: Buffer.from(checked.bytes).toString("base64") };
 }
 
 export type AddReferralOutcome =

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { formNotice, formSections, guideProgress, guideSteps } from "./application";
+import { formNotice, formSections, guideProgress, guideSteps, questionLabel } from "./application";
 import type { PublicQuestion } from "./jobs";
 
 const q = (id: string, type: PublicQuestion["type"], required = true): PublicQuestion => ({ id, type, label: id, required });
@@ -47,5 +47,18 @@ describe("guideProgress", () => {
 
   test("everything done has no next", () => {
     expect(guideProgress(steps, new Set(["a_resume", "a_name", "a_email", "a_q_why1"]))).toMatchObject({ finished: 4, next: null, current: null });
+  });
+});
+
+describe("questionLabel", () => {
+  test("the old default asks for a link, so it reads as Resume; anything a team typed stays", () => {
+    expect(questionLabel({ type: "resume", label: "Link to your resume" })).toBe("Resume");
+    expect(questionLabel({ type: "resume", label: "Your CV" })).toBe("Your CV");
+    expect(questionLabel({ type: "short_text", label: "Link to your resume" })).toBe("Link to your resume");
+  });
+
+  test("and the file's own refusals have words", () => {
+    expect(formNotice("resume_too_big", null)).toMatch(/over 3 MB/);
+    expect(formNotice("resume_invalid", null)).toMatch(/PDF/);
   });
 });

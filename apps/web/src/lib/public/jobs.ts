@@ -12,7 +12,8 @@ import type { Channel } from "./channel";
  * 20261030130000_job_board_public, 20261030180000_job_post_views_channels and
  * 20261030233000_org_brand):
  * job_board_public, an org's live posts, job_post_page, one post's public
- * fields, submit_job_application, the one way in, and record_job_post_view, a
+ * fields, submit_job_application, the one way in (its six-argument form,
+ * 20261108120000_job_post_resume_upload, with an uploaded resume), and record_job_post_view, a
  * count of one more view, and org_brand_public, an org's accent and logo. None returns anything about who is on file.
  * src/client-area.test.ts fails if anything reachable from the public pages
  * can get another database client or a session.
@@ -25,7 +26,10 @@ export const ORG_SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/;
 export const HONEYPOT_FIELD = "website";
 /** Each answer's field is a_<question id>, so no question can collide with the honeypot. */
 export const ANSWER_PREFIX = "a_";
-export const FORM_MAX_BYTES = 200_000;
+/** The form's text, and a resume of at most 3 MB (clientTools.FILE_MAX_BYTES) with room for its multipart framing. */
+export const FORM_MAX_BYTES = 200_000 + 3 * 1024 * 1024;
+/** The resume's file input. The built-in resume question's id is its type, so this is its answer field, which the checklist watches. */
+export const RESUME_FIELD = `${ANSWER_PREFIX}resume`;
 
 /**
  * Voluntary self-identification (US EEO-1, VEVRAA, Section 503), apart from
@@ -155,13 +159,17 @@ export async function readOrgBrand(org: string | null): Promise<PublicBrand | nu
 }
 
 export type ApplyOutcome =
-  | { status: "ok" }
+  /** resumePath: where to store the file's bytes, when one came and made a row; null for none, a filled honeypot or someone already in the job. */
+  | { status: "ok"; resumePath?: string | null }
   | { status: "not_found" }
   | { status: "busy" }
   | { status: "invalid"; reason: "required" | "too_long" | "invalid"; questionId: string | null }
   | { status: "failed" };
 
 const QUESTION_ERROR = /^(q_[a-z0-9]{4,32}|name|email|phone|linkedin|resume): (required|too_long|invalid)$/;
+
+/** An uploaded resume's details, as submit_job_application's six-argument form takes them. The bytes are stored after, at the path it answers. */
+export type ResumeDetails = { filename: string; contentType: string; sizeBytes: number };
 
 /** Maps the database's answer onto what the page says. The message names a question id at most. */
 export function applyOutcome(error: { code?: string; message?: string } | null): ApplyOutcome {
@@ -207,18 +215,35 @@ export async function submitApplication(
   honeypot: string,
   eeoc: Record<string, string> = {},
   channel: Channel | null = null,
+  resume: ResumeDetails | null = null,
 ): Promise<ApplyOutcome> {
   if (!SLUG.test(slug)) return { status: "not_found" };
-  // The channel is the function's five-argument form, which takes every argument. Null is not recorded.
-  const { error } = await anonDb().rpc(
-    "submit_job_application",
-    channel
-      ? { p_slug: slug, p_answers: answers, p_honeypot: honeypot, p_eeoc: eeoc, p_channel: channel }
-      : { p_slug: slug, p_answers: answers, p_honeypot: honeypot, ...(Object.keys(eeoc).length ? { p_eeoc: eeoc } : {}) },
-  );
+  let error: { code?: string; message?: string } | null;
+  let resumePath: string | null = null;
+  if (resume) {
+    // A file is the six-argument form (20261108120000), which takes every argument and answers the file row's path.
+    const sent = await anonDb().rpc("submit_job_application", {
+      p_slug: slug,
+      p_answers: answers,
+      p_honeypot: honeypot,
+      p_eeoc: eeoc,
+      p_channel: channel,
+      p_resume: { filename: resume.filename, content_type: resume.contentType, size_bytes: resume.sizeBytes },
+    });
+    error = sent.error;
+    resumePath = typeof sent.data === "string" ? sent.data : null;
+  } else {
+    // The channel is the function's five-argument form, which takes every argument. Null is not recorded.
+    ({ error } = await anonDb().rpc(
+      "submit_job_application",
+      channel
+        ? { p_slug: slug, p_answers: answers, p_honeypot: honeypot, p_eeoc: eeoc, p_channel: channel }
+        : { p_slug: slug, p_answers: answers, p_honeypot: honeypot, ...(Object.keys(eeoc).length ? { p_eeoc: eeoc } : {}) },
+    ));
+  }
   const outcome = applyOutcome(error);
   if (outcome.status === "failed") console.error("[jobs] an application failed:", error?.code, error?.message);
-  return outcome;
+  return outcome.status === "ok" && resume ? { status: "ok", resumePath } : outcome;
 }
 
 /**

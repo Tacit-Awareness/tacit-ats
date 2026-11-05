@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
-import { formNotice, guideSteps } from "@/lib/public/application";
+import { formNotice, guideSteps, questionLabel } from "@/lib/public/application";
 import { landingChannel, withVia } from "@/lib/public/channel";
 import { readJobPost, readOrgBrand } from "@/lib/public/jobs";
 import { parsePostText } from "@/lib/public/post-text";
@@ -47,11 +47,12 @@ export default async function JobPostPage({
   if (!read) notFound();
   const brand = await readOrgBrand(read.orgSlug);
   const query = await searchParams;
-  const { tab, applied, error, q } = query as { tab?: string; applied?: string; error?: string; q?: string };
+  const { tab, applied, error, q, resume } = query as { tab?: string; applied?: string; error?: string; q?: string; resume?: string };
   const h = await headers();
   const channel = landingChannel(query, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   const application = tab === "application" || Boolean(applied || error);
-  const asked = q ? (read.questions.find((x) => x.id === q)?.label ?? null) : null;
+  const askedQuestion = q ? read.questions.find((x) => x.id === q) : undefined;
+  const asked = askedQuestion ? questionLabel(askedQuestion) : null;
   const notice = formNotice(error, asked);
   const boardHref = read.orgSlug ? withVia(`/careers/${read.orgSlug}`, channel) : null;
   const steps = guideSteps(read.questions, answerField);
@@ -104,6 +105,9 @@ export default async function JobPostPage({
                       </span>
                       <h2>Application sent</h2>
                       <p>Thank you. Your application is in, and the team at {read.company} will be in touch.</p>
+                      {resume === "not_saved" ? (
+                        <p role="alert">Your resume didn&rsquo;t upload, but the rest of your application went through. {read.company} can still see your answers.</p>
+                      ) : null}
                       {boardHref ? (
                         <Link className="btn light" href={boardHref}>
                           Open roles

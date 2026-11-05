@@ -40,7 +40,7 @@ const POST = {
 };
 
 describe("buildQuestions", () => {
-  test("the default form: name and email, then optional phone, LinkedIn and resume link", () => {
+  test("the default form: name and email, then optional phone, LinkedIn and resume", () => {
     expect(buildQuestions(undefined).map((q) => [q.questionId, q.required])).toEqual([
       ["name", true], ["email", true], ["phone", false], ["linkedin", false], ["resume", false],
     ]);

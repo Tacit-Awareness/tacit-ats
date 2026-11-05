@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@tacit/db': file:vendor/tacit-db-f602634.tgz
+  '@tacit/db': file:vendor/tacit-db-fd17ac1.tgz
 
 importers:
 
@@ -39,11 +39,11 @@ importers:
         specifier: workspace:^
         version: link:../../packages/core
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-f602634.tgz
-        version: file:vendor/tacit-core-f602634.tgz
+        specifier: file:../../vendor/tacit-core-fd17ac1.tgz
+        version: file:vendor/tacit-core-fd17ac1.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-f602634.tgz
-        version: file:vendor/tacit-db-f602634.tgz
+        specifier: file:../../vendor/tacit-db-fd17ac1.tgz
+        version: file:vendor/tacit-db-fd17ac1.tgz
       '@vercel/oidc':
         specifier: 4.0.1
         version: 4.0.1
@@ -82,11 +82,11 @@ importers:
         specifier: workspace:^
         version: link:../../packages/core
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-f602634.tgz
-        version: file:vendor/tacit-core-f602634.tgz
+        specifier: file:../../vendor/tacit-core-fd17ac1.tgz
+        version: file:vendor/tacit-core-fd17ac1.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-f602634.tgz
-        version: file:vendor/tacit-db-f602634.tgz
+        specifier: file:../../vendor/tacit-db-fd17ac1.tgz
+        version: file:vendor/tacit-db-fd17ac1.tgz
       '@vercel/oidc':
         specifier: 4.0.1
         version: 4.0.1
@@ -140,11 +140,11 @@ importers:
   packages/core:
     dependencies:
       '@tacit/core':
-        specifier: file:../../vendor/tacit-core-f602634.tgz
-        version: file:vendor/tacit-core-f602634.tgz
+        specifier: file:../../vendor/tacit-core-fd17ac1.tgz
+        version: file:vendor/tacit-core-fd17ac1.tgz
       '@tacit/db':
-        specifier: file:../../vendor/tacit-db-f602634.tgz
-        version: file:vendor/tacit-db-f602634.tgz
+        specifier: file:../../vendor/tacit-db-fd17ac1.tgz
+        version: file:vendor/tacit-db-fd17ac1.tgz
     devDependencies:
       '@types/node':
         specifier: ^26.1.2
@@ -1033,12 +1033,12 @@ packages:
   '@swc/types@0.1.28':
     resolution: {integrity: sha512-V6Mnml8v09QALx6K0elJ7o9K/MkVDtW3t6L+7Ou/JcWtb3xwId2AH4FeOceySd2JaO87IMw4+6vSZxLm34LPbw==}
 
-  '@tacit/core@file:vendor/tacit-core-f602634.tgz':
-    resolution: {integrity: sha512-hbOe8Fx13P7V4qHT61TArGiUP9BJMPlaK+hT1SypvMHIlsKULr8Gj4WxeLM6xorXqLAqNri0bwYujir1rMLbpQ==, tarball: file:vendor/tacit-core-f602634.tgz}
+  '@tacit/core@file:vendor/tacit-core-fd17ac1.tgz':
+    resolution: {integrity: sha512-ImRH5gIRggM0xwoBajuRJc8lWzfYj0cuglHlLCZkwCTDt/N9xK6VqK0Qcc1g/C9QbXVmEfFkmqZQpWZ3BeHrsQ==, tarball: file:vendor/tacit-core-fd17ac1.tgz}
     version: 0.0.0
 
-  '@tacit/db@file:vendor/tacit-db-f602634.tgz':
-    resolution: {integrity: sha512-r5sVUNIL9eUSmJz3GFzm3P37jL7Lqw3aSTXw5Ig3fIwc721D3oQoNOamPWvHf59fi/Y4RzEh5j/dABVax2mJWQ==, tarball: file:vendor/tacit-db-f602634.tgz}
+  '@tacit/db@file:vendor/tacit-db-fd17ac1.tgz':
+    resolution: {integrity: sha512-0JwaTULj9LzjKhTT3YXUQLvlf2nWgq2sWxDbOy6OnFRaExAzQAcxybl/OV1qesdMs0R+qtEwk/tFz6vhOMz3MQ==, tarball: file:vendor/tacit-db-fd17ac1.tgz}
     version: 0.0.0
 
   '@tailwindcss/node@4.3.3':
@@ -3932,16 +3932,16 @@ snapshots:
     dependencies:
       '@swc/counter': 0.1.3
 
-  '@tacit/core@file:vendor/tacit-core-f602634.tgz':
+  '@tacit/core@file:vendor/tacit-core-fd17ac1.tgz':
     dependencies:
       '@ai-sdk/anthropic': 4.0.80(zod@4.6.7)
-      '@tacit/db': file:vendor/tacit-db-f602634.tgz
+      '@tacit/db': file:vendor/tacit-db-fd17ac1.tgz
       ai: 7.0.141(zod@4.6.7)
       zod: 4.6.7
     transitivePeerDependencies:
       - '@opentelemetry/api'
 
-  '@tacit/db@file:vendor/tacit-db-f602634.tgz':
+  '@tacit/db@file:vendor/tacit-db-fd17ac1.tgz':
     dependencies:
       '@supabase/supabase-js': 2.117.3
     transitivePeerDependencies:

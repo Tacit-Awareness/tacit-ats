@@ -51,7 +51,7 @@ export const CUSTOM_KINDS: ReadonlyArray<readonly [clientTools.QuestionType, str
 export const OPTIONAL_BUILT_INS: ReadonlyArray<readonly [clientTools.QuestionType, string]> = [
   ["phone", "Phone"],
   ["linkedin", "LinkedIn profile"],
-  ["resume", "Link to your resume"],
+  ["resume", "Resume"],
 ];
 
 const SECTIONS = ["What you'll do", "You might be a fit if"];
@@ -102,7 +102,7 @@ export function defaultQuestions(): DraftQuestion[] {
     ["email", "Email", true],
     ["phone", "Phone", false],
     ["linkedin", "LinkedIn profile", false],
-    ["resume", "Link to your resume", false],
+    ["resume", "Resume", false],
   ];
   const asked: Array<[clientTools.QuestionType, string, boolean]> = [
     ["yes_no", "Are you authorized to work in the US?", true],

@@ -187,6 +187,8 @@ describe("the public job pages hold no session and no client but the publishable
   // no privileged database client, no client session.
   const roots = [...walk(join(SRC, "app/careers")), ...walk(join(SRC, "app/jobs")), ...walk(join(SRC, "app/api/jobs")), ...walk(join(SRC, "components/careers")), ...walk(join(SRC, "lib/public"))];
   const SESSIONS = new Set([join(SRC, "lib/client/session.ts"), join(SRC, "lib/client/bind.ts")]);
+  // The one privileged write they reach, fenced on its own below.
+  const RESUME_STORE = join(SRC, "lib/applicant-resume/store.ts");
 
   test("there are public pages to check", () => {
     expect(roots.map(rel)).toEqual(expect.arrayContaining(["app/careers/[org]/page.tsx", "app/jobs/[slug]/page.tsx", "app/api/jobs/[slug]/apply/route.ts", "components/careers/frame.tsx", "lib/public/jobs.ts"]));
@@ -201,6 +203,7 @@ describe("the public job pages hold no session and no client but the publishable
       const here = [...trail, rel(file)];
       const text = readFileSync(file, "utf8");
       if (SESSIONS.has(file)) offenders.push(`${here.join(" -> ")} (a session)`);
+      if (file === RESUME_STORE) return;
       if (PRIVILEGED.test(text)) offenders.push(`${here.join(" -> ")} (names a privileged client)`);
       if (/^\s*(["'])use server\1/.test(text)) offenders.push(`${here.join(" -> ")} (a server action file)`);
       for (const spec of importsOf(file)) {
@@ -298,5 +301,47 @@ describe("a client component never reaches the server's packages", () => {
     };
     for (const root of roots) visit(root, []);
     expect(offenders, "Keep the constant or type a client component needs in a module with no such import.").toEqual([]);
+  });
+});
+
+/**
+ * An applicant's resume needs the service role for its bytes (the `org-files`
+ * bucket has no anon policies), so the public pages reach it by one way only:
+ * the apply route, through lib/applicant-resume/store.ts, at the path
+ * submit_job_application answered. These hold that way shut.
+ */
+describe("the one way to an applicant's resume", () => {
+  const ROUTE = join(SRC, "app/api/jobs/[slug]/apply/route.ts");
+  const STORE = join(SRC, "lib/applicant-resume/store.ts");
+
+  test("the route and the module are where this says", () => {
+    expect(existsSync(ROUTE)).toBe(true);
+    expect(existsSync(STORE)).toBe(true);
+  });
+
+  test("only the route imports the module, and the module's folder is that module", () => {
+    const importers = walk(SRC).filter((f) => f !== STORE && importsOf(f).some((spec) => resolveLocal(f, spec) === STORE));
+    expect(importers.map(rel)).toEqual([rel(ROUTE)]);
+    expect(walk(dirname(STORE)).map(rel)).toEqual([rel(STORE)]);
+  });
+
+  test("the module hands out a function, never a client, and takes no path but a row's own", () => {
+    const text = readFileSync(STORE, "utf8");
+    expect([...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class|type)\s+(\w+)/gm)].map((m) => m[1])).toEqual(["storeApplicantResume"]);
+    expect(text.match(/getSupabaseServiceClient\(\)/g)).toHaveLength(1);
+    // The path is checked before the client is made, and the only row it removes is the one at that path.
+    expect(text.indexOf("ROW_PATH.test(storagePath)")).toBeLessThan(text.indexOf("getSupabaseServiceClient()"));
+    expect(text).toMatch(/\.from\("person_files"\)\.delete\(\)\.eq\("storage_path", storagePath\)/);
+    expect(text).not.toMatch(/upsert:\s*true/);
+  });
+
+  test("the route checks the file, then submits, then stores at the path the database answered", () => {
+    const text = readFileSync(ROUTE, "utf8");
+    const body = text.slice(text.indexOf("export async function POST"));
+    const steps = ["checkResume(", "submitApplication(", "storeApplicantResume(outcome.resumePath,"];
+    const at = steps.map((s) => body.indexOf(s));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(body.match(/storeApplicantResume\(/g)).toHaveLength(1);
   });
 });
