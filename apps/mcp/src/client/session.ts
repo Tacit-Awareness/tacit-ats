@@ -1,5 +1,6 @@
 import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
-import { createUserClient, mintClientMemberToken, type Db, type MemberTokenSigner } from "@tacit/db";
+import { memberTransaction, type MemberTransaction } from "@tacit-ats/member-db";
+import { CLIENT_MEMBER_ISSUER, CLIENT_MEMBER_ROLE, createUserClient, mintClientMemberToken, type Db, type MemberTokenSigner } from "@tacit/db";
 
 // Relative and without ".js": see apps/mcp/CLAUDE.md.
 import type { AccessClaims } from "./oauth";
@@ -22,6 +23,12 @@ export type AccessLevel = "limited" | "elevated" | "admin";
 
 export type ClientMember = {
   db: Db;
+  /**
+   * The same member as `db`, as direct Postgres transactions
+   * (@tacit-ats/member-db): the database sees the claims the member token
+   * carries, so the same policies decide.
+   */
+  pg: MemberTransaction;
   actorId: string;
   /** Tacit's id for the org (orgs.id). */
   orgId: string;
@@ -92,9 +99,12 @@ export async function resolveMember(claims: AccessClaims, deps: MemberDeps): Pro
     );
     return { status: "forbidden", reason: "token_rejected" };
   }
+  // The member token's identity claims, as the database reads them from it,
+  // for the transactions that skip PostgREST.
+  const pg = memberTransaction({ role: CLIENT_MEMBER_ROLE, aud: CLIENT_MEMBER_ROLE, iss: CLIENT_MEMBER_ISSUER, sub: claims.subject, org_id: workosOrgId });
   return {
     status: "ok",
-    member: { db, actorId: bound.actorId, orgId: bound.orgId, accessLevel: level.data, subject: claims.subject, workosOrgId },
+    member: { db, pg, actorId: bound.actorId, orgId: bound.orgId, accessLevel: level.data, subject: claims.subject, workosOrgId },
   };
 }
 

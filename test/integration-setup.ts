@@ -60,6 +60,9 @@ export default function setup(): void {
   process.env.SUPABASE_SECRET_KEY = serviceKey;
   process.env.SUPABASE_ANON_KEY = anonKey;
   process.env.SUPABASE_DB_URL = dbUrl;
+  // @tacit-ats/member-db's transaction pooler. Locally the database itself:
+  // the package turns prepared statements off, as the real pooler needs.
+  process.env.SUPABASE_POOLER_URL = dbUrl;
   // The local stack's shared JWT secret: lets a test sign a member token the
   // way production signs one with the project key (apps/mcp's client connector).
   const jwtSecret = vars.get("JWT_SECRET");

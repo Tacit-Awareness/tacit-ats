@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "ci:build": "pnpm --filter @tacit-ats/core build && pnpm -r --filter @tacit-ats/web --filter @tacit-ats/mcp exec next typegen",
+    "ci:build": "pnpm --filter @tacit-ats/core --filter @tacit-ats/member-db build && pnpm -r --filter @tacit-ats/web --filter @tacit-ats/mcp exec next typegen",
     "dev": "pnpm -r --parallel dev",
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",

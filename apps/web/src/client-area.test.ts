@@ -345,3 +345,27 @@ describe("the one way to an applicant's resume", () => {
     expect(body.match(/storeApplicantResume\(/g)).toHaveLength(1);
   });
 });
+
+/**
+ * @tacit-ats/member-db opens a member's own Postgres transaction (`set local
+ * role authenticated` and their claims) on the transaction pooler. Its
+ * connection string can become any role, so it is read inside that package
+ * and nowhere else: nothing here reads it, opens Postgres itself, imports past
+ * the package's entry point, or sets the role or claims a transaction runs as.
+ */
+describe("the raw database connection stays inside @tacit-ats/member-db", () => {
+  const files = walk(SRC);
+  const DRIVERS = /^(postgres|pg|pg-pool|@neondatabase\/serverless|@vercel\/postgres)(\/|$)/;
+
+  test("nothing here imports a Postgres driver or reaches past the package's entry point", () => {
+    const offenders = files.flatMap((f) =>
+      importsOf(f).filter((spec) => DRIVERS.test(spec) || spec.startsWith("@tacit-ats/member-db/")).map((spec) => `${rel(f)} -> ${spec}`),
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  test("nothing here reads the pooler's URL or sets the role or claims a transaction runs as", () => {
+    const RAW = /SUPABASE_POOLER_URL|SUPABASE_DB_URL|request\.jwt|\b(?:re)?set\s+(?:local\s+)?role\b|set_config\(\s*'role'/i;
+    expect(files.filter((f) => RAW.test(readFileSync(f, "utf8"))).map(rel)).toEqual([]);
+  });
+});

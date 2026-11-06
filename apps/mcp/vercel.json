@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm --filter @tacit-ats/core build && pnpm build"
+  "buildCommand": "pnpm --filter @tacit-ats/core --filter @tacit-ats/member-db build && pnpm build"
 }

@@ -4,7 +4,7 @@ import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
 
 /**
  * The client connector's request handling with the database faked at
- * createUserClient: token verification (against a local key), the org and
+ * createUserClient and @tacit-ats/member-db's transactions: token verification (against a local key), the org and
  * member resolution, the 401/403 answers and the one tool are real.
  */
 
@@ -29,7 +29,24 @@ const fakeDb = {
   claims: [] as Array<Record<string, unknown>>,
   /** The interviews row a member's read returns, and its application's person. */
   interview: null as Record<string, unknown> | null,
+  /** The claims each direct transaction was bound to (@tacit-ats/member-db). */
+  pgClaims: [] as Array<Record<string, unknown>>,
 };
+
+vi.mock("@tacit-ats/member-db", () => ({
+  memberTransaction: vi.fn((claims: Record<string, unknown>) => async (fn: (sql: unknown) => Promise<unknown>) => {
+    fakeDb.pgClaims.push(claims);
+    // A tagged template answering by the table it reads, as the policies would for an admin of Acme.
+    const sql = async (strings: TemplateStringsArray) => {
+      const text = strings.join("?");
+      if (/from orgs\b/.test(text)) return [{ name: "Acme" }];
+      if (/from org_members\b/.test(text)) return [{ display_name: "Ada Admin", email: "ada@acme.test" }];
+      if (/from roles\b/.test(text)) return [{ id: "role-1", title: "Founding Engineer", status: "open" }];
+      throw new Error(`fake member-db: no answer for ${text}`);
+    };
+    return fn(sql);
+  }),
+}));
 
 vi.mock("@tacit/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tacit/db")>()),
@@ -153,6 +170,7 @@ beforeEach(() => {
   fakeDb.approvals = [];
   fakeDb.readOnly = false;
   fakeDb.interview = null;
+  fakeDb.pgClaims.length = 0;
   overBreadth = false;
   bound = { status: "ok", actorId: ACTOR, orgId: ORG, firstSignIn: false };
 });
@@ -370,6 +388,13 @@ describe("whoami", () => {
       jobs: [{ job_id: "role-1", title: "Founding Engineer", status: "open" }],
     });
     expect(audits).toEqual([{ tool: "whoami", ok: true, actorId: ACTOR }]);
+  });
+
+  test("its transaction carries the member token's own identity claims, nothing more", async () => {
+    await result(await handleClientRequest(await rpc("tools/call", { name: "whoami", arguments: {} }), deps()));
+    const minted = decode(fakeDb.tokens[0]!);
+    expect(fakeDb.pgClaims).toEqual([{ role: minted.role, aud: minted.aud, iss: minted.iss, sub: minted.sub, org_id: minted.org_id }]);
+    expect(fakeDb.pgClaims[0]).toEqual({ role: "authenticated", aud: "authenticated", iss: "tacit-client-mcp", sub: "user_ada", org_id: "org_acme" });
   });
 });
 
