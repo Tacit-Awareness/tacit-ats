@@ -30,6 +30,7 @@ apps/
   cli/        tats -- the same connector from the terminal, for coding agents and scripts
 packages/
   core/       @tacit-ats/core -- first sign-in, client invitations, the connector's tools
+  member-db/  @tacit-ats/member-db -- withMember: a member's own direct Postgres transaction, RLS deciding
 vendor/       @tacit/db + @tacit/core tarballs from tacit-internal, named by commit (scripts/sync-tacit.mjs)
 ```
 
@@ -38,6 +39,7 @@ See each folder's own `CLAUDE.md`.
 ## Hard rules
 
 - **A member reads and writes only through their own token.** Nothing reachable from `apps/web/src/app/client` or `src/lib/client` may name a privileged client (service role, `tacit_internal`) except `lib/client/bind.ts` (first sign-in), `lib/client/bot.ts` (the signed challenge to the company's bot), `lib/client/granola-notes.ts` (a member's own Granola notes, the grant found from the row their own token reads), `lib/client/file-store.ts` (the bytes of a candidate's file, only after their own token has read or inserted its row) and `lib/client/mailbox.ts` (a member's own Gmail grant to send their email, found from the row their own token reads); `apps/web/src/client-area.test.ts` walks the imports. `apps/web/src/lib/notify/` (the interview notifier, for every company at once) uses the service role outside the client area and is never imported from it. `apps/web/src/lib/applicant-resume/store.ts` (the bytes of a resume uploaded on a public job post, only at the path `submit_job_application` answered) is the one privileged module the public pages reach, and only from `api/jobs/[slug]/apply`; the same test pins it. In `apps/mcp`, only `client/bind.ts`, `client/audit.ts`, `client/files.ts`, `client/calendar.ts`, `client/granola.ts` and `client/mailbox.ts` may, each exporting functions and never a client; `src/client-connector.test.ts` walks those imports.
+- **The pooler's connection string stays in `packages/member-db`.** `SUPABASE_POOLER_URL` can become any role, so only that package's `connection.ts` reads it, and only `withMember` uses it: every transaction is `set local role authenticated` with the member's verified claims in `request.jwt.claims`, so `auth.jwt()`, `current_actor_id()` and every policy decide as over PostgREST. Nothing in either app reads the URL, imports a Postgres driver, imports past the package's entry point or sets a role or claims itself (`client-area.test.ts`, `client-connector.test.ts`, the package's `boundary.test.ts`).
 - **A server action starts with `await requireClient()`.** An action is callable by id from any page, so the proxy does not cover it. The same test enforces it.
 - **Interview feedback and offer terms stay private.** Feedback notes, rating notes, email subjects and bodies, filenames and source details are kept out of `audit_log` and `mcp_calls`; candidate text comes back fenced.
 - **`packages/*` never depends on `apps/*`**, and `@tacit-ats/core` never reads `process.env` or builds a client at module load.

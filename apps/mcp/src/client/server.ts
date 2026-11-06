@@ -204,21 +204,24 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
         },
         (args) =>
           run("whoami", "read", args, async () => {
-            const [org, me, jobs] = await Promise.all([
-              member.db.from("orgs").select("name").eq("id", member.orgId).maybeSingle(),
-              member.db.from("org_members").select("display_name, email").eq("id", member.actorId).maybeSingle(),
-              member.db.from("roles").select("id, title, status").order("created_at", { ascending: false }).limit(100),
-            ]);
-            for (const r of [org, me, jobs]) if (r.error) throw new Error(r.error.message);
+            // One transaction as the member, straight to Postgres: the policies decide, as over PostgREST.
+            const [org, me, list] = await member.pg((sql) =>
+              Promise.all([
+                sql<{ name: string }[]>`select name from orgs where id = ${member.orgId}`.then((rows) => rows[0] ?? null),
+                sql<{ display_name: string | null; email: string | null }[]>`
+                  select display_name, email from org_members where id = ${member.actorId}`.then((rows) => rows[0] ?? null),
+                sql<{ id: string; title: string; status: string }[]>`
+                  select id, title, status from roles order by created_at desc limit 100`.then((rows) => [...rows]),
+              ]),
+            );
             const level = LEVELS[member.accessLevel];
-            const list = jobs.data ?? [];
             return {
               summary:
-                `You are ${me.data?.display_name ?? "a member"} at ${org.data?.name ?? "your company"}, ` +
+                `You are ${me?.display_name ?? "a member"} at ${org?.name ?? "your company"}, ` +
                 `with ${level} access. You can see ${list.length} job${list.length === 1 ? "" : "s"}.`,
               data: {
-                company: org.data?.name ?? null,
-                you: { user_id: member.actorId, name: me.data?.display_name ?? null, email: me.data?.email ?? null, access: level },
+                company: org?.name ?? null,
+                you: { user_id: member.actorId, name: me?.display_name ?? null, email: me?.email ?? null, access: level },
                 jobs: list.map((j) => ({ job_id: j.id, title: j.title, status: j.status })),
               },
               candidateIds: [],
