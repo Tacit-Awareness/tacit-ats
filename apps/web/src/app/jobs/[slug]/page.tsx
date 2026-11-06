@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CareersFrame, Ico, ICON } from "@/components/careers/frame";
 import { formNotice, guideSteps, questionLabel } from "@/lib/public/application";
+import { stripMarks } from "@/lib/inline-marks";
 import { landingChannel, withVia } from "@/lib/public/channel";
 import { readJobPost, readOrgBrand } from "@/lib/public/jobs";
 import { parsePostText } from "@/lib/public/post-text";
@@ -52,7 +53,7 @@ export default async function JobPostPage({
   const channel = landingChannel(query, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   const application = tab === "application" || Boolean(applied || error);
   const askedQuestion = q ? read.questions.find((x) => x.id === q) : undefined;
-  const asked = askedQuestion ? questionLabel(askedQuestion) : null;
+  const asked = askedQuestion ? stripMarks(questionLabel(askedQuestion)) : null;
   const notice = formNotice(error, asked);
   const boardHref = read.orgSlug ? withVia(`/careers/${read.orgSlug}`, channel) : null;
   const steps = guideSteps(read.questions, answerField);
