@@ -1,3 +1,4 @@
+import { stripMarks } from "../inline-marks";
 import type { PublicQuestion } from "./jobs";
 
 // How the public application is laid out (design/careers): its sections, and
@@ -49,7 +50,7 @@ export function guideSteps(questions: PublicQuestion[], fieldOf: (q: PublicQuest
   const step = (key: string, title: string, list: PublicQuestion[]): GuideStep => ({
     key,
     title,
-    items: list.filter((q) => q.required).map((q) => ({ field: fieldOf(q), label: questionLabel(q) })),
+    items: list.filter((q) => q.required).map((q) => ({ field: fieldOf(q), label: stripMarks(questionLabel(q)) })),
   });
   return [step("resume", "Resume", resume), step("about", "About you", about), step("questions", "Questions", custom)].filter((s) => s.items.length > 0);
 }

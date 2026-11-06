@@ -1,5 +1,6 @@
 import type { clientTools } from "@tacit-ats/core";
 import { cn } from "@/lib/utils";
+import { Marked } from "@/components/marked";
 import { parsePostText } from "@/lib/public/post-text";
 
 // The pieces of design/tats's posting sheet, shared by the read-only post
@@ -116,7 +117,9 @@ export function Application({ questions }: { questions: clientTools.Question[] }
           {rest.map((q) => (
             <div key={q.questionId} className="border-b border-[color:var(--line)] py-3.5">
               <div className="mb-2.5 flex items-start gap-0.5 font-medium">
-                {q.label}
+                <span>
+                  <Marked text={q.label} />
+                </span>
                 <Req on={q.required} />
               </div>
               <Answer q={q} />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FlashToast } from "@/components/flash-toast";
 import { ListReader, Notice, PageBar, textLink } from "@/components/page";
 import { KeyList } from "@/components/keys";
+import { Marked } from "@/components/marked";
 import type { ReaderAnswer } from "@/lib/client/applicant-queue";
 import type { ViewerFile } from "@/lib/client/file-view-rules";
 import { cn } from "@/lib/utils";
@@ -131,7 +132,9 @@ function Paper({ ticket }: { ticket: Ticket }) {
       {ticket.answers.length === 0 && !ticket.referral ? <p className="m-0 mt-5 text-[color:var(--n700)]">No other answers.</p> : null}
       {ticket.answers.map((a) => (
         <section key={a.questionId}>
-          <h2 className={h2}>{a.label}</h2>
+          <h2 className={h2}>
+            <Marked text={a.label} />
+          </h2>
           {a.href ? (
             <a href={a.href} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-[color:var(--n900)] underline decoration-[color:var(--n300)] underline-offset-2 hover:decoration-[color:var(--n900)]">
               {a.value}

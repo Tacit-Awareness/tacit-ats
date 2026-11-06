@@ -8,6 +8,7 @@ import { CopyButton } from "@/components/copy-button";
 import { Notice, Page, PageBar, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { stripMarks, type Mark } from "@/lib/inline-marks";
 import { holdLeave } from "@/lib/leave-guard";
 import {
   CUSTOM_KINDS, OPTIONAL_BUILT_INS, carryOn, draftPayload, leavesPage, previewQuestions, tooBigToSend, type DraftPayload, type DraftQuestion, type EditorDraft, type Made,
@@ -23,7 +24,7 @@ import {
   Answer, Application, ApplicationEnd, Fact, PostBody, Req, ResumeBox, StatusChip, answerBox, applicationSections, day, postState, sheetHeading,
 } from "./[id]/post/sheet";
 import { createRoleAction, savePostingAction } from "./actions";
-import { Editable } from "./editable";
+import { Editable, type EditableControls } from "./editable";
 import { JobSettingsPanel } from "./job-settings";
 import { POSTING_ERRORS, POSTING_NOTICES, QUESTION_ERRORS, type PostingError, type PostingNotice } from "./messages";
 
@@ -52,6 +53,37 @@ function Plus() {
     <svg viewBox="0 0 16 16" className="size-3 fill-none stroke-current [stroke-width:1.5]" aria-hidden>
       <path d="M8 3v10M3 8h10" />
     </svg>
+  );
+}
+
+/**
+ * A custom question's text with Typeform's B and I beside it, on hover or
+ * while it is being edited. A press keeps focus where it is (mousedown is
+ * cancelled), so it marks the selection, or the whole question with none.
+ */
+function QuestionText({ value, onChange, path, required }: { value: string; onChange: (label: string) => void; path: string; required: boolean }) {
+  const controls = useRef<EditableControls>(null);
+  const button = (mark: Mark, name: string, keys: string, face: string) => (
+    <button
+      type="button"
+      aria-label={name}
+      title={`${name} (${keys})`}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => controls.current?.toggle(mark)}
+      className={cn("grid size-[22px] flex-none place-items-center rounded-[6px] text-[12.5px] text-faint hover:bg-[color:var(--hover)] hover:text-foreground", face)}
+    >
+      {mark === "bold" ? "B" : "I"}
+    </button>
+  );
+  return (
+    <>
+      <Editable value={value} onChange={onChange} label="Question" placeholder="Type a question" path={path} formatting controls={controls} className="empty:min-w-[8em]" />
+      <Req on={required} />
+      <span className="ml-1 flex flex-none gap-0.5 opacity-0 transition-opacity group-hover/line:opacity-100 group-focus-within/line:opacity-100 max-sm:opacity-100">
+        {button("bold", "Bold", "⌘B", "font-bold")}
+        {button("italic", "Italic", "⌘I", "font-serif italic")}
+      </span>
+    </>
   );
 }
 
@@ -252,16 +284,8 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
       {rest.map((q) => (
         <div key={q.key} className="border-b border-[color:var(--line)] py-3.5">
           <div className="group/line mb-2.5 flex items-start gap-0.5 font-medium">
-            <Editable
-              value={q.label}
-              onChange={(label) => patch(q.key, { label })}
-              label="Question"
-              placeholder="Type a question"
-              path={`question-${q.key}`}
-              className="empty:min-w-[8em]"
-            />
-            <Req on={q.required} />
-            <Remove label={q.label ? `Remove ${q.label}` : "Remove this question"} onClick={() => remove(q.key)} />
+            <QuestionText value={q.label} onChange={(label) => patch(q.key, { label })} path={`question-${q.key}`} required={q.required} />
+            <Remove label={q.label ? `Remove ${stripMarks(q.label)}` : "Remove this question"} onClick={() => remove(q.key)} />
           </div>
           {q.type === "select" ? (
             <Lines

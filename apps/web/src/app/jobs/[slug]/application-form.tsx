@@ -1,4 +1,5 @@
 import { Ico, ICON } from "@/components/careers/frame";
+import { Marked } from "@/components/marked";
 import { formSections, questionLabel } from "@/lib/public/application";
 import { VIA, type Channel } from "@/lib/public/channel";
 import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, RESUME_FIELD, type PublicQuestion } from "@/lib/public/jobs";
@@ -16,7 +17,7 @@ export const answerField = (q: PublicQuestion) => `${ANSWER_PREFIX}${q.id}`;
 function Label({ q }: { q: PublicQuestion }) {
   return (
     <>
-      {questionLabel(q)}
+      <Marked text={questionLabel(q)} />
       {q.required ? <span className="req"> *</span> : null}
     </>
   );
