@@ -142,6 +142,14 @@ select * from bridge_submit_candidate('ac100000-0000-4000-8000-000000000001', 'p
 select pg_temp.expect((select person_id = 'ac200000-0000-4000-8000-000000000001' from bea), 'Acme''s Bea is found by email');
 select pg_temp.expect((select display_name = 'Bea As Acme Has Her' and staff_person_id is null from people where id = 'ac200000-0000-4000-8000-000000000001'),
   'and left exactly as Acme has her');
+select pg_temp.as_owner();
+insert into applications (id, person_id, role_id, org_id, stage, source)
+values ('ac300000-0000-4000-8000-0000000000b1', 'ac200000-0000-4000-8000-000000000001', current_setting('tacit_test.job')::uuid,
+        'a0000000-0000-4000-8000-00000000000a', 'screening', 'referral');
+select pg_temp.as_role('service_role');
+select pg_temp.expect((select status = 'already_in_job' and application_id is null from bridge_submit_candidate(current_setting('tacit_test.job')::uuid,
+  'pal@tacitawareness.com', 'Pal', '70000000-0000-4000-8000-000000000002', '{"email":"bea@example.com","display_name":"Bea"}', null, 'dashboard')),
+  'someone Acme put in a job themselves: already in it, and no application to count as Tacit''s');
 select pg_temp.expect((select count(*) from actors where tacit_agency and org_id = 'a0000000-0000-4000-8000-00000000000a') = 2, 'two teammates, two actors');
 
 -- 6. A removed real member with the teammate's email is refused; a Tacit

@@ -6,7 +6,7 @@
  *   jobs              { orgId? }                              -> { jobs }
  *   job-for-role      { companyId, staffRoleId, title,        -> { job | null }
  *                       location?, seniority?, description? }
- *   submit-candidate  { roleId, submitter: { email, name },   -> { status, orgId, personId, applicationId, actorId } (applicationId: the one they have when already_in_job)
+ *   submit-candidate  { roleId, submitter: { email, name },   -> { status, orgId, personId, applicationId, actorId } (already_in_job: applicationId is theirs only when Tacit made it, else null)
  *                       person: { staffPersonId, email, displayName, phone?, linkedinUrl?,
  *                                 currentTitle?, currentCompany?, location? },
  *                       note?, source: dashboard | claude, stage? }

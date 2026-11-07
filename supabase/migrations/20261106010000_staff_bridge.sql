@@ -196,16 +196,19 @@ begin
     limit 1;
   end if;
 
-  -- Already in the job: the application they have, so Tacit can record a
-  -- submission whose first answer it lost.
-  if v_person is not null then
+  -- Already in the job. The application comes back only when Tacit made it
+  -- (so Tacit can record a submission whose first answer it lost); someone
+  -- the client added themselves is never counted as Tacit's.
+  if v_person is not null and exists (
+    select 1 from applications a
+    where a.person_id = v_person and a.role_id = job.role_id and a.merged_into_id is null
+  ) then
     select a.id into v_app from applications a
     where a.person_id = v_person and a.role_id = job.role_id and a.merged_into_id is null
+      and a.source = 'agency' and a.source_detail like 'Tacit · %'
     order by a.created_at limit 1;
-    if v_app is not null then
-      return query select 'already_in_job'::text, job.org_id, v_person, v_app, v_actor;
-      return;
-    end if;
+    return query select 'already_in_job'::text, job.org_id, v_person, v_app, v_actor;
+    return;
   end if;
 
   if v_person is null then
