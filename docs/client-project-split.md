@@ -83,13 +83,37 @@ audited client-side with source `staff`.
 6. Rollback: env flip back while old tables still exist; keep them 30 days.
 7. Later: drop client tables from the staff project once the bridge proves out.
 
-## Open questions for you
+## Decisions (Ryan, 2026-11-06)
 
-- Do staff need **live** visibility into client pipelines (funnel, support)
-  or is a pull/report good enough? (Drives whether the bridge needs events.)
-- `tacit-dev` is INACTIVE — revive it as the client staging project, or make
-  a fresh one? (Staging on tacit-dev is fine; prod should be its own.)
-- Do client candidates' `transcript_entries`/Granola meetings ever matter
-  client-side? Today no (staff ingest) — confirms transcript stays.
-- Timing: best done before Polymr/real clients accumulate data. Now is the
-  cheapest this will ever be.
+- **Staff visibility: a pull report is enough.** The bridge has read endpoints
+  (`jobs`, `report`) and no event stream back to tacit.
+- **Staging: a fresh project**, `tacit-ats-staging`, not `tacit-dev`.
+- **Client candidates' transcripts matter client-side.** `transcript_entries`
+  stays in the client track and its client orgs' rows are copied. Carrying
+  new ones from staff ingest is the bridge's phase 2 (`candidate-update`).
+- **The client migration track lives in this repo** (`supabase/`), not a
+  `packages/db-client` in tacit-internal.
+- The split comes before the WorkOS -> Supabase Auth move, which then lands
+  on `tacit-ats` (accounts, the access token hook, `auth_active_org`, the
+  OAuth server). `orgs` and `actors` stay on `tacit-ats` as the company
+  directory testbench syncs from.
+
+## Where it stands
+
+1. **Track**: `supabase/` (its `CLAUDE.md`). The baseline is tacit-internal
+   at `26e0685` minus 30 staff-only tables, 4 views and 28 functions, identical
+   object by object for everything kept; the five SQL suites and the full
+   client integration suite (742 tests) pass on it, and CI now runs both.
+2. **Project**: not created yet (Ryan). WorkOS stays the third-party issuer.
+3. **Copy**: `scripts/client-track/copy-orgs.mjs`, rehearsed locally from a
+   seeded tacit stack (Tacit Test Co, 20 tables, a file and a logo): every row
+   matches, a second run replaces the first, a member token reads the rows.
+4. **Bridge**: `apps/web`'s `/api/bridge/{jobs,job-for-role,submit-candidate,report}`
+   and the `bridge_*` functions. Differences from the plan above: all four are
+   signed POSTs (the report takes the application ids Tacit holds), and the
+   client's audit rows keep the caller's source (`dashboard` / `claude`, as
+   today) rather than a new `staff`, which `audit_log`'s check and the pages'
+   labels don't know. `tacit_submit_application`'s auto-submit on every add to
+   a Tacit role at a client company is covered too (`job-for-role`, then
+   `submit-candidate` with the stage). The staff side is tacit-internal's.
+5. **Dual run** and 6. **cutover**: `docs/client-cutover.md`.

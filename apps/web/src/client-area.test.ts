@@ -347,6 +347,56 @@ describe("the one way to an applicant's resume", () => {
 });
 
 /**
+ * The staff bridge (docs/client-project-split.md) reaches client orgs on the
+ * service role, for tacit-internal and nobody else, so it is one way only:
+ * the signed route, through lib/bridge/store.ts, after the signature. These
+ * hold that way shut.
+ */
+describe("the one way to the staff bridge", () => {
+  const ROUTE = join(SRC, "app/api/bridge/[endpoint]/route.ts");
+  const STORE = join(SRC, "lib/bridge/store.ts");
+
+  test("the route and the module are where this says", () => {
+    expect(existsSync(ROUTE)).toBe(true);
+    expect(existsSync(STORE)).toBe(true);
+  });
+
+  test("only the route imports the store, and only the store names a privileged client in lib/bridge", () => {
+    const importers = walk(SRC).filter((f) => f !== STORE && importsOf(f).some((spec) => resolveLocal(f, spec) === STORE));
+    expect(importers.map(rel)).toEqual([rel(ROUTE)]);
+    const privileged = walk(dirname(STORE)).filter((f) => PRIVILEGED.test(readFileSync(f, "utf8")));
+    expect(privileged.map(rel)).toEqual([rel(STORE)]);
+  });
+
+  test("the store hands out a function, never a client, and calls only bridge_* functions", () => {
+    const text = readFileSync(STORE, "utf8");
+    expect([...text.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1])).toEqual(["callBridge"]);
+    expect(text.match(/getSupabaseServiceClient\(\)/g)).toHaveLength(1);
+    expect(text).not.toMatch(/\.from\(/);
+    expect(text).toMatch(/rpc\(call\.fn, call\.args\)/);
+    const calls = readFileSync(join(SRC, "lib/bridge/requests.ts"), "utf8");
+    const fns = [...calls.matchAll(/fn: "(\w+)"/g)].map((m) => m[1]);
+    expect(fns.length).toBeGreaterThan(0);
+    expect(fns.every((fn) => fn.startsWith("bridge_"))).toBe(true);
+  });
+
+  test("the route checks the secret, the size and the signature before it parses or calls", () => {
+    const text = readFileSync(ROUTE, "utf8");
+    const body = text.slice(text.indexOf("export async function POST"));
+    const steps = ["secrets.length === 0", "request.text()", "verifyBridgeRequest(", "JSON.parse(", "parseBridgeRequest(", "callBridge("];
+    const at = steps.map((s) => body.indexOf(s));
+    expect(at.every((i) => i >= 0)).toBe(true);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+
+  test("nothing in the client area imports the bridge", () => {
+    const roots = [...walk(join(SRC, "app/client")), ...walk(join(SRC, "lib/client"))];
+    const bridge = walk(dirname(STORE));
+    expect(roots.filter((f) => importsOf(f).some((spec) => bridge.includes(resolveLocal(f, spec) ?? ""))).map(rel)).toEqual([]);
+  });
+});
+
+/**
  * @tacit-ats/member-db opens a member's own Postgres transaction (`set local
  * role authenticated` and their claims) on the transaction pooler. Its
  * connection string can become any role, so it is read inside that package
