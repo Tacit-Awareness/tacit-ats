@@ -132,6 +132,9 @@ select pg_temp.expect((select l.source = 'claude' and l.action = 'application.ag
 --    them; a second teammate gets their own actor.
 select pg_temp.expect((select status from bridge_submit_candidate('ac100000-0000-4000-8000-000000000001', 'mate@tacitawareness.com', 'Mate',
   '70000000-0000-4000-8000-000000000001', '{"email":"tia@example.com","display_name":"Tia"}', null, 'dashboard')) = 'already_in_job', 'twice is once');
+select pg_temp.expect((select application_id from bridge_submit_candidate('ac100000-0000-4000-8000-000000000001', 'mate@tacitawareness.com', 'Mate',
+  '70000000-0000-4000-8000-000000000001', '{"email":"tia@example.com","display_name":"Tia"}', null, 'dashboard')) = (select application_id from sub),
+  'and answers with the application they have');
 select pg_temp.expect((select count(*) from applications where role_id = 'ac100000-0000-4000-8000-000000000001') = 1, 'one application');
 create temp table bea as
 select * from bridge_submit_candidate('ac100000-0000-4000-8000-000000000001', 'pal@tacitawareness.com', 'Pal',
