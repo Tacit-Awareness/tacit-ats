@@ -1,12 +1,13 @@
 import { defineConfig } from "vitest/config";
-import { packageAliases } from "./test/aliases.js";
+import { atAliasFor, packageAliases } from "./test/aliases.js";
 
-// Integration tests run against the local Supabase stack, started from the
-// tacit-internal checkout (test/integration-setup.ts). They share tables, so
-// files run serially.
+// Integration tests run against the local Supabase stack of this repo's own
+// migration track (supabase/, test/integration-setup.ts). They share tables,
+// so files run serially. `@/` is apps/web's: apps/mcp's integration tests
+// import nothing through it.
 export default defineConfig({
   resolve: {
-    alias: packageAliases,
+    alias: [...packageAliases, atAliasFor("web")],
   },
   test: {
     include: ["apps/*/src/**/*.integration.test.ts", "packages/*/src/**/*.integration.test.ts"],

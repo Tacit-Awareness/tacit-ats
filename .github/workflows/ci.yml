@@ -1,19 +1,23 @@
 name: CI
 
-# Pull requests only: a merge to main deploys through Vercel, and the
-# squash-merge lands the tree that just passed. Actions minutes are shared
-# with tacit-internal (private repos, 2,000 min/month).
+# PRs run the checks; a merge to main deploys through Vercel and pushes the
+# client migration track (supabase/) to the client projects. The squash-merge
+# lands the tree that just passed. Actions minutes are shared with
+# tacit-internal (private repos, 2,000 min/month).
 on:
   pull_request:
     paths-ignore: ['**.md']
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +27,76 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: New migrations must sort after everything on main
+        if: github.event_name == 'pull_request'
+        run: scripts/client-track/check-migration-order.sh
       - run: pnpm ci:build
       - run: pnpm typecheck
       - run: pnpm test
-      # Integration tests need tacit-internal's migrations for the local
-      # stack, a private repo this workflow cannot check out yet. Run them
-      # locally (CLAUDE.md, Commands).
+      # Pinned to the version the local stack is verified against.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.111.0
+      # A fresh stack replays the whole track, which doubles as the "do the
+      # migrations still apply" check. The tests use PostgREST (through kong)
+      # and Postgres only.
+      - name: Start local Supabase
+        run: supabase start -x studio,realtime,storage-api,imgproxy,edge-runtime,logflare,vector,postgres-meta,mailpit,supavisor
+      - name: SQL tests (supabase/tests)
+        run: |
+          db_url=$(supabase status -o env | sed -n 's/^DB_URL="\(.*\)"$/\1/p')
+          for f in supabase/tests/*.sql; do
+            echo "== $f"
+            psql "$db_url" -q -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - run: pnpm test:integration
+
+  # Each client project is a GitHub environment (staging, production) with
+  # the variable SUPABASE_PROJECT_REF and the secret SUPABASE_DB_PASSWORD; the
+  # repository secret SUPABASE_ACCESS_TOKEN signs in. An environment without a
+  # project ref is skipped, so this does nothing until one is set up.
+  # Staging first: production waits for it.
+  migrate-staging:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.PROJECT_REF != ''
+      - uses: supabase/setup-cli@v1
+        if: env.PROJECT_REF != ''
+        with:
+          version: 2.111.0
+      # No --include-all: an out-of-order migration fails here rather than
+      # being applied out of order.
+      - name: Push migrations
+        if: env.PROJECT_REF != ''
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --yes
+
+  migrate-production:
+    needs: migrate-staging
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.PROJECT_REF != ''
+      - uses: supabase/setup-cli@v1
+        if: env.PROJECT_REF != ''
+        with:
+          version: 2.111.0
+      - name: Push migrations
+        if: env.PROJECT_REF != ''
+        run: |
+          supabase link --project-ref "$PROJECT_REF"
+          supabase db push --yes
