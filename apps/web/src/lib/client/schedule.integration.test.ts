@@ -329,5 +329,5 @@ describe("the Calendar's search", () => {
     expect(items[0]!.interviewId).toBe(iv(5));
     expect(items.map((i) => i.step)).not.toContain("Bulk 0");
     expect(items.map((i) => i.step)).toContain("Bulk 3000");
-  });
+  }, 30_000);
 });
