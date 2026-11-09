@@ -60,13 +60,13 @@ Traffic is tiny, so the plan is a short write pause off-hours, not dual writes. 
 
 ## Rollback
 
-While `tacit`'s client rows still exist (kept 30 days, step 22), rolling back is going back to the deployments from before the flip. A Vercel deployment keeps the env it was built with, so those still point at `tacit`, `tacit`'s signing key included (which Vercel will not show again, so it cannot be typed back in).
+No longer possible: `tacit`'s client rows were dropped on 2026-11-09 (step 22). While they still existed, rolling back is going back to the deployments from before the flip. A Vercel deployment keeps the env it was built with, so those still point at `tacit`, `tacit`'s signing key included (which Vercel will not show again, so it cannot be typed back in).
 
 20. **[Ryan]** Vercel → each of apps/web, apps/mcp and tacit-internal's apps → Deployments → the last Production deployment from before step 16 → **Instant Rollback**. Members are back on `tacit` at once; the WorkOS issuer is trusted by both. Instant Rollback stops new merges reaching production until it is undone (Vercel's **Undo Rollback**, or promoting a later deployment), so put the env vars back to `tacit`'s before the next deploy, or roll forward again once the problem is fixed.
 21. Anything written on `tacit-ats` after step 16 is not on `tacit`. List it from `tacit-ats`'s `audit_log` since the flip and redo it by hand, or copy it back with `copy-orgs.mjs` the other way round (source and target swapped, `--orgs` for the companies affected): `tacit`'s schema has every column it copies except `staff_person_id` / `staff_role_id`, which it leaves out.
 
 ## After
 
-22. 30 days after a cutover nobody rolled back: tacit-internal drops its copies of the client orgs' rows, then the client-only tables and functions (`tacit_submit_to_client`, `tacit_client_jobs`, ... and the `tacit_internal` policy branches that only served them), in its own migration. Ryan's go-ahead first.
+22. 30 days after a cutover nobody rolled back: tacit-internal drops its copies of the client orgs' rows, then the client-only tables and functions (`tacit_submit_to_client`, `tacit_client_jobs`, ... and the `tacit_internal` policy branches that only served them), in its own migration. Ryan's go-ahead first. **Rows: done 2026-11-09**, on his go-ahead, by tacit-internal#407 (`20261111000000_drop_client_org_rows`); each client org's `orgs` row (without its `workos_org_id`) and its `org-brand` logo stay, as the workspace reads them, and the `org-files` objects went through the Storage API. The client-only functions and the pre-bridge code paths are still there.
 23. tacit-ats: drop the staff-only tables the baseline still carries (`rubrics`, `person_snapshots`, `tacit_submissions`, `enrichment_*`, ...) once the functions naming them are edited; generate this track's own types and retire `@tacit/db`'s in the apps.
 24. Then the WorkOS → Supabase Auth migration lands on `tacit-ats` (the plan doc): accounts, the custom access token hook, `auth_active_org`, the OAuth server for connectors.

@@ -117,4 +117,4 @@ audited client-side with source `staff`.
    a Tacit role at a client company is covered too (`job-for-role`, then
    `submit-candidate` with the stage). The staff side is tacit-internal's.
 5. **Rehearsal** (2026-11-08, on `tacit-ats`): Test Co copied, the SQL suites and a member token checked there.
-6. **Cutover: done 2026-11-09.** All 8 client orgs copied, every row matching; web, mcp and tacit-internal's apps switched; a member sign-in, a write, the connector, a job post and the bridge checked on production. Next: the 30-day cleanup on `tacit` (`docs/client-cutover.md` step 22), from 2026-12-09.
+6. **Cutover: done 2026-11-09.** All 8 client orgs copied, every row matching; web, mcp and tacit-internal's apps switched; a member sign-in, a write, the connector, a job post and the bridge checked on production. The same day, on Ryan's go-ahead, tacit-internal#407 dropped `tacit`'s copies of the client rows (step 22's first half): 1,464 rows, the members' 3,317 connector calls and 6 candidate files; each org's `orgs` row and logo stay for the workspace.
