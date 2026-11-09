@@ -75,8 +75,9 @@ select pg_temp.as_owner();
 select pg_temp.as_role('service_role');
 
 -- 2. Jobs: open and not confidential, in client orgs.
-select pg_temp.expect((select count(*) from bridge_client_jobs()) = 1, 'one job Tacit may submit to');
-select pg_temp.expect((select company_id = 'c0000000-0000-4000-8000-0000000000a1' and title = 'Engineer' from bridge_client_jobs()),
+-- Scoped to the fixtures' orgs, so the suite also runs on a project holding real client orgs.
+select pg_temp.expect((select count(*) from bridge_client_jobs() where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 1, 'one job Tacit may submit to');
+select pg_temp.expect((select company_id = 'c0000000-0000-4000-8000-0000000000a1' and title = 'Engineer' from bridge_client_jobs() where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')),
   'named with the client''s company on tacit');
 select pg_temp.expect((select count(*) from bridge_client_jobs('b0000000-0000-4000-8000-00000000000b')) = 0, 'none at Globex');
 select pg_temp.expect(not exists (select 1 from bridge_client_jobs() where org_id = tacit_org_id()), 'nor in Tacit''s own org');

@@ -151,13 +151,19 @@ if (load) {
   // its logo URL.
   const digest = (url, p) =>
     psql(url, `select count(*) || ':' || coalesce(md5(string_agg(r::text, '|' order by r::text)), '') from (select ${p.cols} from public.${p.table} where ${p.filter}) r`).trim();
+  // Sync cursors are rewritten by a cron every minute whether or not anyone is
+  // working (the mailbox sync moves each history_id forward), so only their
+  // counts must match: a cursor a few minutes behind just makes the next sync
+  // look a little further back.
+  const cursors = new Set(["mailbox_sync_state", "scheduling_cursors"]);
   let mismatched = 0;
   for (const p of plan) {
     const [source, target] = [digest(SOURCE_DB_URL, p), digest(TARGET_DB_URL, p)];
-    const same = source === target;
-    if (!same) mismatched++;
     const [n, m] = [source.split(":")[0], target.split(":")[0]];
-    if (n !== "0" || m !== "0") console.log(`${p.table.padEnd(32)} ${n.padStart(7)} -> ${m.padStart(7)}${same ? "" : "  MISMATCH"}`);
+    const same = cursors.has(p.table) ? n === m : source === target;
+    if (!same) mismatched++;
+    const moved = cursors.has(p.table) && same && source !== target ? "  (cursor moved on since the snapshot)" : "";
+    if (n !== "0" || m !== "0") console.log(`${p.table.padEnd(32)} ${n.padStart(7)} -> ${m.padStart(7)}${same ? moved : "  MISMATCH"}`);
   }
   if (mismatched) {
     console.error(`${mismatched} table(s) differ: the source changed during the copy, or a row did not load. Pause writes and run again.`);

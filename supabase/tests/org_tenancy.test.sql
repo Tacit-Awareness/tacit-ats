@@ -232,7 +232,7 @@ select pg_temp.as_tacit_internal();
 select pg_temp.expect(exists (select 1 from people where id = '70000000-0000-4000-8000-000000000001'), 'tacit_internal sees Tacit''s people');
 select pg_temp.expect(not exists (select 1 from people where org_id <> tacit_org_id()), 'tacit_internal sees no client people');
 select pg_temp.expect(not exists (select 1 from applications), 'tacit_internal sees no client pipeline');
-select pg_temp.expect((select count(*) from orgs) = 3, 'tacit_internal can list orgs');
+select pg_temp.expect((select count(*) from orgs where id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b') or id = tacit_org_id()) = 3, 'tacit_internal can list orgs');
 insert into person_notes (person_id, text) values ('70000000-0000-4000-8000-000000000001', 'internal note');
 select pg_temp.expect((select org_id from person_notes where text = 'internal note') = tacit_org_id(), 'tacit_internal writes land in Tacit');
 update people set display_name = 'touched' where id = 'ac200000-0000-4000-8000-000000000001';
@@ -1270,8 +1270,8 @@ insert into custom_field_options (id, field_id, name, position) values
   ('cf221000-0000-4000-8000-000000000002', 'cf220000-0000-4000-8000-000000000001', 'Onsite', 2);
 select pg_temp.as_owner();
 select pg_temp.expect((select bool_and(org_id = 'a0000000-0000-4000-8000-00000000000a' and created_by_actor_id = 'a1000000-0000-4000-8000-000000000001')
-  from custom_fields), 'a field lands in its admin''s org, stamped with them');
-select pg_temp.expect((select bool_and(org_id = 'a0000000-0000-4000-8000-00000000000a') from custom_field_options), 'an option takes its field''s org');
+  from custom_fields where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'a field lands in its admin''s org, stamped with them');
+select pg_temp.expect((select bool_and(org_id = 'a0000000-0000-4000-8000-00000000000a') from custom_field_options where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'an option takes its field''s org');
 select pg_temp.as_member('user_acme', 'org_acme');
 select pg_temp.expect(pg_temp.raises(
   $q$insert into custom_fields (object, name, field_type) values ('candidate', 'work STYLE', 'short_text')$q$, '23505'),
@@ -1303,7 +1303,7 @@ insert into custom_field_values (field_id, offer_id, value) values
 select pg_temp.expect((select count(*) from custom_field_values) = 8, 'an admin reads every value they set');
 select pg_temp.as_owner();
 select pg_temp.expect((select bool_and(org_id = 'a0000000-0000-4000-8000-00000000000a' and updated_by_actor_id = 'a1000000-0000-4000-8000-000000000001')
-  from custom_field_values), 'a value lands in its field''s org, stamped with who set it');
+  from custom_field_values where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'a value lands in its field''s org, stamped with who set it');
 select pg_temp.as_member('user_acme', 'org_acme');
 select pg_temp.expect(pg_temp.raises(
   $q$insert into custom_field_values (field_id, person_id, value) values ('cf220000-0000-4000-8000-000000000002', 'ac200000-0000-4000-8000-00000000000d', '"lots"')$q$, '22023'),
@@ -1435,12 +1435,13 @@ insert into openings (role_id) values ('ac100000-0000-4000-8000-000000000001');
 insert into openings (role_id, opening_code) values ('ac100000-0000-4000-8000-000000000002', 'DES-1');
 select pg_temp.as_owner();
 select pg_temp.expect((select org_id = 'a0000000-0000-4000-8000-00000000000a' and created_by_actor_id = 'a1000000-0000-4000-8000-000000000001'
-  from departments where name = 'Platform'), 'a department lands in its maker''s org, stamped with them');
-select pg_temp.expect((select org_id from job_offices) = 'a0000000-0000-4000-8000-00000000000a', 'a job''s office inherits the job''s org');
+  from departments where name = 'Platform' and org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'a department lands in its maker''s org, stamped with them');
+select pg_temp.expect((select org_id from job_offices where role_id = 'ac100000-0000-4000-8000-000000000001') = 'a0000000-0000-4000-8000-00000000000a', 'a job''s office inherits the job''s org');
 select pg_temp.expect((select array_agg(number order by number) from openings where role_id = 'ac100000-0000-4000-8000-000000000001') = array[1, 2]
   and (select number from openings where opening_code = 'DES-1') = 1, 'openings are numbered per job');
 select pg_temp.expect((select bool_and(org_id = 'a0000000-0000-4000-8000-00000000000a' and status = 'open'
-  and created_by_actor_id = 'a1000000-0000-4000-8000-000000000001') from openings), 'an opening starts open, in the job''s org, stamped with its maker');
+  and created_by_actor_id = 'a1000000-0000-4000-8000-000000000001') from openings
+  where role_id in ('ac100000-0000-4000-8000-000000000001', 'ac100000-0000-4000-8000-000000000002')), 'an opening starts open, in the job''s org, stamped with its maker');
 
 select pg_temp.as_member('user_acme', 'org_acme');
 select pg_temp.expect(pg_temp.raises(
@@ -2024,7 +2025,8 @@ do $$ begin
 exception when insufficient_privilege then null;
 end $$;
 reset role;
-select pg_temp.expect(not exists (select 1 from people where merged_into_id is not null), 'nothing was merged by any refusal');
+select pg_temp.expect(not exists (select 1 from people where merged_into_id is not null
+  and org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'nothing was merged by any refusal');
 
 -- Kit into Kimberly, then Kimberly into Kim.
 select pg_temp.as_member('user_acme', 'org_acme');
@@ -2319,7 +2321,7 @@ select client_connect_calendar('google', 'admin@acme.test', 'rt-admin-2', 'calen
 select pg_temp.as_owner();
 select pg_temp.expect((select refresh_token from calendar_connections where actor_id = 'a1000000-0000-4000-8000-000000000001') = 'rt-admin-2'
   and (select account_email from calendar_connections where actor_id = 'a1000000-0000-4000-8000-000000000003') = 'hm@acme.test'
-  and (select count(*) from calendar_connections) = 2,
+  and (select count(*) from calendar_connections where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 2,
   'connecting again replaces your own grant; each member''s row is their own, lower-cased');
 select pg_temp.as_member('user_globex', 'org_globex');
 select pg_temp.expect((select count(*) from calendar_connections) = 0, 'another company reads no connection');
@@ -2372,7 +2374,7 @@ select pg_temp.as_member('user_acme', 'org_acme');
 select pg_temp.expect(client_disconnect_calendar(), 'disconnecting removes your connection');
 select pg_temp.expect(not client_disconnect_calendar(), 'and the second time there is nothing to remove');
 select pg_temp.as_owner();
-select pg_temp.expect((select count(*) from calendar_connections) = 1, 'the other member''s connection stays');
+select pg_temp.expect((select count(*) from calendar_connections where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 1, 'the other member''s connection stays');
 
 -- 30. Tacit's submissions into a client's jobs (tacit_submit_to_client and
 -- tacit_submit_application) stay on tacit; on this project the bridge's
@@ -2417,7 +2419,7 @@ select pg_temp.expect(not exists (select 1 from notify_events where dedupe_key =
 select pg_temp.as_owner();
 select pg_temp.expect((select count(*) from audit_log where action like 'agent_destination.%'
   and org_id = 'a0000000-0000-4000-8000-00000000000a') = 3, 'set, rotate and turn off are each audited under the company');
-select pg_temp.expect((select secret from agent_destinations) <> current_setting('tacit_test.bot_secret'), 'the old secret is gone');
+select pg_temp.expect((select secret from agent_destinations where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) <> current_setting('tacit_test.bot_secret'), 'the old secret is gone');
 -- The bot's own key (20261029120000_agent_destination_own_key): stored, never returned.
 select pg_temp.as_member('user_acme', 'org_acme');
 select pg_temp.expect(pg_temp.raises($q$select client_set_agent_destination('https://bot.acme.test/hook', 'short')$q$, '22023'),
@@ -2520,7 +2522,7 @@ delete from inbox_dismissals;
 select pg_temp.as_member('user_acme_hm', 'org_acme');
 select pg_temp.expect((select count(*) from inbox_dismissals) = 1, 'a member reads their own, a teammate''s delete did not reach it');
 select pg_temp.as_owner();
-select pg_temp.expect((select count(*) from inbox_dismissals) = 4, 'nobody deleted anyone else''s');
+select pg_temp.expect((select count(*) from inbox_dismissals where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 4, 'nobody deleted anyone else''s');
 -- An interviewer has no Inbox, so nothing to dismiss.
 update actors set access_level = 'limited' where id = 'a1000000-0000-4000-8000-000000000002';
 select pg_temp.as_member('user_acme_int', 'org_acme');
@@ -2780,7 +2782,7 @@ select pg_temp.expect((select relrowsecurity from pg_class where oid = 'public.j
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect(not exists (select 1 from job_post_views), 'a draft is not counted');
+select pg_temp.expect(not exists (select 1 from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'a draft is not counted');
 select pg_temp.as_member('user_acme_hm', 'org_acme');
 update job_posts set status = 'live' where id = 'ac600000-0000-4000-8000-000000000351';
 select pg_temp.as_anon();
@@ -2788,7 +2790,7 @@ select record_job_post_view(current_setting('tacit_test.v_slug')) from generate_
 select pg_temp.as_owner();
 select pg_temp.expect((select views = 3 and minute_views = 3 and org_id = 'a0000000-0000-4000-8000-00000000000a'
     and day = (now() at time zone 'utc')::date and minute_at = date_trunc('minute', now())
-  from job_post_views), 'three views are one row, in the post''s org, on today''s UTC date');
+  from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'three views are one row, in the post''s org, on today''s UTC date');
 select pg_temp.as_anon();
 select pg_temp.expect(pg_temp.refusal($q$select record_job_post_view('0123456789abcdef0123456789abcdef')$q$) = 'no error'
   and pg_temp.refusal($q$select record_job_post_view(null)$q$) = 'no error'
@@ -2799,7 +2801,7 @@ select pg_temp.expect(pg_temp.refusal($q$select record_job_post_view('0123456789
 select pg_temp.expect(pg_temp.refusal(format($q$select record_job_post_view(%L)$q$, upper(current_setting('tacit_test.v_slug')))) = 'no error',
   'and so is the right slug in the wrong case');
 select pg_temp.as_owner();
-select pg_temp.expect((select count(*) from job_post_views) = 1 and pg_temp.today_views() = 3, 'and none of them wrote anything');
+select pg_temp.expect((select count(*) from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 1 and pg_temp.today_views() = 3, 'and none of them wrote anything');
 update job_posts set status = 'closed' where id = 'ac600000-0000-4000-8000-000000000351';
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
@@ -2819,12 +2821,12 @@ update job_post_views set minute_views = 300, minute_at = date_trunc('minute', n
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select views = 3 and minute_views = 300 from job_post_views), 'the 301st view of a minute is not counted');
+select pg_temp.expect((select views = 3 and minute_views = 300 from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'the 301st view of a minute is not counted');
 update job_post_views set minute_at = date_trunc('minute', now()) - interval '1 minute';
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select views = 4 and minute_views = 1 and minute_at = date_trunc('minute', now()) from job_post_views),
+select pg_temp.expect((select views = 4 and minute_views = 1 and minute_at = date_trunc('minute', now()) from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')),
   'the next minute starts again');
 -- A call whose transaction began just before the turn of a minute, after a
 -- newer one has already moved the row on.
@@ -2832,23 +2834,23 @@ update job_post_views set minute_at = date_trunc('minute', now()) + interval '1 
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select views = 5 and minute_views = 6 and minute_at = date_trunc('minute', now()) + interval '1 minute' from job_post_views),
+select pg_temp.expect((select views = 5 and minute_views = 6 and minute_at = date_trunc('minute', now()) + interval '1 minute' from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')),
   'a late call counts in the newer minute and does not rewind it');
 update job_post_views set minute_at = date_trunc('minute', now()) + interval '1 minute', minute_views = 300;
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select views = 5 from job_post_views), 'and a full newer minute refuses it');
+select pg_temp.expect((select views = 5 from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'and a full newer minute refuses it');
 update job_post_views set views = 100000, minute_views = 0, minute_at = date_trunc('minute', now()) - interval '1 minute';
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select views = 100000 from job_post_views), 'the 100,001st view of a day is not counted');
+select pg_temp.expect((select views = 100000 from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'the 100,001st view of a day is not counted');
 update job_post_views set day = day - 1;
 select pg_temp.as_anon();
 select record_job_post_view(current_setting('tacit_test.v_slug'));
 select pg_temp.as_owner();
-select pg_temp.expect((select count(*) from job_post_views) = 2 and pg_temp.today_views() = 1, 'a new UTC day is a new row, from one');
+select pg_temp.expect((select count(*) from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')) = 2 and pg_temp.today_views() = 1, 'a new UTC day is a new row, from one');
 
 -- Nobody writes the table but the function.
 select pg_temp.as_anon();
@@ -2988,7 +2990,7 @@ select pg_temp.expect((select channel = 'hackernews' and source = 'job_board' an
 
 -- The counts go with their post.
 delete from job_posts where id in ('ac600000-0000-4000-8000-000000000351', 'ac600000-0000-4000-8000-000000000352', 'ac600000-0000-4000-8000-000000000353');
-select pg_temp.expect(not exists (select 1 from job_post_views), 'views go with their post');
+select pg_temp.expect(not exists (select 1 from job_post_views where org_id in ('a0000000-0000-4000-8000-00000000000a', 'b0000000-0000-4000-8000-00000000000b')), 'views go with their post');
 
 -- 36. A resume uploaded on the public form (20261108120000_job_post_resume_upload).
 -- The six-argument call takes the file's details and answers the path of the
