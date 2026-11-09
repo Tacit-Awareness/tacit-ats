@@ -16,7 +16,8 @@ Traffic is tiny, so the plan is a short write pause off-hours, not dual writes. 
 5. **[Ryan]** A signing key of `tacit-ats`'s own (decided 2026-11-07: `tacit`'s is Sensitive in Vercel and saved nowhere else, and a key per project fits the split). apps/mcp signs the 5-minute member token and the `tacit_internal` audit token with `SUPABASE_TACIT_SIGNING_KEY`, and it is the only app that reads it.
    - `supabase gen signing-key --algorithm ES256` makes the private JWK; its `kid` is the value for `SUPABASE_TACIT_SIGNING_KEY_ID`. Save both in the password manager before anything else: Vercel will not show them again.
    - On each project (`tacit-ats`, and staging with a key of its own if it is used): Project Settings → JWT Keys → Create standby key → Import, paste the JWK, then **Rotate** so it is the current key. Nothing signs in through Supabase Auth on these projects, so the rotation breaks nothing.
-   - On `tacit`, for rollback: import the same `tacit-ats` key as a **standby** key and do not rotate. Then `https://qlqebxtjzcotiwgdnukj.supabase.co/auth/v1/.well-known/jwks.json` lists its `kid`, so apps/mcp on the new key still works against `tacit` (step 20). It goes once the 30 days are up (step 22).
+   - On `tacit`, for rollback, in the days before the cutover: import the same key's **PEM** as a **standby** key and do not rotate. As a PEM it gets a fresh `kid` (the JWK's own `kid` was imported once on 2026-11-07 and revoked, and a revoked key does not come back); note that `kid` beside the key. If we roll back, apps/mcp keeps the private key and only `SUPABASE_TACIT_SIGNING_KEY_ID` changes to it (step 20). `tacit` has one standby slot (`267dbd7f` holds it today): leave its current key `a89ce032` alone, it is the one production signs with. The standby goes once the 30 days are up (step 22).
+   - Done 2026-11-07 on `tacit-ats`: `8c291361-c604-4533-bfb2-19953a7888d8` is its only key, current; the JWK is in Ryan's password manager.
    - Check: each project's `/auth/v1/.well-known/jwks.json` lists the new `kid`.
 6. Check: a WorkOS access token for a test member, sent as `Authorization: Bearer` to `https://<ref>.supabase.co/rest/v1/rpc/current_actor_id` with the project's publishable key, answers (null before their org is copied, not 401).
 
@@ -61,7 +62,7 @@ Traffic is tiny, so the plan is a short write pause off-hours, not dual writes. 
 
 While `tacit`'s client rows still exist (kept 30 days, step 22), rolling back is the env flip:
 
-20. **[Ryan]** Put steps 16 and 17's old values back and redeploy, except the signing key: apps/mcp keeps `tacit-ats`'s, which `tacit` trusts as a standby key (step 5; `tacit`'s old key cannot be read back out of Vercel). Members are back on `tacit` at once; the WorkOS issuer is trusted by both.
+20. **[Ryan]** Put steps 16 and 17's old values back and redeploy, except the signing key: apps/mcp keeps `tacit-ats`'s, with `SUPABASE_TACIT_SIGNING_KEY_ID` set to the `kid` `tacit` gave its PEM import (step 5; `tacit`'s old key cannot be read back out of Vercel). Members are back on `tacit` at once; the WorkOS issuer is trusted by both.
 21. Anything written on `tacit-ats` after step 16 is not on `tacit`. List it from `tacit-ats`'s `audit_log` since the flip and redo it by hand, or copy it back with `copy-orgs.mjs` the other way round (source and target swapped, `--orgs` for the companies affected): `tacit`'s schema has every column it copies except `staff_person_id` / `staff_role_id`, which it leaves out.
 
 ## After
