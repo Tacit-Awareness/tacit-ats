@@ -104,7 +104,7 @@ audited client-side with source `staff`.
    at `26e0685` minus 30 staff-only tables, 4 views and 28 functions, identical
    object by object for everything kept; the five SQL suites and the full
    client integration suite (742 tests) pass on it, and CI now runs both.
-2. **Project**: not created yet (Ryan). WorkOS stays the third-party issuer.
+2. **Project**: `tacit-ats` (ref `ornhtusfsijbukqrxkek`, us-east-2), with its own signing key; WorkOS stays the third-party issuer. `tacit-ats-staging` exists but is unconfigured: the rehearsal ran on `tacit-ats` before anything pointed at it.
 3. **Copy**: `scripts/client-track/copy-orgs.mjs`, rehearsed locally from a
    seeded tacit stack (Tacit Test Co, 20 tables, a file and a logo): every row
    matches, a second run replaces the first, a member token reads the rows.
@@ -116,4 +116,5 @@ audited client-side with source `staff`.
    labels don't know. `tacit_submit_application`'s auto-submit on every add to
    a Tacit role at a client company is covered too (`job-for-role`, then
    `submit-candidate` with the stage). The staff side is tacit-internal's.
-5. **Dual run** and 6. **cutover**: `docs/client-cutover.md`.
+5. **Rehearsal** (2026-11-08, on `tacit-ats`): Test Co copied, the SQL suites and a member token checked there.
+6. **Cutover: done 2026-11-09.** All 8 client orgs copied, every row matching; web, mcp and tacit-internal's apps switched; a member sign-in, a write, the connector, a job post and the bridge checked on production. Next: the 30-day cleanup on `tacit` (`docs/client-cutover.md` step 22), from 2026-12-09.
