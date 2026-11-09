@@ -134,7 +134,7 @@ insert into actors (id, slug, display_name, org_id, access_level, auth_subject) 
 select pg_temp.as_service();
 insert into candidate_mail (person_id, actor_id, direction, from_email, to_emails, subject, body, provider_id, sent_at) values
   ('ac200000-0000-4000-8000-000000000001', 'a1000000-0000-4000-8000-000000000001', 'in', 'ada@example.com', '{admin@acme.test}', 'Re: hi', 'Tuesday', 'gmail:x:1', now());
-select pg_temp.expect((select org_id = 'a0000000-0000-4000-8000-00000000000a' from candidate_mail), 'synced mail lands in the candidate''s company');
+select pg_temp.expect((select org_id = 'a0000000-0000-4000-8000-00000000000a' from candidate_mail where provider_id = 'gmail:x:1'), 'synced mail lands in the candidate''s company');
 reset role;
 select pg_temp.as_member('user_acme_admin', 'org_acme');
 select pg_temp.expect((select count(*) from candidate_mail) = 1, 'an admin reads it on the candidate');
@@ -148,7 +148,7 @@ select pg_temp.expect((select count(*) from candidate_mail) = 0, 'another compan
 reset role;
 select pg_temp.expect('candidate_mail.person_id' = any (public.client_merge_person_fks()), 'a merge and an erasure know it');
 update people set anonymized_at = now() where id = 'ac200000-0000-4000-8000-000000000001';
-select pg_temp.expect(not exists (select 1 from candidate_mail), 'erasing the candidate deletes their synced mail');
+select pg_temp.expect(not exists (select 1 from candidate_mail where provider_id = 'gmail:x:1'), 'erasing the candidate deletes their synced mail');
 update people set anonymized_at = null where id = 'ac200000-0000-4000-8000-000000000001';
 
 -- 4. How an email went out is set once, on sending -> sent.
