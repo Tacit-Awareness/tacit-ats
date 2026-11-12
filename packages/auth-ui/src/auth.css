@@ -1,0 +1,157 @@
+/* Tacit sign-in screens. Lifted from tacit-testbench's staff sign-in (components/portal/portal.css's .auth rules, the
+   PR 91 mockup, and portal/auth.css), with the cascade testbench's globals.css adds folded in, so the screens look
+   the same in any host: every rule hangs off .tacit-auth and sets what it relies on instead of inheriting the host's
+   resets. Unlayered on purpose: a host's Tailwind preflight (@layer base) never wins over it.
+   New screens (forgot / set password, company picker, connector consent) reuse the same vocabulary; the few rules
+   only they use are marked below. */
+
+@font-face{font-family:"Tacit Auth Mona Sans";src:url("./fonts/MonaSans.woff2") format("woff2");font-weight:200 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Tacit Auth Geist Mono";src:url("./fonts/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+
+.tacit-auth{
+ --sans:"Tacit Auth Mona Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ --mono:"Tacit Auth Geist Mono",ui-monospace,"SF Mono",Menlo,monospace;
+ /* The applicant's day sky */
+ --sky-0:#8DB5E4;--sky-1:#789CE5;--sky-2:#89A4E4;--sky-3:#C7D0E3;--sky-4:#F7F4E7;--sky-5:#F9F6E9;--sky-ink:#222326;--sky-ink-2:#3C3E45;
+ /* Everything inside the card */
+ --c-surface:#F9FAFC;--c-raised:#FFFFFF;--c-sunken:#F4F5F8;--c-fill:#E7E9EE;--c-hover:#EEF0F4;
+ --c-line-soft:#E6E8EC;--c-field:#84868E;
+ --c-ink:#16171A;--c-ink-2:#4A4D55;--c-ink-3:#62656E;--c-ink-4:#8A8D96;
+ --c-accent:#3F6FD8;--c-red:#B3261E;--c-red-fill:#F6ECEB;
+ --c-primary:#222326;--c-primary-hover:#34353B;--c-primary-ink:#FFFFFF;
+ --c-control-line:rgba(22,23,26,.14);--c-focus-ring:rgba(34,35,38,.12);
+ --c-box-shadow:0 0 0 1px rgba(22,23,26,.08),0 24px 60px -24px rgba(22,23,26,.35);
+ --ease:cubic-bezier(.2,.8,.2,1);
+ color-scheme:light;
+}
+:root[data-auth-theme="dark"] .tacit-auth{
+ --sky-0:#0E1226;--sky-1:#161B3A;--sky-2:#242A5A;--sky-3:#3B3D75;--sky-4:#5A4C7A;--sky-5:#6E5A7E;--sky-ink:#F4F5F8;--sky-ink-2:#C9CBD2;
+ --c-surface:#16171A;--c-raised:#1E1F23;--c-sunken:#111215;--c-fill:#26272C;--c-hover:#232428;
+ --c-line-soft:#26282D;--c-field:#6B6E76;
+ --c-ink:#F4F5F8;--c-ink-2:#C9CBD2;--c-ink-3:#9EA1AA;--c-ink-4:#7A7D86;
+ --c-accent:#7EA2F0;--c-red:#F08A82;--c-red-fill:#2C1B1A;
+ --c-primary:#F4F5F8;--c-primary-hover:#DCDEE3;--c-primary-ink:#16171A;
+ --c-control-line:rgba(255,255,255,.14);--c-focus-ring:rgba(244,245,248,.14);
+ --c-box-shadow:0 0 0 1px rgba(255,255,255,.08),0 24px 60px -24px rgba(0,0,0,.7);
+ color-scheme:dark;
+}
+
+/* Base: what testbench's globals give these elements, set here so the host's resets do not matter. */
+.tacit-auth{margin:0;height:100%;background:var(--sky-5);color:var(--c-ink);font:400 13px/20px var(--mono);letter-spacing:normal;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow:hidden}
+.tacit-auth *,.tacit-auth *::before,.tacit-auth *::after{box-sizing:border-box}
+.tacit-auth button,.tacit-auth input{font:inherit;color:inherit;letter-spacing:inherit}
+.tacit-auth button{cursor:pointer}
+.tacit-auth a{color:inherit;text-decoration:none}
+.tacit-auth :focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+.tacit-auth svg{flex:none}
+.tacit-auth ::selection{background:#E1E7FF}
+.tacit-auth :is(h1,h2,p){margin:0}
+
+/* The sky, behind everything */
+.tacit-auth .sky{position:fixed;inset:0;z-index:0;background:linear-gradient(180deg,var(--sky-0) 0%,var(--sky-1) 20%,var(--sky-2) 40%,var(--sky-3) 60%,var(--sky-4) 80%,var(--sky-5) 100%)}
+.tacit-auth .sky::before{content:'';position:absolute;inset:0;opacity:.1;pointer-events:none;background-size:220px 220px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* Brand */
+.tacit-auth .brand{display:inline-flex;align-items:center;gap:8px;color:var(--sky-ink);text-decoration:none;white-space:nowrap}
+.tacit-auth .brand svg{height:17px;width:auto}
+.tacit-auth .brand-name{display:block;margin:0;padding:0;font:500 19px/1 var(--sans);letter-spacing:-.03em;word-spacing:-.02em}
+.tacit-auth .brand b{font-weight:600}
+.tacit-auth .brand-name span{color:var(--sky-ink-2)}
+
+/* Frame: brand and switch on top, the stage, the moon and legal links underneath. The page scrolls when the card is
+   taller than the window. */
+.tacit-auth .auth{position:fixed;inset:0;z-index:1;display:grid;grid-template-rows:auto minmax(max-content,1fr) auto;color:var(--sky-ink);overflow-y:auto}
+.tacit-auth .auth-top{display:flex;align-items:center;justify-content:space-between;gap:16px;height:64px;padding:0 32px}
+.tacit-auth .auth-switch{font:500 14px/20px var(--sans);color:var(--sky-ink-2)}
+.tacit-auth .auth-switch a{color:var(--sky-ink);text-decoration:none;margin-left:8px}
+.tacit-auth .auth-switch a:hover{text-decoration:underline}
+.tacit-auth .auth-stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:0 16px 40px}
+.tacit-auth .auth-flow{display:contents}
+.tacit-auth .auth-title{margin:0;font:600 36px/1.15 var(--sans);letter-spacing:-.02em;text-align:center;text-wrap:balance}
+.tacit-auth .auth-foot{display:flex;align-items:center;justify-content:space-between;height:64px;padding:0 32px;font:400 14px/20px var(--sans);color:var(--sky-ink-2)}
+.tacit-auth .auth-foot>div{display:flex;align-items:center;gap:14px}
+.tacit-auth .auth-foot nav{display:flex;align-items:center;gap:14px}
+.tacit-auth .auth-foot a{text-decoration:none}
+.tacit-auth .auth-foot a:hover{color:var(--sky-ink)}
+.tacit-auth .icon-btn{display:inline-grid;place-items:center;width:34px;height:34px;padding:1px 6px;border:0;border-radius:8px;background:none;color:var(--c-ink-2)}
+.tacit-auth .icon-btn:hover{background:var(--c-hover);color:var(--c-ink)}
+.tacit-auth .icon-btn svg{width:17px;height:17px}
+.tacit-auth .auth-foot .moon{color:var(--sky-ink)}
+
+/* The card. A person starts these screens, so it rises in 300ms. */
+.tacit-auth .auth-card{width:min(100%,440px);padding:32px;border-radius:16px;background:var(--c-surface);box-shadow:var(--c-box-shadow);color:var(--c-ink);display:grid;gap:16px;animation:tacit-auth-rise .3s var(--ease) both}
+.tacit-auth .auth-card form{display:grid;gap:16px;margin:0}
+.tacit-auth .auth-card .field{display:grid;gap:8px;margin:0;font:inherit;letter-spacing:normal}
+.tacit-auth .auth-card .field>span{font:500 14px/20px var(--mono);letter-spacing:.006em}
+.tacit-auth .auth-card .field>small{font-size:12.5px;line-height:18px;color:var(--c-ink-3)}
+.tacit-auth .auth-card input{width:100%;min-width:0;height:44px;padding:0 12px;border:0;border-radius:6px;background:var(--c-surface);box-shadow:inset 0 0 0 1px var(--c-field);color:var(--c-ink);font:400 14px/20px var(--mono);letter-spacing:normal;text-rendering:auto;outline:none}
+.tacit-auth .auth-card input:hover{box-shadow:inset 0 0 0 1px var(--c-ink-2)}
+.tacit-auth .auth-card input:focus{box-shadow:inset 0 0 0 1.5px var(--c-ink),0 0 0 3px var(--c-focus-ring)}
+.tacit-auth .auth-card input:focus-visible{outline:none}
+.tacit-auth .auth-card input::placeholder{color:var(--c-ink-4);opacity:1}
+.tacit-auth .auth-card input:is(:disabled,[readonly]){background:var(--c-sunken);color:var(--c-ink-2);opacity:1}
+.tacit-auth .auth-card input:is(:disabled,[readonly]):hover{box-shadow:inset 0 0 0 1px var(--c-field)}
+.tacit-auth .auth-card .notice{display:flex;align-items:flex-start;gap:10px;margin:0;padding:10px 12px;border:0;border-radius:6px;background:var(--c-sunken);color:var(--c-ink-2);font:400 13px/20px var(--mono);letter-spacing:normal}
+.tacit-auth .auth-card .notice.error{background:var(--c-red-fill);color:var(--c-red)}
+.tacit-auth .auth-card .notice svg{width:16px;height:16px;margin-top:2px}
+
+/* Buttons. A big button is a flex row with a 14px gap, as testbench's .big rule makes it. */
+.tacit-auth .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border:0;border-radius:7px;background:var(--c-raised);box-shadow:inset 0 0 0 1px var(--c-control-line);font:500 13px/1 var(--mono);color:var(--c-ink);text-decoration:none;white-space:nowrap;transition:transform .15s ease}
+.tacit-auth .btn:hover{background:var(--c-hover)}
+.tacit-auth .btn:active{transform:scale(.98)}
+.tacit-auth .btn svg{width:15px;height:15px;color:var(--c-ink-2)}
+.tacit-auth .btn.primary{background:var(--c-primary);color:var(--c-primary-ink);box-shadow:none}
+.tacit-auth .btn.primary:hover{background:var(--c-primary-hover)}
+.tacit-auth .btn.primary svg{color:currentColor}
+.tacit-auth .btn.big{display:flex;gap:14px;height:44px;font-size:14px;border-radius:6px}
+.tacit-auth .btn.block{width:100%}
+.tacit-auth .btn:disabled{opacity:.5;cursor:default}
+.tacit-auth .btn .spin{width:15px;height:15px;color:currentColor}
+.tacit-auth .spin{animation:tacit-auth-spin .9s linear infinite}
+
+/* In-card copy and links */
+.tacit-auth .auth-or{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--c-ink-3)}
+.tacit-auth .auth-or::before,.tacit-auth .auth-or::after{content:'';flex:1;height:1px;background:var(--c-line-soft)}
+.tacit-auth .auth-forgot{justify-self:end;margin-top:-6px;font-size:13px;color:var(--c-ink-2);text-decoration:none}
+.tacit-auth .auth-forgot:hover{color:var(--c-ink)}
+.tacit-auth :is(.auth-lead,.auth-detail){margin:0;font-size:13px;line-height:20px;color:var(--c-ink-2);overflow-wrap:anywhere}
+.tacit-auth :is(.auth-lead,.auth-detail) strong{font-weight:500;color:var(--c-ink)}
+.tacit-auth .auth-note{margin:0;text-align:center;font-size:13px;color:var(--c-ink-2)}
+.tacit-auth .auth-note :is(a,button){padding:0;border:0;background:none;font:500 13px/20px var(--mono);color:var(--c-ink);text-decoration:underline;text-underline-offset:3px}
+.tacit-auth .auth-note button:disabled{opacity:.5;cursor:default}
+.tacit-auth .auth-actions{display:flex;flex-wrap:wrap;gap:8px}
+.tacit-auth .auth-actions .btn{flex:1 1 auto}
+
+/* New: the company picker, one row per company, drawn as the card's buttons are. */
+.tacit-auth .auth-orgs{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.tacit-auth .auth-org{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;width:100%;height:56px;padding:0 12px;border:0;border-radius:6px;background:var(--c-raised);box-shadow:inset 0 0 0 1px var(--c-control-line);color:var(--c-ink);text-align:left;transition:transform .15s ease}
+.tacit-auth .auth-org:hover{background:var(--c-hover)}
+.tacit-auth .auth-org:active{transform:scale(.98)}
+.tacit-auth .auth-org:disabled{opacity:.5;cursor:default}
+.tacit-auth .auth-org[aria-busy="true"]{opacity:1}
+.tacit-auth .auth-org-glyph{display:grid;place-items:center;width:32px;height:32px;border-radius:6px;background:var(--c-fill);font:600 14px/1 var(--sans);color:var(--c-ink)}
+.tacit-auth .auth-org-text{display:grid;min-width:0}
+.tacit-auth .auth-org-name{overflow:hidden;font:500 14px/20px var(--sans);text-overflow:ellipsis;white-space:nowrap}
+.tacit-auth .auth-org-slug{overflow:hidden;font:400 12.5px/18px var(--mono);color:var(--c-ink-3);text-overflow:ellipsis;white-space:nowrap}
+.tacit-auth .auth-org>svg{width:16px;height:16px;color:var(--c-ink-3)}
+
+/* New: what a connector may do, on the consent screen. */
+.tacit-auth .auth-permission{display:grid;gap:4px;padding:12px 14px;border-radius:6px;background:var(--c-sunken)}
+.tacit-auth .auth-permission strong{font:500 13px/20px var(--mono);color:var(--c-ink)}
+.tacit-auth .auth-permission p{font-size:13px;line-height:20px;color:var(--c-ink-2)}
+.tacit-auth .auth-detail code{font:inherit;color:var(--c-ink)}
+
+@keyframes tacit-auth-rise{from{opacity:0;transform:translateY(8px)}}
+@keyframes tacit-auth-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.tacit-auth *,.tacit-auth *::before,.tacit-auth *::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}}
+
+/* Phones: the brand and the switch share one row, the title steps down, the card keeps a 16px gutter. */
+@media (max-width:560px){
+ .tacit-auth .auth-top,.tacit-auth .auth-foot{padding:0 16px}
+ .tacit-auth .auth-switch-ask{display:none}
+ .tacit-auth .auth-switch a{margin-left:0}
+ .tacit-auth .auth-title{font-size:28px}
+ .tacit-auth .auth-card{padding:24px 20px}
+ .tacit-auth .auth-foot{gap:8px;padding-left:8px;font-size:12.5px;white-space:nowrap}
+ .tacit-auth .auth-foot>:is(div,nav){gap:8px}
+}

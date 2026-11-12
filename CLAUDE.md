@@ -31,6 +31,7 @@ apps/
   cli/        tats -- the same connector from the terminal, for coding agents and scripts
 packages/
   core/       @tacit-ats/core -- first sign-in, client invitations, the connector's tools
+  auth-ui/    @tacit-ats/auth-ui -- the sign-in screens, testbench's staff sign-in made app-agnostic
   member-db/  @tacit-ats/member-db -- withMember: a member's own direct Postgres transaction, RLS deciding
 supabase/     the client migration track: tacit-ats's schema, its SQL tests, the local stack
 scripts/client-track/  the baseline's extraction, the org-scoped data copy (copy-orgs.mjs)
