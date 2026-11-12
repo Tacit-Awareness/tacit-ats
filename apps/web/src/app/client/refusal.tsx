@@ -1,5 +1,6 @@
 import { Section } from "@/components/page";
 import { Button } from "@/components/ui/button";
+import { clientAuthProvider } from "@/lib/client/config";
 import type { ClientGate } from "@/lib/client/session";
 
 // What a client-area page shows when resolveClient() turns the user away.
@@ -44,8 +45,9 @@ export function Refusal({ reason }: { reason: RefusalReason }) {
       <Section>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.02em]">{refusal.title}</h1>
         <p className="m-0 text-[13.5px] leading-relaxed text-muted-foreground">{refusal.body}</p>
-        {/* A refused sign-in gets no sidebar, so this is its only way out of the session. */}
-        {reason === "signed_out" ? null : (
+        {/* A refused sign-in gets no sidebar, so this is its only way out of the session. With
+            Supabase, "signed out" can be a stale cookie (an account deleted since), which this clears. */}
+        {reason === "signed_out" && clientAuthProvider() !== "supabase" ? null : (
           <form action="/client/signout" method="post">
             <Button type="submit" variant="outline" size="sm">
               Sign out
