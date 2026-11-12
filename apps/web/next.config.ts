@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // This repo has its own CLAUDE.md convention; don't let `next dev` inject
   // its own agent-rules block into it.
   agentRules: false,
+  // @tacit-ats/auth-ui ships its TSX, CSS and fonts as source.
+  transpilePackages: ["@tacit-ats/auth-ui"],
   // A referral's resume comes through a server action, 1 MB by default: core's
   // 3 MB file with the form around it, under Vercel's 4.5 MB.
   experimental: { serverActions: { bodySizeLimit: "4mb" } },

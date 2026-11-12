@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@tacit-ats/auth-ui": "workspace:^",
     "@tacit-ats/core": "workspace:^",
     "@tacit/core": "file:../../vendor/tacit-core-fd17ac1.tgz",
     "@tacit/db": "file:../../vendor/tacit-db-fd17ac1.tgz",
