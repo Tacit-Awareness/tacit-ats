@@ -14,6 +14,7 @@ import {
   clientSignInConfigured,
   isPublicClientPath,
 } from "@/lib/client/config";
+import { staffConsentRedirect } from "@/lib/client/staff-consent";
 
 export const config = {
   matcher: ["/client", "/client/:path*"],
@@ -26,6 +27,9 @@ export const config = {
  */
 export async function proxy(request: NextRequest) {
   if (!clientSignInConfigured()) return new NextResponse(null, { status: 404 });
+  // Tacit's staff connector: its consent is internal.tacitawareness.com's, before any sign-in here.
+  const staff = await staffConsentRedirect(request.nextUrl);
+  if (staff) return NextResponse.redirect(staff);
   return clientAuthProvider() === "supabase" ? supabaseGate(request) : workosGate(request);
 }
 
