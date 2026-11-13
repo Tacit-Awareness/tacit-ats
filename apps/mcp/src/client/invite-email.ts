@@ -3,8 +3,7 @@ import type { InvitationRevoker } from "@tacit-ats/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
 /**
- * invite_member's email when Supabase Auth signs members in
- * (CLIENT_AUTH_PROVIDER=supabase), in place of client/workos.ts. The same as
+ * invite_member's email. The same as
  * apps/web's lib/client/invite-email.ts: the actor is written first on the
  * admin's own token by invite_org_member, then this sends Supabase's invite
  * email (supabase/templates/invite.html) to that address. Someone who already

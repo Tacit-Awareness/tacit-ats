@@ -29,7 +29,7 @@ export type ClientHandlerDeps = {
   audit: (entry: { actorId: string; tool: string; args: unknown; personIds: string[]; ok: boolean }) => Promise<void>;
   /** The hourly distinct-candidate ceiling on reads (core's breadthExceeded over mcp_calls). */
   breadth: (actorId: string, candidateIds: string[]) => Promise<boolean>;
-  /** WorkOS invitations into the member's organization. Null = invite_member refuses. */
+  /** Supabase Auth's invite email into the member's organization (client/invite-email.ts). Null = invite_member refuses. */
   invitations: (IdentityProvider & InvitationRevoker) | null;
   /**
    * Candidates' files in Storage (client/files.ts): core calls it only after the
@@ -103,8 +103,7 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
     deps.audit({ actorId: member.actorId, tool, args, personIds, ok });
   const inviteDeps: clientTools.InviteDeps = {
     invitations: deps.invitations,
-    workosOrgId: member.workosOrgId,
-    inviterUserId: member.subject,
+    orgId: member.orgId,
   };
   const refuse = (text: string) => ({ content: [{ type: "text" as const, text }], isError: true });
 
@@ -809,7 +808,7 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
         {
           title: "Invite someone to your company's workspace",
           description:
-            `Invites a colleague by email: they get an email from WorkOS to join. ${ACCESS_HELP} Inviting an ` +
+            `Invites a colleague by email: they get an email to choose a password and join. ${ACCESS_HELP} Inviting an ` +
             "address already invited sends the email again. Admins only. Confirm the address with the user first.",
           inputSchema: z.object({
             email: z.string().min(3).max(320),

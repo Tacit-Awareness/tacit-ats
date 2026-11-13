@@ -18,7 +18,7 @@ vi.mock("@/lib/member-calendar/grants", () => ({ memberCalendar }));
 import { POST } from "./route";
 
 const ID = "d1a00000-0000-4000-8000-0000000000e1";
-const CTX = { db: { fake: true }, actorId: "a1", accessLevel: "elevated", org: { id: "o1", name: "Acme", slug: "acme", workosOrgId: "w" }, user: {} };
+const CTX = { db: { fake: true }, actorId: "a1", accessLevel: "elevated", org: { id: "o1", name: "Acme", slug: "acme" }, user: {} };
 const CANCEL = { op: "cancel", confirmed: true, interviewId: ID, timezone: "UTC" };
 
 const post = (body: string, headers: Record<string, string> = {}) =>

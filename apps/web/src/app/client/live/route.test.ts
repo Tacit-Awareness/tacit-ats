@@ -28,7 +28,7 @@ function fakeDb(answers: Record<string, Answer>) {
 
 const member = (db: unknown) => ({
   status: "ok",
-  ctx: { db, actorId: "a1", accessLevel: "elevated", org: { id: "o1", name: "Acme", slug: "acme", workosOrgId: "w1" } },
+  ctx: { db, actorId: "a1", accessLevel: "elevated", org: { id: "o1", name: "Acme", slug: "acme" } },
 });
 
 beforeEach(() => {

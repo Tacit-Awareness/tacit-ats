@@ -13,7 +13,7 @@ import { GET } from "./route";
 
 const member = (accessLevel: "limited" | "elevated" | "admin") => ({
   status: "ok",
-  ctx: { db: {}, actorId: "a1", accessLevel, org: { id: "o1", name: "Acme", slug: "acme", workosOrgId: "w1" } },
+  ctx: { db: {}, actorId: "a1", accessLevel, org: { id: "o1", name: "Acme", slug: "acme" } },
 });
 
 beforeEach(() => {

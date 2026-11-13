@@ -1,19 +1,27 @@
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { SignJWT, exportJWK, generateKeyPair, type JWTPayload } from "jose";
+import { SignJWT, type JWTPayload, type JWTVerifyGetKey } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
+import { bindSupabaseUser } from "@tacit-ats/core";
 import { createUserClient, getSupabaseServiceClient, mintClientMemberToken } from "@tacit/db";
 
 /**
- * The client connector end to end against the local stack. Only WorkOS is
- * stood in for: a local HTTP server serves the JWKS its tokens are checked
- * against. Token verification, member binding, the minted member token,
- * PostgREST, the policies and the audit row are all real. The member token is
- * signed with the stack's shared JWT secret here; production signs it with the
- * project's imported key, which the stack does not have.
+ * The client connector end to end against the local stack. The tokens are
+ * shaped as Supabase Auth's OAuth server issues them on tacit-ats (issuer
+ * `<SUPABASE_URL>/auth/v1`, `aud` naming this connector as the access token
+ * hook sets it, a `client_id`, `org_id` = orgs.id), signed with the stack's
+ * shared JWT secret so PostgREST takes them as they are; production signs
+ * with the project's asymmetric key. Token verification, member binding,
+ * PostgREST, the policies and the audit row are all real; only Supabase
+ * Auth's user lookup is stood in for (the emails below).
  */
 
 const RESOURCE = "https://mcp.tacitawareness.com/api/client";
+/** Supabase Auth users (their ids are what actors.auth_subject holds) and their verified emails. */
+const ADA_SUB = "5a000000-0000-4000-8000-0000000000ad";
+const IVAN_SUB = "5a000000-0000-4000-8000-0000000000a1";
+const NIA_SUB = "5a000000-0000-4000-8000-0000000000a2";
+const EVE_SUB = "5a000000-0000-4000-8000-0000000000a3";
+const VERIFIED: Record<string, string> = { [ADA_SUB]: "ada@acme.test", [IVAN_SUB]: "ivan@acme.test", [NIA_SUB]: "nia@acme.test", [EVE_SUB]: "eve@acme.test" };
+const NO_ORG = "c9000000-0000-4000-8000-000000000009";
 const db = () => getSupabaseServiceClient();
 
 const ACME = "c1000000-0000-4000-8000-00000000000a";
@@ -35,13 +43,12 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
   return result;
 }
 
-let jwksServer: Server;
 let issuer: string;
-let privateKey: CryptoKey;
+let secret: Uint8Array;
 let handleClientRequest: typeof import("../../../client/handler.js").handleClientRequest;
 let deps: Parameters<typeof handleClientRequest>[1];
-/** What the stand-in for WorkOS was asked to do. */
-const workos = { sent: [] as Array<{ email: string; organizationId: string; inviterUserId?: string }>, revoked: [] as string[] };
+/** What the stand-in for the invitation email was asked to do. */
+const inviteEmails = { sent: [] as Array<{ email: string; organizationId: string }>, revoked: [] as string[] };
 /** The stand-in for Storage (CI's stack has no storage service): what was stored, and what was signed. */
 const storage = { objects: new Map<string, { bytes: Uint8Array; contentType: string }>(), signed: [] as string[], removed: [] as string[], failPut: false };
 /** The stand-in for Resend: every email handed to it. */
@@ -63,36 +70,23 @@ async function clear() {
 }
 
 beforeAll(async () => {
-  const secret = process.env.SUPABASE_JWT_SECRET;
-  if (!secret) throw new Error("integration-setup did not export SUPABASE_JWT_SECRET (JWT_SECRET from `supabase status`)");
-
-  const pair = await generateKeyPair("RS256");
-  privateKey = pair.privateKey;
-  const jwk = { ...(await exportJWK(pair.publicKey)), kid: "k", alg: "RS256", use: "sig" };
-  jwksServer = createServer((req, res) => {
-    if (req.url === "/oauth2/jwks") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ keys: [jwk] }));
-    } else {
-      res.writeHead(404).end();
-    }
-  });
-  await new Promise<void>((done) => jwksServer.listen(0, "127.0.0.1", done));
-  issuer = `http://127.0.0.1:${(jwksServer.address() as AddressInfo).port}`;
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  if (!jwtSecret) throw new Error("integration-setup did not export SUPABASE_JWT_SECRET (JWT_SECRET from `supabase status`)");
+  secret = new TextEncoder().encode(jwtSecret);
+  issuer = `${process.env.SUPABASE_URL!.replace(/\/+$/, "")}/auth/v1`;
 
   ({ handleClientRequest } = await import("../../../client/handler.js"));
-  const { bindMember } = await import("../../../client/bind.js");
   const { auditClientCall, clientBreadthExceeded } = await import("../../../client/audit.js");
   deps = {
     config: {
       issuer,
       resource: RESOURCE,
-      workosApiKey: null,
       supabaseUrl: process.env.SUPABASE_URL!,
       publishableKey: process.env.SUPABASE_ANON_KEY!,
-      signer: { alg: "HS256", secret },
     },
-    bind: bindMember,
+    // Supabase Auth's user lookup, stood in for: the real binding with the user's verified email.
+    bindSupabase: (userId) => bindSupabaseUser(db(), { userId, email: VERIFIED[userId], emailVerified: Boolean(VERIFIED[userId]) }),
+    keys: (async () => secret) as unknown as JWTVerifyGetKey,
     audit: auditClientCall,
     breadth: clientBreadthExceeded,
     invitations: {
@@ -100,11 +94,11 @@ beforeAll(async () => {
         throw new Error("not here");
       },
       sendInvitation: async (input) => {
-        workos.sent.push(input);
-        return { id: `inv_${workos.sent.length}` };
+        inviteEmails.sent.push(input);
+        return { id: `inv_${inviteEmails.sent.length}` };
       },
       revokeInvitations: async ({ email }) => {
-        workos.revoked.push(email);
+        inviteEmails.revoked.push(email);
       },
     },
     files: {
@@ -134,14 +128,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await clear();
-  await new Promise((done) => jwksServer.close(done));
 });
 
 vi.spyOn(console, "warn").mockImplementation(() => {});
 
 beforeEach(async () => {
-  workos.sent.length = 0;
-  workos.revoked.length = 0;
+  inviteEmails.sent.length = 0;
+  inviteEmails.revoked.length = 0;
   storage.objects.clear();
   storage.signed.length = 0;
   storage.removed.length = 0;
@@ -155,8 +148,8 @@ beforeEach(async () => {
   // Every row names every column: a bulk insert sends the union of the rows'
   // keys and fills a missing one with null, not the column's default.
   must(await db().from("actors").insert([
-    { id: ADMIN, org_id: ACME, slug: "itest-acme-admin", display_name: "Ada Admin", email: "ada@acme.test", access_level: "admin", auth_subject: "user_ada" },
-    { id: INTERVIEWER, org_id: ACME, slug: "itest-acme-int", display_name: "Ivan Interviewer", email: "ivan@acme.test", access_level: "limited", auth_subject: "user_ivan" },
+    { id: ADMIN, org_id: ACME, slug: "itest-acme-admin", display_name: "Ada Admin", email: "ada@acme.test", access_level: "admin", auth_subject: ADA_SUB },
+    { id: INTERVIEWER, org_id: ACME, slug: "itest-acme-int", display_name: "Ivan Interviewer", email: "ivan@acme.test", access_level: "limited", auth_subject: IVAN_SUB },
     // Invited, not signed in yet.
     { id: INVITED, org_id: ACME, slug: "itest-acme-new", display_name: "Nia New", email: "nia@acme.test", access_level: "elevated", auth_subject: null },
   ]));
@@ -184,13 +177,13 @@ beforeEach(async () => {
 });
 
 const token = (claims: JWTPayload, audience = RESOURCE) =>
-  new SignJWT(claims)
-    .setProtectedHeader({ alg: "RS256", kid: "k" })
+  new SignJWT({ role: "authenticated", client_id: "itest-client", ...claims })
+    .setProtectedHeader({ alg: "HS256" })
     .setIssuer(issuer)
-    .setAudience(audience)
+    .setAudience(["authenticated", audience])
     .setIssuedAt()
     .setExpirationTime("5m")
-    .sign(privateKey);
+    .sign(secret);
 
 async function call(claims: JWTPayload, name = "whoami", args: Record<string, unknown> = {}) {
   const request = new Request(RESOURCE, {
@@ -225,8 +218,8 @@ async function ok(claims: JWTPayload, name: string, args: Record<string, unknown
   return out.structuredContent;
 }
 
-const ADA = { sub: "user_ada", org_id: "org_itest_acme" };
-const IVAN = { sub: "user_ivan", org_id: "org_itest_acme" };
+const ADA = { sub: ADA_SUB, org_id: ACME };
+const IVAN = { sub: IVAN_SUB, org_id: ACME };
 
 async function whoami(claims: JWTPayload) {
   return (await ok(claims, "whoami")) as {
@@ -238,7 +231,7 @@ async function whoami(claims: JWTPayload) {
 
 describe("the client connector against real Postgres", () => {
   test("an admin sees their company and its jobs, and none of another company's", async () => {
-    const me = await whoami({ sub: "user_ada", org_id: "org_itest_acme" });
+    const me = await whoami({ sub: ADA_SUB, org_id: ACME });
     expect(me.company).toBe("Acme");
     expect(me.you).toMatchObject({ user_id: ADMIN, name: "Ada Admin", access: "admin" });
     expect(me.jobs.map((j) => j.title).sort()).toEqual(["Designer", "Founding Engineer"]);
@@ -251,14 +244,14 @@ describe("the client connector against real Postgres", () => {
   });
 
   test("an invited member's first sign-in binds them, with the level they were invited at", async () => {
-    const me = await whoami({ sub: "user_nia", org_id: "org_itest_acme", email: "nia@acme.test" });
+    const me = await whoami({ sub: NIA_SUB, org_id: ACME });
     expect(me.you).toMatchObject({ name: "Nia New", access: "hiring team" });
     const { data } = await db().from("actors").select("auth_subject").eq("slug", "itest-acme-new").single();
-    expect(data!.auth_subject).toBe("user_nia");
+    expect(data!.auth_subject).toBe(NIA_SUB);
   });
 
-  test("someone signed in to WorkOS but never invited is refused, and nothing is created", async () => {
-    const res = await call({ sub: "user_eve", org_id: "org_itest_acme", email: "eve@acme.test" });
+  test("someone with a Supabase account but never invited is refused, and nothing is created", async () => {
+    const res = await call({ sub: EVE_SUB, org_id: ACME });
     expect(res.status).toBe(403);
     const { count } = await db().from("actors").select("*", { count: "exact", head: true }).eq("org_id", ACME);
     expect(count).toBe(3);
@@ -266,16 +259,31 @@ describe("the client connector against real Postgres", () => {
 
   test("a member's token naming another company opens nothing there", async () => {
     // Ada is Acme's admin; a token for Ada claiming Globex has no actor in Globex to bind.
-    const res = await call({ sub: "user_ada", org_id: "org_itest_globex", email: "ada@acme.test" });
+    const res = await call({ sub: ADA_SUB, org_id: GLOBEX });
     expect(res.status).toBe(403);
   });
 
+  test("a website session token (no client_id) and an OAuth token never bound to this connector are refused", async () => {
+    const website = await new SignJWT({ role: "authenticated", sub: ADA_SUB, org_id: ACME })
+      .setProtectedHeader({ alg: "HS256" }).setIssuer(issuer).setAudience(["authenticated", RESOURCE]).setIssuedAt().setExpirationTime("5m").sign(secret);
+    const unbound = await new SignJWT({ role: "authenticated", client_id: "itest-client", sub: ADA_SUB, org_id: ACME })
+      .setProtectedHeader({ alg: "HS256" }).setIssuer(issuer).setAudience("authenticated").setIssuedAt().setExpirationTime("5m").sign(secret);
+    for (const bearer of [website, unbound]) {
+      const res = await handleClientRequest(new Request(RESOURCE, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${bearer}` },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      }), deps);
+      expect(res.status).toBe(401);
+    }
+  });
+
   test("an organization with no Tacit workspace is refused", async () => {
-    expect((await call({ sub: "user_ada", org_id: "org_nobody" })).status).toBe(403);
+    expect((await call({ sub: ADA_SUB, org_id: NO_ORG })).status).toBe(403);
   });
 
   test("every call leaves an audit row as client:<tool>", async () => {
-    await whoami({ sub: "user_ada", org_id: "org_itest_acme" });
+    await whoami({ sub: ADA_SUB, org_id: ACME });
     const { data } = await db().from("mcp_calls").select("tool, ok").eq("actor_id", ADMIN);
     expect(data).toEqual([{ tool: "client:whoami", ok: true }]);
   });
@@ -426,17 +434,17 @@ describe("the admin tools against real Postgres", () => {
       .toMatch(/Only an admin/);
   });
 
-  test("an invitation is the actor plus WorkOS's email, and withdrawing it takes both back", async () => {
+  test("an invitation is the actor plus its email, and withdrawing it takes both back", async () => {
     const invite = await ok(ADA, "invite_member", { email: "Zed@Acme.test", name: "Zed", access: "hiring team" });
-    expect(invite).toMatchObject({ outcome: "invited", email: "zed@acme.test" });
-    expect(workos.sent).toEqual([{ email: "zed@acme.test", organizationId: "org_itest_acme", inviterUserId: "user_ada" }]);
+    expect(invite).toMatchObject({ outcome: "invited" });
+    expect(inviteEmails.sent).toEqual([{ email: "zed@acme.test", organizationId: ACME }]);
 
     const { invites } = await ok(ADA, "list_invites");
     expect(invites.map((i: { email: string; access: string }) => [i.email, i.access]).sort())
       .toEqual([["nia@acme.test", "hiring team"], ["zed@acme.test", "hiring team"]]);
 
     expect((await ok(ADA, "withdraw_invite", { user_id: invite.user_id })).outcome).toBe("withdrawn");
-    expect(workos.revoked).toEqual(["zed@acme.test"]);
+    expect(inviteEmails.revoked).toEqual(["zed@acme.test"]);
     const { count } = await db().from("actors").select("*", { count: "exact", head: true }).eq("id", invite.user_id);
     expect(count).toBe(0);
   });
@@ -473,7 +481,7 @@ describe("a read-only connector against real Postgres", () => {
     // The database refuses, not just the tool: the member's own token cannot claim a write.
     const signer = { alg: "HS256" as const, secret: process.env.SUPABASE_JWT_SECRET! };
     const member = createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () =>
-      mintClientMemberToken(signer, { subject: "user_ada", workosOrgId: "org_itest_acme" }));
+      mintClientMemberToken(signer, { subject: ADA_SUB, workosOrgId: ACME }));
     const claim = await member.rpc("client_claim_write", { p_source: "claude", p_action: "note.add", p_entity: "person" });
     expect(claim.error).toMatchObject({ code: "42501" });
 
@@ -1364,7 +1372,7 @@ describe("approvals against real Postgres", () => {
 
 describe("custom fields against real Postgres", () => {
   type FieldValue = { field_id: string; field: string; type: string; private: boolean; value: unknown };
-  const NIA = { sub: "user_nia", org_id: "org_itest_acme", email: "nia@acme.test" };
+  const NIA = { sub: NIA_SUB, org_id: ACME };
 
   test("an admin defines fields on all three objects, and the reads show what was set", async () => {
     const work = await ok(ADA, "create_custom_field", { object: "candidate", name: "Work style", type: "single_select", options: ["Remote", "Onsite"] });

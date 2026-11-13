@@ -408,8 +408,8 @@ export async function setMemberAccess(
 /** WorkOS for invitations, and the member's own WorkOS identity: the org on their token, and them as the inviter. */
 export type InviteDeps = {
   invitations: (IdentityProvider & InvitationRevoker) | null;
-  workosOrgId: string;
-  inviterUserId: string;
+  /** The caller's org (orgs.id), which invitations are sent into. */
+  orgId: string;
 };
 
 const inviteRefusal = (err: unknown): never => {
@@ -443,7 +443,7 @@ export async function inviteMember(
   return withAudit(db, ctx, { action: "member.invite", entity: "actor" }, async () => {
     const r = await inviteClientMember(db, invitations, {
       email: input.email, displayName: name, accessLevel: input.access,
-      workosOrgId: deps.workosOrgId, inviterUserId: deps.inviterUserId,
+      orgId: deps.orgId,
     }).catch(inviteRefusal);
     return {
       result: { outcome: r.resent ? ("resent" as const) : ("invited" as const), userId: r.actorId },
@@ -468,7 +468,7 @@ export async function withdrawInvite(
   if (ctx.accessLevel !== "admin") throw notAdmin("withdraw an invitation");
   const revoker: InvitationRevoker = deps.invitations ?? { revokeInvitations: async () => {} };
   return withAudit(db, ctx, { action: "member.withdraw_invite", entity: "actor" }, async () => {
-    const r = await withdrawClientInvite(db, revoker, { actorId: input.userId, workosOrgId: deps.workosOrgId }).catch(inviteRefusal);
+    const r = await withdrawClientInvite(db, revoker, { actorId: input.userId, orgId: deps.orgId }).catch(inviteRefusal);
     return {
       result: { outcome: r.withdrawn ? ("withdrawn" as const) : ("not_pending" as const) },
       entityId: input.userId,

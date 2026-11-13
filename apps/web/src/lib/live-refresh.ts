@@ -12,7 +12,7 @@ import { isTyping } from "./keys";
 //
 // Supabase Realtime would push instead, but none of tacit-internal's tables are
 // in the `supabase_realtime` publication, and a socket needs the member's token
-// in the browser, where the WorkOS session keeps it out of reach on purpose.
+// in the browser, where the session cookie is kept out of reach on purpose.
 
 /** How often a visible tab looks at the clock: cheap, no request. */
 export const LIVE_TICK_MS = 5_000;

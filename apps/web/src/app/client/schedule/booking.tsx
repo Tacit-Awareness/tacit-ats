@@ -63,7 +63,7 @@ const pickRow = "flex w-full items-center gap-2.5 border border-transparent px-2
 
 async function ask(request: ScheduleRequest): Promise<ScheduleAnswer> {
   try {
-    // Manual: a session that ended redirects to WorkOS, which a fetch cannot follow.
+    // Manual: a session that ended redirects to sign in, which a fetch cannot follow.
     const res = await fetch(SCHEDULE_API, {
       method: "POST",
       headers: { "content-type": "application/json" },

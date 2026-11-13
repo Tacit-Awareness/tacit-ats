@@ -3,8 +3,7 @@ import type { InvitationRevoker } from "@tacit-ats/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
 /**
- * Invitation emails when Supabase Auth signs members in
- * (CLIENT_AUTH_PROVIDER=supabase), in place of lib/client/workos.ts. The
+ * Invitation emails, from Supabase Auth. The
  * actor is still written first on the admin's own token (`invite_org_member`
  * decides who may invite, and into which company); this only sends the email,
  * which needs Supabase's admin API, so it is one of the client area's

@@ -103,7 +103,7 @@ describe("the client area never holds a privileged database client", () => {
   test("the allowed modules export a verdict, not a client", () => {
     const exportsOf = (file: string) =>
       [...readFileSync(join(SRC, file), "utf8").matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
-    expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedActor", "bindInvitedUser"]);
+    expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedUser"]);
     expect(exportsOf("lib/client/bot.ts")).toEqual(["verifyCompanyBot"]);
     expect(exportsOf("lib/client/granola-notes.ts")).toEqual(["readGranolaNotes"]);
     expect(exportsOf("lib/client/file-store.ts")).toEqual(["webFileStore"]);

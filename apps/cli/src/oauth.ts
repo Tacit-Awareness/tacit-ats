@@ -5,7 +5,7 @@ import type { Session, Store, Tokens } from "./store.js";
 
 /**
  * Sign-in, the same way Claude signs in to the connector: the server's
- * protected resource metadata names WorkOS AuthKit as its authorization
+ * protected resource metadata names Supabase Auth (on tacit-ats) as its authorization
  * server, tats registers itself there as a public client (dynamic client
  * registration), and the member signs in in their browser, which hands an
  * authorization code back to a loopback listener (PKCE, RFC 8252). The

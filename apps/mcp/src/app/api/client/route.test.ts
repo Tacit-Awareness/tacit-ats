@@ -1,6 +1,6 @@
 import { SignJWT, createLocalJWKSet, exportJWK, generateKeyPair, type JWTPayload } from "jose";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
-import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
+import type { BindSupabaseResult } from "@tacit-ats/core";
 
 /**
  * The client connector's request handling with the database faked at
@@ -9,7 +9,9 @@ import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
  */
 
 const RESOURCE = "https://mcp.tacitawareness.com/api/client";
-const ISSUER = "https://clients.authkit.test";
+const ISSUER = "https://ref.supabase.test/auth/v1";
+/** The Supabase Auth user the test tokens name. */
+const SUB = "33333333-3333-4333-8333-333333333333";
 const ACTOR = "11111111-1111-4111-8111-111111111111";
 const ORG = "22222222-2222-4222-8222-222222222222";
 
@@ -67,7 +69,8 @@ vi.mock("@tacit/db", async (importOriginal) => ({
         (fn === "client_claim_write" && fakeDb.claims.push(args ?? {}), fn === "client_claim_write" && fakeDb.readOnly)
           ? withToken({ data: null, error: { code: "42501", message: "the client connector is read-only for this org" } })
           : withToken({
-          data: fn === "current_actor_id" ? fakeDb.actorId : fn === "my_interview_candidates" ? fakeDb.interviewing
+          data: fn === "current_actor_id" ? fakeDb.actorId : fn === "current_org_id" ? "22222222-2222-4222-8222-222222222222"
+            : fn === "my_interview_candidates" ? fakeDb.interviewing
             : fn === "my_approvals" ? fakeDb.approvals : fakeDb.level,
           error: null,
         }),
@@ -93,8 +96,8 @@ let privateKey: CryptoKey;
 let keys: ReturnType<typeof createLocalJWKSet>;
 const audits: Array<{ tool: string; ok: boolean; actorId: string; personIds?: string[] }> = [];
 let overBreadth = false;
-let bound: BindClientResult;
-const bindCalls: ClientIdentity[] = [];
+let bound: BindSupabaseResult;
+const bindCalls: string[] = [];
 
 beforeAll(async () => {
   const pair = await generateKeyPair("RS256");
@@ -105,10 +108,8 @@ beforeAll(async () => {
 const config = (over: Partial<NonNullable<Deps["config"]>> = {}): NonNullable<Deps["config"]> => ({
   issuer: ISSUER,
   resource: RESOURCE,
-  workosApiKey: null,
   supabaseUrl: "https://db.test",
   publishableKey: "sb_publishable_x",
-  signer: { alg: "HS256", secret: "local" },
   ...over,
 });
 
@@ -116,8 +117,8 @@ function deps(over: Partial<Deps> = {}): Deps {
   return {
     config: config(),
     keys,
-    bind: async (who) => {
-      bindCalls.push(who);
+    bindSupabase: async (userId) => {
+      bindCalls.push(userId);
       return bound;
     },
     audit: async (e) => {
@@ -129,10 +130,10 @@ function deps(over: Partial<Deps> = {}): Deps {
 }
 
 const token = (claims: JWTPayload = {}, audience = RESOURCE) =>
-  new SignJWT({ sub: "user_ada", org_id: "org_acme", ...claims })
+  new SignJWT({ sub: SUB, org_id: ORG, role: "authenticated", client_id: "oauth-client", ...claims })
     .setProtectedHeader({ alg: "RS256", kid: "k" })
     .setIssuer(ISSUER)
-    .setAudience(audience)
+    .setAudience(["authenticated", audience])
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(privateKey);
@@ -172,7 +173,7 @@ beforeEach(() => {
   fakeDb.interview = null;
   fakeDb.pgClaims.length = 0;
   overBreadth = false;
-  bound = { status: "ok", actorId: ACTOR, orgId: ORG, firstSignIn: false };
+  bound = { status: "ok", companies: 1, firstSignIn: false };
 });
 
 describe("signing in", () => {
@@ -195,55 +196,34 @@ describe("signing in", () => {
     expect(bindCalls).toEqual([]);
   });
 
-  test("the org on the token is the org bound and the org the database token names", async () => {
-    const res = await handleClientRequest(await rpc("tools/call", { name: "whoami", arguments: {} }), deps());
+  test("the token names the member and company, and goes to the database as it was issued", async () => {
+    const bearer = await token();
+    const res = await handleClientRequest(await rpc("tools/call", { name: "whoami", arguments: {} }, bearer), deps());
     expect(res.status).toBe(200);
-    expect(bindCalls[0]).toMatchObject({ workosUserId: "user_ada", workosOrgId: "org_acme" });
-    const minted = decode(fakeDb.tokens[0]);
-    expect(minted).toMatchObject({ role: "authenticated", sub: "user_ada", org_id: "org_acme" });
+    expect(bindCalls[0]).toBe(SUB);
+    expect(fakeDb.tokens[0]).toBe(bearer);
   });
 
-  test("no org on the token and no WorkOS key: refused, nothing bound", async () => {
-    const res = await handleClientRequest(await rpc("tools/list", {}, await token({ org_id: undefined })), deps());
-    expect(res.status).toBe(403);
-    expect((await res.json()).error_description).toMatch(/not for a company on Tacit/);
+  test("a website session token (no client_id) and an OAuth token not bound to this connector are 401s", async () => {
+    const website = await token({ client_id: undefined });
+    expect((await handleClientRequest(await rpc("tools/list", {}, website), deps())).status).toBe(401);
+    const unbound = await new SignJWT({ sub: SUB, org_id: ORG, role: "authenticated", client_id: "oauth-client" })
+      .setProtectedHeader({ alg: "RS256", kid: "k" }).setIssuer(ISSUER).setAudience("authenticated").setIssuedAt().setExpirationTime("5m").sign(privateKey);
+    expect((await handleClientRequest(await rpc("tools/list", {}, unbound), deps())).status).toBe(401);
     expect(bindCalls).toEqual([]);
   });
 
-  test("no org on the token: the user's one active membership is used, two are refused", async () => {
-    const workos = (orgs: string[]) =>
-      vi.fn(async (_url: string | URL | Request) => Response.json({ data: orgs.map((o) => ({ organization_id: o, status: "active" })) }));
-    const noOrg = await token({ org_id: undefined });
-
-    const one = workos(["org_acme"]);
-    const ok = await handleClientRequest(await rpc("tools/list", {}, noOrg), deps({ config: config({ workosApiKey: "sk" }), workosFetch: one }));
-    expect(ok.status).toBe(200);
-    expect(String(one.mock.calls[0][0])).toContain("organization_memberships?user_id=user_ada");
-    expect(bindCalls[0].workosOrgId).toBe("org_acme");
-
-    const two = await handleClientRequest(
-      await rpc("tools/list", {}, noOrg),
-      deps({ config: config({ workosApiKey: "sk" }), workosFetch: workos(["org_acme", "org_globex"]) }),
-    );
-    expect(two.status).toBe(403);
-    expect((await two.json()).error_description).toMatch(/more than one company/);
+  test("no company on the token: refused with a sentence to sign in again", async () => {
+    const res = await handleClientRequest(await rpc("tools/list", {}, await token({ org_id: undefined })), deps());
+    expect(res.status).toBe(403);
+    expect((await res.json()).error_description).toMatch(/names no company/);
   });
 
-  test("a first sign-in without an email on the token asks WorkOS for the verified one", async () => {
-    let calls = 0;
-    const realBind = async (who: ClientIdentity): Promise<BindClientResult> => {
-      bindCalls.push(who);
-      calls += 1;
-      return who.email ? bound : { status: "forbidden", reason: "email_unverified" };
-    };
-    const workosFetch = vi.fn(async () => Response.json({ email: "ada@acme.test", email_verified: true }));
-    const res = await handleClientRequest(
-      await rpc("tools/list"),
-      deps({ bind: realBind, config: config({ workosApiKey: "sk" }), workosFetch }),
-    );
-    expect(res.status).toBe(200);
-    expect(calls).toBe(2);
-    expect(bindCalls[1]).toMatchObject({ email: "ada@acme.test", emailVerified: true });
+  test("no company on the token and several companies: asks them to choose", async () => {
+    bound = { status: "ok", companies: 2, firstSignIn: true };
+    const res = await handleClientRequest(await rpc("tools/list", {}, await token({ org_id: undefined })), deps());
+    expect(res.status).toBe(403);
+    expect((await res.json()).error_description).toMatch(/more than one company/);
   });
 
   test("someone never invited gets a 403 that says so", async () => {
@@ -253,11 +233,11 @@ describe("signing in", () => {
     expect((await res.json()).error_description).toMatch(/not been invited/);
   });
 
-  test("the database resolving the token to anyone but the bound actor is a refusal", async () => {
-    fakeDb.actorId = "99999999-9999-4999-8999-999999999999";
+  test("the database resolving the token to nobody (they left that company) is a refusal", async () => {
+    fakeDb.actorId = null;
     const res = await handleClientRequest(await rpc("tools/list"), deps());
     expect(res.status).toBe(403);
-    expect((await res.json()).error_description).toMatch(/could not open your workspace/);
+    expect((await res.json()).error_description).toMatch(/not been invited/);
   });
 });
 
@@ -390,11 +370,11 @@ describe("whoami", () => {
     expect(audits).toEqual([{ tool: "whoami", ok: true, actorId: ACTOR }]);
   });
 
-  test("its transaction carries the member token's own identity claims, nothing more", async () => {
+  test("its transaction carries the token's own identity claims, nothing more", async () => {
     await result(await handleClientRequest(await rpc("tools/call", { name: "whoami", arguments: {} }), deps()));
-    const minted = decode(fakeDb.tokens[0]!);
-    expect(fakeDb.pgClaims).toEqual([{ role: minted.role, aud: minted.aud, iss: minted.iss, sub: minted.sub, org_id: minted.org_id }]);
-    expect(fakeDb.pgClaims[0]).toEqual({ role: "authenticated", aud: "authenticated", iss: "tacit-client-mcp", sub: "user_ada", org_id: "org_acme" });
+    const issued = decode(fakeDb.tokens[0]!);
+    expect(fakeDb.pgClaims).toEqual([{ role: issued.role, aud: issued.aud, iss: issued.iss, sub: issued.sub, org_id: issued.org_id }]);
+    expect(fakeDb.pgClaims[0]).toEqual({ role: "authenticated", aud: ["authenticated", RESOURCE], iss: ISSUER, sub: SUB, org_id: ORG });
   });
 });
 

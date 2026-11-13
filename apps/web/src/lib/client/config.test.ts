@@ -1,26 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { clientAuthProvider, clientSignInConfigured, isPublicClientPath, safeClientNext } from "./config";
+import { clientSignInConfigured, isPublicClientPath, safeClientNext } from "./config";
 
 const DATABASE = { SUPABASE_URL: "http://db", SUPABASE_PUBLISHABLE_KEY: "pk" };
-const WORKOS = { WORKOS_CLIENT_ID: "c", WORKOS_API_KEY: "k", WORKOS_COOKIE_PASSWORD: "x".repeat(32) };
-
-describe("who signs members in", () => {
-  test("WorkOS unless the flag says supabase", () => {
-    expect(clientAuthProvider({})).toBe("workos");
-    expect(clientAuthProvider({ CLIENT_AUTH_PROVIDER: "workos" })).toBe("workos");
-    expect(clientAuthProvider({ CLIENT_AUTH_PROVIDER: "something" })).toBe("workos");
-    expect(clientAuthProvider({ CLIENT_AUTH_PROVIDER: " Supabase " })).toBe("supabase");
-  });
-
-  test("WorkOS needs its own three values and the database's two", () => {
-    expect(clientSignInConfigured({ ...DATABASE, ...WORKOS })).toBe(true);
-    expect(clientSignInConfigured(DATABASE)).toBe(false);
-    expect(clientSignInConfigured({ ...DATABASE, ...WORKOS, WORKOS_COOKIE_PASSWORD: "short" })).toBe(false);
-  });
-
-  test("Supabase needs only the database's two", () => {
-    expect(clientSignInConfigured({ ...DATABASE, CLIENT_AUTH_PROVIDER: "supabase" })).toBe(true);
-    expect(clientSignInConfigured({ CLIENT_AUTH_PROVIDER: "supabase", SUPABASE_URL: "http://db" })).toBe(false);
+describe("sign-in is configured", () => {
+  test("by the database's two values", () => {
+    expect(clientSignInConfigured(DATABASE)).toBe(true);
+    expect(clientSignInConfigured({ SUPABASE_URL: "http://db" })).toBe(false);
+    expect(clientSignInConfigured({})).toBe(false);
   });
 });
 
