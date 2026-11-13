@@ -1,16 +1,14 @@
 import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
 
 /**
- * The client connector is an OAuth resource server. WorkOS AuthKit (the
- * environment holding the client organizations) is the authorization server:
- * it runs the sign-in, registers clients dynamically and issues the access
- * tokens this file verifies. Nothing here issues or stores a token. Forked
- * from tacit-internal's apps/mcp/src/connector/auth.ts (the staff
- * connector), keeping only what a resource server needs.
+ * The client connector is an OAuth resource server. Supabase Auth's OAuth 2.1
+ * server on this project (tacit-ats) is the authorization server: it registers
+ * clients dynamically, sends the member to apps/web's consent page, and issues
+ * the access tokens this file verifies. Nothing here issues or stores a token.
  */
 
 export type ResourceServer = {
-  /** The AuthKit domain: the token issuer. */
+  /** The token issuer: `<SUPABASE_URL>/auth/v1`. */
   issuer: string;
   /** This server's public URL, e.g. https://ats-mcp.tacitawareness.com/api/client: the token audience. */
   resource: string;
@@ -44,10 +42,18 @@ export function challenge(config: Pick<ResourceServer, "resource">, error?: { co
 }
 
 export type AccessClaims = {
+  /** The Supabase Auth user. */
   subject: string;
-  email: string | null;
-  /** The WorkOS organization the sign-in was for, when AuthKit put one in the token. */
+  /**
+   * The company the sign-in was for (orgs.id), from the access token hook
+   * (supabase/migrations/20261113000000_connector_oauth.sql); null when the
+   * session has none.
+   */
   orgId: string | null;
+  /** The token as issued: the database takes it as it is. */
+  token: string;
+  /** Its claims, for the direct Postgres transactions (@tacit-ats/member-db). */
+  dbClaims: { role: "authenticated"; aud: string | string[]; iss: string; sub: string; org_id?: string };
 };
 
 const jwksByIssuer = new Map<string, JWTVerifyGetKey>();
@@ -55,15 +61,16 @@ const jwksByIssuer = new Map<string, JWTVerifyGetKey>();
 function remoteJwks(issuer: string): JWTVerifyGetKey {
   let jwks = jwksByIssuer.get(issuer);
   if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(`${issuer}/oauth2/jwks`));
+    jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
     jwksByIssuer.set(issuer, jwks);
   }
   return jwks;
 }
 
 /**
- * Signature (against the issuer's JWKS), issuer, audience and expiry. Throws
- * on any failure. `keys` is injectable so tests verify against a local key.
+ * Signature (against the project's JWKS), issuer, audience, expiry, an OAuth
+ * client and the member role. Throws on any failure. `keys` is injectable so
+ * tests verify against a local key.
  */
 export async function verifyAccessToken(
   token: string,
@@ -72,25 +79,22 @@ export async function verifyAccessToken(
 ): Promise<AccessClaims> {
   const { payload } = await jwtVerify(token, keys, {
     issuer: config.issuer,
+    // What binds a token to this connector: the access token hook sets aud to
+    // ["authenticated", <resource>] only for a session whose consent asked for
+    // this resource. A website sign-in, or another connector's token, carries
+    // just "authenticated" and fails here.
     audience: config.resource,
     requiredClaims: ["sub", "exp"],
   });
-  // An email claim is only present when the AuthKit JWT template adds it.
-  const email = typeof payload.email === "string" && payload.email_verified !== false ? payload.email : null;
+  // An OAuth token, not a website session: only OAuth tokens carry a client_id.
+  if (typeof payload.client_id !== "string" || !payload.client_id) throw new Error("not an OAuth access token");
+  if (payload.role !== "authenticated") throw new Error("not a member's token");
   const orgId = typeof payload.org_id === "string" && payload.org_id ? payload.org_id : null;
-  return { subject: payload.sub as string, email, orgId };
-}
-
-/** A WorkOS user's email, only if WorkOS has verified it. */
-export async function fetchVerifiedEmail(
-  subject: string,
-  apiKey: string,
-  doFetch: typeof fetch = fetch,
-): Promise<string | null> {
-  const res = await doFetch(`https://api.workos.com/user_management/users/${encodeURIComponent(subject)}`, {
-    headers: { authorization: `Bearer ${apiKey}` },
-  });
-  if (!res.ok) return null;
-  const user = (await res.json().catch(() => null)) as { email?: unknown; email_verified?: unknown } | null;
-  return typeof user?.email === "string" && user.email_verified === true ? user.email : null;
+  const sub = payload.sub as string;
+  return {
+    subject: sub,
+    orgId,
+    token,
+    dbClaims: { role: "authenticated", aud: payload.aud as string | string[], iss: payload.iss as string, sub, ...(orgId ? { org_id: orgId } : {}) },
+  };
 }

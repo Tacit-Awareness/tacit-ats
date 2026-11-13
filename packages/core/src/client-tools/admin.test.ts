@@ -220,7 +220,7 @@ describe("hiring team and access", () => {
 });
 
 describe("inviteMember", () => {
-  const deps = (invitations: Parameters<typeof inviteMember>[2]["invitations"]) => ({ invitations, workosOrgId: "org_acme", inviterUserId: "user_ada" });
+  const deps = (invitations: Parameters<typeof inviteMember>[2]["invitations"]) => ({ invitations, orgId: "org_acme" });
 
   test("without WorkOS configured it refuses before anything is written", async () => {
     const fake = new FakeSupabase();
@@ -235,7 +235,7 @@ describe("inviteMember", () => {
     const fake = new FakeSupabase([{ data: "audit-1" }, { data: [{ actor_id: "actor-9", resent: false }] }, { data: null }]);
     expect(await inviteMember(fake.asDb(), ctx(), deps(idp), { email: " New@Acme.test ", name: "Nia", access: "elevated" }))
       .toEqual({ outcome: "invited", userId: "actor-9" });
-    expect(sendInvitation).toHaveBeenCalledWith({ email: "new@acme.test", organizationId: "org_acme", inviterUserId: "user_ada" });
+    expect(sendInvitation).toHaveBeenCalledWith({ email: "new@acme.test", organizationId: "org_acme" });
   });
 
   test("someone already a member is a sentence, and the claim is given back", async () => {

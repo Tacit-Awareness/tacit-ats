@@ -6,7 +6,7 @@ import { ClientInviteError, clientTools, inviteClientMember, withdrawClientInvit
 import { changeMemberAccess, type ChangeAccessOutcome } from "@/lib/client/member-access";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
-import { clientInvitations } from "@/lib/client/workos";
+import { supabaseInvitations } from "@/lib/client/invite-email";
 import type { TeamError, TeamNotice, TitleAnswer, TitleError } from "./messages";
 
 // The team's writes, from Onboarding's People step. All of them run on the
@@ -40,16 +40,15 @@ function codeFor(err: unknown, what: string): TeamError {
 }
 
 export async function inviteAction(form: FormData): Promise<void> {
-  const { db, org, user } = await requireClient();
+  const { db, org } = await requireClient();
   const level = str(form, "accessLevel");
   let notice: TeamNotice;
   try {
-    const invited = await inviteClientMember(db, clientInvitations(), {
+    const invited = await inviteClientMember(db, supabaseInvitations(), {
       email: str(form, "email"),
       displayName: str(form, "displayName"),
       accessLevel: level === "admin" || level === "elevated" ? level : "limited",
-      workosOrgId: org.workosOrgId,
-      inviterUserId: user.workosUserId,
+      orgId: org.id,
     });
     notice = invited.resent ? "resent" : "invited";
   } catch (err) {
@@ -65,7 +64,7 @@ export async function withdrawAction(form: FormData): Promise<void> {
   if (!UUID.test(actorId)) return back({ error: "not_found" });
   let withdrawn: boolean;
   try {
-    ({ withdrawn } = await withdrawClientInvite(db, clientInvitations(), { actorId, workosOrgId: org.workosOrgId }));
+    ({ withdrawn } = await withdrawClientInvite(db, supabaseInvitations(), { actorId, orgId: org.id }));
   } catch (err) {
     return back({ error: codeFor(err, "withdrawing an invitation") });
   }

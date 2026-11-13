@@ -10,7 +10,7 @@ const idp = (over: Partial<IdentityProvider> = {}): IdentityProvider => ({
 });
 const code = async (p: Promise<unknown>) =>
   p.then(() => "resolved", (e) => (e instanceof ClientInviteError ? e.code : `threw ${e}`));
-const INPUT = { email: "  Grace@Acme.test ", displayName: "Grace", accessLevel: "elevated" as const, workosOrgId: "org_w", inviterUserId: "user_w" };
+const INPUT = { email: "  Grace@Acme.test ", displayName: "Grace", accessLevel: "elevated" as const, orgId: "org_w" };
 
 describe("inviteClientMember", () => {
   test("the database writes the actor as the inviter, then WorkOS sends the email", async () => {
@@ -22,7 +22,7 @@ describe("inviteClientMember", () => {
       table: "invite_org_member", op: "rpc",
       args: { p_email: "grace@acme.test", p_display_name: "Grace", p_access_level: "elevated" },
     });
-    expect(provider.sendInvitation).toHaveBeenCalledWith({ email: "grace@acme.test", organizationId: "org_w", inviterUserId: "user_w" });
+    expect(provider.sendInvitation).toHaveBeenCalledWith({ email: "grace@acme.test", organizationId: "org_w" });
   });
 
   test.each([
@@ -73,26 +73,26 @@ describe("withdrawClientInvite", () => {
   test("removes the actor, then revokes the WorkOS invitation for that address", async () => {
     const fake = new FakeSupabase([{ data: PENDING }, { data: true }]);
     const idpRevoke = revoker();
-    expect(await withdrawClientInvite(fake.asDb(), idpRevoke, { actorId: "a-1", workosOrgId: "org_w" })).toEqual({ withdrawn: true });
+    expect(await withdrawClientInvite(fake.asDb(), idpRevoke, { actorId: "a-1", orgId: "org_w" })).toEqual({ withdrawn: true });
     expect(idpRevoke.revokeInvitations).toHaveBeenCalledWith({ email: "grace@acme.test", organizationId: "org_w" });
   });
 
   test("nothing to withdraw touches no WorkOS invitation", async () => {
     const fake = new FakeSupabase([{ data: [] }, { data: false }]);
     const idpRevoke = revoker();
-    expect(await withdrawClientInvite(fake.asDb(), idpRevoke, { actorId: "a-9", workosOrgId: "org_w" })).toEqual({ withdrawn: false });
+    expect(await withdrawClientInvite(fake.asDb(), idpRevoke, { actorId: "a-9", orgId: "org_w" })).toEqual({ withdrawn: false });
     expect(idpRevoke.revokeInvitations).not.toHaveBeenCalled();
   });
 
   test("a failed revoke still reports the withdrawal", async () => {
     const fake = new FakeSupabase([{ data: PENDING }, { data: true }]);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(await withdrawClientInvite(fake.asDb(), revoker(true), { actorId: "a-1", workosOrgId: "org_w" })).toEqual({ withdrawn: true });
+    expect(await withdrawClientInvite(fake.asDb(), revoker(true), { actorId: "a-1", orgId: "org_w" })).toEqual({ withdrawn: true });
     spy.mockRestore();
   });
 
   test("a non-admin is refused", async () => {
     const fake = new FakeSupabase([{ data: [] }, { error: { code: "42501", message: "no" } }]);
-    expect(await code(withdrawClientInvite(fake.asDb(), revoker(), { actorId: "a-1", workosOrgId: "org_w" }))).toBe("forbidden");
+    expect(await code(withdrawClientInvite(fake.asDb(), revoker(), { actorId: "a-1", orgId: "org_w" }))).toBe("forbidden");
   });
 });

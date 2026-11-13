@@ -10,11 +10,13 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.117.3",
+    "@tacit-ats/auth-ui": "workspace:^",
     "@tacit-ats/core": "workspace:^",
     "@tacit/core": "file:../../vendor/tacit-core-fd17ac1.tgz",
     "@tacit/db": "file:../../vendor/tacit-db-fd17ac1.tgz",
     "@vercel/oidc": "4.0.1",
-    "@workos-inc/authkit-nextjs": "4.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "next": "16.3.0",

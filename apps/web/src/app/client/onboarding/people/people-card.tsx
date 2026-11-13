@@ -28,7 +28,7 @@ type Pending = Awaited<ReturnType<typeof listPendingInvites>>;
 const ROW = "grid min-w-0 items-center gap-x-4 gap-y-2 border-t border-[color:var(--line)] py-3 first:border-t-0 md:min-h-16 md:grid-cols-[minmax(0,1fr)_auto]";
 const CLOCK = "M8 4.5V8l2.3 1.5M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0Z";
 const ACCESS_HINT = "An interviewer sees only the people they interview, the hiring team the jobs they are added to, and an admin every job (not confidential ones) and the team.";
-const EMAIL_HINT = "They get an email from WorkOS and sign in with this address.";
+const EMAIL_HINT = "They get an email to choose a password and sign in with this address.";
 
 /** The name over its facts (title, email, access), each its own span, spaced rather than dotted. */
 function Who({ name, facts, you = false }: { name: string; facts: (string | null)[]; you?: boolean }) {

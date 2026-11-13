@@ -57,11 +57,13 @@ const PRIVILEGED = /\b(getSupabaseServiceClient|getSupabaseTacitClient|createSer
  * member policies: core calls it only after the member's own token has read or
  * inserted the row, and the path is that row's. mailbox.ts reads a member's own
  * Gmail grant to send their email, as granola-notes.ts does: only the ids on the
- * row their own token reads of mailbox_connections.
+ * row their own token reads of mailbox_connections. invite-email.ts sends a
+ * Supabase Auth invitation to the address invite_org_member, on the admin's own
+ * token, has just accepted.
  */
 const ALLOWED = new Set([
   join(SRC, "lib/client/bind.ts"), join(SRC, "lib/client/bot.ts"), join(SRC, "lib/client/granola-notes.ts"), join(SRC, "lib/client/file-store.ts"),
-  join(SRC, "lib/client/mailbox.ts"),
+  join(SRC, "lib/client/mailbox.ts"), join(SRC, "lib/client/invite-email.ts"),
 ]);
 
 describe("the client area never holds a privileged database client", () => {
@@ -101,11 +103,12 @@ describe("the client area never holds a privileged database client", () => {
   test("the allowed modules export a verdict, not a client", () => {
     const exportsOf = (file: string) =>
       [...readFileSync(join(SRC, file), "utf8").matchAll(/^export\s+(?:async\s+)?(?:function|const|let|var|class)\s+(\w+)/gm)].map((m) => m[1]);
-    expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedActor"]);
+    expect(exportsOf("lib/client/bind.ts")).toEqual(["bindInvitedUser"]);
     expect(exportsOf("lib/client/bot.ts")).toEqual(["verifyCompanyBot"]);
     expect(exportsOf("lib/client/granola-notes.ts")).toEqual(["readGranolaNotes"]);
     expect(exportsOf("lib/client/file-store.ts")).toEqual(["webFileStore"]);
     expect(exportsOf("lib/client/mailbox.ts")).toEqual(["memberMailbox"]);
+    expect(exportsOf("lib/client/invite-email.ts")).toEqual(["supabaseInvitations"]);
   });
 });
 

@@ -18,10 +18,10 @@ import { AccessForm } from "./access-form";
 // is presentation, not the control: the definer functions check the caller and
 // the last admin again, and the policies decide a title. Names stand alone, with
 // their facts spaced apart under them; who sees what at each access level is
-// in the picker's options, and the email WorkOS sends is the button's hover title.
+// in the picker's options, and the sign-in email they get is the button's hover title.
 // A card's count is for a screen reader only: its rows already show how many.
 
-const EMAIL_HINT = "They get an email from WorkOS and sign in with this address.";
+const EMAIL_HINT = "They get an email to choose a password and sign in with this address.";
 
 /** Facts under a name, each its own span, spaced rather than dotted; nothing when there are none, so the row draws no empty line. */
 function factLine(facts: (string | null)[]) {

@@ -53,7 +53,7 @@ const client = (subject: string, workosOrgId: string) => {
   return createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () => mintClientMemberToken(signer, { subject, workosOrgId }));
 };
 const who = (subject: string, workos: string, actorId: string, org: string, accessLevel: "admin" | "elevated" | "limited") =>
-  ({ db: client(subject, workos), actorId, accessLevel, org: { id: org, name: "", slug: "", workosOrgId: workos } }) as never as Parameters<typeof readCandidateCard>[0];
+  ({ db: client(subject, workos), actorId, accessLevel, org: { id: org, name: "", slug: "" } }) as never as Parameters<typeof readCandidateCard>[0];
 
 const admin = () => who("user_ix_ada", ACME_WORKOS, ADMIN, ACME, "admin");
 const lead = () => who("user_ix_lee", ACME_WORKOS, LEAD, ACME, "elevated");

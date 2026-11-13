@@ -234,7 +234,7 @@ const amberNote = "m-0 rounded-[8px] bg-[color:var(--amber-soft)] px-3 py-2 text
 
 async function ask(request: ScheduleRequest): Promise<ScheduleAnswer> {
   try {
-    // Manual: a session that ended redirects to WorkOS, which a fetch cannot follow.
+    // Manual: a session that ended redirects to sign in, which a fetch cannot follow.
     const res = await fetch(SCHEDULE_API, {
       method: "POST",
       headers: { "content-type": "application/json" },

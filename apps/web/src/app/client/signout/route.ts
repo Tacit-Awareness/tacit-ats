@@ -1,11 +1,10 @@
-import { signOut } from "@workos-inc/authkit-nextjs";
+import { CLIENT_SIGN_IN_PATH } from "@/lib/client/config";
+import { supabaseAuthClient } from "@/lib/client/supabase-auth";
 
-// Ends the WorkOS session and clears the cookie. POST only, from the form in
-// the client layout. Where the browser lands afterwards is the app's default
-// Sign-out URI in the WorkOS dashboard.
-export async function POST(): Promise<Response> {
-  // Redirects (by throwing) once the session is ended; the line after it is
-  // only reached if there was no session to end.
-  await signOut();
-  return new Response(null, { status: 204 });
+// Ends the Supabase session and clears its cookies. POST only, from the form
+// in the client layout and the refusal screen; lands on the sign-in page.
+export async function POST(request: Request): Promise<Response> {
+  const auth = await supabaseAuthClient();
+  await auth.auth.signOut();
+  return Response.redirect(new URL(CLIENT_SIGN_IN_PATH, request.url), 303);
 }

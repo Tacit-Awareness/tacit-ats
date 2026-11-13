@@ -1,12 +1,15 @@
 import { cache } from "react";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createUserClient, type Db } from "@tacit/db";
-import { bindInvitedActor } from "./bind";
+import { bindInvitedUser } from "./bind";
+import { CLIENT_CHOOSE_COMPANY_PATH, CLIENT_REFRESH_PATH, REFRESHED_COOKIE } from "./config";
+import { signedInClaims, supabaseAuthClient } from "./supabase-auth";
 
 /**
  * Who is signed in to the client area, and the database client that acts as
- * them. The client here carries the user's own WorkOS access token and the
- * publishable key, so every read and write is decided by RLS
+ * them. The client here carries the user's own Supabase Auth access token and
+ * the publishable key, so every read and write is decided by RLS
  * (20261013120000_client_permissions). No function in the client area gets
  * any other database client.
  */
@@ -16,8 +19,8 @@ export type ClientContext = {
   db: Db;
   actorId: string;
   accessLevel: AccessLevel;
-  org: { id: string; name: string; slug: string; workosOrgId: string; brandAccent: string | null; brandLogoUrl: string | null };
-  user: { email: string; name: string; workosUserId: string };
+  org: { id: string; name: string; slug: string; brandAccent: string | null; brandLogoUrl: string | null };
+  user: { email: string; name: string };
 };
 
 export type ClientGate =
@@ -26,11 +29,11 @@ export type ClientGate =
       status: "forbidden";
       /**
        * signed_out: no session (the proxy should have redirected).
-       * not_invited / no_org / unknown_org / email_unverified / subject_mismatch: see bindClientActor.
-       * token_rejected: the database would not act on the token. Supabase does not
-       * trust the WorkOS issuer yet, or the token carries no org.
+       * not_invited / email_unverified / subject_mismatch: see bindSupabaseUser.
+       * token_rejected: the database would not act on the token (the access token
+       * hook not adding org_id, most likely).
        */
-      reason: "signed_out" | "not_invited" | "no_org" | "unknown_org" | "email_unverified" | "subject_mismatch" | "token_rejected";
+      reason: "signed_out" | "not_invited" | "email_unverified" | "subject_mismatch" | "token_rejected";
     };
 
 const isAccessLevel = (v: unknown): v is AccessLevel => v === "limited" || v === "elevated" || v === "admin";
@@ -47,50 +50,65 @@ function unlessRefused(status: number): void {
 
 // Cached per request: the client layout's sidebar and the page both ask, and
 // a first sign-in must bind once.
-export const resolveClient = cache(async (): Promise<ClientGate> => {
-  const auth = await withAuth();
-  if (!auth.user || !auth.accessToken) return { status: "forbidden", reason: "signed_out" };
-  const workosOrgId = auth.organizationId;
+export const resolveClient = cache((): Promise<ClientGate> => resolveSupabase());
 
-  const token = auth.accessToken;
+/**
+ * A Supabase Auth sign-in. The token's org_id comes from the access token
+ * hook (20261112000000_supabase_auth_groundwork), so a first sign-in binds,
+ * then sends the browser to refresh the token, since a server component cannot
+ * write cookies; someone in several companies with none chosen goes to the
+ * picker. Both are redirects, so a page or an action never runs half signed in.
+ */
+async function resolveSupabase(): Promise<ClientGate> {
+  const auth = await supabaseAuthClient();
+  const claims = await signedInClaims(auth);
+  if (!claims) return { status: "forbidden", reason: "signed_out" };
+  const { data: session } = await auth.auth.getSession();
+  const token = session.session?.access_token;
+  if (!token) return { status: "forbidden", reason: "signed_out" };
   const db = createUserClient(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_PUBLISHABLE_KEY ?? "", () => token);
 
-  // Ask the database who this token is, rather than deciding here: the answer
-  // is the same one every policy will use.
-  let who = await db.rpc("current_actor_id");
+  const who = await db.rpc("current_actor_id");
   if (who.error) {
     console.error("[client] the database refused the access token:", who.error.message);
     unlessRefused(who.status);
     return { status: "forbidden", reason: "token_rejected" };
   }
   if (!who.data) {
-    // Not bound yet. A first sign-in is matched to the actor an admin invited.
-    const bound = await bindInvitedActor({
-      workosUserId: auth.user.id,
-      workosOrgId: auth.organizationId,
-      email: auth.user.email,
-      emailVerified: auth.user.emailVerified === true,
+    // Asks Supabase Auth, not just the cookie: an account deleted since its
+    // token was issued still has a validly signed token.
+    const { data: user, error: userError } = await auth.auth.getUser();
+    if (userError || !user.user) return { status: "forbidden", reason: "signed_out" };
+    const bound = await bindInvitedUser({
+      userId: claims.sub,
+      email: user.user.email ?? claims.email,
+      emailVerified: Boolean(user.user.email_confirmed_at),
     });
     if (bound.status !== "ok") return { status: "forbidden", reason: bound.reason };
-    who = await db.rpc("current_actor_id");
-    // Bound, and the database still resolves nobody: the token's org claim is
-    // missing or does not match (the WorkOS JWT template, most likely).
-    if (who.error || !who.data) return { status: "forbidden", reason: "token_rejected" };
+    // Several companies and none on the token: let them choose. Otherwise the
+    // token predates the binding (or names a company they left): re-issue it,
+    // once; the refresh route stops a second round trip from looping.
+    if (bound.companies > 1 && !claims.org_id) redirect(CLIENT_CHOOSE_COMPANY_PATH);
+    // Just refreshed and still nobody: the hook isn't adding org_id (not
+    // registered on this project). Say so instead of looping.
+    if ((await cookies()).get(REFRESHED_COOKIE)) return { status: "forbidden", reason: "token_rejected" };
+    redirect(CLIENT_REFRESH_PATH);
   }
 
-  const [level, org] = await Promise.all([
+  const [level, org, me] = await Promise.all([
     db.rpc("current_access_level"),
     db.from("orgs").select("id, name, slug, brand_accent, brand_logo_url").maybeSingle(),
+    // The name the admin invited them by: Supabase Auth holds no name.
+    db.from("org_members").select("display_name").eq("id", who.data).maybeSingle(),
   ]);
-  // The database matched the token's org claim to get this far, so it is set;
-  // checked anyway, since an invitation is sent into it.
   if (level.error) unlessRefused(level.status);
   if (org.error) unlessRefused(org.status);
-  if (level.error || org.error || !org.data || !isAccessLevel(level.data) || !workosOrgId) {
+  if (level.error || org.error || !org.data || !isAccessLevel(level.data)) {
     return { status: "forbidden", reason: "token_rejected" };
   }
 
-  const name = [auth.user.firstName, auth.user.lastName].filter(Boolean).join(" ") || auth.user.email;
+  const email = claims.email ?? "";
+  const name = me.data?.display_name?.trim() || email;
   return {
     status: "ok",
     ctx: {
@@ -101,14 +119,13 @@ export const resolveClient = cache(async (): Promise<ClientGate> => {
         id: org.data.id,
         name: org.data.name,
         slug: org.data.slug,
-        workosOrgId,
         brandAccent: org.data.brand_accent,
         brandLogoUrl: org.data.brand_logo_url,
       },
-      user: { email: auth.user.email, name, workosUserId: auth.user.id },
+      user: { email, name },
     },
   };
-});
+}
 
 /**
  * For server actions in the client area: the first statement of every one.

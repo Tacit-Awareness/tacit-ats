@@ -455,7 +455,7 @@ Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the 
 
 ## Before you start
 
-You need an invitation to your company's Tacit workspace. An admin at your company sends it from Tacit, and it arrives as an email from WorkOS, our sign-in provider. Sign in once from that email so your account exists. If you have no invitation, ask an admin to [invite you](/docs/admin).
+You need an invitation to your company's Tacit workspace. An admin at your company sends it from Tacit, and it arrives as an email from Tacit. Open it, choose a password, and you're in. If you have no invitation, ask an admin to [invite you](/docs/admin).
 
 ## Add the connector in Claude
 
@@ -1098,7 +1098,7 @@ Claude picks the matching reason, calls \`update_stage\` with it and your note, 
 
 > Invite dana@yourcompany.com as hiring team.
 
-- \`invite_member\` (admins): sends an invitation email from WorkOS to join your company's Tacit workspace, at the access level you choose. Inviting an address that is already invited sends the email again. Claude confirms the address first.
+- \`invite_member\` (admins): sends an invitation email to join your company's Tacit workspace, at the access level you choose. Inviting an address that is already invited sends the email again. Claude confirms the address first.
 - \`list_invites\` (admins): who has been invited and not signed in yet.
 - \`withdraw_invite\` (admins): takes back an invitation nobody has accepted.
 

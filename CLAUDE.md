@@ -26,11 +26,12 @@ Nothing staff-only lives in this repo: no staff session, no console.
 
 ```
 apps/
-  web/        Next.js -- the /client area members sign in to (WorkOS AuthKit)
+  web/        Next.js -- the /client area members sign in to (Supabase Auth)
   mcp/        Next.js -- /api/client, the MCP connector members add to Claude (OAuth)
   cli/        tats -- the same connector from the terminal, for coding agents and scripts
 packages/
   core/       @tacit-ats/core -- first sign-in, client invitations, the connector's tools
+  auth-ui/    @tacit-ats/auth-ui -- the sign-in screens, testbench's staff sign-in made app-agnostic
   member-db/  @tacit-ats/member-db -- withMember: a member's own direct Postgres transaction, RLS deciding
 supabase/     the client migration track: tacit-ats's schema, its SQL tests, the local stack
 scripts/client-track/  the baseline's extraction, the org-scoped data copy (copy-orgs.mjs)
@@ -41,7 +42,7 @@ See each folder's own `CLAUDE.md`.
 
 ## Hard rules
 
-- **A member reads and writes only through their own token.** Nothing reachable from `apps/web/src/app/client` or `src/lib/client` may name a privileged client (service role, `tacit_internal`) except `lib/client/bind.ts` (first sign-in), `lib/client/bot.ts` (the signed challenge to the company's bot), `lib/client/granola-notes.ts` (a member's own Granola notes, the grant found from the row their own token reads), `lib/client/file-store.ts` (the bytes of a candidate's file, only after their own token has read or inserted its row) and `lib/client/mailbox.ts` (a member's own Gmail grant to send their email, found from the row their own token reads); `apps/web/src/client-area.test.ts` walks the imports. `apps/web/src/lib/notify/` (the interview notifier, for every company at once) uses the service role outside the client area and is never imported from it. `apps/web/src/lib/applicant-resume/store.ts` (the bytes of a resume uploaded on a public job post, only at the path `submit_job_application` answered) is the one privileged module the public pages reach, and only from `api/jobs/[slug]/apply`; `apps/web/src/lib/bridge/store.ts` (the bridge_* functions, only after a request's signature checks out) is reached only from `api/bridge/[endpoint]`; the same test pins both. In `apps/mcp`, only `client/bind.ts`, `client/audit.ts`, `client/files.ts`, `client/calendar.ts`, `client/granola.ts` and `client/mailbox.ts` may, each exporting functions and never a client; `src/client-connector.test.ts` walks those imports.
+- **A member reads and writes only through their own token.** Nothing reachable from `apps/web/src/app/client` or `src/lib/client` may name a privileged client (service role, `tacit_internal`) except `lib/client/bind.ts` (first sign-in), `lib/client/bot.ts` (the signed challenge to the company's bot), `lib/client/granola-notes.ts` (a member's own Granola notes, the grant found from the row their own token reads), `lib/client/file-store.ts` (the bytes of a candidate's file, only after their own token has read or inserted its row), `lib/client/mailbox.ts` (a member's own Gmail grant to send their email, found from the row their own token reads) and `lib/client/invite-email.ts` (a Supabase Auth invitation to the address `invite_org_member` just accepted on the admin's own token); `apps/web/src/client-area.test.ts` walks the imports. `apps/web/src/lib/notify/` (the interview notifier, for every company at once) uses the service role outside the client area and is never imported from it. `apps/web/src/lib/applicant-resume/store.ts` (the bytes of a resume uploaded on a public job post, only at the path `submit_job_application` answered) is the one privileged module the public pages reach, and only from `api/jobs/[slug]/apply`; `apps/web/src/lib/bridge/store.ts` (the bridge_* functions, only after a request's signature checks out) is reached only from `api/bridge/[endpoint]`; the same test pins both. In `apps/mcp`, only `client/bind.ts`, `client/audit.ts`, `client/files.ts`, `client/calendar.ts`, `client/granola.ts` and `client/mailbox.ts` may, each exporting functions and never a client; `src/client-connector.test.ts` walks those imports.
 - **The pooler's connection string stays in `packages/member-db`.** `SUPABASE_POOLER_URL` can become any role, so only that package's `connection.ts` reads it, and only `withMember` uses it: every transaction is `set local role authenticated` with the member's verified claims in `request.jwt.claims`, so `auth.jwt()`, `current_actor_id()` and every policy decide as over PostgREST. Nothing in either app reads the URL, imports a Postgres driver, imports past the package's entry point or sets a role or claims itself (`client-area.test.ts`, `client-connector.test.ts`, the package's `boundary.test.ts`).
 - **A server action starts with `await requireClient()`.** An action is callable by id from any page, so the proxy does not cover it. The same test enforces it.
 - **Interview feedback and offer terms stay private.** Feedback notes, rating notes, email subjects and bodies, filenames and source details are kept out of `audit_log` and `mcp_calls`; candidate text comes back fenced.
@@ -66,7 +67,7 @@ Run from the repo root:
 
 ## Deploy
 
-Two Vercel projects, one per app (`apps/web`, `apps/mcp`), each with its own `vercel.json` build command. Env vars are in `.env.example`; the WorkOS redirect URI and the connector's resource URL must name these apps' own domains.
+Two Vercel projects, one per app (`apps/web`, `apps/mcp`), each with its own `vercel.json` build command. Env vars are in `.env.example`; the Supabase Site URL, the OAuth consent path and the connector's resource URL must name these apps' own domains. Sign-in moved from WorkOS to Supabase Auth on `tacit-ats` on 2026-11-13 (`scripts/client-track/supabase-cutover.mjs` relinked the members).
 
 ## Conventions
 

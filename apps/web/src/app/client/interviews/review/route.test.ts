@@ -8,7 +8,7 @@ import { POST } from "./route";
 
 const ID = "d1e00000-0000-4000-8000-000000000001";
 const db = { own: "token" };
-const member = { status: "ok", ctx: { db, actorId: "a1", accessLevel: "limited", org: { id: "o1", name: "Acme", slug: "acme", workosOrgId: "w1" } } };
+const member = { status: "ok", ctx: { db, actorId: "a1", accessLevel: "limited", org: { id: "o1", name: "Acme", slug: "acme" } } };
 
 const post = (body: unknown, headers: Record<string, string> = { "content-type": "application/json", "sec-fetch-site": "same-origin" }) =>
   POST(new Request("http://x.test/client/interviews/review", { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) }));
