@@ -26,12 +26,16 @@ export default async function ClientLayout({ children }: { children: React.React
   }
 
   const { db, org, user, accessLevel, actorId } = gate.ctx;
-  const [{ data: roles, error }, jar] = await Promise.all([
+  const [{ data: roles, error }, jar, mine] = await Promise.all([
     db.from("roles").select("id, title").eq("status", "open").order("created_at", { ascending: false }),
     cookies(),
+    // Every company this person belongs to, on their own token, for the sidebar's switcher.
+    db.rpc("my_sign_in_orgs" as never),
   ]);
   if (error) throw new Error(error.message);
   const jobs: ShellJob[] = roles.map((r) => ({ id: r.id, title: r.title }));
+  // A nicety: a failed read leaves the name as it was, with no switcher.
+  const companies = mine.error ? [] : ((mine.data ?? []) as { id: string; name: string }[]).map(({ id, name }) => ({ id, name }));
 
   return (
     <>
@@ -42,6 +46,8 @@ export default async function ClientLayout({ children }: { children: React.React
         actorId={actorId}
         org={org.name}
         orgLogoUrl={org.brandLogoUrl}
+        orgId={org.id}
+        companies={companies}
         user={{ name: user.name, email: user.email, level: LEVELS[accessLevel] }}
         jobs={jobs}
         sidebar={parseSidebar(jar.get(SIDEBAR_COOKIE)?.value)}

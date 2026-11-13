@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { AccountMenu } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
+import { CompanyMenu, switchCompany, type ShellCompany } from "@/components/app-shell/company-menu";
 import { HoverCard } from "@/components/hover-card";
 import { ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { PillGlass } from "@/components/app-shell/pill-glass";
@@ -229,6 +230,9 @@ type ShellProps = {
   actorId: string;
   org: string;
   orgLogoUrl: string | null;
+  /** The company on the token, and every company the member belongs to: more than one makes the name a switcher. */
+  orgId?: string;
+  companies?: ShellCompany[];
   user: { name: string; email: string; level: string };
   jobs: ShellJob[];
   sidebar: SidebarState;
@@ -243,7 +247,7 @@ export function ShellFrame({ actorId, ...props }: ShellProps) {
   );
 }
 
-function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
+function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
   const pathname = usePathname();
   const isActive = useIsActive();
   const [drawer, setDrawer] = useState(false);
@@ -363,6 +367,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     });
   };
 
+  const others = orgId && companies && companies.length > 1 ? companies.filter((c) => c.id !== orgId) : [];
   const commands: CommandItem[] = [
     { group: "Go to", label: HOME.label, href: HOME.href },
     { group: "Go to", label: INBOX.label, href: INBOX.href },
@@ -382,6 +387,8 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
     { group: "Go to", label: DOCS.label, href: DOCS.href },
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
     ...allViews(views.state).map((v) => ({ group: "Views", label: v.name, href: viewHref(v) })),
+    // A refusal here lands on the picker, which says why.
+    ...others.map((c) => ({ group: "Switch company", label: c.name, run: () => void switchCompany(c.id).catch(() => window.location.assign("/client/choose-company")) })),
   ];
 
   return (
@@ -416,16 +423,23 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         aria-label="Workspace"
       >
         <div className="sb-ws">
-          <button
-            type="button"
-            onClick={() => setMenu(true)}
-            title={rail ? org : undefined}
-            aria-label={rail ? org : undefined}
-            className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 font-sans text-[15px] font-semibold tracking-[-0.01em] transition-colors hover:bg-[color:var(--hover)]"
-          >
-            <OrgLogo org={org} logoUrl={orgLogoUrl} />
-            <span className="sb-label">{org}</span>
-          </button>
+          {orgId && companies && others.length ? (
+            <CompanyMenu current={orgId} companies={companies} rail={rail}>
+              <OrgLogo org={org} logoUrl={orgLogoUrl} />
+              <span className="sb-label truncate">{org}</span>
+            </CompanyMenu>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMenu(true)}
+              title={rail ? org : undefined}
+              aria-label={rail ? org : undefined}
+              className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 font-sans text-[15px] font-semibold tracking-[-0.01em] transition-colors hover:bg-[color:var(--hover)]"
+            >
+              <OrgLogo org={org} logoUrl={orgLogoUrl} />
+              <span className="sb-label">{org}</span>
+            </button>
+          )}
           <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="sb-search">
             <Icon name="search" />
           </IconButton>
