@@ -372,7 +372,8 @@ src/
                         yes_no, select) and jobPostUrl builds the public
                         link from an origin the caller passes.
                         listApplicationsInbox: applications with source
-                        job_board at INBOX_STAGES ("applied" for a pipeline
+                        job_board, referral or sourced (INBOX_SOURCES;
+                        sourced since 2026-11-13: added by a member) at INBOX_STAGES ("applied" for a pipeline
                         that grows one, then "sourced"), newest first, with
                         their answers. answersFor reads application_answers
                         as the member; getCandidate and getJobPipeline

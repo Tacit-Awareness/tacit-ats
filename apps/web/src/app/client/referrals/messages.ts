@@ -10,8 +10,9 @@ export const REFERRAL_NOTICES = {
   exists: "They're already in that job's pipeline, so nothing changed: they keep the source they came in with.",
 } as const;
 
+// One sentence each, under the composer's box (applicants/intake-composer.tsx).
 export const REFERRAL_ERRORS = {
-  invalid_name: "Enter their name.",
+  invalid_name: "Their name is missing or too long.",
   invalid_email: "That email address doesn't look right.",
   invalid_linkedin: "That isn't a LinkedIn profile link.",
   invalid_referrer: "Say who referred them, in 200 characters or fewer.",
@@ -28,5 +29,5 @@ export type ReferralError = keyof typeof REFERRAL_ERRORS;
 export const isReferralNotice = (v: unknown): v is ReferralNotice => typeof v === "string" && Object.hasOwn(REFERRAL_NOTICES, v);
 export const isReferralError = (v: unknown): v is ReferralError => typeof v === "string" && Object.hasOwn(REFERRAL_ERRORS, v);
 
-/** What addReferralAction answers the form on a refusal: a code, worded in place so what was typed stays. Once added it redirects. */
+/** What addReferralAction answers the composer on a refusal: a code, worded in place so what was typed stays. Once added it redirects. */
 export type ReferralState = { status: "idle" } | { status: "error"; error: ReferralError };

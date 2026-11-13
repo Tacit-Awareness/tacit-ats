@@ -16,7 +16,7 @@ import { ClientToolError, LIST_MAX, type ClientToolCtx } from "./context.js";
  * through job_post_public and submits through submit_job_application, both on
  * the publishable key. An applicant lands in the job at sourced with source
  * job_board, and listApplicationsInbox is where the team finds them, beside
- * the people referred into a job.
+ * the people referred into a job and the ones a member added by hand.
  */
 
 export const JOB_POST_STATUSES = ["draft", "live", "closed"] as const;
@@ -36,8 +36,13 @@ const DEFAULT_LABELS: Partial<Record<QuestionType, string>> = {
 };
 /** Where an applicant lands: the first stage. "applied" is listed for a pipeline that grows one. */
 export const INBOX_STAGES = ["applied", "sourced"] as const;
-/** Who waits in the inbox: an application from a job post, or a referral. */
-export const INBOX_SOURCES = ["job_board", "referral"] as const;
+/**
+ * Who waits in the inbox: an application from a job post, a referral, or
+ * someone a member added by hand (add_candidate's default source, the web
+ * app's "Add applicant"): a person they recruited before, or met, who has no
+ * application to read yet.
+ */
+export const INBOX_SOURCES = ["job_board", "referral", "sourced"] as const;
 
 export const QUESTIONS_MAX = 40;
 export const QUESTION_LABEL_MAX = 300;
@@ -442,19 +447,24 @@ export type InboxEntry = {
   jobTitle: string | null;
   stage: string;
   source: string;
-  /** The post they applied through (its title at the time); null for a referral. */
+  /** The post they applied through (its title at the time); null for anyone who didn't apply. */
   post: string | null;
-  /** Who referred them, as typed; null for a job-board application. */
+  /** Who referred them, as typed; null for anyone who wasn't referred. */
   referredBy: string | null;
+  /** For someone added by hand, where they came from as the member put it (an event, a channel); null otherwise. */
+  sourceDetail: string | null;
   linkedinUrl: string | null;
   appliedAt: string;
   answers: ApplicationAnswer[];
 };
 
 /**
- * New applicants: applications from job posts and referrals still at the
- * first stage, newest first, with their answers (a referral has none). Moving
- * one on (update_stage) takes them out of the inbox.
+ * New applicants: applications from job posts, referrals and people added by
+ * hand still at the first stage, newest first, with their answers (only a
+ * job-board application has any). Moving one on (update_stage) takes them out
+ * of the inbox. `source_detail` means something different for each source, so
+ * it comes back in the field that says which: the post, the referrer, or the
+ * detail a member gave.
  */
 export async function listApplicationsInbox(
   db: Db,
@@ -497,8 +507,9 @@ export async function listApplicationsInbox(
     jobTitle: r.roles?.title ?? null,
     stage: r.stage,
     source: r.source,
-    post: r.source === "referral" ? null : r.source_detail,
+    post: r.source === "job_board" ? r.source_detail : null,
     referredBy: r.source === "referral" ? r.source_detail : null,
+    sourceDetail: r.source === "sourced" ? r.source_detail : null,
     linkedinUrl: r.people?.linkedin_url ?? null,
     appliedAt: r.created_at,
     answers: answers.get(r.id)?.answers ?? [],

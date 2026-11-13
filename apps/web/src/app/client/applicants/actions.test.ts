@@ -149,3 +149,17 @@ describe("Home's tab", () => {
     expect(redirected.to).toEqual(["/client?sub=tickets&error=not_found", "/client/applicants?error=not_found"]);
   });
 });
+
+describe("the Inbox's pop-up", () => {
+  test("a post from the pop-up comes back to the Inbox at its range, on the same ticket, and the form can name no other place", async () => {
+    await expect(draftReplyAction({}, form({ ...good, inbox: "1" }))).rejects.toThrow("NEXT_REDIRECT");
+    await expect(sendReplyAction(form({ draftId: DRAFT, applicationId: APPLICATION, inbox: "7" }))).rejects.toThrow("NEXT_REDIRECT");
+    await expect(routeApplicantAction(form({ inbox: "https://evil.example" }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirected.to).toEqual([`/client/inbox?a=${APPLICATION}`, `/client/inbox?range=7&a=${APPLICATION}&notice=sent`, "/client/inbox?error=not_found"]);
+  });
+
+  test("Home's tab wins over the Inbox's flag, so a form can't be pointed anywhere new", async () => {
+    await expect(routeApplicantAction(form({ home: "1", inbox: "3" }))).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirected.to).toEqual(["/client?sub=tickets&error=not_found"]);
+  });
+});

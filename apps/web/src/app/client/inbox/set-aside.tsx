@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd } from "@/components/page";
 import type { ReadMark } from "@/lib/client/inbox-digest";
 import type { IssueInstance } from "@/lib/client/inbox-issues";
 import { rowSelector } from "@/lib/client/inbox-popup";
@@ -11,7 +12,8 @@ import { cn } from "@/lib/utils";
 import { dismissIssueAction, markDigestReadAction, restoreIssueAction } from "./actions";
 import { button, plain } from "./buttons";
 
-// Setting an issue aside (design/tats's E, `ibDone`) and getting it back. E
+// Setting an issue aside (design/tats's E, `ibDone`) and getting it back, and
+// marking a line of news read, from its row or its pop-up (E as well). E
 // isn't confirmed, as the prototype: it changes only this member's queue, and
 // Undo in the toast (or Z, or Move back to Inbox on Done) brings it straight back. A key
 // checks isShown first: on a phone's list the reader is mounted but hidden, and
@@ -26,9 +28,11 @@ function EKey({ press }: { press: () => void }) {
 function DismissSubmit({ refFn }: { refFn: (b: HTMLButtonElement | null) => void }) {
   const { pending } = useFormStatus();
   return (
-    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="E" className={cn(button, plain, "disabled:opacity-60")}>
+    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="E" className={cn(button, plain)}>
       Dismiss
-      <Kbd decorative>E</Kbd>
+      <Kbd>
+        E
+      </Kbd>
     </button>
   );
 }
@@ -90,6 +94,40 @@ function RowReadCheck({ what, className }: { what: string; className: string }) 
   );
 }
 
+function MarkReadSubmit({ refFn }: { refFn: (b: HTMLButtonElement | null) => void }) {
+  const { pending } = useFormStatus();
+  return (
+    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="E" className={cn(button, plain)}>
+      Mark read
+      <Kbd>
+        E
+      </Kbd>
+    </button>
+  );
+}
+
+/**
+ * A news entry's pop-up: the row's own Mark read, on E as the row's check is,
+ * and after it the member lands where the row's leaves them, on the card with
+ * the row below it in focus.
+ */
+export function MarkReadButton({ mark, next, range }: { mark: ReadMark; next: string | null; range: number }) {
+  const form = useRef<HTMLFormElement>(null);
+  const submit = useRef<HTMLButtonElement | null>(null);
+  const posted = useFocusAfter(next);
+  useKeyHelp("Inbox", [{ keys: "E", label: "Mark read" }]);
+  return (
+    <form ref={form} action={markDigestReadAction} onSubmit={posted}>
+      <EKey press={() => void (submit.current && isShown(form.current) && form.current?.requestSubmit(submit.current))} />
+      <input type="hidden" name="markKey" value={mark.key} />
+      <input type="hidden" name="markReason" value={mark.reason} />
+      <input type="hidden" name="markAt" value={mark.at} />
+      <input type="hidden" name="range" value={range} />
+      <MarkReadSubmit refFn={(b) => void (submit.current = b)} />
+    </form>
+  );
+}
+
 export function RowMarkRead({ mark, what, next, range, className }: { mark: ReadMark; what: string; next: string | null; range: number; className: string }) {
   const posted = useFocusAfter(next);
   return (
@@ -143,9 +181,11 @@ function ZKey({ press }: { press: () => void }) {
 function UndoSubmit({ used }: { used: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} hidden={used} aria-keyshortcuts="Z" className="inline-flex flex-none items-center gap-1.5 font-medium text-foreground underline-offset-2 hover:underline disabled:opacity-60">
+    <button type="submit" disabled={pending} hidden={used} aria-keyshortcuts="Z" className="inline-flex flex-none items-center gap-2 font-medium underline-offset-2 hover:underline disabled:opacity-60">
       Undo
-      <Kbd decorative>Z</Kbd>
+      <Kbd>
+        Z
+      </Kbd>
     </button>
   );
 }
@@ -182,7 +222,7 @@ export function UndoToast({ id, range }: { id: string; range: number }) {
 function MoveBackSubmit() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={cn(button, plain, "disabled:opacity-60")}>
+    <button type="submit" disabled={pending} className={cn(button, plain)}>
       Move back to Inbox
     </button>
   );

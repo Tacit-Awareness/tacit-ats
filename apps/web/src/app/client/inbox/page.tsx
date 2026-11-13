@@ -3,10 +3,13 @@ import { MarkSeen } from "@/components/app-shell/shell-memory";
 import { FlashToast } from "@/components/flash-toast";
 import { LiveRefresh } from "@/components/live-refresh";
 import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
+import { groupByTeam, isReferral, neighbour, type QueueEntry } from "@/lib/client/applicant-queue";
+import { readApplicantQueue } from "@/lib/client/applicants";
+import { readDepartments } from "@/lib/client/departments";
 import { readSender } from "@/lib/client/email";
 import { stageLabel } from "@/lib/client/crm-views";
 import { readDecisionLoop, readDone, readDoneStory, readInbox, readIssue, readIssueName, type DecisionLoop } from "@/lib/client/inbox";
-import { inboxHref, parseRange, rowAfter, selectedRow } from "@/lib/client/inbox-digest";
+import { inboxHref, parseRange, rowAfter, selectedRow, type DigestRange } from "@/lib/client/inbox-digest";
 import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, isIssueKey, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
 import { readDigest } from "@/lib/client/inbox-feed";
@@ -16,52 +19,97 @@ import { webMailer } from "@/lib/client/mailer";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
+import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "../applicants/messages";
+import { readTicket, teamOf } from "../applicants/tickets";
 import { CandidateBody } from "../candidates/[id]/view";
 import { readCandidateView } from "../candidates/[id]/read";
 import { feedbackCards, loopProps } from "../interviews/loop-props";
 import { Refusal } from "../refusal";
 import { DoneView } from "./done-view";
 import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice, movedToast } from "./messages";
+import { DIGEST_SECTION, REASON_SECTION, SECTIONS, isSectionKey } from "./sections";
 import { UndoToast } from "./set-aside";
-import { InboxView, type Standing, type TicketLoop } from "./view";
+import { InboxView, type TicketLoop } from "./view";
 
-// The Inbox (design/tats's #inbox): what is stuck and waiting on someone, one
-// digest card. lib/client/inbox.ts reads on the member's own token, lib/client/
-// inbox-issues.ts computes the queue, lib/client/inbox-feed.ts what happened
-// lately, view.tsx draws them; this file words the issue's card. `?range=` is
-// how far back the digest goes (Needs you doesn't depend on it). `?i=` opens an
-// issue in the pop-up, and only then is it read in full. `?open=` opens a digest
-// row's candidate the same way, checked against the rows this member's own read
-// just listed, as the Pipeline's `?open=` is, so a tampered id reads nothing.
-// `?tab=done` is Done, where `?i=` is a dismissal's id. `?was=` names what a
-// pop-up just dealt with, for the toast. An interviewer gets the pointer home.
+// The Inbox (design/tats's #inbox): what is stuck and waiting on someone, who
+// is newly in and what happened lately, in one card of three sections
+// (sections.ts). lib/client/inbox.ts reads on the member's own token,
+// lib/client/inbox-issues.ts computes the queue, lib/client/inbox-feed.ts what
+// happened lately, lib/client/applicants.ts who is newly in (the same read New
+// Applicants and the sidebar's mark make), view.tsx draws them; this file words
+// the issue's card. `?range=` is how far back the digest goes, from a link only
+// now: the card has no switch for it, and with none it is the default (Needs
+// you doesn't depend on it). `?show=` opens the card on one section. `?i=`
+// opens an issue in the pop-up, and only then is it read in full. `?open=`
+// opens a digest row's candidate the same way, checked against the rows this
+// member's own read just listed, as the Pipeline's `?open=` is, so a tampered
+// id reads nothing. `?a=` opens a new applicant's ticket the same way, by its
+// id in this member's own queue, read as New Applicants reads it
+// (applicants/tickets.tsx's readTicket); routing or replying there posts New
+// Applicants' own actions, which come back here with `?a=` on the next one and
+// New Applicants' words. `?tab=done` is Done, where `?i=` is a dismissal's id.
+// `?was=` names what a pop-up just dealt with, for the toast. An interviewer
+// gets the pointer home.
 
-function card(i: Issue, fix: IssueFix): { title: string; detail: string } {
+/** Between the facts of a pop-up's subject line: a wide space, as Testbench puts no dot between facts. */
+const GAP = "\u2003";
+
+/**
+ * The card's words: `detail` is what is so, shown on the card; `hint` is how the
+ * fix deals with it, the fix button's hover rather than a line under the
+ * buttons. A draft that can't go out says why on the card: its button is off,
+ * so it has no hover to say it on.
+ */
+function card(i: Issue, fix: IssueFix): { title: string; detail: string; hint?: string } {
   const decidable = fix.type === "decide";
   switch (i.reason) {
     case "feedback":
-      return { title: "Waiting on feedback", detail: `${i.why}. Nothing here can remind them yet.` };
+      return { title: "Waiting on feedback", detail: `${i.why}.`, hint: "Nothing here can remind them yet." };
     case "overdue":
-      return { title: i.nextAction ?? "Next action overdue", detail: `${i.why}${i.who ? ` · ${i.who}` : ""}` };
+      // Who it's with is beside the card's age ("With …"), so the line is only why.
+      return { title: i.nextAction ?? "Next action overdue", detail: `${i.why}.` };
     case "quiet":
-      return { title: "No touch in over a week", detail: `${i.why}${i.who ? ` · owned by ${i.who}` : ""}` };
+      return { title: "No touch in over a week", detail: `${i.why}.${i.who ? ` Owned by ${i.who}.` : ""}` };
     case "decide":
       return {
         title: "The team's call",
-        detail: decidable ? `${i.why}. Next round finds a time for their next interview.` : `${i.why}. Move them on or close them from their page.`,
+        detail: `${i.why}.`,
+        hint: decidable ? "Next round finds a time for their next interview." : "Move them on or close them from their page.",
       };
     case "approval":
       return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
     case "reply":
-      return { title: "They wrote back", detail: `From ${i.reply?.fromEmail ?? "the candidate"}. It's also forwarded to your own email. Writing to them again clears this.` };
+      return { title: "They wrote back", detail: `From ${i.reply?.fromEmail ?? "the candidate"}.`, hint: "It's also forwarded to your own email. Writing to them again clears this." };
     case "draft":
-      return {
-        title: "Not sent",
-        detail:
-          fix.type === "send" && fix.canSend
-            ? "Read it, then Send here. It only goes out after you confirm."
-            : "Email isn't set up on this deployment, so it can't go out from here. The client connector's send_email may still send it.",
-      };
+      return fix.type === "send" && fix.canSend
+        ? { title: "Not sent", detail: "", hint: "Read it, then Send here. It only goes out after you confirm." }
+        : { title: "Not sent", detail: "Email isn't set up on this deployment, so it can't go out from here. The client connector's send_email may still send it." };
+  }
+}
+
+/** New applicants the card lists, newest first; the rest are a link away, in New Applicants. */
+const NEWCOMERS_SHOWN = 4;
+
+/** A new applicant's ticket over the card, at the range it opened from. */
+function applicantHref(range: DigestRange, applicationId: string): string {
+  const qs = new URLSearchParams(inboxHref(range).split("?")[1]);
+  qs.set("a", applicationId);
+  return `/client/inbox?${qs}`;
+}
+
+/** Their ticket in New Applicants: the pop-up's Open as a page, and the row's. */
+const applicantPage = (applicationId: string) => `/client/applicants?a=${applicationId}`;
+
+/** How someone came in, in words: a referral's referrer as written (free text, so only ever rendered as text), else the job board. */
+const cameBy = (e: QueueEntry) => (isReferral(e) ? (e.referredBy ?? "Referral") : "Job board");
+
+/** The queue New Applicants reads, on the member's own token. A failed read answers null and the card leaves the section quiet: the Inbox must never go down over it. */
+async function readNewcomers(db: Parameters<typeof readApplicantQueue>[0], who: Parameters<typeof readApplicantQueue>[1]): Promise<QueueEntry[] | null> {
+  try {
+    return await readApplicantQueue(db, who);
+  } catch (e) {
+    console.error("inbox new applicants:", e instanceof Error ? e.message : "read failed");
+    return null;
   }
 }
 
@@ -93,17 +141,10 @@ function ticketLoop(read: DecisionLoop | null, candidate: string, isAdmin: boole
   };
 }
 
-/** Where an application stands, from what's on it: its next action, else its stage, and how long since anyone touched it. */
-function standingOf(a: { stage: string; nextAction: string | null; nextActionDue: string | null; lastTouchAt: string }, who: string | null, now: number): Standing {
-  const due = a.nextActionDue ? Date.parse(`${a.nextActionDue.slice(0, 10)}T23:59:59Z`) : null;
-  const late = due !== null && due < now;
-  return {
-    who,
-    title: a.nextAction ?? stageLabel(a.stage),
-    why: !a.nextAction ? "No next action set." : late ? `${stageLabel(a.stage)}. Past its due date.` : stageLabel(a.stage),
-    age: `Touched ${ago(a.lastTouchAt, now)}`,
-    late,
-  };
+/** How long an issue has waited, for its card: "Waiting 4d", or "Waiting since today". */
+function waited(iso: string, now: number): string {
+  const since = ago(iso, now);
+  return since === "today" ? "Waiting since today" : `Waiting ${since.replace(/ ago$/, "")}`;
 }
 
 export default async function ClientInbox({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -133,10 +174,15 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const error = one(sp.error);
   const undo = one(sp.undo);
   const range = parseRange(one(sp.range));
+  // New Applicants' writes from the pop-up come back on the ticket (`?a=`), or with a route's own notice once nobody is
+  // left to open, and say what they say on New Applicants.
+  const fromTicket = one(sp.a) !== "" || (isApplicantNotice(notice) && !isInboxNotice(notice));
+  const refusal = fromTicket && isApplicantError(error) ? APPLICANT_ERRORS[error] : isInboxError(error) ? INBOX_ERRORS[error] : null;
+  const said = fromTicket && isApplicantNotice(notice) ? APPLICANT_NOTICES[notice] : isInboxNotice(notice) ? INBOX_NOTICES[notice] : null;
   // A refusal stays beside what failed; anything else is a toast, Undo included.
-  const flash = isInboxError(error) ? <Notice tone="error">{INBOX_ERRORS[error]}</Notice> : null;
+  const flash = refusal ? <Notice tone="error">{refusal}</Notice> : null;
   const toastOf = (text: string) => <FlashToast text={text} action={notice === "dismissed" && UUID.test(undo) ? <UndoToast id={undo} range={range} /> : undefined} />;
-  const toast = !flash && isInboxNotice(notice) ? toastOf(INBOX_NOTICES[notice]) : null;
+  const toast = !flash && said ? toastOf(said) : null;
 
   const now = new Date();
   const nowMs = now.getTime();
@@ -185,7 +231,13 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
     );
   }
 
-  const digest = await readDigest(db, range, now, issues.length);
+  const [digest, queue] = await Promise.all([readDigest(db, range, now, issues.length), readNewcomers(db, member)]);
+  // Newest first, as the card lists them: routing one from its pop-up opens the one below it in this order.
+  const newest = queue ? [...queue].sort((a, b) => Date.parse(b.appliedAt) - Date.parse(a.appliedAt)) : [];
+  const newcomers = newest.slice(0, NEWCOMERS_SHOWN);
+  // The card's order, by section: what J and K walk, what takes focus after a dismiss, and which issue a fix opens next.
+  const ordered = SECTIONS.flatMap((s) => issues.filter((i) => REASON_SECTION[i.reason] === s.key));
+  const show = one(sp.show);
   const open = selectedIssue(issues, one(sp.i));
   const detail = open ? await readIssue(db, member, open) : null;
   const mailer = webMailer();
@@ -202,13 +254,29 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const loop = open && whole && open.job.id && open.applicationId ? await readDecisionLoop(db, member, { jobId: open.job.id, applicationId: open.applicationId }) : null;
   const personApp = openPerson && shownRow ? openPerson.candidate.applications.find((a) => a.applicationId === shownRow.applicationId) : null;
   const personLoop = shownRow && personApp ? await readDecisionLoop(db, member, { jobId: personApp.jobId, applicationId: shownRow.applicationId }) : null;
+  const shownGroup = shownRow ? digest.groups.find((g) => g.rows.includes(shownRow)) : undefined;
 
-  const walk = [...issues.map((i) => i.key), ...digest.groups.flatMap((g) => g.rows.map((r) => r.id))];
+  // A new applicant by their exact id in this member's own queue, as New Applicants' `?a=`; an issue or a row wins over them.
+  const openApplicant = open || shownRow || !queue ? null : (newest.find((e) => e.applicationId === one(sp.a)) ?? null);
+  const applicantTicket =
+    openApplicant && queue
+      ? await readTicket(
+          gate.ctx,
+          openApplicant,
+          { team: teamOf(groupByTeam(queue, await readDepartments(db)), openApplicant), next: neighbour(newest, openApplicant.applicationId)?.applicationId ?? null, inbox: range },
+          nowMs,
+        )
+      : null;
+
+  const walk = SECTIONS.flatMap((s) => [
+    ...ordered.filter((i) => REASON_SECTION[i.reason] === s.key).map((i) => i.key),
+    ...digest.groups.filter((g) => DIGEST_SECTION[g.key] === s.key).flatMap((g) => g.rows.map((r) => r.id)),
+  ]);
 
   // What a pop-up just dealt with, by key: its name is read like any Done row, on the member's own token.
   const was = one(sp.was);
   const moved =
-    toast && isInboxNotice(notice) && isIssueKey(was)
+    toast && !fromTicket && isInboxNotice(notice) && isIssueKey(was)
       ? movedToast(notice, { name: await readIssueName(db, actorId, was, standing), next: open ? (open.candidate?.name ?? open.job.title) : null, caughtUp: issues.length === 0 })
       : null;
 
@@ -238,26 +306,27 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                 kind: open.kind,
                 instance: { key: open.key, reason: open.reason, at: open.at },
                 what: open.what,
-                subject: [open.candidate?.name, open.job.title].filter(Boolean).join(" · "),
+                subject: [open.candidate?.name, open.job.title].filter(Boolean).join(GAP),
                 card: card(open, fix),
                 draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body, from: sender?.from ?? null, replyTo: sender?.replyTo ?? null } : null,
                 reply: open.reply ? { subject: open.reply.subject, body: detail?.replyBody ?? "" } : null,
                 fix,
                 decision,
                 terms: detail?.terms ? offerTermLines(detail.terms) : null,
-                next: nextIssue(issues, open.key)?.key ?? null,
+                next: nextIssue(ordered, open.key)?.key ?? null,
                 secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
                 who: open.who,
-                age: `Waiting ${ago(waitingSince(open), nowMs)}`,
+                age: waited(waitingSince(open), nowMs),
                 page: (detail?.canOpen ?? true) ? candidateHref(open) : null,
                 story: open.candidate ? (detail?.story ?? null) : null,
                 ticket:
                   whole && open.candidate
                     ? {
                         title: open.candidate.name,
-                        subject: [open.job.title, open.applicationId ? stageOf(whole.candidate.applications, open.applicationId) : null].filter(Boolean).join(" · "),
+                        subject: [open.job.title, open.applicationId ? stageOf(whole.candidate.applications, open.applicationId) : null].filter(Boolean).join(GAP),
                         loop: ticketLoop(loop, open.candidate.name, accessLevel === "admin", nowMs),
-                        body: (call) => <CandidateBody {...whole} notice={null} error={null} call={call} />,
+                        // An overdue ticket already states the next action, so the dashboard under it doesn't repeat it.
+                        body: (call) => <CandidateBody {...whole} notice={null} error={null} call={call} dashboard nextInCall={open.reason === "overdue" ? open.applicationId : null} />,
                       }
                     : null,
                 now: nowMs,
@@ -269,24 +338,56 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
             ? {
                 key: shownRow.id,
                 title: shownRow.candidate.name,
-                subject: [shownRow.jobTitle, stageOf(openPerson.candidate.applications, shownRow.applicationId)].filter(Boolean).join(" · "),
+                subject: [shownRow.jobTitle, stageOf(openPerson.candidate.applications, shownRow.applicationId)].filter(Boolean).join(GAP),
                 page: shownRow.page,
                 loop: ticketLoop(personLoop, shownRow.candidate.name, accessLevel === "admin", nowMs),
-                standing: personApp ? standingOf(personApp, openPerson.owners[personApp.applicationId] ?? null, nowMs) : null,
-                body: (call) => <CandidateBody {...openPerson} notice={null} error={null} call={call} />,
+                body: (call) => <CandidateBody {...openPerson} notice={null} error={null} call={call} dashboard />,
+                news: shownGroup
+                  ? { what: shownRow.what, group: shownGroup.key, who: shownRow.who, at: shownRow.at, age: ago(shownRow.at, nowMs), interviewAt: shownRow.interviewAt, mark: shownRow.mark, next: rowAfter(walk, shownRow.id) }
+                  : null,
               }
+            : null
+        }
+        applicant={
+          openApplicant && applicantTicket
+            ? { key: openApplicant.applicationId, title: applicantTicket.name, subject: applicantTicket.jobTitle, page: applicantPage(openApplicant.applicationId), ticket: applicantTicket }
             : null
         }
         flash={flash}
         home={inboxHref(range)}
         truncated={truncated}
         draftsCapped={draftsCapped}
+        show={isSectionKey(show) ? show : null}
+        applicants={
+          queue
+            ? {
+                total: queue.length,
+                href: "/client/applicants",
+                rows: newcomers.map((e) => ({
+                  applicationId: e.applicationId,
+                  href: applicantHref(range, e.applicationId),
+                  page: applicantPage(e.applicationId),
+                  active: e.applicationId === openApplicant?.applicationId,
+                  name: e.name ?? "Unnamed applicant",
+                  referral: isReferral(e),
+                  job: e.jobTitle,
+                  source: cameBy(e),
+                  age: ago(e.appliedAt, nowMs),
+                })),
+              }
+            : null
+        }
         digest={{
           range,
           asOf: now.toISOString(),
-          total: digest.total,
-          shown: digest.shown,
-          sources: digest.sources,
+          // Who is newly in counts as read too, in the title's hover and the reading pass.
+          total: digest.total + (queue?.length ?? 0),
+          shown: digest.shown + newcomers.length,
+          sources: [
+            ...(queue ? [{ label: "Applications", count: queue.length }] : []),
+            { label: "Messages", count: issues.filter((i) => i.reason === "reply" || i.reason === "draft").length },
+            ...digest.sources,
+          ],
           unread: digest.unread.length,
           capped: digest.capped,
           groups: digest.groups.map((g) => ({ ...g, rows: g.rows.map((r) => ({ ...r, age: ago(r.at, nowMs), active: r.id === shownRow?.id, next: rowAfter(walk, r.id) })) })),

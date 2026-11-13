@@ -1,21 +1,28 @@
-import { Avatar } from "@/components/page";
+import { StatusGlyph, type GlyphKind } from "@/components/page";
 import { cn } from "@/lib/utils";
 import { ReadThread, VerdictPill, type FeedbackCard } from "../interviews/view";
 
 // What a ticket opened from the Inbox wants of the member, under its chips:
 // design/tats's `.call-card` for a decision, the read and the buttons together,
 // and its `.sit` for everything else, where it stands and what moves it on.
-// Props only. Everything a member or a candidate wrote renders as text.
+// Both are Testbench cards (`.peek`): a white card, a Mona Sans heading, data in
+// Geist Mono, the buttons in a foot over a hairline. Props only. Everything a
+// member or a candidate wrote renders as text.
 
-/** design/tats's `.cc-head`: the interviewer, when they filed, the verdict right; then the rest of the read as its chat transcript. */
+const card = "grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-[14px] bg-card shadow-[var(--shadow)]";
+const foot = "flex flex-wrap items-center gap-2 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-5 py-3.5";
+
+/** design/tats's `.cc-head`: the interviewer and when they filed, the verdict right; then the rest of the read as its chat transcript. */
 function Read({ feedback: f }: { feedback: FeedbackCard }) {
   return (
     <article className="grid gap-3">
       <header className="flex flex-wrap items-center gap-3">
-        <Avatar name={f.interviewer} size="lg" />
-        <div className="grid min-w-0 flex-1">
-          <b className="text-[14px] font-semibold break-words">{f.interviewer === "You" ? "Your read" : `${f.interviewer}'s read`}</b>
-          <span className="text-[13px] text-muted-foreground">{[f.rating !== null ? `${f.rating} / 4` : null, f.submitted].filter(Boolean).join(" · ")}</span>
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <b className="font-sans text-[15px] leading-5 font-semibold break-words">{f.interviewer === "You" ? "Your read" : `${f.interviewer}'s read`}</b>
+          <span className="flex flex-wrap gap-x-3 text-[12px] text-faint tabular-nums">
+            {f.rating !== null ? <span>{f.rating} / 4 overall</span> : null}
+            {f.submitted ? <span>{f.submitted}</span> : null}
+          </span>
         </div>
         <VerdictPill verdict={f.verdict} label={f.recommendation} />
       </header>
@@ -24,58 +31,89 @@ function Read({ feedback: f }: { feedback: FeedbackCard }) {
   );
 }
 
-/** The reads and the buttons in one card. With no read to show, `head` says what is waiting. */
-export function CallCard({ reads, note, head, hint, children, actions }: { reads: FeedbackCard[]; note: string | null; head: React.ReactNode; hint: string; children?: React.ReactNode; actions: React.ReactNode }) {
+/**
+ * The reads and the buttons in one card. With no read to show, `head` says what
+ * is waiting; with reads, `fact` (what is so, "Interviewed 1d ago, nothing
+ * booked next.", which the entry and the route say too) and `note` (whose read
+ * stays hidden) are the card's hover and its screen-reader text, not grey lines
+ * under the reads. How the buttons deal with it is their hover.
+ */
+export function CallCard({ reads, note, head, fact, children, actions }: { reads: FeedbackCard[]; note: string | null; head: React.ReactNode; fact: string; children?: React.ReactNode; actions: React.ReactNode }) {
+  const aside = [note, reads.length ? fact : null].filter(Boolean).join(" ");
   return (
-    <section aria-label={actions ? "Your call" : "The read"} className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] px-[18px] py-4">
-      {reads.length ? reads.map((f) => <Read key={f.feedbackId} feedback={f} />) : head}
-      {children}
-      {note ? <p className="m-0 text-[12.5px] text-faint">{note}</p> : null}
-      {actions ? <div className="pt-1">{actions}</div> : null}
-      {reads.length && hint ? <p className="m-0 text-[12.5px] text-faint">{hint}</p> : null}
+    <section aria-label={actions ? "Your call" : "The read"} title={aside || undefined} className={card}>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 px-5 py-4">
+        {/* Several reads keep apart with a hairline between them. */}
+        {reads.length ? <div className="grid gap-4 divide-y divide-[color:var(--line)] [&>*+*]:pt-4">{reads.map((f) => <Read key={f.feedbackId} feedback={f} />)}</div> : head}
+        {children}
+        {aside ? <p className="sr-only">{aside}</p> : null}
+      </div>
+      {actions ? <div className={foot}>{actions}</div> : null}
     </section>
   );
 }
 
-/** design/tats's `.sit`: who has it, what's happening, how long, then what moves it on. Past due it says so, in red. */
+/**
+ * design/tats's `.sit`: what's happening and why, with who has it and how long
+ * on the right, then what moves it on. `glyph` is the square its row wears in
+ * the list; left out, past due is the red alert and anything else a wait. Only
+ * the alert turns the age red: red means overdue. `note` is a why that would
+ * only repeat what is around the card: the title's hover and screen-reader text.
+ * A news entry's pop-up draws the same card for what happened (`label`), who
+ * did it after its own word (`whoWord`), when, and Mark read.
+ */
 export function WhereItStands({
   who,
   title,
   why,
   age,
   late = false,
+  glyph: given,
+  note,
+  label = "Where it stands",
+  whoWord = "With",
   children,
   actions = null,
 }: {
   who: string | null;
-  title: string;
+  title: React.ReactNode;
   why: string;
-  age: string | null;
+  note?: string;
+  age: React.ReactNode;
   late?: boolean;
+  glyph?: GlyphKind;
+  label?: string;
+  whoWord?: string;
   children?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  const glyph: GlyphKind = given ?? (late ? "alert" : "pending");
+  const red = glyph === "alert";
   return (
-    <section
-      aria-label="Where it stands"
-      className={cn(
-        "grid grid-cols-[minmax(0,1fr)] overflow-hidden rounded-[10px] border bg-[color:var(--raised)]",
-        late ? "border-[color:color-mix(in_oklch,var(--red)_45%,var(--line))] shadow-[inset_3px_0_0_var(--red)]" : "border-[color:var(--line)]",
-      )}
-    >
-      <div className="flex items-start gap-3 px-5 py-4">
-        {who ? <Avatar name={who} size="lg" /> : null}
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          {who ? <span className="text-[12px] text-faint">With {who}</span> : null}
-          <b className="text-[15px] font-semibold break-words">{title}</b>
-          <span className="text-[13.5px] break-words text-muted-foreground">{why}</span>
+    <section aria-label={label} className={card}>
+      <div className="grid grid-cols-[14px_minmax(0,1fr)] items-start gap-x-3 gap-y-1 px-5 py-4 sm:grid-cols-[14px_minmax(0,1fr)_auto]">
+        <StatusGlyph kind={glyph} still className="mt-[3px]" />
+        <div className="grid min-w-0 gap-1">
+          <b title={note || undefined} className="font-sans text-[15px] leading-5 font-semibold break-words">
+            {title}
+            {note ? <span className="sr-only"> {note}</span> : null}
+          </b>
+          {why ? <span className="text-[13px] break-words text-muted-foreground">{why}</span> : null}
         </div>
-        {age ? <span className={cn("text-[13px] font-medium whitespace-nowrap tabular-nums", late && "text-[color:var(--red)]")}>{age}</span> : null}
+        {who || age ? (
+          <span className="col-start-2 flex flex-wrap gap-x-3 text-[12.5px] whitespace-nowrap text-faint tabular-nums sm:col-start-3 sm:justify-end sm:pt-px">
+            {who ? (
+              <span>
+                {whoWord} {who}
+              </span>
+            ) : null}
+            {age ? <span className={cn(red && "text-[color:var(--red)]")}>{age}</span> : null}
+          </span>
+        ) : null}
       </div>
-      {children ? <div className="grid gap-3 border-t border-[color:var(--line)] px-5 py-3">{children}</div> : null}
+      {children ? <div className="grid gap-3 border-t border-[color:var(--line)] px-5 py-4">{children}</div> : null}
       {actions ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-5 py-3">
-          <span className="flex-none text-[12px] text-faint">To move it on</span>
+        <div role="group" aria-label="To move it on" className={foot}>
           {actions}
         </div>
       ) : null}

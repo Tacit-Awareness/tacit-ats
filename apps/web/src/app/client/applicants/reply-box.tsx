@@ -2,15 +2,18 @@
 
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
-import { Notice } from "@/components/page";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd, Notice, Pill, pillOption, pillTrack } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
+import { Input, selectClass } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { DraftSender, ShownDraft } from "@/lib/client/email";
 import { isShown } from "@/lib/keys";
 import { REPLY_KINDS, type ReplyKind, type ReplyStarters } from "@/lib/client/reply-starters";
 import type { TemplateStarter } from "@/lib/client/email-template-rules";
 import { cn } from "@/lib/utils";
 import { draftReplyAction, sendReplyAction } from "./actions";
-import { pill, pillPrimary } from "./routing-bar";
+import { CmdEnter } from "../inbox/keycaps";
 
 // The control panel's message (design/tats's `.cp-main`): the reply to the
 // applicant as a preview, with a large button beside it, always in two steps.
@@ -26,10 +29,16 @@ import { pill, pillPrimary } from "./routing-bar";
 // the built-in ones, or the company's templates (Settings > Email templates),
 // filled in on the server (email-template-rules.ts's templateStarters). A
 // template posts only its id beside the words, which core records on the draft.
+// Drawn in Testbench's parts: the message a white card, the starters a small
+// segmented control, the big button black with its key inside. What a step
+// will and won't do is the button's hover (and a screen reader's status line),
+// not a caption under it.
 
 export type Reply = {
   /** Drawn in Home's tab, so a post comes back there. */
   home?: boolean;
+  /** Drawn in the Inbox's pop-up, at this digest range, so a post comes back there on this applicant. */
+  inbox?: number;
   applicationId: string;
   candidateId: string;
   /** Whom it would go to, for the composer; the draft says for certain. */
@@ -50,73 +59,105 @@ export type Reply = {
 
 const LABEL: Record<ReplyKind, string> = { interview: "Interview", testbench: "Testbench", decline: "Decline", blank: "Blank" };
 
-const field =
-  "w-full border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-[13.5px] outline-none transition-colors placeholder:text-faint focus-visible:border-[color:var(--line-strong)]";
-
 const shell = "grid grid-cols-[minmax(0,1fr)] gap-2";
-/** `.cp-main`: the message, then the button. */
+/** `.cp-main`: the message, then the button beside it. */
 const main = "grid grid-cols-[minmax(0,1fr)] items-stretch gap-4 md:grid-cols-[minmax(0,1fr)_auto]";
-/** `.cp-msg`. */
-const message = "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-[10px] border border-[color:var(--line)] bg-[color:var(--raised)] px-4 py-3 text-left";
+/**
+ * The same with the message open or a draft to read: in a narrow reader (the
+ * panel's container query) the buttons go under the message, right-aligned, so
+ * the words get the reader's whole width rather than a column beside them.
+ */
+const mainWide = "grid grid-cols-[minmax(0,1fr)] items-stretch gap-3 @3xl:grid-cols-[minmax(0,1fr)_auto] @3xl:gap-4";
+/** `.cp-msg`: a white card. */
+const message = "grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-2.5 rounded-[12px] bg-card px-4 py-3 text-left shadow-[var(--shadow-sm)]";
 /** `.cp-send`. */
-const sendColumn = "grid content-end justify-items-stretch gap-2 md:w-[220px] md:justify-items-end md:text-right";
-/** `.cp-send .cx-primary`. */
-const large = "h-12 justify-center px-[26px] text-[15px]";
-const hint = "m-0 text-[12px] text-faint";
+const sendColumn = "grid content-end justify-items-stretch gap-2 md:w-[200px]";
+const sendRow = "grid content-end justify-items-stretch gap-2 @max-3xl:flex @max-3xl:flex-row-reverse @max-3xl:items-center @3xl:w-[200px]";
+/** `.cp-send .cx-primary`: Testbench's big button. */
+const large = buttonVariants({ size: "lg" });
+const plain = buttonVariants({ variant: "outline" });
+/** Who it goes to and from whom, the message card's top line. */
+const addressLine = "flex min-w-0 flex-wrap gap-x-3 text-[12px] text-faint";
 
-function DraftSubmit() {
+function DraftSubmit({ hint }: { hint: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} title="Review draft (⌘↵)" className={cn(pill, pillPrimary, large)}>
+    <button type="submit" disabled={pending} title={`${hint} (⌘↵)`} className={large}>
       {pending ? "Writing…" : "Review draft"}
-      <Kbd decorative className="border-transparent bg-current/20 text-current">
-        ⌘↵
+      <Kbd>
+        <CmdEnter />
       </Kbd>
     </button>
   );
 }
 
-function SendSubmit() {
+function SendSubmit({ hint }: { hint: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className={cn(pill, pillPrimary, large)}>
+    <button type="submit" disabled={pending} title={hint} className={large}>
       {pending ? "Sending…" : "Send"}
     </button>
   );
 }
 
-/** The stored draft, exactly what Send delivers. */
+/** Said to a screen reader as the step changes; a sighted member has it on the button's hover. */
+function Status({ children }: { children: string }) {
+  return (
+    <p role="status" className="sr-only">
+      {children}
+    </p>
+  );
+}
+
+function Address({ to, from }: { to: string; from: string | null }) {
+  return (
+    <span className={addressLine}>
+      <span className="min-w-0 truncate">To {to}</span>
+      {from ? <span className="min-w-0 truncate">from {from}</span> : null}
+    </span>
+  );
+}
+
+const DRAFT_HINT = "Draft. Nothing has gone out: read it, then Send.";
+
+/** The stored draft, exactly what Send delivers, marked as a draft (amber: it waits on you). */
 function DraftReview({ reply, draft, sent, change }: { reply: Reply; draft: ShownDraft; sent: ReactNode; change: () => void }) {
   return (
     <section aria-label="Draft reply" className={shell}>
       {sent}
-      <div className={main}>
+      <div className={mainWide}>
         <div className={cn(message, "max-h-[45vh] overflow-y-auto")}>
-          <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
-            {reply.sender ? (
-              <>
-                <dt className="text-muted-foreground">From</dt>
-                <dd className="m-0 min-w-0 break-words">{reply.sender.from}</dd>
-                <dt className="text-muted-foreground">Replies</dt>
-                <dd className="m-0 min-w-0 break-words">{reply.sender.replyTo}</dd>
-              </>
-            ) : null}
-            <dt className="text-muted-foreground">To</dt>
-            <dd className="m-0 min-w-0 break-words">{draft.to}</dd>
-            <dt className="text-muted-foreground">Subject</dt>
-            <dd className="m-0 min-w-0 break-words">{draft.subject}</dd>
-          </dl>
-          <p className="m-0 border-t border-[color:var(--line)] pt-2 text-[14px] leading-[1.55] break-words whitespace-pre-wrap">{draft.body}</p>
+          <div className="flex items-start gap-3">
+            <dl className="m-0 grid min-w-0 flex-1 grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[12.5px]">
+              {reply.sender ? (
+                <>
+                  <dt className="text-faint">From</dt>
+                  <dd className="m-0 min-w-0 break-words">{reply.sender.from}</dd>
+                  <dt className="text-faint">Replies</dt>
+                  <dd className="m-0 min-w-0 break-words">{reply.sender.replyTo}</dd>
+                </>
+              ) : null}
+              <dt className="text-faint">To</dt>
+              <dd className="m-0 min-w-0 break-words">{draft.to}</dd>
+              <dt className="text-faint">Subject</dt>
+              <dd className="m-0 min-w-0 break-words">{draft.subject}</dd>
+            </dl>
+            <Pill tone="amber" title={DRAFT_HINT} className="flex-none">
+              Draft
+            </Pill>
+          </div>
+          <p className="m-0 border-t border-[color:var(--line)] pt-2.5 font-sans text-[14px] leading-[22px] break-words whitespace-pre-wrap">{draft.body}</p>
         </div>
-        <form action={sendReplyAction} className={sendColumn}>
+        <form action={sendReplyAction} className={sendRow}>
           <input type="hidden" name="draftId" value={draft.draftId} />
           <input type="hidden" name="applicationId" value={reply.applicationId} />
           {reply.home ? <input type="hidden" name="home" value="1" /> : null}
-          <SendSubmit />
-          <button type="button" onClick={change} className={cn(pill, "justify-center")}>
+          {reply.inbox !== undefined ? <input type="hidden" name="inbox" value={reply.inbox} /> : null}
+          <SendSubmit hint={DRAFT_HINT} />
+          <button type="button" onClick={change} className={cn(plain, "@max-3xl:h-11")}>
             Change it
           </button>
-          <p className={hint}>Draft. Nothing has gone out: read it, then Send.</p>
+          <Status>{DRAFT_HINT}</Status>
         </form>
       </div>
     </section>
@@ -187,11 +228,11 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
     return (
       <section ref={box} aria-label="Reply" className={shell}>
         {sent}
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled className={cn(pill, "cursor-not-allowed")}>
+        <div className="flex items-center gap-3">
+          <button type="button" disabled className={buttonVariants({ variant: "outline", size: "sm" })}>
             Reply
           </button>
-          <span role="status" className="text-[12.5px] text-muted-foreground">
+          <span role="status" className="min-w-0 flex-1 text-[12.5px] text-muted-foreground">
             {enabled ? "No email address on file, so there's nobody to reply to." : "Email isn't set up on this deployment, so replies can't go out from here."}
           </span>
         </div>
@@ -210,7 +251,12 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
     return <DraftReview reply={reply} draft={draft} sent={sent} change={change} />;
   }
 
-  const from = reply.sender ? ` · from ${reply.sender.from}` : "";
+  const from = reply.sender?.from ?? null;
+  const hint = changing
+    ? "Saves a new draft. The old one stays unsent and is dropped from your Inbox."
+    : open
+      ? "This only writes a draft. You'll read it before anything goes out."
+      : "Nothing goes out until you read the draft and press Send.";
 
   return (
     <section ref={box} aria-label="Reply" className={shell}>
@@ -219,7 +265,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
       {failed ? <p className="m-0 text-[12.5px] text-muted-foreground">Your last reply here didn&apos;t go out, so here are its words to write again.</p> : null}
       <form
         action={action}
-        className={main}
+        className={open ? mainWide : main}
         onKeyDown={(e) => {
           if (e.key === "Escape" && !changing) setOpen(false);
           if (e.key !== "Enter") return;
@@ -235,24 +281,24 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
         <input type="hidden" name="applicationId" value={reply.applicationId} />
         <input type="hidden" name="candidateId" value={reply.candidateId} />
         {reply.home ? <input type="hidden" name="home" value="1" /> : null}
+        {reply.inbox !== undefined ? <input type="hidden" name="inbox" value={reply.inbox} /> : null}
         {fromTemplate ? <input type="hidden" name="templateId" value={fromTemplate.templateId} /> : null}
         {open ? (
           <div className={message}>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="min-w-0 truncate text-[12.5px] text-faint">
-                To {to}
-                {from}
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Address to={to} from={from} />
               {mine === null ? (
-                <span role="group" aria-label="Start from" className="ml-auto flex items-center gap-1">
-                  {REPLY_KINDS.map((k) => {
-                    const on = picked === null && k === kind;
-                    return (
-                      <button key={k} type="button" aria-pressed={on} onClick={() => startFrom({ kind: k })} className={cn(pill, on && "bg-[color:var(--sel)]")}>
-                        {LABEL[k]}
-                      </button>
-                    );
-                  })}
+                <span className="ml-auto flex flex-wrap items-center gap-2">
+                  <span role="group" aria-label="Start from" className={pillTrack}>
+                    {REPLY_KINDS.map((k) => {
+                      const on = picked === null && k === kind;
+                      return (
+                        <button key={k} type="button" aria-pressed={on} onClick={() => startFrom({ kind: k })} className={pillOption(on, "sm")}>
+                          {LABEL[k]}
+                        </button>
+                      );
+                    })}
+                  </span>
                   {templates.length ? (
                     <select
                       aria-label="Start from a template"
@@ -261,7 +307,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
                         const t = templates.find((x) => x.templateId === e.target.value);
                         if (t) startFrom({ template: t });
                       }}
-                      className={cn(pill, "max-w-[180px] truncate", picked && "bg-[color:var(--sel)]")}
+                      className={cn(selectClass, "h-[30px] w-auto max-w-[180px] truncate pr-7 text-[12px]", picked ? "text-foreground" : "text-muted-foreground")}
                     >
                       <option value="" disabled>
                         Template
@@ -279,11 +325,11 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
             <label className="sr-only" htmlFor="reply-subject">
               Subject
             </label>
-            <input id="reply-subject" name="subject" required maxLength={reply.subjectMax} value={subject} readOnly={pending} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" className={cn(field, "h-8")} />
+            <Input id="reply-subject" name="subject" required maxLength={reply.subjectMax} value={subject} readOnly={pending} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />
             <label className="sr-only" htmlFor="reply-body">
               Reply
             </label>
-            <textarea
+            <Textarea
               ref={area}
               id="reply-body"
               name="body"
@@ -295,7 +341,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
                 mine !== null ? setMine(e.target.value) : picked ? setOwn({ ...own, [picked.templateId]: e.target.value }) : setBodies({ ...bodies, [kind]: e.target.value })
               }
               spellCheck
-              className={cn(field, "block max-h-[32vh] min-h-[140px] resize-y py-2.5 leading-[1.55]")}
+              className="block max-h-[32vh] min-h-[140px] resize-y font-sans text-[14px] leading-[22px]"
             />
           </div>
         ) : (
@@ -308,24 +354,23 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
               onClick={start}
               aria-keyshortcuts="R"
               title="Read or edit the message"
-              className={cn(message, "cursor-text transition-colors hover:border-[color:var(--line-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]")}
+              className={cn(message, "cursor-text transition-shadow hover:shadow-[var(--shadow)]")}
             >
-              <span className="flex items-center justify-between gap-3 text-[12.5px] text-faint">
-                <span className="min-w-0 truncate">
-                  To {to}
-                  {from}
-                </span>
-                <span className="flex flex-none items-center gap-2 font-medium text-[color:var(--accent)]">
+              <span className="flex items-center justify-between gap-3">
+                <Address to={to} from={from} />
+                <span className="flex flex-none items-center gap-2 text-[12px] font-medium text-foreground">
                   Edit
-                  <Kbd decorative>R</Kbd>
+                  <Kbd>
+                    R
+                  </Kbd>
                 </span>
               </span>
-              <span className="line-clamp-3 text-[14px] leading-[1.55] break-words whitespace-pre-line text-foreground">{body}</span>
+              <span className="line-clamp-3 font-sans text-[14px] leading-[22px] break-words whitespace-pre-line text-foreground">{body}</span>
             </button>
           </>
         )}
-        <div className={sendColumn}>
-          <DraftSubmit />
+        <div className={open ? sendRow : sendColumn}>
+          <DraftSubmit hint={hint} />
           {open ? (
             <button
               type="button"
@@ -333,18 +378,12 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
                 setChanging(false);
                 setOpen(false);
               }}
-              className={cn(pill, "justify-center")}
+              className={cn(plain, "@max-3xl:h-11")}
             >
               {changing ? "Keep the draft" : "Close"}
             </button>
           ) : null}
-          <p role="status" className={hint}>
-            {changing
-              ? "Saves a new draft. The old one stays unsent and is dropped from your Inbox."
-              : open
-                ? "This only writes a draft. You'll read it before anything goes out."
-                : "Nothing goes out until you read the draft and press Send."}
-          </p>
+          <Status>{hint}</Status>
         </div>
       </form>
     </section>

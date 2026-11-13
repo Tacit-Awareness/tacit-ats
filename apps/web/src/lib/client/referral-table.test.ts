@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { REFERRAL_PAGE_SIZE, cleanReferrer, inTab, matches, parseReferralQuery, referralTable, referralsHref, whereTheyAre, type Referral, type ReferralQuery } from "./referral-table";
+import { REFERRAL_PAGE_SIZE, cleanReferrer, inTab, matches, parseReferralQuery, referralTable, referralsHref, referrerName, whereTheyAre, type Referral, type ReferralQuery } from "./referral-table";
 
 const day = (n: number) => new Date(Date.parse("2026-10-01T12:00:00Z") + n * 86_400_000).toISOString();
 
@@ -84,6 +84,19 @@ describe("where they are", () => {
     expect(whereTheyAre("hired")).toEqual({ label: "Hired", tone: "green" });
     expect(whereTheyAre("withdrawn")).toEqual({ label: "Withdrew", tone: "grey" });
     expect(whereTheyAre("interviewing")).toEqual({ label: "Interviewing", tone: "grey" });
+  });
+});
+
+describe("the referrer's name out of what was recorded", () => {
+  test("a leading 'referred by' goes; any other wording is kept whole", () => {
+    expect(referrerName("Referred by Lena Park")).toBe("Lena Park");
+    expect(referrerName("referred by  Sam")).toBe("Sam");
+    expect(referrerName("Backchannel from Daniel")).toBe("Daniel");
+    expect(referrerName("via Priya")).toBe("Priya");
+    expect(referrerName("Lena Park")).toBe("Lena Park");
+    expect(referrerName("Lena, from the infra team")).toBe("Lena, from the infra team");
+    expect(referrerName("Referred by")).toBe("Referred by");
+    expect(referrerName(null)).toBeNull();
   });
 });
 

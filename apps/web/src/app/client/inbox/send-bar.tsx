@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd } from "@/components/page";
 import type { IssueFix, IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 import { sendDraftAction } from "./actions";
 import { button, plain, primary } from "./buttons";
-import { Settled } from "./decision-bar";
+import { Settled, dialogClass, dialogFoot, dialogTitle } from "./decision-bar";
+import { CmdEnter } from "./keycaps";
 import { DismissButton } from "./set-aside";
 
 // Send here, on an unsent draft: F or the button only opens a native modal
@@ -24,14 +26,18 @@ export type SendProps = { to: string; subject: string; body: string; from: strin
 function Buttons({ cancel, cancelRef }: { cancel: () => void; cancelRef: React.Ref<HTMLButtonElement> }) {
   const { pending } = useFormStatus();
   return (
-    <div className="mt-4 flex items-center justify-end gap-1.5">
-      <span className="mr-auto hidden text-[12px] text-faint sm:inline">⌘↵ to send</span>
+    <div className={dialogFoot}>
       <button ref={cancelRef} type="button" onClick={cancel} disabled={pending} className={cn(button, plain)}>
         Cancel
-        <Kbd decorative>esc</Kbd>
+        <Kbd>
+          esc
+        </Kbd>
       </button>
-      <button type="submit" disabled={pending} className={cn(button, primary)}>
+      <button type="submit" disabled={pending} title="⌘↵ sends" className={cn(button, primary)}>
         {pending ? "Sending…" : "Send"}
+        <Kbd className="max-sm:hidden">
+          <CmdEnter />
+        </Kbd>
       </button>
     </div>
   );
@@ -71,39 +77,41 @@ function SendDialog({ draftId, draft, instance, next, range, close }: { draftId:
           form.current?.requestSubmit();
         }
       }}
-      className="m-auto w-[min(560px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className={cn(dialogClass, "w-[min(560px,calc(100vw-32px))]")}
     >
-      <form ref={form} action={sendDraftAction} className="p-4">
+      <form ref={form} action={sendDraftAction}>
         <Settled busy={busy} done={close} />
         <input type="hidden" name="draftId" value={draftId} />
         <input type="hidden" name="issueReason" value={instance.reason} />
         <input type="hidden" name="issueAt" value={instance.at} />
         <input type="hidden" name="range" value={range} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
-        <h2 id="send-title" className="m-0 text-[15px] font-semibold break-words">
-          Send this to {draft.to}?
-        </h2>
-        <p className="m-0 mt-1 text-[13px] text-muted-foreground">It goes out exactly as written, and can&apos;t be called back.</p>
-        <div className="mt-3 grid max-h-[50vh] gap-2 overflow-y-auto rounded-[8px] bg-[color:var(--soft)] px-3 py-2">
-          <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
-            {draft.from ? (
-              <>
-                <dt className="text-muted-foreground">From</dt>
-                <dd className="m-0 min-w-0 break-words">{draft.from}</dd>
-              </>
-            ) : null}
-            {draft.replyTo ? (
-              <>
-                <dt className="text-muted-foreground">Replies</dt>
-                <dd className="m-0 min-w-0 break-words">{draft.replyTo}</dd>
-              </>
-            ) : null}
-            <dt className="text-muted-foreground">To</dt>
-            <dd className="m-0 min-w-0 break-words">{draft.to}</dd>
-            <dt className="text-muted-foreground">Subject</dt>
-            <dd className="m-0 min-w-0 break-words">{draft.subject}</dd>
-          </dl>
-          <p className="m-0 border-t border-[color:var(--line)] pt-2 text-[13px] break-words whitespace-pre-wrap">{draft.body}</p>
+        <div className="p-6">
+          <h2 id="send-title" className={dialogTitle}>
+            Send this to {draft.to}?
+          </h2>
+          <p className="m-0 mt-2 text-[13px] text-muted-foreground">It goes out exactly as written, and can&apos;t be called back.</p>
+          <div className="mt-4 grid max-h-[50vh] gap-2.5 overflow-y-auto rounded-[10px] bg-[color:var(--soft)] px-3.5 py-3 shadow-[inset_0_0_0_1px_var(--line)]">
+            <dl className="m-0 grid grid-cols-[64px_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-[13px]">
+              {draft.from ? (
+                <>
+                  <dt className="text-faint">From</dt>
+                  <dd className="m-0 min-w-0 break-words">{draft.from}</dd>
+                </>
+              ) : null}
+              {draft.replyTo ? (
+                <>
+                  <dt className="text-faint">Replies</dt>
+                  <dd className="m-0 min-w-0 break-words">{draft.replyTo}</dd>
+                </>
+              ) : null}
+              <dt className="text-faint">To</dt>
+              <dd className="m-0 min-w-0 break-words">{draft.to}</dd>
+              <dt className="text-faint">Subject</dt>
+              <dd className="m-0 min-w-0 break-words">{draft.subject}</dd>
+            </dl>
+            <p className="m-0 border-t border-[color:var(--line)] pt-2.5 font-sans text-[14px] leading-[22px] break-words whitespace-pre-wrap">{draft.body}</p>
+          </div>
         </div>
         <Buttons cancel={dismiss} cancelRef={cancel} />
       </form>
@@ -118,6 +126,7 @@ export function SendBar({
   next,
   range,
   secondary,
+  hint,
 }: {
   fix: Extract<IssueFix, { type: "send" }>;
   draft: SendProps;
@@ -125,17 +134,19 @@ export function SendBar({
   next: string | null;
   range: number;
   secondary: { label: string; href: string } | null;
+  /** What Send here does ("It only goes out after you confirm"), for its hover. */
+  hint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const bar = useRef<HTMLDivElement>(null);
   useKeys({ f: () => void (isShown(bar.current) && setOpen(true)) }, fix.canSend && !open);
   useKeyHelp("Inbox", fix.canSend ? [{ keys: "F", label: `${fix.label}, after you confirm` }] : []);
   return (
-    <div ref={bar} data-tour="inbox-keys" className="flex flex-wrap items-center gap-1.5">
-      <button type="button" disabled={!fix.canSend} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts={fix.canSend ? "F" : undefined} className={cn(button, primary, !fix.canSend && "cursor-not-allowed")}>
+    <div ref={bar} data-tour="inbox-keys" className="flex flex-wrap items-center gap-2">
+      <button type="button" disabled={!fix.canSend} onClick={() => setOpen(true)} aria-haspopup="dialog" aria-keyshortcuts={fix.canSend ? "F" : undefined} title={hint} className={cn(button, primary, !fix.canSend && "cursor-not-allowed")}>
         {fix.label}
         {fix.canSend ? (
-          <Kbd decorative className="border-transparent bg-current/20 text-current">
+          <Kbd>
             F
           </Kbd>
         ) : null}
