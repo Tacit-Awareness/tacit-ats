@@ -30,9 +30,24 @@ test("adding lands last at the first size, once", () => {
   expect(addWidget(added, "apps")).toBe(added);
 });
 
+test("the default says each thing once: the applications chart across the top, New applications in the gallery", () => {
+  expect(defaultWidgets()).toEqual([
+    { k: "trend", w: 3 },
+    { k: "active", w: 1 },
+    { k: "review", w: 1 },
+    { k: "sched", w: 1 },
+    { k: "cards", w: 1 },
+    { k: "load", w: 1 },
+    { k: "hires", w: 1 },
+  ]);
+  expect(keys(defaultWidgets())).not.toContain("apps");
+  // An empty cookie is no cookie: the same default, never an older one.
+  expect(parseWidgets("")).toEqual(defaultWidgets());
+});
+
 test("removing takes only that one", () => {
   expect(keys(removeWidget(defaultWidgets(), "load"))).not.toContain("load");
-  expect(removeWidget(defaultWidgets(), "load")).toHaveLength(7);
+  expect(removeWidget(defaultWidgets(), "load")).toHaveLength(defaultWidgets().length - 1);
 });
 
 test("the size pill goes round", () => {

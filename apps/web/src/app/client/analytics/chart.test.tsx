@@ -7,9 +7,10 @@ const point = (current: number | null, previous: number | null = null, i = 0): C
 const draw = (points: ChartPoint[], extra: { compare?: boolean; bars?: boolean } = {}) =>
   renderToStaticMarkup(<CareersChart points={points} top={4} share={false} compare={extra.compare ?? false} bars={extra.bars ?? false} step={1} />);
 
-/** The chart's paths, and its dots, which are the only 8px rounds it draws. */
+/** The chart's paths, and its point markers, which are the only 8px rounds it draws (and where across they sit). */
 const paths = (html: string) => [...html.matchAll(/<path d="([^"]*)"/g)].map((m) => m[1]);
 const dots = (html: string) => html.match(/size-2 rounded-full/g)?.length ?? 0;
+const dotsAt = (html: string) => [...html.matchAll(/size-2 rounded-full[^"]*" style="left:([\d.]+)%/g)].map((m) => Number(m[1]));
 
 describe("chartRuns", () => {
   test("splits a series at each value that is not there", () => {
@@ -27,7 +28,8 @@ describe("a day with nothing recorded", () => {
 
   test("draws no point and no line down to the axis", () => {
     const html = draw(points);
-    expect(dots(html)).toBe(3);
+    // One marker, on the last day: a stretch of line needs no ring on every day.
+    expect(dotsAt(html)).toEqual([100]);
     const [area, line] = paths(html);
     // Five points across 1000: the line starts on the third, at x = 500.
     expect(line.startsWith("M500,")).toBe(true);
@@ -38,7 +40,7 @@ describe("a day with nothing recorded", () => {
 
   test("a 0 is a real 0, and still draws", () => {
     const html = draw([point(0), point(0), point(0)]);
-    expect(dots(html)).toBe(3);
+    expect(dotsAt(html)).toEqual([100]);
     expect(paths(html)[1].startsWith("M0,300")).toBe(true);
   });
 
@@ -49,7 +51,13 @@ describe("a day with nothing recorded", () => {
   });
 
   test("a value with a gap on each side keeps its dot", () => {
-    expect(dots(draw([point(null), point(2), point(null)]))).toBe(1);
+    expect(dotsAt(draw([point(null), point(2), point(null)]))).toEqual([50]);
+  });
+
+  test("a value alone mid-series keeps its dot, as it has no line to show it", () => {
+    const html = draw([point(1), point(null), point(2), point(3), point(null)]);
+    // The first day stands alone; the stretch from the third to the fourth marks only its end.
+    expect(dotsAt(html)).toEqual([0, 75]);
   });
 
   test("nothing at all draws nothing and does not break", () => {

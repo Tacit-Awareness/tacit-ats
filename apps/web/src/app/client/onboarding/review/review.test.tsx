@@ -31,7 +31,7 @@ describe("Onboarding's Review step", () => {
     expect(page).toContain("Ready for tATS");
     expect(page).toContain("Every interview type has someone who runs it.");
     expect(page).toContain("2 of 2");
-    expect(page).toContain("multidisciplinary");
+    expect(page).toContain("Multidisciplinary");
     expect(page).toContain("Ana Lee, prioritized");
     expect(page).not.toContain("No one runs this yet");
   });

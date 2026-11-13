@@ -50,7 +50,7 @@ export function TitleForm({ actorId, name, title }: { actorId: string; name: str
           className="w-[180px] max-w-full min-w-0"
         />
         {value.trim() !== saved ? (
-          <Button type="submit" variant="outline" size="sm" disabled={saving}>
+          <Button type="submit" variant="outline" disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </Button>
         ) : null}

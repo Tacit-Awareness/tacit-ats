@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Page, PageBar, SubBar } from "@/components/page";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Kbd, Page, PageBar, SubBar } from "@/components/page";
+import { Button } from "@/components/ui/button";
 import { showToast } from "@/components/toasts";
 import { useKeyHelp, useKeys } from "@/components/keys";
 import { WIDGETS, WIDGET_KEYS, WIDGETS_COOKIE, SIZE_NAMES, addWidget, cycleSize, defaultWidgets, formatWidgets, moveWidget, parseWidgets, removeWidget, type Placed, type WidgetKey } from "@/lib/client/home-widgets";
@@ -12,9 +12,9 @@ import "./home-widgets.css";
 // The Overview's widgets (design/tats's Edit widgets, on the iPhone home
 // screen's model): home-view.tsx draws every widget on the server and this
 // places them. Edit widgets: drag one and the others slide out of its way, or
-// arrow keys on a focused one; − removes, the pill cycles Small / Wide / Full,
-// and Add widget opens a gallery of the rest with live previews. Done or Esc
-// ends it. Present: the Overview alone, full screen, until Esc. The layout
+// arrow keys on a focused one; − removes, the size tag cycles Small / Wide /
+// Full, and Add widget opens a gallery of the rest with live previews. Done or
+// Esc ends it. Present: the Overview alone, full screen, until Esc. The layout
 // saves on each change, to the cookie the page reads for its first paint.
 // GSAP's Flip is the prototype's; here a few lines of the Web Animations API,
 // because nothing else in this app wants GSAP.
@@ -44,10 +44,13 @@ const Glyph = ({ d }: { d: string }) => (
 
 type Drag = { el: HTMLElement; k: WidgetKey; scroller: HTMLElement | null; x0: number; y0: number; x: number; y: number; grabX: number; grabY: number; moved: boolean; lock: number };
 
-export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, foot }: {
+export function HomeBoard({ title, icon, filters, jobs, tabs, widgets, layout: saved, foot }: {
   title: string;
   icon: React.ReactNode;
+  /** The period and the department, on the tabs' row at its right. */
   filters: React.ReactNode;
+  /** The job, on a row of its own under them: the one that can grow long. */
+  jobs: React.ReactNode;
   tabs: React.ReactNode;
   /** Every widget this member can have, drawn. */
   widgets: Partial<Record<WidgetKey, React.ReactNode>>;
@@ -126,6 +129,21 @@ export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, 
   useEffect(() => {
     if (arrived) grid.current?.querySelector(`[data-wk="${arrived}"]`)?.scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" });
   }, [arrived]);
+
+  // A job track too long for its row scrolls sideways: when the picked job changes, it is brought to the middle of
+  // what shows, so the filter in force is never out of sight.
+  const pickedJob = useRef<string | null>(null);
+  useEffect(() => {
+    const picked = document.querySelector<HTMLElement>(".hm-jobs [aria-current]");
+    const href = picked?.getAttribute("href") ?? null;
+    if (href === pickedJob.current) return;
+    pickedJob.current = href;
+    const track = picked?.parentElement;
+    if (!picked || !track || track.scrollWidth <= track.clientWidth) return;
+    const t = track.getBoundingClientRect();
+    const r = picked.getBoundingClientRect();
+    track.scrollLeft += r.left - t.left - (t.width - r.width) / 2;
+  });
 
   /** Arrow keys on a focused widget: the same move as a drag, onto its neighbour. */
   const onWidgetKey = (e: React.KeyboardEvent, k: WidgetKey) => {
@@ -241,35 +259,43 @@ export function HomeBoard({ title, icon, filters, tabs, widgets, layout: saved, 
       bar={
         <>
           <PageBar title={title} icon={icon}>
-            {editing ? (
-              <>
-                <span className="wg-hint">Drag to move · − to remove</span>
-                <Button size="sm" variant="outline" onClick={() => setGallery(true)}>
-                  <Glyph d={ICON.plus} />
-                  Add widget
-                </Button>
-                <Button size="sm" onClick={() => setEditing(false)}>
-                  Done
-                </Button>
-              </>
-            ) : (
-              <>
-                {filters}
-                <span className="hm-actions">
-                  <button type="button" data-tour="edit-widgets" className={buttonVariants({ size: "sm", variant: "ghost" })} title="Choose, move and resize the blocks on this page" onClick={() => setEditing(true)}>
+            {/* One set, so each mode's two buttons share a height and a width. */}
+            <div className="hm-set">
+              {editing ? (
+                <>
+                  <span className="sr-only" role="status">
+                    Drag a widget to move it, or focus it and use the arrow keys. − removes it.
+                  </span>
+                  <Button size="sm" variant="outline" onClick={() => setGallery(true)}>
+                    <Glyph d={ICON.plus} />
+                    Add widget
+                  </Button>
+                  <Button size="sm" title="Drag a widget to move it, or focus it and use the arrow keys. − removes it." onClick={() => setEditing(false)}>
+                    Done
+                    <Kbd>Esc</Kbd>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" variant="outline" data-tour="edit-widgets" title="Choose, move and resize the blocks on this page" onClick={() => setEditing(true)}>
                     <Glyph d={ICON.grid} />
                     Edit widgets
-                  </button>
-                  <button type="button" className={buttonVariants({ size: "sm", variant: "ghost" })} title="Full screen, for a projector or a TV (Esc to leave)" onClick={present}>
+                  </Button>
+                  <Button size="sm" variant="outline" title="Full screen, for a projector or a TV (Esc to leave)" onClick={present}>
                     <Glyph d={ICON.expand} />
                     Present
-                  </button>
-                </span>
-              </>
-            )}
+                  </Button>
+                </>
+              )}
+            </div>
           </PageBar>
+          {/* The tabs at the left; the filters at the right, the job's under the period's and the department's. Present keeps the filters. */}
           <div className="hm-nav">
-            <SubBar>{tabs}</SubBar>
+            <SubBar>
+              <div className="hm-tabs">{tabs}</div>
+              <div className="hm-filters">{filters}</div>
+            </SubBar>
+            {jobs ? <div className="hm-jobs">{jobs}</div> : null}
           </div>
         </>
       }
@@ -341,6 +367,7 @@ function Gallery({ widgets, keys, on, add, reset, close }: {
     <dialog
       ref={dialog}
       aria-label="Add a widget"
+      aria-description="Pick the numbers you care about. Each one keeps its own size and place."
       className="wg-galm"
       onClose={close}
       onClick={(e) => {
@@ -348,8 +375,7 @@ function Gallery({ widgets, keys, on, add, reset, close }: {
       }}
     >
       <div className="wg-gal-h">
-        <h2>Add a widget</h2>
-        <p>Pick the numbers you care about. Each one keeps its own size and place.</p>
+        <h2 title="Pick the numbers you care about. Each one keeps its own size and place.">Add a widget</h2>
       </div>
       <div className="wg-gal">
         {[...keys]
@@ -362,9 +388,12 @@ function Gallery({ widgets, keys, on, add, reset, close }: {
                 <span className="wg-prev" inert>
                   <span className={cn("wg-prev-in", `w${W.sizes[0]}`)}>{widgets[k]}</span>
                 </span>
+                {/* What the widget shows is the name's hover, not a caption under it: the preview says it. */}
                 <span className="wg-tile-t">
-                  <b>{W.name}</b>
-                  <span>{W.desc}</span>
+                  <b title={W.desc}>
+                    {W.name}
+                    <span className="sr-only">. {W.desc}</span>
+                  </b>
                 </span>
                 {placed ? (
                   <span className="wg-tile-a">

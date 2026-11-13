@@ -4,22 +4,23 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useViews } from "@/components/app-shell/shell-memory";
-import { Page, PageBar } from "@/components/page";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Notice, Page, PageBar, Section } from "@/components/page";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input, selectClass } from "@/components/ui/input";
 import { SOURCE_GROUPS, type SourceGroup } from "@/lib/client/analytics-metrics";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
 import type { ViewsRead } from "@/lib/client/views";
 import { VIEWS_MAX, VIEW_NAME_MAX, allViews, describeFilters, viewHref, viewKeeps, type SavedView } from "@/lib/saved-views";
 import { cn } from "@/lib/utils";
 
-// The Views page's markup, as design/tats's: Pages, then Saved views, a row
-// each with its icon, name, count and a pin that shows on hover (and always on
-// a touch screen or once pinned). Counts run here because only this browser
-// knows the views, over the rows page.tsx read. New view is the prototype's
-// form, in a `<dialog>`: the browser gives it the top layer, the focus trap and
-// Escape. A row a member made can be removed, which the prototype has no way to
-// do.
+// The Views page's markup, as design/tats's drawn in Testbench's staff design:
+// two white cards, Pages, then Saved views, a row each with its icon, name,
+// count and a pin that shows on hover or keyboard focus (and always on a touch
+// screen or once pinned). Counts run here because only this browser knows the
+// views, over the rows page.tsx read. New view is the prototype's form, in a
+// Testbench dialog on a `<dialog>`: the browser gives it the top layer, the
+// focus trap and Escape. A row a member made can be removed, which the
+// prototype has no way to do.
 
 const PAGES = [
   { href: "/client/schedule", name: "Interview Calendar", desc: "Interviews and holds by week", icon: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3" },
@@ -27,9 +28,6 @@ const PAGES = [
 ] as const;
 const LAYERS = "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3";
 const TACK = "M9.8 2.5 13.5 6.2 11.6 7.1 9.6 9.1l.4 3-1 1L3.9 8l1-1 3 .4 2-2ZM6.4 10.6 2.5 14.5";
-
-const selectClass =
-  "h-8 w-full border border-input bg-card px-2 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function Glyph({ d, className }: { d: string; className?: string }) {
   return (
@@ -39,26 +37,24 @@ function Glyph({ d, className }: { d: string; className?: string }) {
   );
 }
 
+/** A white card with its Mona Sans heading in a ruled row, the rows edge to edge under it. */
 function Band({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section aria-label={title} className="overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
-      <h2 className="m-0 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-[18px] pt-3.5 pb-2.5 text-[14px] font-semibold">{title}</h2>
+    <Section aria-label={title} title={title} flush>
       {children}
-    </section>
+    </Section>
   );
 }
 
-/** A row is one link, stretched over it; the pin and remove buttons sit above the stretch. */
+/** A row is one link, stretched over it; the pin and remove buttons sit above the stretch. The icon stands bare, no tile. */
 function Row({ href, icon, name, desc, count, children }: { href: string; icon: string; name: string; desc: string; count?: string; children?: React.ReactNode }) {
   return (
-    <div className="group relative grid min-h-14 grid-cols-[28px_minmax(0,1fr)_auto_32px_32px] items-center gap-x-3 border-b border-[color:var(--line)] py-1.5 pr-3 pl-[18px] transition-colors last:border-b-0 hover:bg-[color:var(--hover)] max-sm:grid-cols-[28px_minmax(0,1fr)_32px_32px]">
-      <span className="grid size-7 place-items-center rounded-[8px] bg-[color:var(--soft)] text-muted-foreground">
-        <Glyph d={icon} />
-      </span>
-      <Link href={href} title={desc} className="truncate text-[14px] font-medium outline-none after:absolute after:inset-0 focus-visible:underline">
+    <div className="group relative grid h-12 grid-cols-[16px_minmax(0,1fr)_auto_30px_30px] items-center gap-x-3.5 border-b border-[color:var(--line)] pr-3 pl-5 text-[13px] transition-colors last:border-b-0 hover:bg-[color:var(--surface)] has-[a:focus-visible]:bg-[color:var(--sel)] max-sm:grid-cols-[16px_minmax(0,1fr)_30px_30px]">
+      <Glyph d={icon} className="text-faint" />
+      <Link href={href} title={desc} className="truncate font-medium outline-none after:absolute after:inset-0 focus-visible:underline">
         {name}
       </Link>
-      <span className="text-[12.5px] whitespace-nowrap text-faint tabular-nums max-sm:hidden">{count}</span>
+      <span className="text-[12px] whitespace-nowrap text-faint tabular-nums max-sm:hidden">{count}</span>
       {children ?? (
         <>
           <span />
@@ -69,7 +65,12 @@ function Row({ href, icon, name, desc, count, children }: { href: string; icon: 
   );
 }
 
-const ghost = "relative z-10 grid size-[30px] place-items-center rounded-full text-faint transition-[opacity,background-color,color] hover:bg-[color:var(--soft-strong)] hover:text-foreground [@media(hover:none)]:opacity-100 group-hover:opacity-100 focus-visible:opacity-100";
+const ghost = cn(
+  buttonVariants({ variant: "ghost", size: "sm" }),
+  "relative z-10 size-[30px] px-0 text-faint transition-[opacity,background-color,color] group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+);
+
+const LABEL = "grid gap-1.5 text-[12.5px] text-muted-foreground";
 
 function NewView({ onClose, departments, tags }: { onClose: () => void } & Pick<ViewsRead, "departments" | "tags">) {
   const { add } = useViews();
@@ -113,85 +114,83 @@ function NewView({ onClose, departments, tags }: { onClose: () => void } & Pick<
       onMouseDown={(e) => {
         if (e.target === dialog.current) onClose();
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-[460px] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[calc(100%-32px)] max-w-[520px] overflow-hidden rounded-[16px] border-0 bg-[color:var(--surface)] p-0 text-foreground shadow-[var(--box-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
-      <form onSubmit={submit} className="grid gap-3.5 p-5">
-        <div>
-          <h2 id="new-view-title" className="m-0 text-[15px] font-medium">
-            New view
-          </h2>
-          <p className="m-0 mt-0.5 text-[13px] text-muted-foreground">A saved filter on the Pipeline.</p>
-        </div>
-        <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-          Name
-          <Input name="name" placeholder="Referrals in infra" required maxLength={VIEW_NAME_MAX} autoFocus onChange={() => setProblem(null)} />
-        </label>
-        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-          {departments.length ? (
-            <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-              Department
-              <select name="department" className={selectClass}>
-                <option value="">Any department</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.path}
+      {/* Testbench's `.dialog`: a Mona Sans title, the body 24px in, the buttons right over a hairline. */}
+      <form onSubmit={submit} className="grid">
+        <h2 id="new-view-title" title="A saved filter on the Pipeline" className="m-0 px-6 pt-[22px] pb-1.5 text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">
+          New view
+        </h2>
+        <div className="grid gap-4 px-6 pt-3 pb-5">
+          <label className={LABEL}>
+            Name
+            <Input name="name" placeholder="Referrals in infra" required maxLength={VIEW_NAME_MAX} autoFocus onChange={() => setProblem(null)} />
+          </label>
+          <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+            {departments.length ? (
+              <label className={LABEL}>
+                Department
+                <select name="department" className={selectClass}>
+                  <option value="">Any department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.path}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <label className={LABEL}>
+              Stage
+              <select name="stage" className={selectClass}>
+                <option value="">Any stage</option>
+                {PIPELINE_COLUMNS.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
                   </option>
                 ))}
               </select>
             </label>
-          ) : null}
-          <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-            Stage
-            <select name="stage" className={selectClass}>
-              <option value="">Any stage</option>
-              {PIPELINE_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-            Source
-            <select name="source" className={selectClass}>
-              <option value="">Any source</option>
-              {SOURCE_GROUPS.map((s) => (
-                <option key={s.key} value={s.key}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {tags.length ? (
-            <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-              Label
-              <select name="tag" className={selectClass}>
-                <option value="">Any label</option>
-                {tags.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
+            <label className={LABEL}>
+              Source
+              <select name="source" className={selectClass}>
+                <option value="">Any source</option>
+                {SOURCE_GROUPS.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
                   </option>
                 ))}
               </select>
             </label>
+            {tags.length ? (
+              <label className={LABEL}>
+                Label
+                <select name="tag" className={selectClass}>
+                  <option value="">Any label</option>
+                  {tags.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <label className="flex items-center gap-2.5 text-[13px]">
+            <input type="checkbox" name="pin" defaultChecked className="size-4" />
+            Pin to sidebar
+          </label>
+          {problem ? (
+            <p role="alert" className="m-0 text-[13px] text-negative">
+              {problem}
+            </p>
           ) : null}
         </div>
-        <label className="flex items-center gap-2 text-[13.5px]">
-          <input type="checkbox" name="pin" defaultChecked className="size-4 accent-[color:var(--accent)]" />
-          Pin to sidebar
-        </label>
-        {problem ? (
-          <p role="alert" className="m-0 text-[13px] text-negative">
-            {problem}
-          </p>
-        ) : null}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+        <div className="flex justify-end gap-2 border-t border-[color:var(--line)] px-6 py-3.5">
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" size="sm">
-            Create view
-          </Button>
+          <Button type="submit">Create view</Button>
         </div>
       </form>
     </dialog>
@@ -212,14 +211,10 @@ export function ViewsView({ rows, departments, tags, capped }: ViewsRead) {
       narrow
       bar={
         <PageBar title="Views">
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-2.5 text-[12.5px] transition-colors hover:border-[color:var(--line-strong)]"
-          >
-            <Glyph d="M8 3.5v9M3.5 8h9" className="size-[13px]" />
+          <Button type="button" variant="outline" onClick={() => setCreating(true)}>
+            <Glyph d="M8 3.5v9M3.5 8h9" />
             New view
-          </button>
+          </Button>
         </PageBar>
       }
     >
@@ -254,8 +249,8 @@ export function ViewsView({ rows, departments, tags, capped }: ViewsRead) {
           );
         })}
       </Band>
-      {capped ? <p className="m-0 text-[12.5px] text-faint">A job has more than 1,000 applications, so these counts may stop short.</p> : null}
-      {kept ? null : <p className="m-0 text-[12.5px] text-faint">This browser isn&apos;t keeping views, so your pins and new views will be gone when you reload.</p>}
+      {capped ? <Notice>A job has more than 1,000 applications, so these counts may stop short.</Notice> : null}
+      {kept ? null : <Notice>This browser isn&apos;t keeping views, so your pins and new views will be gone when you reload.</Notice>}
       {creating ? <NewView onClose={() => setCreating(false)} departments={departments} tags={tags} /> : null}
     </Page>
   );

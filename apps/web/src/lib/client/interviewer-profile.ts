@@ -97,14 +97,16 @@ const AWAY_NAMED = 4;
  * `key` (for lib/banner-rules.ts's bannerTag) changes with who is away and until when, so a dismissed banner comes
  * back when someone else goes away. Null when nobody is.
  */
-export function awayBanner(members: AwayMember[], now: Date): { title: string; key: string[] } | null {
+/** `parts` is each person away (and "and N more"), drawn apart from one another; `title` is the same as one sentence for a hover or screen reader. */
+export function awayBanner(members: AwayMember[], now: Date): { parts: string[]; title: string; key: string[] } | null {
   const away = members
     .filter((m) => m.name.trim() && isAway(m.awayUntil, now))
     .sort((a, b) => a.awayUntil.localeCompare(b.awayUntil) || a.name.localeCompare(b.name));
   if (!away.length) return null;
   const named = away.slice(0, AWAY_NAMED).map((m) => `${m.name.trim().split(/\s+/)[0]}: ${awayLabel(m.awayUntil, now)!.replace(/^Away/, "away")}`);
   const rest = away.length - named.length;
-  return { title: named.join(" · ") + (rest ? ` · and ${rest} more` : ""), key: away.map((m) => `${m.actorId}@${m.awayUntil}`).sort() };
+  const parts = rest ? [...named, `and ${rest} more`] : named;
+  return { parts, title: parts.join(", "), key: away.map((m) => `${m.actorId}@${m.awayUntil}`).sort() };
 }
 
 /** The most pips a bar draws; past that, each pip stands for more than one interview. */

@@ -22,9 +22,11 @@ import { bulkAddToPoolAction, bulkRejectAction, bulkTagAction } from "./actions"
 import { clearPicked, keepItems, syncItems, toggleItem, togglePageItems, usePicked } from "./selection";
 
 // The CRM's selection and bulk actions, as design/tats's `.ck` boxes and
-// `.bulk` bar: a box on every row, X on the focused row, Esc to clear, and a
-// bar with Reject, Tag and Add to pool once anything is selected. Each action
-// asks first in a dialog, then shows what happened to every row there:
+// `.bulk` bar in Testbench's look (an ink box when checked, a floating white
+// bar, the dialog of its `.dialog`): a box on every row, X on the focused row,
+// Esc to clear, and a bar with Reject, Tag and Add to pool once anything is
+// selected. Each action asks first in a dialog, then shows what happened to
+// every row there:
 // the server answers with ids and codes, and the names are the ones already
 // on this page. After a run only the rows worth trying again stay selected;
 // the table refreshes.
@@ -50,8 +52,8 @@ function Box({ checked, label, onToggle }: { checked: boolean | "mixed"; label: 
       <span
         aria-hidden
         className={cn(
-          "grid size-4 place-items-center rounded-[4px] border border-[color:var(--line-strong)] text-[color:var(--accent-ink)] transition-colors group-hover:border-[color:var(--faint)]",
-          checked && "border-[color:var(--accent)] bg-[color:var(--accent)] group-hover:border-[color:var(--accent)]",
+          "grid size-4 place-items-center rounded-[4px] bg-[color:var(--paper)] text-[color:var(--primary-ink)] shadow-[inset_0_0_0_1px_var(--field)] transition-[background-color,box-shadow] group-hover:shadow-[inset_0_0_0_1px_var(--muted-text)]",
+          checked && "bg-[color:var(--primary)] shadow-none group-hover:shadow-none",
         )}
       >
         {checked === "mixed" ? (
@@ -124,29 +126,37 @@ function names(items: BulkItem[]): string {
 
 function Report({ action, summary, onClose }: { action: BulkAction; summary: BulkSummary; onClose: () => void }) {
   return (
-    <div className="grid gap-3 p-4">
-      <p className="m-0 text-[13.5px]" role="status">
-        {[summary.done ? DONE[action](summary.done) : "No candidates were changed.", summary.unchanged ? UNCHANGED[action](summary.unchanged) : null].filter(Boolean).join(" ")}
-      </p>
-      {summary.problems.length ? (
-        <div className="grid gap-1.5">
-          <h3 className="m-0 text-[12.5px] font-medium text-muted-foreground">{plural(summary.problems.length, "row")} not changed</h3>
-          <ul className="m-0 grid max-h-[320px] list-none gap-1 overflow-y-auto rounded-[8px] border border-[color:var(--line)] p-2">
-            {summary.problems.map((p) => (
-              <li key={p.id} className="grid gap-0.5 text-[13px]">
-                <b className="truncate font-medium">{p.label}</b>
-                <span className="text-[12.5px] text-muted-foreground">{p.sentence}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      <Button type="button" size="sm" onClick={onClose} className="justify-self-end">
-        Done
-      </Button>
-    </div>
+    <>
+      <div className="grid gap-4 px-6 pt-3 pb-5">
+        <p className="m-0 text-[13px] leading-5" role="status">
+          {[summary.done ? DONE[action](summary.done) : "No candidates were changed.", summary.unchanged ? UNCHANGED[action](summary.unchanged) : null].filter(Boolean).join(" ")}
+        </p>
+        {summary.problems.length ? (
+          <div className="grid gap-1.5">
+            <h3 className="m-0 font-mono text-[12.5px] font-medium tracking-normal text-muted-foreground">{plural(summary.problems.length, "row")} not changed</h3>
+            <ul className="m-0 grid max-h-[320px] list-none overflow-y-auto rounded-[10px] bg-[color:var(--soft)] p-0 shadow-[inset_0_0_0_1px_var(--line)]">
+              {summary.problems.map((p) => (
+                <li key={p.id} className="grid gap-0.5 border-b border-[color:var(--line)] px-3 py-2.5 text-[13px] last:border-b-0">
+                  <b className="truncate font-medium">{p.label}</b>
+                  <span className="text-[12.5px] text-muted-foreground">{p.sentence}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+      <div className={FOOT}>
+        <Button type="button" onClick={onClose}>
+          Done
+        </Button>
+      </div>
+    </>
   );
 }
+
+/** Testbench's `.dialog-foot`: the buttons right, over a hairline. */
+const FOOT = "flex justify-end gap-2 border-t border-[color:var(--line)] px-6 py-3.5";
+const LABEL = "grid gap-1.5 text-[12.5px] text-muted-foreground";
 
 function BulkDialog({ action, items, options, onClose }: { action: BulkAction; items: BulkItem[]; options: BulkOptions; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -215,65 +225,68 @@ function BulkDialog({ action, items, options, onClose }: { action: BulkAction; i
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
-      className="m-auto w-[min(480px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+      className="m-auto w-[min(520px,calc(100vw-32px))] overflow-hidden rounded-[16px] border-0 bg-[color:var(--surface)] p-0 text-foreground shadow-[var(--box-shadow)] backdrop:bg-[color:var(--scrim)]"
     >
-      <div className="grid gap-0.5 border-b border-[color:var(--line)] px-4 py-3">
-        <h2 className="m-0 text-[14px] font-semibold">{summary ? "What happened" : title}</h2>
-        <p className="m-0 text-[12.5px] text-muted-foreground">{names(items)}</p>
+      {/* Testbench's `.dialog-head`: the title in Mona Sans, who it is about under it. */}
+      <div className="grid gap-1 px-6 pt-[22px] pb-1.5">
+        <h2 className="m-0 text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">{summary ? "What happened" : title}</h2>
+        <p className="m-0 text-[13px] text-muted-foreground">{names(items)}</p>
       </div>
       {summary ? (
         <Report action={action} summary={summary} onClose={onClose} />
       ) : (
-        <form onSubmit={submit} className="grid gap-3 p-4">
-          {error ? <Notice tone="error">{error}</Notice> : null}
-          {action === "reject" ? (
-            <>
-              <p className="m-0 text-[13.5px] leading-[1.5] text-foreground/85">
-                {count ? `Closes ${plural(count, "open application")} as rejected, in the jobs each row shows. No email goes to anyone.` : "Nobody selected has an application to reject here."}
-                {openCount ? ` ${plural(openCount, "row")} left alone: nothing open to reject in this view.` : ""}
-                {offerCount ? ` ${plural(offerCount, "application")} left alone: at offer, so reject them from their own page.` : ""}
-              </p>
-              {tooMany ? <Notice tone="error">{`That's more than ${BULK_MAX} applications at once. Unselect some.`}</Notice> : null}
-              <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-                Reason
-                <select name="reasonId" required defaultValue="" disabled={!options.reasons.length} className={selectClass}>
-                  <option value="" disabled>
-                    {options.reasons.length ? "Why are they rejected?" : "No reasons set up"}
-                  </option>
-                  {options.reasons.map((r) => (
-                    <option key={r.reasonId} value={r.reasonId}>
-                      {r.name}
+        <form onSubmit={submit} className="grid">
+          <div className="grid gap-4 px-6 pt-3 pb-5">
+            {error ? <Notice tone="error">{error}</Notice> : null}
+            {action === "reject" ? (
+              <>
+                <p className="m-0 text-[13px] leading-5 text-muted-foreground">
+                  {count ? `Closes ${plural(count, "open application")} as rejected, in the jobs each row shows. No email goes to anyone.` : "Nobody selected has an application to reject here."}
+                  {openCount ? ` ${plural(openCount, "row")} left alone: nothing open to reject in this view.` : ""}
+                  {offerCount ? ` ${plural(offerCount, "application")} left alone: at offer, so reject them from their own page.` : ""}
+                </p>
+                {tooMany ? <Notice tone="error">{`That's more than ${BULK_MAX} applications at once. Unselect some.`}</Notice> : null}
+                <label className={LABEL}>
+                  Reason
+                  <select name="reasonId" required defaultValue="" disabled={!options.reasons.length} className={selectClass}>
+                    <option value="" disabled>
+                      {options.reasons.length ? "Why are they rejected?" : "No reasons set up"}
                     </option>
+                    {options.reasons.map((r) => (
+                      <option key={r.reasonId} value={r.reasonId}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={LABEL}>
+                  Note (optional, on every application)
+                  <Input name="note" maxLength={NOTE_MAX} placeholder="Note" />
+                </label>
+              </>
+            ) : (
+              <label className={LABEL}>
+                {action === "tag" ? "Tag" : "Talent pool"}
+                <Input
+                  name="name"
+                  required
+                  autoComplete="off"
+                  list="bulk-names"
+                  placeholder={action === "tag" ? "Pick a tag, or type a new one" : "Pick a pool, or type a new one"}
+                />
+                <datalist id="bulk-names">
+                  {(action === "tag" ? options.tags : options.pools).map((n) => (
+                    <option key={n} value={n} />
                   ))}
-                </select>
+                </datalist>
               </label>
-              <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-                Note (optional, on every application)
-                <Input name="note" maxLength={NOTE_MAX} placeholder="Note" />
-              </label>
-            </>
-          ) : (
-            <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-              {action === "tag" ? "Tag" : "Talent pool"}
-              <Input
-                name="name"
-                required
-                autoComplete="off"
-                list="bulk-names"
-                placeholder={action === "tag" ? "Pick a tag, or type a new one" : "Pick a pool, or type a new one"}
-              />
-              <datalist id="bulk-names">
-                {(action === "tag" ? options.tags : options.pools).map((n) => (
-                  <option key={n} value={n} />
-                ))}
-              </datalist>
-            </label>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={close} disabled={pending}>
+            )}
+          </div>
+          <div className={FOOT}>
+            <Button type="button" variant="ghost" onClick={close} disabled={pending}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={pending || (action === "reject" && (!count || tooMany || !options.reasons.length))}>
+            <Button type="submit" disabled={pending || (action === "reject" && (!count || tooMany || !options.reasons.length))}>
               {pending ? "Working…" : action === "reject" ? `Reject ${count.toLocaleString("en-US")}` : action === "tag" ? `Tag ${count.toLocaleString("en-US")}` : `Add ${count.toLocaleString("en-US")}`}
             </Button>
           </div>
@@ -283,7 +296,7 @@ function BulkDialog({ action, items, options, onClose }: { action: BulkAction; i
   );
 }
 
-/** design/tats's `.bulk`, kept in view at the bottom of the table however far it scrolls. */
+/** design/tats's `.bulk` as a Testbench menu surface, kept in view at the bottom of the table however far it scrolls. */
 export function BulkBar({ options }: { options: BulkOptions }) {
   const picked = usePicked();
   const [open, setOpen] = useState<{ action: BulkAction; items: BulkItem[] } | null>(null);
@@ -294,12 +307,12 @@ export function BulkBar({ options }: { options: BulkOptions }) {
         <div
           role="toolbar"
           aria-label="Bulk actions"
-          className="sticky bottom-[18px] z-[2] mx-auto my-2 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-0.5 rounded-[12px] border border-[color:var(--line-strong)] bg-raised py-1 pr-1 pl-3 text-[13.5px] shadow-[var(--pop-shadow)]"
+          className="sticky bottom-[18px] z-[2] mx-auto my-2.5 flex w-fit max-w-[calc(100%-16px)] flex-wrap items-center gap-1 rounded-[12px] bg-raised py-1.5 pr-1.5 pl-3.5 text-[13px] shadow-[var(--pop-shadow)]"
         >
-          <span role="status" className="mr-1.5 font-medium tabular-nums">
+          <span role="status" className="mr-2 font-medium tabular-nums">
             {picked.size.toLocaleString("en-US")} selected
           </span>
-          {picked.size >= BULK_MAX ? <span className="mr-1.5 text-[12.5px] text-faint">{BULK_MAX} is the most at once</span> : null}
+          {picked.size >= BULK_MAX ? <span className="mr-2 text-[12px] text-faint">{BULK_MAX} is the most at once</span> : null}
           <Button type="button" variant="ghost" size="sm" onClick={() => start("reject")}>
             Reject…
           </Button>
@@ -309,7 +322,8 @@ export function BulkBar({ options }: { options: BulkOptions }) {
           <Button type="button" variant="ghost" size="sm" onClick={() => start("pool")}>
             Add to pool…
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={clearPicked} aria-label="Clear the selection" title="Clear the selection (Esc)">
+          <i aria-hidden className="mx-0.5 h-5 w-px bg-[color:var(--line)]" />
+          <Button type="button" variant="ghost" size="sm" onClick={clearPicked} aria-label="Clear the selection" title="Clear the selection (Esc)" className="w-[30px] px-0">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="size-3.5" aria-hidden>
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>

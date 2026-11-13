@@ -1236,7 +1236,7 @@ A job post is the public page for a job, with an application form: a title, a lo
 | \`create_job_post\` | Write a post for a job, as a draft | Job managers | |
 | \`update_job_post\` | Change a post's text or questions; a live post changes at once | Job managers | |
 | \`set_job_post_status\` | Publish a post (live) or take it down (closed) | Job managers | Yes |
-| \`list_applications_inbox\` | New applicants from job posts, with their answers, and referrals | Hiring team, admins | |
+| \`list_applications_inbox\` | New applicants from job posts, with their answers, referrals, and people a member added | Hiring team, admins | |
 
 A post takes applications only while its job is open. \`get_candidate\` and \`get_pipeline\` show a job-board applicant's answers. Applicants cannot upload a resume yet; the resume question asks for a link.
 

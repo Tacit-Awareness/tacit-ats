@@ -34,7 +34,9 @@ describe("the loop as a path", () => {
     expect(html).toContain("This interview");
     expect(html.match(/Up next/g)).toHaveLength(1);
     expect(html).toContain('aria-current="step"');
-    expect(html).toContain("Held · 3d ago");
+    // Status and when as separate facts, with space between and no dot.
+    expect(html).toMatch(/>Held<\/span><span[^>]*>3d ago</);
+    expect(html).not.toContain(" · ");
     expect(html).toContain("Filed");
     expect(html).toContain("Not filed");
   });
@@ -45,7 +47,7 @@ describe("the loop as a path", () => {
   });
 
   test("one arrow between each pair of rounds", () => {
-    expect(html.match(/border-l-current/g)).toHaveLength(3);
+    expect(html.match(/data-arrow/g)).toHaveLength(3);
   });
 
   test("the partial note shows only for a member seeing their own rounds", () => {
@@ -143,17 +145,18 @@ describe("the post-interview read as a chat transcript", () => {
   const html = renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing()] }} />);
 
   test("asks the form's questions in its order and answers each with the filing", () => {
-    const order = ["Dana&#x27;s read · Filed 2h ago", "Would you hire Ada?", "Strong yes", "4 / 4 overall", "on the scorecard", "System design", "Sharded it cleanly", "3 / 4", "What did you see?", "Hire them."];
+    const order = ["Dana&#x27;s read", "Filed 2h ago", "Would you hire Ada?", "Strong yes", "4 / 4 overall", "on the scorecard", "System design", "Sharded it cleanly", "3 / 4", "What did you see?", "Hire them."];
     const at = order.map((s) => html.indexOf(s));
     expect(at.every((n) => n >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 
-  test("the answers are bubbles on the right; only the last says who, under it", () => {
+  test("the answers are bubbles on the right; the heading alone says whose read it is", () => {
     expect(html.match(/self-end/g)).toHaveLength(3);
     expect(html.match(/self-start/g)).toHaveLength(3);
-    expect(html.match(/>Dana</g)).toHaveLength(1);
-    expect(html.lastIndexOf(">Dana<")).toBeGreaterThan(html.indexOf("Hire them."));
+    expect(html).toContain(">Dana&#x27;s read<");
+    // No bubble names them again under it.
+    expect(html).not.toContain(">Dana<");
   });
 
   test("the interviewer's words stay text, line breaks and all", () => {
@@ -171,11 +174,11 @@ describe("the post-interview read as a chat transcript", () => {
     expect(bare).not.toContain("scorecard");
     expect(bare).not.toContain("What did you see?");
     expect(bare).not.toContain("overall");
-    expect(bare.lastIndexOf(">Dana<")).toBeGreaterThan(bare.indexOf("Strong yes"));
+    expect(bare).not.toContain(">Dana<");
   });
 
   test("your own filing reads as yours", () => {
-    expect(renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing({ interviewer: "You" })] }} />)).toContain("Your read · Filed 2h ago");
+    expect(renderToStaticMarkup(<Feedback reader={{ ...reader([]), feedback: [filing({ interviewer: "You" })] }} />)).toMatch(/>Your read<\/span><span>Filed 2h ago</);
   });
 
   test("without the hire question it starts at the scorecard, and with nothing to say it draws nothing", () => {

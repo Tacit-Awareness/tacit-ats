@@ -29,11 +29,19 @@ describe("SettingsView", () => {
   test("has design/tats's Routing Rules, every selection rule on, above the integrations", () => {
     expect(html.match(/role="switch" aria-checked="true"/g)).toHaveLength(4);
     expect(html).toContain("Escalation");
-    expect(html.indexOf("Routing Rules")).toBeLessThan(html.indexOf("Integrations"));
+    expect(html.indexOf("Routing rules")).toBeGreaterThan(-1);
+    expect(html.indexOf("Routing rules")).toBeLessThan(html.indexOf("Integrations"));
   });
 
   test("says the rules change nothing yet", () => {
-    expect(html).toContain("A preview");
+    expect(html).toContain(">Preview<");
+    expect(html).toContain("A preview: these don&#x27;t change who gets asked yet");
+  });
+
+  test("keeps what each settings link is for, on hover and for a screen reader", () => {
+    const people = "Add interviewers and their Grokbots, move people between teams, and set what each person interviews for";
+    expect(html).toContain(`title="${people}"`);
+    expect(html).toContain(`<span class="sr-only">${people}</span>`);
   });
 
   test("offers Gmail to anyone who emails candidates, and says where replies go once connected", () => {

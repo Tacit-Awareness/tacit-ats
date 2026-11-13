@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { LiveRefresh } from "@/components/live-refresh";
-import { Empty, Page, PageBar, SearchBox, SubBar, Tabs, pillOption, pillTrack, type Tab } from "@/components/page";
+import { Empty, Notice, Page, PageBar, SearchBox, Section, SubBar, Tabs, pillOption, pillTrack, type Tab } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Board, FilterKeys, LayoutKey } from "./board";
 import type { BoardColumn } from "./board-state";
@@ -9,28 +10,32 @@ import { ListZero, PipelineList, StageBar, type ListGroup, type StageCard } from
 import { ViewName } from "./view-name";
 
 // The Pipeline's markup, props only (page.tsx does the reads), as design/tats's
-// Pipeline: the bar (people icon, "Pipeline", the count faint, Stuck / Everyone),
-// then one sub-bar with the department tabs on the left (none for an org
-// without departments) and the job chip and the name filter on the right. Under
-// that, the stage bar and one row per person (list.tsx), a row opening the
-// candidate in a pop-up (popup.tsx). A board only reads for one job, so once one
-// is picked the bar's List / Board switch (B) has both, and it opens on the board
-// (board.tsx): one column per computed stage filling the width, each a band with
-// its count and up to a dozen calm cards. A card is the person, their headline,
-// one status line and the owner. Colour only for meaning: a stalled person reads
-// red. On a saved view the crumb is Views, then its name; the bar's Views link
-// goes there. A name filter that finds closed applications says how many, under
-// the sub-bar, and leads to the CRM, where they live.
+// Pipeline drawn in Testbench's staff design: the title row ("Applicant
+// Tickets", the count in a tile, Stuck / Everyone with their counts over the
+// corners, the List / Board switch, Views), then one sub-bar with the department
+// tabs on the left (none for an org without departments) and the job chip and
+// the name filter on the right. Under that, the stage bar and one white card of
+// tickets (list.tsx), a row opening the candidate in a pop-up (popup.tsx). A
+// board only reads for one job, so once one is picked the bar's List / Board
+// switch (B) has both, and it opens on the board (board.tsx): one well per
+// computed stage filling the width, each with its count and up to a dozen calm
+// cards. A card is the person, their headline, one status line and the owner.
+// Colour only for meaning: a stalled person reads red. On a saved view the crumb
+// is Views, then its name; the bar's Views link goes there. A name filter that
+// finds closed applications says how many, under the sub-bar, and leads to the
+// CRM, where they live.
 
 /** Under the sub-bar when no job is picked. `zero` when nobody is left to list. */
 export type PipelineListProps = {
   modes: Tab[];
   stages: StageCard[];
   groups: ListGroup[];
+  /** The rows span more than one team, so each says its team in a column of its own. */
+  teams?: boolean;
   zero: { title: string; note: string; action: { href: string; label: string } | null } | null;
 };
 
-/** The bar's switch (design/tats's `.seg`). `board` is null across jobs, where there is nothing to draw one of. */
+/** The bar's switch (Testbench's `.seg`). `board` is null across jobs, where there is nothing to draw one of. */
 export type LayoutSwitch = { on: "list" | "board"; list: string; board: string | null };
 
 const LAYOUT_ICONS = {
@@ -123,10 +128,7 @@ export function PipelineView({
           >
             {list && !empty ? <Tabs label="Show" tabs={list.modes} /> : null}
             {empty ? null : <LayoutSwitcher layout={layout} />}
-            <Link
-              href="/client/views"
-              className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
-            >
+            <Link href="/client/views" className={buttonVariants({ variant: "ghost", size: "sm" })}>
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="size-[14px]" aria-hidden>
                 <path d="M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3" />
               </svg>
@@ -149,24 +151,32 @@ export function PipelineView({
         </>
       }
     >
-      {capped ? <p className="m-0 mb-3 text-[12.5px] text-faint">A job has more than 1,000 applications, so this board may stop short of the people touched most recently.</p> : null}
+      {capped ? <Notice>A job has more than 1,000 applications, so this board may stop short of the people touched most recently.</Notice> : null}
       {past ? (
-        <Link href={past.href} className="mb-3 flex items-center gap-2 rounded-lg bg-[color:var(--soft)] px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:text-foreground">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="size-[13px] shrink-0" aria-hidden>
+        <Link
+          href={past.href}
+          className="flex items-center gap-2.5 rounded-[10px] bg-card px-4 py-3 text-[13px] text-muted-foreground shadow-[var(--shadow-sm)] transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" className="size-[14px] shrink-0" aria-hidden>
             <path d="M2.5 4c0-1 2.5-1.5 5.5-1.5s5.5.5 5.5 1.5-2.5 1.5-5.5 1.5S2.5 5 2.5 4ZM2.5 4v8c0 1 2.5 1.5 5.5 1.5s5.5-.5 5.5-1.5V4M2.5 8c0 1 2.5 1.5 5.5 1.5s5.5-.5 5.5-1.5" />
           </svg>
-          <span className="min-w-0 [overflow-wrap:anywhere]">{past.label}</span>
+          <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">{past.label}</span>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-[13px] shrink-0" aria-hidden>
+            <path d="M6 3.5 10.5 8 6 12.5" />
+          </svg>
         </Link>
       ) : null}
       <LiveRefresh />
       <FilterKeys enabled={!popup} />
       {empty ? null : <LayoutKey to={layout.on === "list" ? layout.board : layout.list} refusal={NO_BOARD} enabled={!popup} />}
       {empty ? (
-        <Empty>{empty}</Empty>
+        <Section>
+          <Empty className="m-0">{empty}</Empty>
+        </Section>
       ) : list ? (
         <>
           <StageBar stages={list.stages} />
-          {list.zero ? <ListZero {...list.zero} /> : <PipelineList groups={list.groups} popup={!!popup} />}
+          {list.zero ? <ListZero {...list.zero} /> : <PipelineList groups={list.groups} popup={!!popup} teams={!!list.teams} />}
         </>
       ) : (
         <Board columns={columns} />

@@ -77,7 +77,8 @@ describe("the List / Board switch", () => {
     const html = page({ layout: oneJob });
     expect(html).toMatch(/aria-label="List"[^>]*aria-current="page"/);
     expect(html).toContain('href="/client/pipeline?job=j1"');
-    expect(html).not.toContain("disabled");
+    // A disabled attribute, not a class: the buttons' classes name `disabled:` styles.
+    expect(html).not.toMatch(/\sdisabled(=|\s|>)/);
   });
 
   test("the board has no Stuck / Everyone: everyone is on it", () => {

@@ -1,23 +1,30 @@
 import Link from "next/link";
 import * as React from "react";
-import { Avatar, Count, Empty, KeyValues, Page, PageBar, Section, textLink } from "@/components/page";
+import { Empty, KeyValues, Page, PageBar, Pill, Section } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import { hoverAttr } from "@/lib/hover-card";
-import { CHANNEL_LABELS, PREFERENCE_LABELS, loadMeter, type StoredProfile } from "@/lib/client/interviewer-profile";
+import { CHANNEL_LABELS, PREFERENCE_LABELS, type StoredProfile } from "@/lib/client/interviewer-profile";
 import { cn } from "@/lib/utils";
 import { TitleForm } from "../onboarding/people/title-form";
-import { ProfileEditor } from "./profile-editor";
+import { FirstAndMore, SkillTags, Week, bookedTitle, feedbackDue, feedbackTitle, onTimeText, type Feedback, type PersonFacts } from "./facts";
+import { OpenRow, PersonButton, ProfileEditor } from "./profile-editor";
 
-// The Interviewers page's markup, props only (page.tsx does the reads):
-// design/tats's interviewer table (`.cardbox` around `.ptable`), one card in
-// the page's column, with a ruled subhead per department when there are any. A
-// row is the person (and their jobs, faint under the name), whether they like
-// interviewing, their interviews this week as a bar against their own limit or
-// else the busiest on the team, whether they are away, next week and the last
-// 30 days, what they know, where to reach them, and feedback on time / late /
-// not filed (only for a member who may read it). Anything they have not said,
-// or the member may not read, is an empty cell. Counts only: never what anyone
-// wrote as feedback. Colour only for meaning: a positive "likes it", and
-// feedback not filed and a week over the limit in red.
+// The Interviewers page's markup, props only (page.tsx does the reads): one
+// Testbench card in the page's column, a grey band per department when there
+// are any, a row per interviewer read left to right in the order a recruiter
+// asks. Who they are (and a grey Away tag while they are away), the jobs they
+// interview for (the first, then "and 2 more"), their skills when anyone has
+// said theirs, how booked they are this week and next (against their weekly
+// limit when they set one, "2 of 4" beside a short meter, grey while they are
+// away; "1 interview" when not), and how much of their feedback in the last
+// 30 days came in on time ("1 of 3 on time"). The only red on the page is what
+// needs a recruiter: a week over the limit, and feedback not filed. Rows are
+// alphabetical within a department (interviewer-load.ts), so a person stays
+// where they were found while their week fills up. Everything else (every job
+// and skill, the last 30 days, feedback filed late, whether they like
+// interviewing, where to reach them) is in the cell's hover title or in the
+// pop-up a click on the row opens, which is where the profile is edited too.
+// Counts only: never what anyone wrote as feedback.
 
 export type InterviewerViewRow = {
   actorId: string;
@@ -26,7 +33,7 @@ export type InterviewerViewRow = {
   nextWeek: number;
   last30: number;
   /** Null: nothing ended in the last 30 days that they owe feedback on. */
-  feedback: { onTime: number; late: number; notFiled: number; notVisible: number } | null;
+  feedback: Feedback | null;
   jobs: string[];
   profile: StoredProfile | null;
   /** "Away through Nov 14", computed by the page. Null when they are not away. */
@@ -36,143 +43,145 @@ export type InterviewerViewRow = {
   self: boolean;
 };
 
-/** `label` null: no departments, one list without subheads. */
+/** `label` null: no departments, one list without bands. */
 export type InterviewerViewGroup = { label: string | null; rows: InterviewerViewRow[] };
 
-const gridOf = (feedback: boolean) =>
-  cn(
-    "grid items-center gap-3 px-3.5",
-    feedback
-      ? "grid-cols-[minmax(170px,1.3fr)_84px_146px_62px_72px_minmax(110px,1fr)_60px_minmax(170px,1fr)_44px]"
-      : "grid-cols-[minmax(170px,1.3fr)_84px_146px_62px_72px_minmax(110px,1fr)_60px_44px]",
-  );
+type Columns = { skills: boolean; feedback: boolean };
 
-/** design/tats's `.lbar` and its number: the bar is loadMeter's. */
-function LoadBar({ n, cap, max, away }: { n: number; cap: number | null; max: number; away: string | null }) {
-  const m = loadMeter(n, cap, max);
-  return (
-    <span className="grid gap-[3px]">
-      <span className="flex items-center gap-2" title={m.title}>
-        <span aria-hidden className="inline-flex gap-0.5">
-          {Array.from({ length: m.pips }, (_, i) => (
-            <i key={i} className={cn("h-3 w-[7px]", i < m.lit ? "bg-foreground opacity-70" : "bg-[color:var(--soft-strong)]")} />
-          ))}
-        </span>
-        <span className={cn("whitespace-nowrap tabular-nums", m.over ? "text-negative" : n === 0 && "text-faint")}>{m.label}</span>
-      </span>
-      {away ? <small className="text-xs text-faint">{away}</small> : null}
-    </span>
-  );
-}
+// One template for the head and every row, so each head sits over its column.
+// Sized so the 1280px window's card holds every column with no sideways
+// scroll: the name's column holds an "Away through Nov 18" tag, a job title
+// wraps between words with its "and 1 more" kept whole, a skill such as
+// "Infrastructure" fits whole, "Booked this week" has room before "Next week"
+// and its count room for "12 of 20" beside the meter, next week's for "12
+// interviews", "1 of 3 on time" fits on a line with "2 not filed" under it,
+// and Edit fits its button. The wider window's room goes to the jobs and
+// skills, so a job title stays on one line at 1440px and stands apart from the
+// skill beside it. MIN_W is the template's narrowest, the table's floor, so a
+// narrower window scrolls the table sideways, never squeezes it.
+const GRID: Record<`${boolean}${boolean}`, string> = {
+  truetrue: "grid-cols-[156px_minmax(148px,2fr)_minmax(116px,1fr)_124px_100px_128px_52px]",
+  truefalse: "grid-cols-[156px_minmax(148px,2fr)_minmax(116px,1fr)_124px_100px_52px]",
+  falsetrue: "grid-cols-[156px_minmax(148px,1fr)_124px_100px_128px_52px]",
+  falsefalse: "grid-cols-[156px_minmax(148px,1fr)_124px_100px_52px]",
+};
+const MIN_W: Record<`${boolean}${boolean}`, string> = {
+  truetrue: "min-w-[916px]",
+  truefalse: "min-w-[778px]",
+  falsetrue: "min-w-[790px]",
+  falsefalse: "min-w-[652px]",
+};
+const gridOf = (c: Columns) => cn("grid items-center gap-x-2.5 px-4", GRID[`${c.skills}${c.feedback}`]);
 
-/** design/tats's `.likes`: a positive pill for "Likes it", a quiet one otherwise. */
-function Likes({ preference }: { preference: StoredProfile["preference"] }) {
-  if (!preference) return null;
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[22px] items-center rounded-full px-2 text-xs whitespace-nowrap",
-        preference === "loves" ? "bg-positive-soft text-positive" : "bg-[color:var(--soft)]",
-        preference === "either" && "text-muted-foreground",
-        preference === "avoids" && "text-faint",
-      )}
-    >
-      {PREFERENCE_LABELS[preference]}
-    </span>
-  );
-}
-
-function Num({ n }: { n: number }) {
-  return <span className={cn("tabular-nums", n === 0 && "text-faint")}>{n}</span>;
-}
-
-function FeedbackCell({ f }: { f: InterviewerViewRow["feedback"] }) {
+/** How much of their feedback came in on time, "1 of 3 on time", then what is not filed in red, then what the member may not see. */
+function FeedbackCell({ f }: { f: Feedback | null }) {
   if (!f) return <span className="text-faint">None due</span>;
-  const parts: React.ReactNode[] = [
-    <span key="on">{f.onTime} on time</span>,
-    <span key="late" className={cn(f.late === 0 && "text-faint")}>
-      {f.late} late
-    </span>,
-    <span key="not" className={cn(f.notFiled > 0 ? "text-negative" : "text-faint")}>{f.notFiled} not filed</span>,
-  ];
-  if (f.notVisible > 0) {
-    parts.push(
-      <span key="hidden" className="text-faint" title="Whether they filed is hidden from you by your company's feedback setting">
-        {f.notVisible} hidden
-      </span>,
-    );
-  }
+  const due = feedbackDue(f);
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[12.5px] tabular-nums">
-      {parts.map((p, i) => (
-        <span key={i} className="inline-flex items-center gap-1.5">
-          {i > 0 ? <span className="text-faint">·</span> : null}
-          {p}
-        </span>
-      ))}
+    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 whitespace-nowrap tabular-nums" title={feedbackTitle(f)}>
+      {due > 0 ? <span>{onTimeText(f)}</span> : null}
+      {f.notFiled > 0 ? <span className="text-negative">{f.notFiled} not filed</span> : null}
+      {f.notVisible > 0 ? <span className="text-faint">{f.notVisible} hidden</span> : null}
     </span>
   );
 }
 
-function Rows({ rows, feedback, max }: { rows: InterviewerViewRow[]; feedback: boolean; max: number }) {
-  const grid = gridOf(feedback);
-  return rows.map((r) => (
-    <div role="row" key={r.actorId} className={cn(grid, "min-h-14 border-b border-[color:var(--line)] text-[13px] last:border-b-0")}>
-      <span role="cell" className="flex min-w-0 items-center gap-2.5 py-2">
-        <span data-hc={hoverAttr("member", r.actorId)}>
-          <Avatar name={r.name} size="lg" />
+function Rows({ rows, columns }: { rows: InterviewerViewRow[]; columns: Columns }) {
+  const grid = gridOf(columns);
+  return rows.map((r) => {
+    const cap = r.profile?.weeklyCap ?? null;
+    // With no profile to read, the hover says nothing about a limit.
+    const capSaid = r.profile ? cap : undefined;
+    const facts: PersonFacts = {
+      jobs: r.jobs,
+      thisWeek: r.thisWeek,
+      nextWeek: r.nextWeek,
+      last30: r.last30,
+      feedback: r.feedback,
+      feedbackShown: columns.feedback,
+      away: r.away,
+    };
+    return (
+      <OpenRow
+        key={r.actorId}
+        className={cn(
+          grid,
+          "group/row min-h-12 cursor-pointer border-b border-[color:var(--line)] py-2.5 text-[13px] transition-colors duration-150 last:border-b-0 hover:bg-[color:var(--surface)]",
+          // On the keyboard (the name's button, then Edit) the row lights as it would under the pointer.
+          "has-[:focus-visible]:bg-[color:var(--surface)]",
+        )}
+      >
+        <span role="cell" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <PersonButton
+            actorId={r.actorId}
+            name={r.name}
+            self={r.self}
+            profile={r.profile}
+            facts={facts}
+            editable={r.editable}
+            hover={hoverAttr("member", r.actorId)}
+          />
+          {r.away ? <Pill>{r.away}</Pill> : null}
         </span>
-        <span className="grid min-w-0">
-          <b data-hc={hoverAttr("member", r.actorId)} className="truncate font-medium">
-            {r.name}
-          </b>
-          <span className="truncate text-xs text-faint" title={r.jobs.length > 1 ? r.jobs.join(", ") : undefined}>
-            {r.jobs.length ? `${r.jobs[0]}${r.jobs.length > 1 ? ` +${r.jobs.length - 1}` : ""}` : "No jobs"}
-          </span>
-        </span>
-      </span>
-      <span role="cell">
-        <Likes preference={r.profile?.preference ?? null} />
-      </span>
-      <span role="cell">
-        <LoadBar n={r.thisWeek} cap={r.profile?.weeklyCap ?? null} max={max} away={r.away} />
-      </span>
-      <span role="cell">
-        <Num n={r.nextWeek} />
-      </span>
-      <span role="cell">
-        <Num n={r.last30} />
-      </span>
-      <span role="cell" className="min-w-0 truncate text-muted-foreground" title={r.profile?.focusAreas.join(", ") || undefined}>
-        {r.profile?.focusAreas.join(", ")}
-      </span>
-      <span role="cell" className="text-muted-foreground">
-        {r.profile?.channel ? CHANNEL_LABELS[r.profile.channel] : null}
-      </span>
-      {feedback ? (
         <span role="cell" className="min-w-0">
-          <FeedbackCell f={r.feedback} />
+          {r.jobs.length ? <FirstAndMore items={r.jobs} /> : <span className="text-faint">No jobs</span>}
         </span>
-      ) : null}
-      <span role="cell" className="justify-self-end">
-        {r.editable ? <ProfileEditor actorId={r.actorId} name={r.name} self={r.self} profile={r.profile} /> : null}
-      </span>
-    </div>
-  ));
+        {columns.skills ? (
+          <span role="cell" className="min-w-0 text-muted-foreground">
+            <FirstAndMore items={r.profile?.focusAreas ?? []} />
+          </span>
+        ) : null}
+        <span role="cell">
+          <Week n={r.thisWeek} cap={cap} away={r.away !== null} title={bookedTitle(r.thisWeek, capSaid, "this week", r.away)} />
+        </span>
+        <span role="cell">
+          <Week n={r.nextWeek} cap={cap} meter={false} title={bookedTitle(r.nextWeek, capSaid, "next week")} />
+        </span>
+        {columns.feedback ? (
+          <span role="cell" className="min-w-0">
+            <FeedbackCell f={r.feedback} />
+          </span>
+        ) : null}
+        <span role="cell" className="justify-self-end">
+          {/* Edit shows on the row under the pointer or the keyboard, so ten of them don't stand down the page; the pop-up has it too. */}
+          {r.editable ? (
+            <ProfileEditor
+              actorId={r.actorId}
+              name={r.name}
+              self={r.self}
+              profile={r.profile}
+              className="opacity-0 transition-opacity duration-150 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100"
+            />
+          ) : null}
+        </span>
+      </OpenRow>
+    );
+  });
 }
 
-/** The team and its invitations moved to Onboarding; every capability is still a click from here. */
+/**
+ * Where the team and its invitations are, Onboarding's People step (the
+ * sidebar's Team): the page's action, beside its title. For an admin it is how
+ * someone is added; for the rest of the hiring team, where everyone is listed.
+ */
 export function OnboardingLink({ isAdmin }: { isAdmin: boolean }) {
   return (
-    <Section title="Members and invitations">
-      <p className="m-0 text-[13px] text-muted-foreground">
-        {isAdmin ? "Invite people, re-send or withdraw an invitation, and change someone's access in " : "Everyone on your team, with their access and title, is in "}
-        <Link href="/client/onboarding/people" className={textLink}>
-          Onboarding
-        </Link>
-        .
-      </p>
-    </Section>
+    <Link
+      href="/client/onboarding/people"
+      className={buttonVariants({ variant: "outline" })}
+      title={isAdmin ? "Invite people, re-send or withdraw an invitation, and change someone's access in Onboarding" : "Everyone on your team, with their access and title, is in Onboarding"}
+    >
+      {isAdmin ? (
+        <>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
+            <path d="M8 3v10M3 8h10" />
+          </svg>
+          Invite people
+        </>
+      ) : (
+        "See the team"
+      )}
+    </Link>
   );
 }
 
@@ -193,17 +202,18 @@ export function OwnProfile({
   away: string | null;
   title?: string | null;
 }) {
-  const said = (text: string | null | undefined) => text || <span className="text-faint">Not said</span>;
+  const notSaid = <span className="text-faint">Not said</span>;
   return (
-    <Section title="Your interviewer profile" aside={<ProfileEditor actorId={actorId} name={name} self profile={profile} />}>
+    <Section title="Your interviewer profile" aside={<ProfileEditor actorId={actorId} name={name} self profile={profile} className="-my-1" />}>
       <KeyValues
+        className="grid-cols-[136px_minmax(0,1fr)]"
         items={[
           ...(title === undefined ? [] : ([["Title", <TitleForm key={title ?? ""} actorId={actorId} name={name} title={title} />]] as [React.ReactNode, React.ReactNode][])),
-          ["Interviewing", said(profile?.preference ? PREFERENCE_LABELS[profile.preference] : null)],
-          ["Most a week", profile?.weeklyCap == null ? <span className="text-faint">No limit</span> : profile.weeklyCap],
-          ["Knows", said(profile?.focusAreas.join(", "))],
-          ["Reach", said(profile?.channel ? CHANNEL_LABELS[profile.channel] : null)],
-          ["Away", away ?? <span className="text-faint">Not away</span>],
+          ["Skills", profile?.focusAreas.length ? <SkillTags areas={profile.focusAreas} /> : notSaid],
+          ["Interviewing", profile?.preference ? PREFERENCE_LABELS[profile.preference] : notSaid],
+          ["Reach on", profile?.channel ? CHANNEL_LABELS[profile.channel] : notSaid],
+          ["Weekly limit", profile?.weeklyCap == null ? <span className="text-faint">No limit</span> : `${profile.weeklyCap} ${profile.weeklyCap === 1 ? "interview" : "interviews"}`],
+          ["Availability", away ?? <span className="text-faint">Not away</span>],
         ]}
       />
     </Section>
@@ -215,6 +225,7 @@ export function InterviewersView({
   feedback,
   note,
   empty,
+  actions,
   children,
 }: {
   groups: InterviewerViewGroup[];
@@ -223,47 +234,54 @@ export function InterviewersView({
   /** A line under the table, such as the read stopping short. */
   note: string | null;
   empty: string | null;
-  /** Their own profile, and the way to the team, under the table. */
+  /** Beside the title: the way to the team (OnboardingLink). */
+  actions?: React.ReactNode;
+  /** Their own profile, or the team for a member Onboarding turns away, under the table. */
   children?: React.ReactNode;
 }) {
   const total = groups.reduce((n, g) => n + g.rows.length, 0);
-  const max = Math.max(0, ...groups.flatMap((g) => g.rows.map((r) => r.thisWeek)));
-  const grid = gridOf(feedback);
+  // Skills get a column once anyone on the table has said theirs; until then it would be empty all the way down.
+  const columns: Columns = { skills: groups.some((g) => g.rows.some((r) => r.profile?.focusAreas.length)), feedback };
+  const grid = gridOf(columns);
   return (
-    <Page bar={<PageBar title="Interviewers" count={empty ? undefined : total} />}>
-      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[12px] border border-[color:var(--line)] bg-[color:var(--paper)]">
-        <h2 className="m-0 flex min-h-10 items-center gap-2 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3.5 text-[13.5px] font-medium">
-          Interviewers
-          {empty ? null : <Count>{total}</Count>}
+    <Page
+      bar={
+        <PageBar title="Interviewers" count={empty ? undefined : `${total} ${total === 1 ? "interviewer" : "interviewers"}`}>
+          {actions}
+        </PageBar>
+      }
+    >
+      {/* The page's title already names it, so the card's own heading is for a screen reader. */}
+      <section aria-label="Interviewers" className="grid min-w-0 overflow-hidden rounded-[14px] bg-card shadow-[var(--shadow)]">
+        <h2 className="sr-only">
+          Interviewers, {total} {total === 1 ? "person" : "people"}
         </h2>
         {empty ? (
-          <Empty className="px-3.5 py-3">{empty}</Empty>
+          <Empty className="px-5 py-4">{empty}</Empty>
         ) : (
           <div className="overflow-x-auto">
-            <div role="table" aria-label="Interviewers" className={cn("grid", feedback ? "min-w-[1042px]" : "min-w-[860px]")}>
-              <div role="row" className={cn(grid, "h-[34px] border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] text-xs whitespace-nowrap text-faint")}>
-                <span role="columnheader">Interviewer</span>
-                <span role="columnheader" title="Whether they like interviewing, as they said">
-                  Interviews
+            <div role="table" aria-label="Interviewers" className={cn("grid", MIN_W[`${columns.skills}${columns.feedback}`])}>
+              <div role="row" className={cn(grid, "h-10 border-b border-[color:var(--line)] text-[12px] whitespace-nowrap text-faint")}>
+                <span role="columnheader" title="Click someone for everything about them">
+                  Interviewer
                 </span>
-                <span role="columnheader" title="Interviews starting this week, Monday to Sunday (UTC), against their weekly limit or else the busiest on the team">
-                  This week
+                <span role="columnheader" title="Live jobs whose hiring team they're on, and jobs they've interviewed for">
+                  Interviews for
+                </span>
+                {columns.skills ? (
+                  <span role="columnheader" title="What they can interview on, as they or an admin wrote it">
+                    Skills
+                  </span>
+                ) : null}
+                <span role="columnheader" title="Interviews starting this week, Monday to Sunday (UTC), against their weekly limit when they set one">
+                  Booked this week
                 </span>
                 <span role="columnheader" title="Interviews starting next week, Monday to Sunday (UTC)">
                   Next week
                 </span>
-                <span role="columnheader" title="Interviews that started in the last 30 days">
-                  Last 30 days
-                </span>
-                <span role="columnheader" title="What they can interview on, as they wrote it">
-                  Knows
-                </span>
-                <span role="columnheader" title="Where they want to be reached about interviews">
-                  Reach
-                </span>
-                {feedback ? (
-                  <span role="columnheader" title="Interviews that ended in the last 30 days on jobs you manage: feedback within 24 hours is on time">
-                    Feedback, 30 days
+                {columns.feedback ? (
+                  <span role="columnheader" title="Interviews that ended in the last 30 days on jobs you manage: feedback within 24 hours of the end is on time">
+                    Feedback
                   </span>
                 ) : null}
                 <span role="columnheader" className="sr-only">
@@ -272,14 +290,21 @@ export function InterviewersView({
               </div>
               {groups.map((g) =>
                 g.label === null ? (
-                  <Rows key="all" rows={g.rows} feedback={feedback} max={max} />
+                  <Rows key="all" rows={g.rows} columns={columns} />
                 ) : (
                   <div role="rowgroup" key={g.label} aria-label={g.label} className="grid border-b border-[color:var(--line)] last:border-b-0">
-                    <div role="row" className="flex h-9 items-center gap-2 border-b border-[color:var(--line)] bg-[color:var(--soft)] px-3.5 text-[12.5px] font-medium text-muted-foreground">
-                      <span role="rowheader">{g.label}</span>
-                      <Count>{g.rows.length}</Count>
+                    {/* The band names the department; how many are in it is its hover, since the rows under it show as much. */}
+                    <div
+                      role="row"
+                      title={`${g.rows.length} ${g.rows.length === 1 ? "interviewer" : "interviewers"}`}
+                      className="flex h-10 items-center border-b border-[color:var(--line)] bg-[color:var(--band)] px-4 text-[13px] font-medium"
+                    >
+                      <span role="rowheader">
+                        {g.label}
+                        <span className="sr-only">, {g.rows.length}</span>
+                      </span>
                     </div>
-                    <Rows rows={g.rows} feedback={feedback} max={max} />
+                    <Rows rows={g.rows} columns={columns} />
                   </div>
                 ),
               )}
@@ -287,7 +312,7 @@ export function InterviewersView({
           </div>
         )}
       </section>
-      {note ? <p className="m-0 text-xs text-faint">{note}</p> : null}
+      {note ? <p className="m-0 text-[12px] text-faint">{note}</p> : null}
       {children}
     </Page>
   );
