@@ -1,0 +1,317 @@
+/* The shell's overlays in Testbench's language (portal.css's .menu, .dialog,
+   .icon-btn, .cmdk, .toast and .tour): the account menu, the filter menu, ⌘K,
+   the keys sheet, the pop-up's head, the tutorial's card and the toasts. In the
+   components layer, so a utility on one of them (max-md:hidden, a page's
+   margin) still wins; only KeyList's row focus, at the end, sits outside it.
+   Every colour is a token, so dark mode comes with them. */
+
+@layer components {
+  /* A menu: white, 12px corners, the pop shadow, 6px in. On --paper, not
+     --raised: in the dark theme --raised is the hover's own grey, and --paper is
+     Testbench's raised graphite, where a hover and a hairline both show. */
+  .ov-menu {
+    padding: 6px;
+    border-radius: 12px;
+    background: var(--paper);
+    box-shadow: var(--pop-shadow);
+    color: var(--ink);
+  }
+
+  /* who you are, over the items: the name in 500, the email faint */
+  .ov-head {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 6px;
+    padding: 8px 10px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* an item: 34px, 7px corners, its icon 15px in the faint ink */
+  .ov-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font-size: 13px;
+    line-height: 1;
+    text-align: left;
+    color: var(--ink);
+    text-decoration: none;
+    white-space: nowrap;
+    outline: none;
+    transition: background-color 0.1s;
+  }
+  .ov-item:hover,
+  .ov-item:focus-visible {
+    background: var(--hover);
+  }
+  .ov-item > svg {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--faint);
+  }
+  .ov-item .ov-end {
+    display: inline-flex;
+    gap: 3px;
+    margin-left: auto;
+    color: var(--faint);
+  }
+
+  /* a row that holds a control rather than being one (the theme, the warmth) */
+  .ov-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 40px;
+    padding: 0 3px 0 10px;
+    font-size: 13px;
+  }
+  .ov-row > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+  }
+  .ov-row > span > svg {
+    width: 15px;
+    height: 15px;
+    flex: none;
+    color: var(--faint);
+  }
+
+  .ov-sep {
+    height: 1px;
+    margin: 6px 0;
+    background: var(--line);
+  }
+
+  /* Testbench's small segmented control (.seg.small): the picked option raised */
+  .ov-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 9px;
+    background: var(--track);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .ov-seg > button {
+    display: grid;
+    place-items: center;
+    min-width: 28px;
+    height: 26px;
+    padding: 0 7px;
+    border-radius: 6px;
+    font: 500 12px/1 var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-text);
+    outline: none;
+    transition:
+      background-color 0.12s,
+      color 0.12s,
+      box-shadow 0.12s;
+  }
+  .ov-seg > button:hover {
+    color: var(--ink);
+  }
+  .ov-seg > button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .ov-seg > button[aria-checked="true"] {
+    background: var(--pick);
+    color: var(--pick-ink);
+    box-shadow: var(--pick-shadow);
+  }
+  .ov-seg > button > svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Testbench's .icon-btn: a bare 34px square with 8px corners, filled on hover.
+     It widens for a word or a key beside the icon (the pop-up's esc and ✕). */
+  .ov-icon-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--muted-text);
+    white-space: nowrap;
+    transition:
+      background-color 0.1s,
+      color 0.1s;
+  }
+  .ov-icon-btn:hover {
+    background: var(--hover);
+    color: var(--ink);
+  }
+  .ov-icon-btn > svg {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
+
+  /* The scrim under a dialog: Testbench's, with its 2px blur. */
+  .ov-scrim {
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  dialog.ov-dialog::backdrop {
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+
+  /* A dialog: the box's surface, 16px corners, the box shadow; the head in Mona Sans. */
+  .ov-dialog {
+    border: 0;
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--box-shadow);
+    color: var(--ink);
+  }
+  .ov-dialog-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 22px 24px 6px;
+  }
+  .ov-dialog-head h2 {
+    margin: 0;
+    font: 600 20px/26px var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* ⌘K: a 640px dialog at 16vh, the search row, the groups as plain words. */
+  .ov-cmdk-input {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 12px;
+    height: 52px;
+    padding: 0 14px 0 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ov-cmdk-input > svg {
+    width: 17px;
+    height: 17px;
+    flex: none;
+    color: var(--faint);
+  }
+  .ov-cmdk-input input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: 0;
+    background: none;
+    outline: none;
+    font: 400 15px/1 var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+    color: var(--ink);
+  }
+  .ov-cmdk-input input::placeholder {
+    color: var(--faint);
+  }
+  .ov-cmdk-group {
+    padding: 12px 10px 6px;
+    font: 400 12.5px/1 var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+    color: var(--faint);
+  }
+  .ov-cmdk-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 42px;
+    padding: 0 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .ov-cmdk-item[aria-selected="true"] {
+    background: var(--hover);
+  }
+  .ov-cmdk-label {
+    font: 500 14.5px/1 var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ov-cmdk-sub {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12.5px;
+    color: var(--faint);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  /* The toast is the one inverted surface: black (--primary) with white words,
+     so what a page puts in it (an Undo and its key) reads in the toast's own
+     ink. Its lines and hover follow the same flip. */
+  .toast.ov-toast {
+    --ink: var(--primary-ink);
+    --muted-text: color-mix(in oklab, var(--primary-ink) 78%, var(--primary));
+    --faint: color-mix(in oklab, var(--primary-ink) 66%, var(--primary));
+    --line: color-mix(in oklab, var(--primary-ink) 18%, var(--primary));
+    --line-strong: color-mix(in oklab, var(--primary-ink) 30%, var(--primary));
+    --hover: color-mix(in oklab, var(--primary-ink) 12%, var(--primary));
+    border-radius: 10px;
+    background: var(--primary);
+    color: var(--primary-ink);
+    box-shadow: var(--pop-shadow);
+  }
+  /* an error's mark, in a red that reads on the toast in either theme */
+  .ov-toast-alert {
+    color: color-mix(in oklab, var(--red) 55%, var(--primary-ink));
+  }
+
+  /* The tutorial's spotlight and card (.tour-light, .tour-card). */
+  .ov-tour-dim {
+    background: oklch(0.1 0.004 var(--brand-h) / 0.5);
+  }
+  .ov-tour-light {
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 9999px oklch(0.1 0.004 var(--brand-h) / 0.5),
+      0 0 0 2px color-mix(in srgb, var(--n0) 90%, transparent);
+  }
+  .ov-tour-progress {
+    height: 3px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--soft-strong);
+  }
+  .ov-tour-progress > i {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--ink);
+    transition: width 0.26s var(--ease);
+  }
+}
+
+/* KeyList's `rows` (components/keys.tsx): a ticket list's keyboard focus is the
+   row's own look, its grey fill and the ink bar at its left, as the selected
+   row, in place of the accent ring. The row is the item itself, or the
+   [role=row] or [data-key-row] that holds it. Outside the layers on purpose:
+   KeyList's own ring is a utility, and this has to win over it. */
+.key-rows [data-key-item]:focus-visible {
+  outline: none;
+}
+.key-rows :is([role="row"], [data-key-row]):has([data-key-item]:focus-visible),
+.key-rows [data-key-item]:focus-visible:not(:is([role="row"], [data-key-row]) [data-key-item]) {
+  background: var(--sel);
+  box-shadow: inset 2px 0 0 var(--ink);
+}

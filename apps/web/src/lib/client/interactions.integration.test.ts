@@ -147,7 +147,7 @@ describe("a member's hover card", () => {
   test("an admin reads what they told the team, and the week", async () => {
     const card = await readMemberCard(admin(), IVY, new Date(NOW));
     expect(card).toMatchObject({ name: "Ivy Interviewer", line: "Engineer · Platform", link: { href: "/client/interviewers" } });
-    expect(labels(card)).toEqual(["Interviews", "Knows", "Reach"]);
+    expect(labels(card)).toEqual(["Interviews", "Skills", "Reach on"]);
     expect(card?.rows[0]?.value).toBe("Likes it");
     expect(JSON.stringify(card)).not.toContain("ivy@ix.test");
   });
@@ -156,7 +156,7 @@ describe("a member's hover card", () => {
     must(await db().from("interviewer_profiles").insert({ org_id: ACME, actor_id: LEAD, interview_preference: "either" }));
     const other = await readMemberCard(ivy(), LEAD, new Date(NOW));
     expect(other).toMatchObject({ name: "Lee Lead", rows: [], link: null });
-    expect(labels(await readMemberCard(ivy(), IVY, new Date(NOW)))).toContain("Knows");
+    expect(labels(await readMemberCard(ivy(), IVY, new Date(NOW)))).toContain("Skills");
   });
 
   test("another company's member is nobody", async () => {

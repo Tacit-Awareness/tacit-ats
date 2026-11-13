@@ -1,0 +1,121 @@
+/* Settings, in Tacit Testbench's workspace settings (shell.css `.ws-*` in its
+   staff mockup): sections as soft white cards, rows 56px with the name on the
+   left and the control on the right, a hairline between rows, and a group's
+   name in a 40px band. Used by settings/view.tsx, routing-rules.tsx, the
+   templates page and integrations/bot.tsx. In the components layer, so a
+   utility on one of them (a row's own padding or alignment) still wins. */
+
+@layer components {
+  /* A narrow settings page keeps its title over its column, not at the panel's
+     edge, as Testbench's page head sits over its content. */
+  .page-top:has(+ .set-page) > .page-bar {
+    max-width: 880px;
+    margin-inline: auto;
+  }
+
+  .set-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 56px;
+    padding: 8px 14px 8px 20px;
+  }
+  .set-row + .set-row,
+  .set-row + .set-band {
+    border-top: 1px solid var(--line);
+  }
+  a.set-row {
+    transition: background-color 0.15s var(--ease);
+  }
+  a.set-row:hover {
+    background: var(--surface);
+  }
+  /* the card clips anything outside it, so the keyboard ring sits just inside the row */
+  a.set-row:focus-visible {
+    outline-offset: -2px;
+    background: var(--surface);
+  }
+  @media (max-width: 639px) {
+    .set-row {
+      flex-wrap: wrap;
+    }
+    .set-row > .set-action {
+      width: 100%;
+      justify-content: flex-start;
+      padding-left: 32px;
+    }
+  }
+
+  /* a group inside a card, as Testbench's list group header */
+  .set-band {
+    display: flex;
+    align-items: center;
+    height: 40px;
+    margin: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--band);
+    font: 500 13px/20px var(--font-mono);
+    letter-spacing: 0;
+    color: var(--ink);
+  }
+
+  /* Testbench's `.toggle`: 32 by 18, ink when on (the accent at night), the knob
+     sliding across in 200ms */
+  .set-toggle {
+    position: relative;
+    flex: none;
+    width: 32px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--ink) 30%, var(--paper));
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease);
+  }
+  .set-toggle::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: var(--n0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s var(--ease);
+  }
+  .set-toggle[aria-checked="true"] {
+    background: var(--ink);
+  }
+  .set-toggle[aria-checked="true"]::after {
+    transform: translateX(14px);
+  }
+  :root[data-theme="dark"] .set-toggle[aria-checked="true"] {
+    background: var(--accent);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .set-toggle[aria-checked="true"] {
+      background: var(--accent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .set-toggle,
+    .set-toggle::after,
+    a.set-row {
+      transition: none;
+    }
+  }
+
+  /* a value to copy into another product (a client ID, scopes, an address) */
+  .set-code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--soft-strong);
+    font: 400 12px/18px var(--font-mono);
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+}

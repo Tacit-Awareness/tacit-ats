@@ -5,12 +5,16 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Button } from "@/components/ui/button";
 import { TOUR, onScreen, onStepPage, placeTour, tourTargets, type Box } from "@/lib/tour";
 import { cn } from "@/lib/utils";
+import "../overlays.css";
 
 // design/tats's tutorial, the React half (lib/tour.ts is the pure half): a
 // walk through every page, one spotlight at a time. Tutorial in the account
 // menu starts it; each step goes to its page, waits for what
 // it spotlights and puts the card beside it. Clicks outside the card are
-// blocked; → or Enter is Next, ← is Back, Esc ends it. Nothing is saved.
+// blocked; → or Enter is Next, ← is Back, Esc ends it. Nothing is saved. The
+// spotlight and the card are Testbench's `.tour-light` and `.tour-card`
+// (overlays.css): where you are is the bar over the buttons, its step in words
+// on hover.
 
 export const START_EVENT = "tats:tour";
 /** How long a step waits for its page and element before centring the card. */
@@ -39,6 +43,14 @@ export function TourButton({ onClick, children, ...props }: React.ComponentProps
     >
       {children}
     </button>
+  );
+}
+
+function Arrow({ back = false }: { back?: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={cn(back && "-scale-x-100")}>
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
   );
 }
 
@@ -138,45 +150,53 @@ export function ShellTour() {
 
   return (
     <div className="fixed inset-0 z-[300]">
-      <div className={cn("absolute inset-0", placed?.spot ? "" : "bg-[oklch(0.1_0.004_var(--brand-h)/0.55)]")} aria-hidden />
-      {placed?.spot ? (
-        <div
-          aria-hidden
-          className={cn("pointer-events-none absolute transition-[left,top,width,height]", ease)}
-          style={{
-            ...placed.spot,
-            boxShadow: "0 0 0 9999px oklch(0.1 0.004 var(--brand-h) / 0.55), 0 0 0 2px var(--n0), 0 0 0 6px color-mix(in srgb, var(--accent) 55%, transparent)",
-          }}
-        />
-      ) : null}
+      <div className={cn("absolute inset-0", !placed?.spot && "ov-tour-dim")} aria-hidden />
+      {placed?.spot ? <div aria-hidden className={cn("ov-tour-light pointer-events-none absolute transition-[left,top,width,height]", ease)} style={placed.spot} /> : null}
       <div
         ref={card}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tour-title"
         aria-live="polite"
-        className={cn("absolute w-[320px] max-w-[calc(100vw-32px)] rounded-[12px] bg-raised p-5 text-foreground shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
+        className={cn("ov-dialog absolute w-[340px] max-w-[calc(100vw-32px)] px-5 pt-5 pb-4 shadow-[var(--pop-shadow)] transition-[left,top]", ease, !placed && "invisible")}
         style={placed?.card}
       >
-        <div className="text-[12.5px] font-medium text-[color:var(--accent)]">
-          {i + 1} of {TOUR.length}
-        </div>
-        <h3 id="tour-title" className="m-0 mt-2 text-[17px] font-semibold tracking-[-0.01em]">
+        <button type="button" onClick={end} aria-label="Skip" title="Skip (esc)" className="ov-icon-btn absolute top-3 right-3">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
+            <path d="m4 4 8 8M12 4l-8 8" />
+          </svg>
+        </button>
+        <h3 id="tour-title" className="m-0 pr-8 font-sans text-[18px] leading-6 font-semibold tracking-[-0.01em]">
           {step.title}
         </h3>
-        <p className="m-0 mt-2 text-[14px] leading-[1.55] text-muted-foreground">{step.body}</p>
-        <div className="mt-5 flex items-center gap-2">
-          <button type="button" onClick={end} className="text-[13px] text-muted-foreground hover:text-foreground">
-            Skip
-          </button>
-          <span className="flex-1" />
+        <p className="m-0 mt-2 font-sans text-[14px] leading-[22px] text-muted-foreground">{step.body}</p>
+        <div
+          role="progressbar"
+          aria-label="Tutorial"
+          aria-valuemin={1}
+          aria-valuemax={TOUR.length}
+          aria-valuenow={i + 1}
+          aria-valuetext={`Step ${i + 1} of ${TOUR.length}`}
+          title={`Step ${i + 1} of ${TOUR.length}`}
+          className="ov-tour-progress mt-[18px] mb-3.5"
+        >
+          <i style={{ width: `${((i + 1) / TOUR.length) * 100}%` }} />
+        </div>
+        {/* Testbench's foot: the way back on the left (Skip on the first step), the way on, black, on the right. */}
+        <div className="flex items-center justify-between gap-2">
           {i ? (
-            <Button size="sm" variant="outline" onClick={() => go(-1)}>
+            <Button variant="ghost" onClick={() => go(-1)} className="-ml-2.5">
+              <Arrow back />
               Back
             </Button>
-          ) : null}
-          <Button ref={next} size="sm" onClick={() => go(1)}>
+          ) : (
+            <Button variant="ghost" onClick={end} className="-ml-2.5">
+              Skip
+            </Button>
+          )}
+          <Button ref={next} onClick={() => go(1)}>
             {last ? "Done" : "Next"}
+            {last ? null : <Arrow />}
           </Button>
         </div>
       </div>

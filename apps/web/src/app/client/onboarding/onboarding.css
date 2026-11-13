@@ -1,20 +1,25 @@
-/* Onboarding's own pieces, on the --n* tokens and globals.css's role tokens, from
-   design/tats's .fc and .su. Imported by the steps that use them. */
+/* Onboarding's own pieces, from design/tats's .fc and .su, drawn in Testbench's
+   staff design on globals.css's role tokens: white cards with a soft shadow,
+   7px fields and buttons, a segmented track for a choice, Geist Mono for what you
+   read as data. Imported by the steps that use them, and by Interview
+   Judgement's process sheet. */
 
 .proc-gap { color: var(--amber); }
-.proc-level { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-top: 1px solid var(--n100); }
-.proc-level:first-child { border-top: 0; }
-.proc-path { display: grid; grid-template-columns: minmax(96px, 200px) minmax(0, 1fr); gap: 2px 12px; }
+.proc-level { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.proc-level:first-child { border-top: 0; padding-top: 4px; }
+.proc-path { display: grid; grid-template-columns: minmax(96px, 200px) minmax(0, 1fr); gap: 4px 12px; }
 
-.proc-notes { display: grid; gap: 4px; padding: 10px 14px; border: 1px solid color-mix(in srgb, var(--red) 35%, var(--line)); font-size: 13px; }
-.proc-notes.gaps { border-color: var(--line); }
-.proc-notes b { font-weight: 500; }
+/* What to fix (red, it stops Apply) and what is worth a look (a grey well). */
+.proc-notes { display: grid; gap: 6px; padding: 12px 16px; border-radius: 10px; background: var(--red-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 25%, transparent); color: var(--red); font-size: 13px; }
+.proc-notes.gaps { background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); }
+.proc-notes b { font-family: var(--font-sans); font-size: 13.5px; font-weight: 600; }
 .proc-notes ul { margin: 0; padding-left: 16px; color: var(--muted-text); }
+.proc-notes:not(.gaps) ul { color: var(--red); }
 
-.proc-job { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-top: 1px solid var(--n100); }
-.proc-job:first-child { border-top: 0; }
-.proc-job input { margin-top: 3px; }
-.proc-warn { margin: 2px 0 0; padding-left: 16px; color: var(--amber); font-size: 12.5px; }
+.proc-job { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px solid var(--line); }
+.proc-job:first-child { border-top: 0; padding-top: 4px; }
+.proc-job input { width: 15px; height: 15px; margin-top: 3px; }
+.proc-warn { margin: 4px 0 0; padding-left: 16px; color: var(--amber); font-size: 12.5px; }
 
 /* Canvas or List. Below 900px there is no canvas, and no choice. */
 @media (min-width: 900px) {
@@ -26,8 +31,8 @@
   .proc-path { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* The flowchart. */
-.fc { position: relative; height: max(520px, calc(100vh - 380px)); overflow: hidden; background: var(--surface); border: 1px solid var(--line); user-select: none; }
+/* The flowchart: a recessed well with a dot grid, the steps raised off it as cards. */
+.fc { position: relative; height: max(520px, calc(100vh - 380px)); overflow: hidden; border-radius: 10px; background: var(--soft); box-shadow: inset 0 0 0 1px var(--line); user-select: none; }
 /* Over Interview Judgement (interviews/process-sheet.tsx), the canvas takes what the sheet leaves. */
 .proc-sheet .fc { height: max(360px, calc(100vh - 250px)); }
 .fc-vp { position: absolute; inset: 0; cursor: grab; background-image: radial-gradient(circle, var(--line-strong) 1px, transparent 1.2px); touch-action: none; }
@@ -35,61 +40,74 @@
 .fc-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .fc-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .fc-e .hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
-.fc-e .ln { fill: none; stroke: var(--n500); stroke-width: 1.5; }
-.fc-e .ar { fill: var(--n500); }
-.fc-e text { font-size: 12px; fill: var(--muted-text); text-anchor: middle; paint-order: stroke; stroke: var(--surface); stroke-width: 5px; stroke-linejoin: round; }
+.fc-e .ln { fill: none; stroke: var(--ink-4); stroke-width: 1.5; transition: stroke 0.15s; }
+.fc-e .ar { fill: var(--ink-4); transition: fill 0.15s; }
+.fc-e text { font-family: var(--font-mono); font-size: 12px; fill: var(--faint); text-anchor: middle; paint-order: stroke; stroke: var(--soft); stroke-width: 5px; stroke-linejoin: round; }
 .fc-e:hover .ln { stroke: var(--ink); }
+.fc-e:hover .ar { fill: var(--ink); }
 .fc-e.sel .ln { stroke: var(--accent); stroke-width: 2; }
 .fc-e.sel .ar { fill: var(--accent); }
 .fc-e.sel text { fill: var(--accent); }
 .fc-tmp { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 4; }
 
-.fc-n { position: absolute; display: flex; align-items: center; gap: 8px; background: var(--paper); border: 1px solid var(--line-strong); box-shadow: var(--shadow); cursor: default; color: var(--ink); transition: box-shadow 0.15s, border-color 0.15s; }
+/* A node is a Testbench card: white, 14px, the small shadow. Selected, problem and
+   gap are rings, so a node keeps its size whatever it says. */
+.fc-n { position: absolute; display: flex; align-items: center; gap: 8px; border-radius: 14px; background: var(--paper); box-shadow: var(--shadow-sm); cursor: default; color: var(--ink); transition: box-shadow 0.15s var(--ease); }
 .fc[data-mode="edit"] .fc-n { cursor: grab; }
-.fc-n.sel { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow); }
-.fc-n.bad { border-color: var(--red); }
+.fc[data-mode="edit"] .fc-n:hover { box-shadow: 0 0 0 1px var(--line-strong), 0 1px 2px rgba(22, 23, 26, 0.06), 0 8px 20px -10px rgba(22, 23, 26, 0.25); }
+.fc-n.bad { box-shadow: 0 0 0 1.5px var(--red), var(--shadow-sm); }
+.fc-n.sel, .fc[data-mode="edit"] .fc-n.sel:hover { box-shadow: 0 0 0 1.5px var(--accent), 0 0 0 4.5px color-mix(in srgb, var(--accent) 18%, transparent), var(--shadow-sm); }
 .fc-n.gap .fc-nf { color: var(--amber); }
-.fc-n > svg { color: var(--muted-text); }
-.fc-n b { font-weight: 600; font-size: 14px; min-width: 0; }
-.fc-n.stage { flex-direction: column; align-items: stretch; justify-content: center; gap: 8px; padding: 0 14px; }
+.fc-n > svg { color: var(--faint); }
+.fc-n b { font-family: var(--font-sans); font-weight: 600; font-size: 14px; letter-spacing: -0.01em; min-width: 0; }
+.fc-n.stage { flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; padding: 0 16px; }
 .fc-nh { display: flex; align-items: baseline; gap: 8px; }
 .fc-nh b { flex: 1; }
-.fc-nh span { color: var(--faint); font-size: 12px; }
-.fc-nf { display: flex; align-items: center; gap: 6px; color: var(--muted-text); font-size: 12.5px; min-width: 0; }
-.fc-n.start, .fc-n.end { padding: 0 14px; border-radius: 999px; justify-content: center; }
-.fc-n.end { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.fc-n.end > svg { color: var(--paper); }
-.fc-n.route { padding: 0 14px; border-style: dashed; justify-content: center; background: var(--surface); }
-.fc-n.note { align-items: flex-start; padding: 12px 14px; overflow: hidden; background: var(--amber-soft); border-color: color-mix(in srgb, var(--amber) 30%, var(--line)); box-shadow: none; }
-.fc-n.note p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.fc-nh span { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.fc-nf { display: flex; align-items: center; gap: 6px; color: var(--muted-text); font-size: 12px; min-width: 0; }
+.fc-n.start, .fc-n.end { padding: 0 16px; justify-content: center; }
+.fc-n.end { background: var(--primary); color: var(--primary-ink); box-shadow: 0 1px 2px rgba(22, 23, 26, 0.12), 0 6px 14px -8px rgba(22, 23, 26, 0.4); }
+.fc-n.end > svg { color: var(--primary-ink); }
+.fc-n.route { padding: 0 16px; justify-content: center; background: var(--surface); box-shadow: none; outline: 1px dashed var(--field); outline-offset: -1px; }
+/* A note lies flat on the canvas, a hairline and no shadow, so it never reads as a step. */
+.fc-n.note { align-items: flex-start; padding: 12px 14px; overflow: hidden; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.fc-n.note.bad { box-shadow: inset 0 0 0 1px var(--line-strong), 0 0 0 1.5px var(--red); }
+.fc-n.note p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted-text); overflow-wrap: anywhere; }
 
-.fc-port { position: absolute; right: -6px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--n500); cursor: crosshair; opacity: 0; transition: opacity 0.12s, transform 0.12s; }
+/* The port is a drag handle, so it stays a circle: it is no status. */
+.fc-port { position: absolute; right: -6px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--paper); border: 1.5px solid var(--ink-4); cursor: crosshair; opacity: 0; transition: opacity 0.12s, transform 0.12s var(--ease), background-color 0.12s, border-color 0.12s; }
 .fc-n:hover .fc-port, .fc-n.sel .fc-port { opacity: 1; }
 .fc-port:hover { transform: scale(1.3); border-color: var(--accent); background: var(--accent); }
 
-.fc-tools { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); white-space: nowrap; }
-.fc-tb { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; color: var(--ink); font-size: 13px; font-weight: 500; transition: background 0.15s; }
+/* The floating toolbar: a card, Testbench's ghost buttons on it. */
+.fc-tools { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--paper); border-radius: 12px; box-shadow: var(--pop-shadow); white-space: nowrap; }
+.fc-tb { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 7px; color: var(--muted-text); font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; transition: background-color 0.15s, color 0.15s; }
 .fc-tb.ic { width: 32px; padding: 0; justify-content: center; }
-.fc-tb:hover:not([disabled]) { background: var(--hover); }
-.fc-tb[disabled] { opacity: 0.35; }
+.fc-tb:hover:not([disabled]) { background: var(--hover); color: var(--ink); }
+.fc-tb[disabled] { opacity: 0.4; }
 .fc-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--line); }
-.fc-z { min-width: 40px; text-align: center; color: var(--muted-text); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.fc-pill { position: absolute; left: 12px; top: 12px; padding: 6px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; color: var(--muted-text); font-size: 12.5px; }
+.fc-z { min-width: 44px; text-align: center; color: var(--faint); font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* The process's counts, top left, each a span of its own. */
+.fc-pill { position: absolute; left: 12px; top: 12px; display: flex; gap: 12px; height: 30px; align-items: center; padding: 0 12px; background: var(--paper); border-radius: 8px; box-shadow: var(--shadow-sm); color: var(--faint); font-family: var(--font-mono); font-size: 12px; }
 
-.fc-insp { position: absolute; right: 12px; top: 12px; width: 272px; max-height: calc(100% - 92px); overflow: auto; padding: 16px; background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow); user-select: text; }
-.fc-ih { font-size: 14px; font-weight: 600; }
-.fc-sub, .fc-hint { color: var(--muted-text); font-size: 12.5px; line-height: 1.45; margin: 0; overflow-wrap: anywhere; }
+/* The inspector: a card floating over the canvas's right. */
+.fc-insp { position: absolute; right: 12px; top: 12px; width: 288px; max-height: calc(100% - 92px); overflow: auto; padding: 18px; background: var(--paper); border-radius: 14px; box-shadow: var(--pop-shadow); user-select: text; }
+.fc-ih { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.fc-sub, .fc-hint { color: var(--faint); font-size: 12px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
 .fc-f { display: grid; gap: 6px; min-width: 0; }
-.fc-f > span:first-child, .fc-f label > span:first-child { color: var(--muted-text); font-size: 12px; font-weight: 500; }
-.fc-f input, .fc-f textarea, .fc-f select { width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); background: var(--paper); color: var(--ink); font: inherit; font-size: 13.5px; }
-.fc-f textarea { height: auto; padding: 8px 10px; resize: vertical; }
-.fc-f input:focus, .fc-f textarea:focus, .fc-f select:focus { outline: none; border-color: var(--accent); }
-.fc-f :disabled { opacity: 1; color: var(--muted-text); }
-.fc-pills { display: flex; flex-wrap: wrap; gap: 4px; }
-.fc-pills > button { height: 26px; padding: 0 10px; border-radius: 999px; background: var(--soft); color: var(--muted-text); font-size: 12.5px; }
-.fc-pills > button.on { background: var(--pick); color: var(--pick-ink); }
+.fc-f > span:first-child, .fc-f label > span:first-child { color: var(--faint); font-size: 12px; }
+.fc-f input, .fc-f textarea, .fc-f select { width: 100%; min-width: 0; height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--field); color: var(--ink); font: inherit; font-size: 13px; transition: box-shadow 0.15s; }
+.fc-f textarea { height: auto; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+.fc-f input:hover:not(:disabled), .fc-f textarea:hover:not(:disabled), .fc-f select:hover:not(:disabled) { box-shadow: inset 0 0 0 1px var(--muted-text); }
+.fc-f input:focus, .fc-f textarea:focus, .fc-f select:focus { outline: none; box-shadow: inset 0 0 0 1.5px var(--ink), 0 0 0 3px rgba(34, 35, 38, 0.12); }
+.fc-f :disabled { opacity: 1; color: var(--muted-text); box-shadow: inset 0 0 0 1px var(--line); }
+/* Kind and Length (page.tsx's pillTrack and small pillOption) take the inspector's width, each option an equal share. */
+.fc-pills { display: flex; width: 100%; }
+.fc-pills > button { flex: 1 1 0; min-width: 0; justify-content: center; padding-inline: 4px; }
 .fc-people { display: flex; flex-wrap: wrap; gap: 4px; }
-.fc-pp { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font-size: 12px; color: var(--ink); }
-.fc-out { display: grid; grid-template-columns: minmax(0, 1fr) 112px; align-items: center; gap: 6px; font-size: 13px; }
-.fc-out input, .fc-out select { height: 28px; padding: 0 6px; font-size: 12.5px; }
-.fc-del { justify-self: start; color: var(--muted-text); font-size: 12.5px; text-decoration: underline; }
+.fc-pp { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--paper); font-size: 12px; color: var(--ink); transition: background-color 0.15s; }
+.fc-pp:hover:not(:disabled) { background: var(--hover); }
+.fc-out { display: grid; grid-template-columns: minmax(0, 1fr) 116px; align-items: center; gap: 8px; font-size: 12.5px; }
+.fc-out input, .fc-out select { height: 30px; padding: 0 8px; font-size: 12.5px; }
+.fc-del { justify-self: start; padding: 2px 0; color: var(--muted-text); font-size: 12.5px; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; transition: color 0.15s, text-decoration-color 0.15s; }
+.fc-del:hover { color: var(--red); text-decoration-color: currentColor; }

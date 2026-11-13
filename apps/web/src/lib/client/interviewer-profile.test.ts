@@ -88,12 +88,13 @@ describe("the Calendar's away banner", () => {
 
   test("soonest back first, by first name, past days and nameless rows left out", () => {
     const got = awayBanner([m("b", "Sam Ortiz", "2026-11-20"), m("a", "Wei Chen", "2026-11-14"), m("c", "Old", "2026-10-01"), m("d", "  ", "2026-11-02")], NOW);
-    expect(got?.title).toBe("Wei: away through Nov 14 · Sam: away through Nov 20");
+    expect(got?.parts).toEqual(["Wei: away through Nov 14", "Sam: away through Nov 20"]);
+    expect(got?.title).toBe("Wei: away through Nov 14, Sam: away through Nov 20");
   });
 
   test("past four names, how many more", () => {
     const many = ["Ann", "Bo", "Cy", "Di", "Ed", "Flo"].map((n, i) => m(n, n, `2026-11-0${i + 1}`));
-    expect(awayBanner(many, NOW)?.title).toMatch(/Di: away through Nov 4 · and 2 more$/);
+    expect(awayBanner(many, NOW)?.parts.slice(-2)).toEqual(["Di: away through Nov 4", "and 2 more"]);
   });
 
   test("its key follows who and until when, not the order they came in", () => {

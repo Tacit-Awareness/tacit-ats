@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { Ico, ICON } from "@/components/careers/frame";
+import { StatusGlyph } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import { guideProgress, type GuideStep } from "@/lib/public/application";
 
-// The application's checklist (design/careers): beside the form, or a bar at
-// the bottom of a phone. It only watches the form: the form posts with no
-// script, and this adds nothing to what is sent.
+// The application's checklist (design/careers): a white card beside the form,
+// or a bar at the bottom of a narrow window. Each section's square fills as
+// Testbench's status glyphs do (empty, under way, done) rather than carrying a
+// number. It only watches the form: the form posts with no script, and this
+// adds nothing to what is sent.
 
 export const APPLY_FORM = "apply";
 
@@ -55,7 +59,7 @@ export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
   const done = useDone(steps);
   const { total, finished, next, current } = guideProgress(steps, done);
   return (
-    <div className={finished === total ? "complete" : undefined} aria-label="Your application">
+    <div className={`guide${finished === total ? " complete" : ""}`} aria-label="Your application">
       <div className="g-head">
         <h3>Your application</h3>
         <span className="g-count">
@@ -63,16 +67,16 @@ export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
         </span>
       </div>
       <Bar share={total ? finished / total : 0} />
-      {steps.map((s, i) => {
+      {steps.map((s) => {
         const complete = s.items.every((item) => done.has(item.field));
         return (
           <div key={s.key} className={`g-step${complete ? " is-done" : ""}${current === s.key ? " is-cur" : ""}`}>
             <span className="g-node" aria-hidden>
-              {complete ? <Ico d={ICON.check} /> : i + 1}
+              <StatusGlyph kind={complete ? "done" : current === s.key ? "half" : "empty"} className="size-4" />
             </span>
             <span className="g-title">{s.title}</span>
             {s.items.map((item) => (
-              <button key={item.field} type="button" className="g-item" role="checkbox" aria-checked={done.has(item.field)} onClick={() => jumpTo(item.field)}>
+              <button key={item.field} type="button" className="g-item" role="checkbox" aria-checked={done.has(item.field)} title={item.label} onClick={() => jumpTo(item.field)}>
                 <span className="g-check">
                   <Ico d={ICON.check} />
                 </span>
@@ -84,7 +88,7 @@ export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
       })}
       <div className="g-foot">
         <span>{next ? `Next: ${next.label}` : "Ready"}</span>
-        <button type="button" className="btn light sm" onClick={() => jumpTo(next?.field)}>
+        <button type="button" className={buttonVariants({ variant: "outline", size: "sm" })} onClick={() => jumpTo(next?.field)}>
           {next ? "Go" : "Review"}
         </button>
       </div>
@@ -107,7 +111,7 @@ export function ApplicationBar({ steps }: { steps: GuideStep[] }) {
         </div>
         <Bar share={total ? finished / total : 0} />
       </div>
-      <button type="button" className="btn light sm" onClick={() => jumpTo(next?.field)}>
+      <button type="button" className={buttonVariants({ variant: "outline", size: "sm" })} onClick={() => jumpTo(next?.field)}>
         {next ? "Go" : "Review"}
       </button>
     </div>

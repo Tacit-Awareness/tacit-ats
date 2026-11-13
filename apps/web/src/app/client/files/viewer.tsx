@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonVariants } from "@/components/ui/button";
 import { fileHref, type ViewerFile } from "@/lib/client/file-view-rules";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +14,11 @@ import { cn } from "@/lib/utils";
 // /client/files/[id]?view=1, which reads the row on the member's own token
 // and sends the browser to a five-minute link on Storage's origin, never this
 // app's, made when the frame opens.
+// In Testbench's language it is a recessed well inside its card: the rail's
+// open page is ringed in ink, and the bar is a small raised toolbar of ghost
+// buttons (Open, Download) beside the file's name.
 
-const bar =
-  "inline-flex h-7 items-center rounded-[7px] px-2 text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--soft)] hover:text-foreground";
+const bar = buttonVariants({ variant: "ghost", size: "sm", className: "h-7 px-2" });
 
 export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; label?: string }) {
   const [at, setAt] = useState(0);
@@ -24,12 +27,13 @@ export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; la
   const many = files.length > 1;
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--soft)]">
+    // The well's edge is a border, not an inset ring: a white frame inside would paint over a ring.
+    <div className="overflow-hidden rounded-[10px] border border-[color:var(--line)] bg-[color:var(--soft)]">
       <div className={cn("flex min-h-0 flex-col", many && "md:flex-row")}>
         {many ? (
           <nav
             aria-label={label}
-            className="flex gap-1 overflow-x-auto border-b border-[color:var(--line)] p-2 md:w-[124px] md:flex-none md:flex-col md:gap-3 md:overflow-x-visible md:border-r md:border-b-0 md:px-2.5 md:py-3.5"
+            className="flex gap-1 overflow-x-auto border-b border-[color:var(--line)] p-2 md:w-[124px] md:flex-none md:flex-col md:gap-2 md:overflow-x-visible md:border-r md:border-b-0 md:px-2 md:py-3"
           >
             {files.map((f, i) => (
               <button
@@ -37,9 +41,9 @@ export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; la
                 type="button"
                 aria-current={f === open ? "true" : undefined}
                 onClick={() => setAt(i)}
-                title={`${f.filename} · ${f.sub}`}
+                title={`${f.filename}\n${f.sub}`}
                 className={cn(
-                  "grid flex-none justify-items-center gap-1.5 rounded-[8px] px-1.5 py-1.5 text-center text-[11.5px] leading-[1.25] text-muted-foreground hover:bg-[color:var(--soft-strong)]",
+                  "grid flex-none justify-items-center gap-1.5 rounded-[8px] px-1.5 py-1.5 text-center text-[11.5px] leading-[1.25] text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground",
                   f === open && "text-foreground",
                 )}
               >
@@ -47,8 +51,8 @@ export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; la
                 <span
                   aria-hidden
                   className={cn(
-                    "hidden aspect-[8.5/11] w-[62px] content-start gap-1 rounded-[3px] bg-[color:var(--paper)] px-[7px] py-2 shadow-[0_0_0_1px_var(--line-strong)] md:grid",
-                    f === open && "shadow-[0_0_0_2px_var(--accent)]",
+                    "hidden aspect-[8.5/11] w-[62px] content-start gap-1 rounded-[3px] bg-[color:var(--paper)] px-[7px] py-2 md:grid",
+                    f === open ? "shadow-[0_0_0_1.5px_var(--ink)]" : "shadow-[var(--shadow-sm)]",
                   )}
                 >
                   <i className="h-[3px] w-3/5 rounded-[1px] bg-[color:var(--line-strong)]" />
@@ -64,12 +68,12 @@ export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; la
         ) : null}
 
         <div className="relative min-w-0 flex-1">
-          {/* design/tats's `.dv-float` */}
-          <div className="absolute top-2 right-2 z-[2] flex h-9 max-w-[calc(100%-16px)] items-center gap-0.5 rounded-[10px] border border-[color:var(--line-strong)] bg-[color:var(--raised)] px-1 shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-            <span className="min-w-0 truncate px-2 text-[12.5px]" title={`${open.filename} · ${open.sub}`}>
+          {/* design/tats's `.dv-float`, as a small raised toolbar */}
+          <div className="absolute top-2 right-2 z-[2] flex h-9 max-w-[calc(100%-16px)] items-center gap-0.5 rounded-[10px] bg-[color:var(--raised)] px-1 shadow-[var(--shadow-sm)]">
+            <span className="min-w-0 truncate px-2 text-[12.5px] text-foreground" title={`${open.filename}\n${open.sub}`}>
               {open.filename}
             </span>
-            <i aria-hidden className="mx-1 h-[18px] w-px flex-none bg-[color:var(--line)]" />
+            <i aria-hidden className="mx-0.5 h-[18px] w-px flex-none bg-[color:var(--line)]" />
             {open.preview !== "none" ? (
               <a href={fileHref(open.fileId, true)} target="_blank" rel="noopener noreferrer" className={bar} title="Open in a new tab">
                 Open
@@ -98,7 +102,7 @@ export function FileViewer({ files, label = "Files" }: { files: ViewerFile[]; la
           ) : (
             <div className="grid h-[260px] place-items-center px-6 pt-[52px] text-center">
               <div className="grid gap-1">
-                <p className="m-0 text-[13.5px]">Word files don&apos;t open in the browser.</p>
+                <p className="m-0 text-[13px] text-foreground">Word files don&apos;t open in the browser.</p>
                 <p className="m-0 text-[12.5px] text-faint">Download it to read it. The link works for five minutes.</p>
               </div>
             </div>

@@ -11,6 +11,7 @@ import { describe, expect, test, vi } from "vitest";
 vi.mock("next/navigation", () => ({ usePathname: () => "/client/inbox", useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("../onboarding/process/actions", () => ({ readProcessAction: vi.fn(), saveProcessAction: vi.fn(), previewApplyAction: vi.fn(), applyProcessAction: vi.fn() }));
 vi.mock("./actions", () => ({ dismissIssueAction: vi.fn(), restoreIssueAction: vi.fn(), fixIssueAction: vi.fn(), decideIssueAction: vi.fn(), markDigestReadAction: vi.fn(), markAllDigestReadAction: vi.fn() }));
+vi.mock("../applicants/actions", () => ({ routeApplicantAction: vi.fn(), draftReplyAction: vi.fn(), sendReplyAction: vi.fn(), addApplicantAction: vi.fn() }));
 
 import { ignoreKey, modalOpen } from "@/lib/keys";
 import { DoneView } from "./done-view";
@@ -44,7 +45,7 @@ describe("the opening", () => {
 
   test("plays over the card, and the card's real line stays underneath it", () => {
     const html = view({ digest });
-    expect(html).toContain("inbox-opening");
+    expect(html).toContain("ibx-opening");
     expect(html).toContain("Reading 3 updates…");
     expect(html).toContain("Stage moves");
     expect(html).toContain("2 worth your time");
@@ -55,21 +56,30 @@ describe("the opening", () => {
   });
 
   test("does not play over a notice or a pop-up", () => {
-    expect(view({ digest, flash: "Done" })).not.toContain("inbox-opening");
-    expect(opened({ digest })).not.toContain("inbox-opening");
+    expect(view({ digest, flash: "Done" })).not.toContain("ibx-opening");
+    expect(opened({ digest })).not.toContain("ibx-opening");
+  });
+
+  test("plays with nothing to show too: the read is how the Inbox opens", () => {
+    expect(view({ rows: [], digest: { ...digest, total: 0, shown: 0 } })).toContain("ibx-opening");
   });
 });
 
 const opened = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => view({ rows: [row, other], issue, ...over });
 
 describe("the digest card", () => {
-  test("says what's worth your time, then a row each: what's wrong, who, how long", () => {
+  test("says what's worth your time on the title's hover, then a row each: what's wrong, who, how long", () => {
     const html = view();
     expect(html).toContain("Welcome back");
-    expect(html).toContain("2 worth your time, from 2 updates");
-    expect(html).toContain("Needs you");
+    expect(html).toContain('title="2 worth your time, from 2 updates"');
+    // The three kinds of work, in Hy's order.
+    expect(html.indexOf("New applicants")).toBeLessThan(html.indexOf("Interview judgement"));
+    expect(html.indexOf("Interview judgement")).toBeLessThan(html.indexOf("Interview routing"));
     expect(html).toContain("Waiting on feedback");
-    expect(html).toContain("Dana · Lee");
+    // The row's facts sit side by side with space between, never a dot.
+    expect(html).toContain(">Dana</span>");
+    expect(html).toContain(">Lee</span>");
+    expect(html).not.toContain("Dana · Lee");
     expect(html).toContain("2d ago");
     expect(view({ rows: [row] })).toContain("1 worth your time, from 1 update");
   });
@@ -87,7 +97,7 @@ describe("the digest card", () => {
     expect(foot).toContain(">Done<");
   });
 
-  test("J and K walk every row: the rows under Needs you are key items too", () => {
+  test("J and K walk every row: what is only news is a key item too", () => {
     const info = { id: "e1", mark: { key: "evt-x", reason: "decided" as const, at: "2026-10-31T10:00:00Z" }, what: "Sam moves to an offer.", who: null, meta: "", at: "2026-10-31T10:00:00Z", interviewAt: null, candidate: { id: "p", name: "Sam" }, applicationId: "a", jobTitle: "Job", href: "/client/inbox?open=e1", page: "/client/candidates/p", age: "2h ago", active: false, next: "j" };
     const html = view({ digest: { range: 1, asOf: "2026-10-31T12:00:00.000Z", total: 3, shown: 3, unread: 1, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] } });
     expect(html.match(/data-key-item/g)).toHaveLength(3);
@@ -225,6 +235,15 @@ describe("a decision's whole ticket", () => {
     expect(sheet.indexOf("Tuesday works")).toBeLessThan(sheet.indexOf("The whole candidate"));
   });
 
+  test("a line that only says when is the title's hover, and the bar leaves Open candidate to the header", () => {
+    const fix = { type: "write" as const, write: "touch" as const, label: "Log a touch", applicationId: "a", nextAction: null };
+    const sheet = opened({ issue: { ...issue, fix, card: { title: "No touch in over a week", detail: "Last touched 9d ago." }, secondary: { label: "Open candidate", href: "/client/candidates/p" }, ticket } });
+    expect(sheet).toContain('title="Last touched 9d ago."');
+    expect(sheet).not.toContain('text-muted-foreground">Last touched 9d ago.');
+    expect(sheet).not.toContain("Open candidate");
+    expect(sheet).toContain('aria-label="Open as a page"');
+  });
+
   test("no fix to offer leaves no empty row for one", () => {
     expect(opened({ issue: { ...issue, fix: { type: "approval", requestId: "r", kind: "offer" }, decision: null, ticket } })).not.toContain("To move it on");
   });
@@ -253,15 +272,13 @@ describe("a decision's whole ticket", () => {
 });
 
 describe("a digest row's pop-up", () => {
-  test("says where they stand, under the chips", () => {
-    const standing = { who: "Lin", title: "Book the panel", why: "Interviewing", age: "Touched 3d ago", late: true };
-    const html = view({ person: { key: "e1", title: "Sam Lee", subject: "", page: "/p", loop: null, standing, body: (call) => <>{call}</> } });
-    expect(html).toContain("With Lin");
-    expect(html).toContain("Book the panel");
+  test("leaves where they stand to the candidate under it: no card repeats it, and nothing asks for a call", () => {
+    const html = view({ person: { key: "e1", title: "Sam Lee", subject: "", page: "/p", loop: null, body: (call) => <>{call}</> } });
+    expect(html).not.toContain('aria-label="Where it stands"');
     expect(html).not.toContain('aria-label="Your call"');
   });
 
-  const person = { key: "e1", title: "Sam Lee", subject: "Staff Engineer · Offer", page: "/client/candidates/p", loop: null, standing: null, body: () => <p>The whole candidate</p> };
+  const person = { key: "e1", title: "Sam Lee", subject: "Staff Engineer · Offer", page: "/client/candidates/p", loop: null, body: () => <p>The whole candidate</p> };
 
   test("holds the whole candidate over the card, and closes back to the range", () => {
     const html = view({ person, home: "/client/inbox?range=3" });
@@ -275,6 +292,21 @@ describe("a digest row's pop-up", () => {
 
   test("none open is none drawn", () => {
     expect(view()).not.toContain('role="dialog"');
+  });
+
+  // The row's own Mark read, so the pop-up has something to finish: the same post, on the same key.
+  const news = { what: "Sam moves to an offer.", group: "decided" as const, who: "Priya Raman", at: "2026-10-31T10:00:00Z", age: "today", interviewAt: null, mark: { key: "evt-00000000-0000-4000-8000-000000000001", reason: "decided" as const, at: "2026-10-31T10:00:00Z" }, next: "k" };
+
+  test("finishes with Mark read: what happened, who did it and when, and the row's own read mark on E", () => {
+    const html = view({ person: { ...person, news, body: (call) => <>{call}</> } });
+    const card = html.slice(html.indexOf('aria-label="What happened"'));
+    expect(card).toContain("Sam moves to an offer<");
+    expect(card).toContain("By Priya Raman");
+    expect(card).toContain("today");
+    expect(card).toMatch(/aria-keyshortcuts="E"[^>]*>Mark read<kbd/);
+    for (const [name, value] of [["markKey", news.mark.key], ["markReason", "decided"], ["markAt", news.mark.at], ["range", "1"]]) expect(card).toContain(`type="hidden" name="${name}" value="${value}"`);
+    expect(html).not.toContain('aria-label="Where it stands"');
+    expect(html).not.toContain('aria-label="Your call"');
   });
 });
 
@@ -347,10 +379,11 @@ describe("what happened lately", () => {
   };
   const digest: DigestProps = { range: 3, asOf: "2026-10-31T12:00:00.000Z", total: 9, shown: 3, unread: 7, capped: false, groups: [{ key: "decided", label: "Decisions made", rows: [info] }] };
 
-  test("sits under Needs you, with the range and its own row", () => {
+  test("sits after what needs the member in its section, with the range and its own row", () => {
     const html = view({ digest });
     expect(html).toContain("3 worth your time, from 9 updates");
-    expect(html.indexOf("Needs you")).toBeLessThan(html.indexOf("Decisions made"));
+    const routing = html.slice(html.indexOf('data-section="routing"'));
+    expect(routing.indexOf('data-issue-row="k"')).toBeLessThan(routing.indexOf('data-issue-row="e1"'));
     expect(html).toContain('href="/client/inbox?range=3&amp;open=e1"');
     expect(html).toContain('href="/client/candidates/p1"');
     expect(html).toContain('aria-label="Mark read: Sam moves to an offer."');
@@ -358,15 +391,17 @@ describe("what happened lately", () => {
   });
 
   test("a row says who, the job and when, the server's when being relative", () => {
-    expect(view({ digest })).toContain("Ada Admin · Staff Engineer · ");
-    expect(view({ digest })).toMatch(/tabular-nums">today</);
+    const html = view({ digest });
+    expect(html).toContain(">Ada Admin</span>");
+    expect(html).toContain(">Staff Engineer</span>");
+    expect(html).not.toContain("Ada Admin · Staff Engineer");
+    expect(html).toMatch(/tabular-nums">today</);
   });
 
-  test("the range is three links, the one picked marked, and Done stays", () => {
+  test("has no range switch (a link's ?range= still holds, in every row), and Done stays", () => {
     const html = view({ digest });
-    expect(html).toMatch(/<nav aria-label="How far back"/);
-    expect(html).toMatch(/aria-current="page"[^>]*href="\/client\/inbox\?range=3"/);
-    expect(html).toContain('href="/client/inbox?range=7"');
+    expect(html).not.toContain('aria-label="How far back"');
+    expect(html).toContain('href="/client/inbox?range=3&amp;open=e1"');
     expect(html).toContain('href="/client/inbox?tab=done"');
   });
 
@@ -392,12 +427,156 @@ describe("what happened lately", () => {
 
   test("a booking words its time in the browser, and the server names none", () => {
     const html = view({ digest: { ...digest, groups: [{ key: "booked", label: "Booked", rows: [{ ...info, what: "Sam is booked with Dana.", interviewAt: "2026-11-03T09:00:00Z" }] }] } });
-    expect(html).toContain("Sam is booked with Dana.");
+    // An entry's line ends with no full stop, the time or not.
+    expect(html).toContain("Sam is booked with Dana</span>");
     expect(html).not.toContain("Nov 3");
   });
 
   test("a cut-off read says so", () => {
     expect(view({ digest: { ...digest, capped: true } })).toContain("only the newest updates are listed");
+  });
+});
+
+// Hy's three kinds of work: who is newly in, reads and feedback, and moving a
+// candidate on. Each issue and digest group lands in one, the filter shows all
+// or one, and a new applicant's row opens their ticket in the pop-up, as New Applicants draws it.
+describe("the three sections", () => {
+  const at = "2026-10-31T10:00:00Z";
+  const issueRow = (key: string, reason: "feedback" | "decide" | "reply", kind: "late" | "decide" | "reply") => ({ ...row, key, kind, href: `/client/inbox?i=${key}`, what: `What ${key}`, active: false, instance: { key, reason, at }, page: null, next: null });
+  const info = (id: string) => ({ id, mark: { key: "evt-00000000-0000-4000-8000-000000000001", reason: "decided" as const, at }, what: `News ${id}.`, who: null, meta: "", at, interviewAt: null, candidate: { id: "p", name: "Sam" }, applicationId: "a", jobTitle: "Job", href: `/client/inbox?open=${id}`, page: "/client/candidates/p", age: "today", active: false, next: null });
+  const digest: DigestProps = {
+    range: 1,
+    asOf: at,
+    total: 6,
+    shown: 6,
+    unread: 3,
+    capped: false,
+    groups: [
+      { key: "decided", label: "Decisions made", rows: [info("moved")] },
+      { key: "booked", label: "Booked", rows: [info("booked")] },
+      { key: "fyi", label: "FYI", rows: [info("filed")] },
+    ],
+  };
+  const rows = [issueRow("fb", "feedback", "late"), issueRow("call", "decide", "decide"), issueRow("wrote", "reply", "reply")];
+  const applicants = {
+    total: 9,
+    href: "/client/applicants",
+    rows: [
+      { applicationId: "a1", href: "/client/inbox?a=a1", page: "/client/applicants?a=a1", name: "Lin Zhou", referral: false, job: "Founding Engineer", source: "Job board", age: "today", active: false },
+      { applicationId: "a2", href: "/client/inbox?a=a2", page: "/client/applicants?a=a2", name: "Sofia Alvarez", referral: true, job: "Founding Engineer", source: "Backchannel from Daniel", age: "1d ago", active: false },
+    ],
+  };
+  const sectionOf = (html: string, key: string) => {
+    const from = html.indexOf(`data-section="${key}"`);
+    const next = html.indexOf("data-section=", from + 1);
+    return html.slice(from, next < 0 ? undefined : next);
+  };
+  // A notice skips the opening, so the counts are already there.
+  const card = (over: Partial<React.ComponentProps<typeof InboxView>> = {}) => view({ rows, digest, applicants, flash: <p>ok</p>, ...over });
+
+  test("feedback and reads filed are judgement; a call, a reply, a stage move and a booking are routing", () => {
+    const html = card();
+    expect(sectionOf(html, "judgement")).toContain('data-issue-row="fb"');
+    expect(sectionOf(html, "judgement")).toContain('data-issue-row="filed"');
+    for (const id of ["call", "wrote", "moved", "booked"]) expect(sectionOf(html, "routing")).toContain(`data-issue-row="${id}"`);
+  });
+
+  test("in a section, what needs the member comes before what is only news", () => {
+    const routing = sectionOf(card(), "routing");
+    expect(routing.indexOf('data-issue-row="wrote"')).toBeLessThan(routing.indexOf('data-issue-row="moved"'));
+    // No label between them: a news entry's plain weight and its glyph say so.
+    expect(routing).not.toContain(">Updates<");
+  });
+
+  test("a new applicant opens their ticket in the pop-up, in words, with their place in New Applicants beside it, and the rest are a link away", () => {
+    const html = sectionOf(card(), "applicants");
+    expect(html).toMatch(/data-issue-row="a1" aria-haspopup="dialog"[^>]*href="\/client\/inbox\?a=a1"/);
+    expect(html).toContain('aria-label="Open as a page: Lin Zhou applied" class');
+    expect(html).toContain('href="/client/applicants?a=a1"');
+    expect(html).toContain("Lin Zhou applied");
+    expect(html).toContain("Sofia Alvarez was referred");
+    expect(html).toContain("Backchannel from Daniel");
+    expect(html).toContain("All 9 in New Applicants");
+  });
+
+  test("J and K reach a new applicant over the card and from a pop-up alike, where they open the next ticket", () => {
+    expect(card().match(/data-key-item/g)).toHaveLength(8);
+    expect(card({ issue }).match(/data-key-item/g)).toHaveLength(8);
+  });
+
+  // New Applicants' own reader: the application as its white page, then the routing bar and the reply, posting back here.
+  const ticket = {
+    applicationId: "a1",
+    name: "Lin Zhou",
+    email: "lin@example.test",
+    phone: null,
+    jobTitle: "Founding Engineer",
+    jobHref: "/client/jobs/j1",
+    applied: "today",
+    referral: false,
+    added: false,
+    source: "Job board",
+    notes: [],
+    files: [],
+    team: "Infra",
+    answers: [{ questionId: "q1", label: "Where are you based?", value: "Austin, TX", href: null }],
+    routing: { applicationId: "a1", next: "a2", reasons: [{ reasonId: "r1", name: "Not a fit" }], inbox: 3 },
+    reply: null,
+  };
+  const applicant = { key: "a1", title: "Lin Zhou", subject: "Founding Engineer", page: "/client/applicants?a=a1", ticket };
+
+  test("a new applicant's pop-up is their ticket as New Applicants draws it, routed from right there", () => {
+    const html = card({ applicant, applicants: { ...applicants, rows: applicants.rows.map((r) => ({ ...r, active: r.applicationId === "a1" })) }, home: "/client/inbox?range=3" });
+    const sheet = html.slice(html.indexOf('role="dialog"'));
+    expect(sheet).toContain("Lin Zhou");
+    expect(sheet).toContain("Austin, TX");
+    expect(sheet).toMatch(/aria-label="Open as a page"[^>]*href="\/client\/applicants\?a=a1"|href="\/client\/applicants\?a=a1"[^>]*aria-label="Open as a page"/);
+    expect(sheet).toMatch(/aria-label="Close"[^>]*href="\/client\/inbox\?range=3"|href="\/client\/inbox\?range=3"[^>]*aria-label="Close"/);
+    for (const pick of ["Interview", "Testbench", "Decline"]) expect(sheet).toContain(`>${pick}<kbd`);
+    expect(sheet).toContain('<span title="Infra"');
+    expect(sheet).toContain('type="hidden" name="applicationId" value="a1"');
+    expect(sheet).toContain('type="hidden" name="next" value="a2"');
+    expect(sheet).toContain('type="hidden" name="inbox" value="3"');
+    // The pop-up has its own close, so the phone's way back to the list stays on New Applicants.
+    expect(sheet).not.toContain("All applicants");
+    expect(sectionOf(html, "applicants")).toMatch(/data-issue-row="a1" aria-current="true"/);
+  });
+
+  test("a refusal from routing shows on the ticket it came back to, not on the card", () => {
+    const html = card({ applicant, flash: <p>Someone already moved them on</p> });
+    expect(html.slice(html.indexOf('role="dialog"'))).toContain("Someone already moved them on");
+    expect(html.slice(0, html.indexOf('role="dialog"'))).not.toContain("Someone already moved them on");
+  });
+
+  test("a section with nothing in it says so, and the card is not all caught up while anything is left", () => {
+    const html = card({ rows: [], digest: { ...digest, groups: [] } });
+    expect(sectionOf(html, "routing")).toContain("Nothing here right now.");
+    expect(html).not.toContain("You&#x27;re all caught up");
+  });
+
+  test("the filter is All and the three, each with its count once the read is done", () => {
+    const html = card();
+    expect(html).toContain('role="tablist" aria-label="Show"');
+    expect(html).toMatch(/role="tab" aria-selected="true"[^>]*>All</);
+    for (const label of ["New applicants", "Interview judgement", "Interview routing"]) expect(html).toMatch(new RegExp(`role="tab" aria-selected="false"[^>]*>${label}`));
+    // 9 newly in; feedback and a read filed; a call, a reply, a stage move and a booking.
+    for (const n of [9, 2, 4]) expect(html).toContain(`>${n}</span></span></button>`);
+    // Without a notice the card opens: the counts are in the markup, and inbox.css holds them back until the read is done.
+    expect(view({ rows, digest, applicants })).toContain("ibx-count");
+  });
+
+  test("?show= opens the card on one section", () => {
+    const html = card({ show: "judgement" });
+    expect(html).toMatch(/role="tab" aria-selected="true"[^>]*>Interview judgement/);
+    expect(html).toContain('data-section="judgement"');
+    expect(html).not.toContain('data-section="routing"');
+    expect(html).not.toContain('data-section="applicants"');
+  });
+
+  test("an approval, a quiet application, an overdue follow-up and an unsent invite are routing too", () => {
+    const more = (["approval", "quiet", "overdue", "draft"] as const).map((r) => ({ ...row, key: r, href: `/client/inbox?i=${r}`, active: false, instance: { key: r, reason: r, at }, page: null, next: null }));
+    const routing = sectionOf(card({ rows: more }), "routing");
+    for (const r of more) expect(routing).toContain(`data-issue-row="${r.key}"`);
   });
 });
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
+import { InterviewersViewSwitch } from "./view-switch";
 import { awayLabel } from "@/lib/client/interviewer-profile";
 import { readInterviewers, readOwnProfile } from "@/lib/client/interviewers";
 import { onboardingAccess, readPeople, readTitles } from "@/lib/client/onboarding";
@@ -13,9 +14,10 @@ import { InterviewersView, OnboardingLink, OwnProfile, type InterviewerViewGroup
 // member on a hiring team as an interviewer or with interviews, grouped by
 // department when their jobs have one, with what they said about interviewing.
 // A member edits their own of that, an admin anyone's; the rest is counts. The
-// team and its invitations are on Onboarding's People step, which this links to,
-// except for an external recruiter, whom Onboarding turns away: they keep the
-// list here. Whether someone is an admin is the database's answer (current_access_level).
+// team and its invitations are on Onboarding's People step, which the title
+// row's action opens, except for an external recruiter, whom Onboarding turns
+// away: they keep the list here, under the table. Whether someone is an admin
+// is the database's answer (current_access_level).
 
 export default async function ClientInterviewers() {
   const gate = await resolveClient();
@@ -26,7 +28,7 @@ export default async function ClientInterviewers() {
   if (accessLevel === "limited") {
     const [own, titles] = await Promise.all([readOwnProfile(db, actorId), readTitles(db)]);
     return (
-      <Page bar={<PageBar title="Interviewers" />}>
+      <Page bar={<PageBar title="Interviewers" lead={<InterviewersViewSwitch current="people" />} />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -73,13 +75,12 @@ export default async function ClientInterviewers() {
       feedback={feedback}
       note={truncated ? "Counted from the first 5,000 interviews; there are more." : null}
       empty={view.length === 0 ? "Nobody interviews yet. Add interviewers to a job's hiring team, or schedule an interview." : null}
+      actions={outside ? null : <OnboardingLink isAdmin={isAdmin} />}
     >
       {onTable ? null : <OwnProfile actorId={actorId} name={user.name} profile={own} away={awayLabel(own?.awayUntil ?? null, now)} title={title} />}
       {outside ? (
         <TeamSections members={outside.members} membersTruncated={outside.truncated} pending={[]} actorId={actorId} isAdmin={false} titles={outside.titles} rendered={Date.now()} />
-      ) : (
-        <OnboardingLink isAdmin={isAdmin} />
-      )}
+      ) : null}
     </InterviewersView>
   );
 }

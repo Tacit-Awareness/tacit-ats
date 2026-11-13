@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { ignoreKey, keyName, stepIndex } from "@/lib/keys";
 import { cn } from "@/lib/utils";
+import "./overlays.css";
 
 // design/tats's keyboard model, the React half (lib/keys.ts is the pure
 // half). A page registers its keys with useKeys and lists them for the `?`
@@ -79,13 +80,17 @@ export function usePageKeyHelp(): KeyHelpSection[] {
   return out;
 }
 
-/** A key as a small keycap, as design/tats's `.kbd`. Hidden from screen readers when it only decorates a labelled button. */
+/**
+ * A key as a small keycap, Testbench's kbd hint: an outline in the text's own
+ * colour, so it reads inside any button, a black one or a toast included.
+ * Hidden from screen readers when it only decorates a labelled button.
+ */
 export function Kbd({ children, className, decorative = false }: { children: React.ReactNode; className?: string; decorative?: boolean }) {
   return (
     <kbd
       aria-hidden={decorative || undefined}
       className={cn(
-        "inline-grid h-[18px] min-w-[18px] place-items-center rounded-[4px] border border-[color:var(--line-strong)] px-1 font-sans text-[11px] leading-none font-medium text-muted-foreground",
+        "inline-grid h-5 min-w-5 place-items-center rounded-[4px] px-1 font-mono text-[11px] leading-none font-medium shadow-[inset_0_0_0_1px_currentColor] opacity-70",
         className,
       )}
     >
@@ -101,7 +106,9 @@ export function Kbd({ children, className, decorative = false }: { children: Rea
  * focused link as it always does. The focused row is the highlighted one,
  * so it shows with the focus ring. Items are the elements matching `items`
  * inside the wrapper; the current one is the focused item, else the
- * `aria-current` one.
+ * `aria-current` one. `rows` is for a ticket list: a focused `[data-key-item]`
+ * draws as its row selected (the grey fill and the ink bar at the left,
+ * overlays.css) instead of with the accent ring, so no row has to fight the ring.
  */
 export function KeyList({
   title,
@@ -112,6 +119,7 @@ export function KeyList({
   role,
   "aria-label": ariaLabel,
   "data-tour": tour,
+  rows = false,
   children,
 }: {
   /** The `?` sheet's heading for these keys: the page's name. */
@@ -125,6 +133,8 @@ export function KeyList({
   "aria-label"?: string;
   /** What the tutorial spotlights it as (lib/tour.ts). */
   "data-tour"?: string;
+  /** A ticket list: keyboard focus looks like the selected row, not a ring. */
+  rows?: boolean;
   children: React.ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -152,7 +162,12 @@ export function KeyList({
       role={role}
       aria-label={ariaLabel}
       data-tour={tour}
-      className={cn("[&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:-outline-offset-2 [&_:is(a,button):focus-visible]:outline-[color:var(--accent)]", mode === "focus" && "[&>a:focus-visible]:bg-[color:var(--sel)]", className)}
+      className={cn(
+        "[&_:is(a,button):focus-visible]:outline-2 [&_:is(a,button):focus-visible]:-outline-offset-2 [&_:is(a,button):focus-visible]:outline-[color:var(--accent)]",
+        mode === "focus" && "[&>a:focus-visible]:bg-[color:var(--sel)]",
+        rows && "key-rows",
+        className,
+      )}
     >
       {children}
     </div>

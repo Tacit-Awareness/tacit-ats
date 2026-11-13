@@ -4,14 +4,17 @@ import { useRouter } from "next/navigation";
 import { mayLeave } from "@/lib/leave-guard";
 import { useEffect, useRef, useState } from "react";
 import { Kbd, usePageKeyHelp, type KeyHelpSection } from "@/components/keys";
+import { Kbd as KeyCap } from "@/components/page";
 import { SIGN_OUT_KEYS, chord, ignoreKey, isSignOutKey, modalOpen } from "@/lib/keys";
+import { cn } from "@/lib/utils";
+import "../overlays.css";
 
 // The shell's half of design/tats's keyboard model: G then a letter goes to
 // a page, `?` opens the sheet of keys (this page's, then the global ones).
 // `[` and ⌘K stay in shell-frame.tsx, where they began. The sheet is a
 // native <dialog>: Esc closes it, focus stays inside and goes back after.
 // ⇧⌘Q signs out, by the same POST as the account menu's Sign out (isSignOutKey
-// says why only that chord).
+// says why only that chord). The sheet is Testbench's `.dialog` (overlays.css).
 
 export type GoKey = { key: string; label: string; href: string };
 
@@ -19,11 +22,11 @@ const OPEN_EVENT = "tats:keys";
 
 function Keys({ keys }: { keys: string }) {
   return (
-    <span className="flex flex-none items-center gap-1">
+    <span className="flex flex-none items-center gap-1 text-muted-foreground">
       {keys.split(" ").map((k, i, all) =>
         // Between two keys these are words; last, "/" is the key.
         ["then", "/", "or"].includes(k) && i > 0 && i < all.length - 1 ? (
-          <span key={i} className="text-[11.5px] text-faint">
+          <span key={i} className="px-0.5 text-[12px] text-faint">
             {k}
           </span>
         ) : (
@@ -36,12 +39,12 @@ function Keys({ keys }: { keys: string }) {
 
 function HelpSection({ section }: { section: KeyHelpSection }) {
   return (
-    <section className="grid content-start gap-1">
-      <h3 className="m-0 pb-1 text-[12px] font-medium text-faint">{section.title}</h3>
-      <dl className="m-0 grid gap-1">
+    <section className="grid content-start gap-1.5">
+      <h3 className="m-0 font-sans text-[14px] leading-5 font-semibold">{section.title}</h3>
+      <dl className="m-0 grid">
         {section.rows.map((r) => (
-          <div key={`${r.keys}${r.label}`} className="flex min-h-7 items-center justify-between gap-4 text-[13px]">
-            <dt className="text-muted-foreground">{r.label}</dt>
+          <div key={`${r.keys}${r.label}`} className="flex min-h-8 items-center justify-between gap-4 border-b border-[color:var(--line)] py-1 text-[13px] last:border-b-0">
+            <dt>{r.label}</dt>
             <dd className="m-0">
               <Keys keys={r.keys} />
             </dd>
@@ -100,7 +103,11 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
   useEffect(() => {
     const d = dialog.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // As Testbench's dialogs: the sheet itself takes focus, so it opens without a ring on Close; Tab goes on to it.
+      d.focus({ preventScroll: true });
+    }
     if (!open && d.open) d.close();
   }, [open]);
 
@@ -115,30 +122,34 @@ export function ShellKeys({ go }: { go: GoKey[] }) {
     ],
   };
 
+  // A page that registered its name but no keys has nothing to list; with
+  // nothing of the page's, the sheet is one column, not one beside an empty one.
+  const sections = page.filter((s) => s.rows.length);
+
   return (
     <>
       <form ref={signOut} action="/client/signout" method="post" hidden />
       <dialog
         ref={dialog}
         aria-label="Keyboard shortcuts"
+        tabIndex={-1}
         onClose={() => setOpen(false)}
         onMouseDown={(e) => {
           if (e.target === e.currentTarget) setOpen(false);
         }}
-        className="m-auto w-[min(720px,calc(100vw-32px))] border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)]"
+        className={cn("ov-dialog m-auto max-h-[calc(100vh-80px)] p-0 outline-none", sections.length ? "w-[min(760px,calc(100vw-40px))]" : "w-[min(440px,calc(100vw-40px))]")}
       >
-        <div className="flex items-center justify-between border-b border-[color:var(--line)] px-4 py-3">
-          <h2 className="m-0 text-[14px] font-semibold">Keyboard Shortcuts</h2>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-full px-2 py-1 text-[12.5px] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
-          >
-            Close <Kbd decorative>esc</Kbd>
+        <div className="ov-dialog-head">
+          <h2>Keyboard shortcuts</h2>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" title="Close (esc)" className="ov-icon-btn -mt-1 -mr-2.5">
+            <KeyCap>esc</KeyCap>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
+              <path d="m4 4 8 8M12 4l-8 8" />
+            </svg>
           </button>
         </div>
-        <div className="grid gap-x-8 gap-y-5 p-4 sm:grid-cols-2">
-          {page.map((s) => (
+        <div className={cn("grid gap-x-10 gap-y-6 px-6 pt-4 pb-6", sections.length && "sm:grid-cols-2")}>
+          {sections.map((s) => (
             <HelpSection key={s.title} section={s} />
           ))}
           <HelpSection section={global} />

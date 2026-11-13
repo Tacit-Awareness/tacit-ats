@@ -107,6 +107,18 @@ export function referralTable(referrals: Referral[], q: ReferralQuery): Referral
 }
 
 /**
+ * The referrer's name out of what was recorded: "Referred by Lena Park" and
+ * "Backchannel from Daniel" read as "Lena Park" and "Daniel" under a column
+ * head that already says "Referred by" (the whole is the cell's hover). Only
+ * a leading phrase goes; anything else is shown as typed.
+ */
+export function referrerName(raw: string | null): string | null {
+  if (!raw) return null;
+  const name = raw.replace(/^\s*(?:(?:referred|referral|intro(?:duced|duction)?|recommended|recommendation|backchannel|forwarded)\s+(?:by|from|via)|via|by|from)\s+/i, "").trim();
+  return name || raw;
+}
+
+/**
  * The "Referred by" typed into the add form, as it is stored in
  * `source_detail`: whitespace collapsed, at most SOURCE_DETAIL_MAX; null when
  * empty or too long, so the form says so instead of cutting a name short.

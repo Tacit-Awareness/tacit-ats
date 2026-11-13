@@ -6,12 +6,13 @@ import type { CardMoves, StageMove } from "@/lib/client/pipeline-moves";
 import { menuKey } from "@/lib/keys";
 import { cn } from "@/lib/utils";
 
-// The stage menu, design/tats's `statusMenu`, for a board card and a list row:
-// "<stage> · move to", J/K or the arrows, Enter, a digit, Esc. Fixed rather than
-// inside its card, where the board's scroller would clip it. Rejecting needs a
-// reason, so that line goes to the candidate page, where the reasons are. The
-// right-click form (`open`, design/tats's row menu) leads with Open and sits where
-// the pointer is; a digit still means the stage beside it.
+// The stage menu, design/tats's `statusMenu` in Testbench's `.menu`, for a board
+// card and a list row: "Move from <stage> to", J/K or the arrows, Enter, a digit
+// (its key sits at the item's end), Esc. Fixed rather than inside its card,
+// where the board's scroller would clip it. Rejecting needs a reason, so that
+// line goes to the candidate page, where the reasons are. The right-click form
+// (`open`, design/tats's row menu) leads with Open and sits where the pointer
+// is; a digit still means the stage beside it.
 
 export type MenuCard = { applicationId: string; name: string; stageLabel: string; href: string; moves: CardMoves | null };
 
@@ -22,9 +23,12 @@ export type MenuAt<C extends MenuCard = MenuCard> = {
   open?: { href: string; scroll: boolean };
 };
 
-const MENU_WIDTH = 220;
+const MENU_WIDTH = 240;
+/** Testbench's `.menu-item`: 34px, 7px corners. */
 const MENU_ITEM =
-  "flex h-8 w-full items-center gap-2 px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
+  "flex h-[34px] w-full flex-none items-center gap-2.5 rounded-[7px] px-2.5 text-left text-[13px] text-foreground outline-none transition-colors hover:bg-[color:var(--hover)] focus-visible:bg-[color:var(--hover)]";
+/** A key inside the item, Testbench's `.kbd`. */
+const KEY = "ml-auto inline-grid h-5 min-w-5 place-items-center rounded-[4px] px-1 font-mono text-[11px] text-muted-foreground shadow-[inset_0_0_0_1px_currentColor] opacity-70";
 
 /** The menu shuts on the first click, so a double-click's second would land on whatever is under it. */
 function ignoreDoubleClick() {
@@ -98,28 +102,30 @@ export function MoveMenu({ at, onPick, onClose, focusRow }: { at: MenuAt; onPick
       role="menu"
       aria-label={`Move ${at.card.name}`}
       style={{ width: MENU_WIDTH }}
-      className="fixed z-50 grid gap-px rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+      className="fixed z-50 grid rounded-[12px] bg-raised p-1.5 shadow-[var(--pop-shadow)]"
     >
       {at.open ? (
         <Link href={at.open.href} scroll={at.open.scroll} role="menuitem" tabIndex={-1} onClick={onClose} className={MENU_ITEM}>
           <span className="min-w-0 flex-1 truncate">Open</span>
-          <span aria-hidden className="text-[11.5px] text-faint">
+          <kbd aria-hidden className={KEY}>
             ↵
-          </span>
+          </kbd>
         </Link>
       ) : null}
-      <p className="m-0 truncate px-2 py-1 text-[12px] text-faint">{at.card.stageLabel} · move to</p>
+      {at.open ? <i aria-hidden className="mx-1 my-1.5 block h-px bg-[color:var(--line)]" /> : null}
+      <p className="m-0 truncate px-2.5 pt-1.5 pb-1 text-[11.5px] text-faint">Move from {at.card.stageLabel} to</p>
       {moves.map((m, i) => (
         <button key={m.stage} type="button" role="menuitem" tabIndex={-1} onClick={() => {
             ignoreDoubleClick();
             onPick(m);
           }} className={MENU_ITEM}>
           <span className="min-w-0 flex-1 truncate">{m.label}</span>
-          <span aria-hidden className="text-[11.5px] text-faint tabular-nums">
+          <kbd aria-hidden className={KEY}>
             {i + 1}
-          </span>
+          </kbd>
         </button>
       ))}
+      <i aria-hidden className="mx-1 my-1.5 block h-px bg-[color:var(--line)]" />
       <Link href={at.card.href} role="menuitem" tabIndex={-1} className={cn(MENU_ITEM, "text-muted-foreground")}>
         Reject or withdraw…
       </Link>

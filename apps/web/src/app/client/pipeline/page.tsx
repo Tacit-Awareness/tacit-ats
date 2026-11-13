@@ -3,20 +3,26 @@ import { Page, PageBar, Section, textLink } from "@/components/page";
 import { crmHref, stageLabel } from "@/lib/client/crm-views";
 import { departmentAndBelow, departmentScope, departmentTabs, inScope } from "@/lib/client/department-tree";
 import { readDepartments } from "@/lib/client/departments";
+import { readDecisionLoop, type DecisionLoop } from "@/lib/client/inbox";
+import { hiddenOn, lastHeld } from "@/lib/client/interview-loop";
 import { countPastMatches, pastMatchWords } from "@/lib/client/past-matches";
 import { readPipeline, type PipelineEntry } from "@/lib/client/pipeline";
 import { movesFor } from "@/lib/client/pipeline-moves";
+import { SOURCE_GROUPS } from "@/lib/client/analytics-metrics";
 import { PIPELINE_COLUMNS, isColumnKey, type ColumnKey } from "@/lib/client/pipeline-columns";
-import { isStuck, modeParam, parseLayout, parseNameSearch, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
+import { factsOf, isStuck, modeParam, parseLayout, parseNameSearch, pipelineHref, resolveMode, rowGroups, sortKey, stageCounts, statusOf, type ModeContext, type PipelineLink } from "@/lib/client/pipeline-list";
 import { resolveClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import { readPersonTags } from "@/lib/client/views";
 import { describeFilters, parseViewFilters, parseViewId, rowSource, viewKeeps } from "@/lib/saved-views";
 import { Refusal } from "../refusal";
 import { CandidateBody } from "../candidates/[id]/view";
+import type { CandidateJourney } from "../candidates/[id]/dashboard";
+import { feedbackCards, loopProps } from "../interviews/loop-props";
 import { readCandidateView } from "../candidates/[id]/read";
 import type { BoardCard, BoardColumn } from "./board-state";
 import { PersonPopup } from "./popup";
+import type { FactKind, ListFact } from "./list";
 import { PipelineView, type PipelineListProps } from "./view";
 
 // Every open job's live applications (design/tats's Pipeline), read with the
@@ -42,8 +48,60 @@ import { PipelineView, type PipelineListProps } from "./view";
 // A name filter also counts the closed applications it would find, a count and
 // a link into the CRM (lib/client/past-matches.ts), never the people themselves.
 
+/**
+ * The pop-up's interview loop and reads, for the application it was opened
+ * from: the Interviews reader's loop with no round picked (the pop-up is about
+ * the person, not one interview) and nothing to edit in it, and every read the
+ * member may see, with a word on any kept from them.
+ */
+function journeyOf(read: DecisionLoop | null, applicationId: string, candidate: string, isAdmin: boolean, now: number): CandidateJourney | null {
+  if (!read) return null;
+  const held = lastHeld(read.progress, now);
+  const hidden = held ? hiddenOn(read.progress, held) : 0;
+  const notes = [
+    read.feedback?.yoursOutstanding && !isAdmin ? "Others' feedback may stay hidden until you file yours." : null,
+    hidden ? `${hidden === 1 ? "One interviewer's" : `${hidden} interviewers'`} feedback on the last round is not visible to you.` : null,
+  ].filter(Boolean);
+  return {
+    applicationId,
+    loop: {
+      ...loopProps({ candidate, jobTitle: read.plan.title, progress: read.progress, selectedId: "", listed: new Set(), href: () => "", stage: read.stage, routing: read.routing, isAdmin, now }),
+      editProcess: null,
+    },
+    feedback: read.feedback ? feedbackCards(read.feedback, now) : [],
+    feedbackNote: notes.length ? notes.join(" ") : null,
+  };
+}
+
 /** Cards a column shows before "Show all", as design/tats's board. */
 const COLUMN_PREVIEW = 12;
+
+/** What a glance at a row wants first, after the name and the status: the job, why they're stuck, the owner, the source, then the rest. */
+const FACT_ORDER: FactKind[] = ["job", "stuck", "owner", "source", "stage", "more"];
+
+/**
+ * A row's facts as list.tsx draws them: lib's own (factsOf, the same words the
+ * row's spoken label carries), each named for what it is so it can take its
+ * tone, in FACT_ORDER. What isn't the job, stage, owner, source or headline is
+ * a stuck reason, which is all factsOf adds.
+ */
+function rowFacts(e: PipelineEntry): ListFact[] {
+  const kind = (text: string): FactKind =>
+    text === e.roleTitle
+      ? "job"
+      : text === e.ownerName
+        ? "owner"
+        : text === e.headline
+          ? "more"
+          : text === e.stageName?.name
+            ? "stage"
+            : SOURCE_GROUPS.some((g) => g.label === text)
+              ? "source"
+              : "stuck";
+  return factsOf(e)
+    .map((text) => ({ text, kind: kind(text) }))
+    .sort((a, b) => FACT_ORDER.indexOf(a.kind) - FACT_ORDER.indexOf(b.kind));
+}
 
 export default async function ClientPipeline({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const gate = await resolveClient();
@@ -133,9 +191,16 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
     };
   });
 
+  // The team each job is with, by name: a row says which team its person is interviewing with.
+  const jobTeam = new Map(structure.jobs.map((j) => [j.jobId, j.departmentId]));
+  const teamName = new Map(structure.departments.map((d) => [d.id, d.name]));
+  const teamOf = (roleId: string) => teamName.get(jobTeam.get(roleId) ?? "") ?? null;
+
   const list = (): PipelineListProps => {
     const matching = unstaged.filter(matches);
     const matchingById = new Map(matching.map((e) => [e.applicationId, e]));
+    // Only when the rows span more than one team: under one, every row would say the same.
+    const teams = new Set(matching.map((e) => teamOf(e.roleId))).size > 1;
     const groups = rowGroups(matching, { mode, stage: filters.stage, expanded, now: nowMs }).map((g) => ({
       ...g,
       rows: g.rows.map((r) => {
@@ -144,6 +209,8 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
           ...r,
           openHref: href({ open: r.applicationId }),
           active: r.applicationId === openId,
+          parts: e ? rowFacts(e) : undefined,
+          team: teams && e ? (teamOf(e.roleId) ?? "No team") : undefined,
           menu: e?.editable ? { stage: e.stage, stageLabel: e.stageName?.name ?? stageLabel(e.stage), moves: movesFor(e.stage, e.interviews, nowMs) } : null,
         };
       }),
@@ -157,6 +224,7 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
       ],
       stages: stageCounts(matching).map((s) => ({ ...s, active: s.key === filters.stage, href: href({ stage: s.key === filters.stage ? null : s.key, all: null }) })),
       groups,
+      teams,
       zero: groups.length
         ? null
         : mode === "stuck"
@@ -170,7 +238,10 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
   };
 
   const opened = onList ? entries.find((e) => e.applicationId === openId) : undefined;
-  const person = opened ? await readCandidateView(gate.ctx, opened.personId, nowMs) : null;
+  const member = { actorId: gate.ctx.actorId, orgId: gate.ctx.org.id, accessLevel };
+  const [person, loop] = opened
+    ? await Promise.all([readCandidateView(gate.ctx, opened.personId, nowMs), readDecisionLoop(db, member, { jobId: opened.roleId, applicationId: opened.applicationId })])
+    : [null, null];
 
   return (
     <PipelineView
@@ -180,14 +251,14 @@ export default async function ClientPipeline({ searchParams }: { searchParams: P
       layout={{ on: onList ? "list" : "board", list: href({ layout: "list", all: null }), board: job ? href({ layout: null, all: null, stage: jobStage }) : null }}
       popup={
         opened && person ? (
+          // The pop-up's head names them and no more: the job and where they stand are the dashboard's own head and side card.
           <PersonPopup
             applicationId={opened.applicationId}
             title={opened.personName?.trim() || "Unnamed"}
-            subject={[opened.roleTitle, PIPELINE_COLUMNS.find((c) => c.key === opened.column)?.label].filter(Boolean).join(" · ")}
             home={href({})}
             pageHref={`/client/candidates/${opened.personId}`}
           >
-            <CandidateBody {...person} notice={null} error={null} />
+            <CandidateBody {...person} notice={null} error={null} dashboard journey={journeyOf(loop, opened.applicationId, opened.personName?.trim() || "Unnamed", accessLevel === "admin", nowMs)} />
           </PersonPopup>
         ) : null
       }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Page, PageHeader, Section, textLink } from "@/components/page";
+import { Page, PageBar, Section, textLink } from "@/components/page";
 import { readCareers, readExplorer } from "@/lib/client/analytics";
 import {
   MEASURES,
@@ -48,8 +48,7 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
 
   if (accessLevel === "limited") {
     return (
-      <Page>
-        <PageHeader title="Analytics" />
+      <Page bar={<PageBar title="Analytics" />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
@@ -81,10 +80,9 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
       ? [
           {
             label: "Department",
-            value: departments.find((d) => d.id === departmentId)?.path ?? "All departments",
-            on: departmentId !== null,
+            // "All", as Home's, its hover in full.
             options: [
-              { href: href({ department: "" }), label: "All departments", active: departmentId === null },
+              { href: href({ department: "" }), label: "All", title: "All departments", active: departmentId === null },
               ...departments.map((d) => ({ href: href({ department: d.id }), label: d.path, active: d.id === departmentId })),
             ],
           },
@@ -149,7 +147,8 @@ export default async function ClientAnalytics({ searchParams }: { searchParams: 
       label: METRICS[k].label,
       def: METRICS[k].def,
       value: v === null ? "None" : METRICS[k].share ? `${v.toFixed(METRICS[k].digits)}%` : v.toLocaleString("en-US"),
-      change: d === null ? null : { text: METRICS[k].share ? `${Math.abs(d).toFixed(1)} pts` : `${Math.abs(d).toFixed(1)}%`, up: d >= 0 },
+      // To one place, a trailing ".0" dropped: "640%", "7.6 pts".
+      change: d === null ? null : { text: METRICS[k].share ? `${+Math.abs(d).toFixed(1)} pts` : `${+Math.abs(d).toFixed(1)}%`, up: d >= 0 },
       href: href({ metric: k === "applications" ? "" : k }),
       active: k === metric,
     };

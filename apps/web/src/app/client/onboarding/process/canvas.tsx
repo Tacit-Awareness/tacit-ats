@@ -14,7 +14,8 @@ import { Inspector } from "./inspector";
 // The flowchart (design/tats's flowInner and its document listeners), by hand: no
 // library. Pointer positions and rects are the page's own pixels (the shell has
 // no zoom), and lib/client/process-editor.ts does the arithmetic. A pointer's
-// view: the list beside it is the keyboard's.
+// view: the list beside it is the keyboard's. Drawn in onboarding.css: the steps
+// are Testbench cards on a dotted well, the edges grey, the ports round handles.
 
 const icon = "size-[15px] flex-none fill-none stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.5]";
 const PATHS = {
@@ -305,7 +306,13 @@ export function ProcessCanvas({
         <Inspector state={state} dispatch={dispatch} lookup={lookup} readOnly={readOnly} />
       ) : (
         <div className="fc-pill" title={readOnly ? "Drag to pan. ⌘ + scroll to zoom. Click a step to read it." : "Double-click the canvas to add a step. Drag from the dot on a step to connect it. Click a step to say who runs it. Delete removes, ⌘Z undoes. Scroll to pan, ⌘ + scroll to zoom."}>
-          {sum.steps} step{sum.steps === 1 ? "" : "s"} · {sum.interviews} interview{sum.interviews === 1 ? "" : "s"} · about {formatMins(sum.mins) || "0m"} per candidate
+          <span>
+            {sum.steps} step{sum.steps === 1 ? "" : "s"}
+          </span>
+          <span>
+            {sum.interviews} interview{sum.interviews === 1 ? "" : "s"}
+          </span>
+          <span>about {formatMins(sum.mins) || "0m"} per candidate</span>
         </div>
       )}
 

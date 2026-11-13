@@ -1,0 +1,16 @@
+/* Job Postings in the original tATS look (view.tsx says why): Inter for
+   everything on the page, and the page itself white under its ruled bar, as
+   the live app's panel was, instead of the redesign's grey box surface. */
+.jobs-original,
+.jobs-original h1,
+.jobs-original h2 {
+  font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+.jobs-original h2 {
+  letter-spacing: -0.025em;
+}
+
+main:has(.jobs-original) {
+  background: var(--paper);
+}

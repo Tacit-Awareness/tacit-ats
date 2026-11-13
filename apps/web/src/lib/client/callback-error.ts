@@ -38,16 +38,25 @@ export function callbackErrorResponse({ error, request }: { error?: unknown; req
   const [title, body, action] = startedElsewhere
     ? ["Your account is ready", "Sign in once more to open your company's workspace on Tacit.", "Continue to Tacit"]
     : ["Couldn't sign in", "Something went wrong signing you in. Try again, and if it keeps happening, tell your contact at Tacit.", "Try again"];
+  // Drawn as the client area's other pages outside the shell (app/client/refusal.tsx's
+  // SkyPage, Testbench's sign-in): the sky, the Tacit mark top-left, the title on the sky,
+  // one white card with the way on. Standalone, so its tokens are copied from globals.css
+  // and the fonts fall back to the system's when the app's own aren't loaded.
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · Tacit</title>
-<style>:root{color-scheme:light dark;--frame:#f7f8fa;--paper:#fdfdfe;--ink:#222326;--muted:#444548;--line:#eceef1}
-@media (prefers-color-scheme:dark){:root{--frame:#151518;--paper:#222326;--ink:#f4f5f8;--muted:#bcbdc1;--line:rgba(244,245,248,.07)}}
-body{font-family:Geist,ui-sans-serif,system-ui,sans-serif;margin:0;padding:16vh 1rem;background:var(--frame);color:var(--ink);-webkit-font-smoothing:antialiased}
-main{max-width:26rem;margin:0 auto;padding:1.25rem 1.25rem 1.4rem;border:1px solid var(--line);background:var(--paper)}
-h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.02em}p{margin:.5rem 0 1.1rem;color:var(--muted);font-size:13.5px;line-height:1.6}
-a{display:inline-flex;align-items:center;height:32px;padding:0 13px;border-radius:999px;background:var(--ink);color:var(--frame);font-size:13px;font-weight:500;text-decoration:none}a:hover{opacity:.88}</style>
-</head><body><main><h1>${title}</h1><p>${body}</p><a href="${next}">${action}</a></main></body></html>`;
+<style>:root{color-scheme:light dark;--sky-0:#8db5e4;--sky-1:#789ce5;--sky-2:#89a4e4;--sky-3:#c7d0e3;--sky-4:#f7f4e7;--sky-5:#f9f6e9;--sky-ink:#222326;--paper:#fff;--ink:#16171a;--muted:#4a4d55;--primary:#222326;--primary-hover:#34353b;--primary-ink:#fff;--box-shadow:0 0 0 1px rgba(22,23,26,.08),0 24px 60px -24px rgba(22,23,26,.35);--sans:"Mona Sans",ui-sans-serif,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,"SF Mono",Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--sky-0:#0e1226;--sky-1:#161b3a;--sky-2:#242a5a;--sky-3:#3b3d75;--sky-4:#5a4c7a;--sky-5:#6e5a7e;--sky-ink:#f4f5f8;--paper:#1e1f23;--ink:#f4f5f8;--muted:#c9cbd2;--primary:#f4f5f8;--primary-hover:#dcdee3;--primary-ink:#16171a;--box-shadow:0 0 0 1px rgba(255,255,255,.08),0 24px 60px -24px rgba(0,0,0,.7)}}
+body{margin:0;min-height:100vh;display:grid;grid-template-rows:64px 1fr 64px;font:400 13px/20px var(--mono);color:var(--sky-ink);background:var(--sky-5) linear-gradient(180deg,var(--sky-0) 0%,var(--sky-1) 20%,var(--sky-2) 40%,var(--sky-3) 60%,var(--sky-4) 80%,var(--sky-5) 100%) fixed;-webkit-font-smoothing:antialiased}
+header{display:flex;align-items:center;gap:8px;padding:0 32px;font:600 19px/1 var(--sans);letter-spacing:-.03em}
+header i{width:17px;height:17px;background:var(--sky-ink);-webkit-mask:url(/tacit-mark.svg) center/contain no-repeat;mask:url(/tacit-mark.svg) center/contain no-repeat}
+main{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:0 16px 40px}
+h1{margin:0;max-width:640px;font:600 36px/1.15 var(--sans);letter-spacing:-.02em;text-align:center}
+.card{box-sizing:border-box;width:min(100%,440px);display:grid;gap:20px;padding:32px;border-radius:16px;background:var(--paper);box-shadow:var(--box-shadow);color:var(--ink)}
+p{margin:0;font-size:14px;line-height:22px;color:var(--muted)}
+a{display:flex;align-items:center;justify-content:center;height:44px;border-radius:7px;background:var(--primary);color:var(--primary-ink);font:500 14px/1 var(--mono);text-decoration:none}a:hover{background:var(--primary-hover)}
+a:focus-visible{outline:2px solid #3f6fd8;outline-offset:2px}</style>
+</head><body><header><i aria-hidden="true"></i>Tacit</header><main><h1>${title}</h1><div class="card"><p>${body}</p><a href="${next}">${action}</a></div></main></body></html>`;
   return new Response(html, {
     status: startedElsewhere ? 200 : 400,
     headers: {

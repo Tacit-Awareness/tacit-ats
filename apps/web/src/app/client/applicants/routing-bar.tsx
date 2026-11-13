@@ -2,24 +2,39 @@
 
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
-import { pillOption, pillTrack } from "@/components/page";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd, pillOption, pillTrack } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
+import { selectClass } from "@/components/ui/input";
 import type { RejectReason } from "@/lib/client/applicants";
 import { cn } from "@/lib/utils";
 import { routeApplicantAction } from "./actions";
 
-// The control panel's top row (design/tats's `.cp-top`): the next step as large
-// pills, the team, and the button that moves them. Pressing a pill only picks
-// the move, as in the prototype, and picks the reply's starter with it; the
-// button at the end of the row says the move and posts it. The keys pick too:
+// The control panel's top row (design/tats's `.cp-top`): the next step on
+// Testbench's segmented control, each option with its key inside, the team,
+// and the button that moves them. Pressing an option only picks the move, as
+// in the prototype, and picks the reply's starter with it; the button at the
+// end of the row says the move and posts it. The keys pick too:
 // I interviews, D declines, then that button takes focus, so Enter posts it and
 // no single key moves anyone. D with no reason picked focuses the reason
 // instead, since a decline needs one.
 // T picks design/tats's Testbench, which only picks the reply's starter: it
 // moves nobody, so it has no button here.
 // The team is read-only: a route takes no team, the job already has one.
+// Two steady lines, whatever the reader's width or the team's name: the move
+// and its button on the first, the button always at its right end; the reason
+// (once Decline is picked) and the team under them. In a narrow reader (a
+// container query on the panel) the options' keys go to their hover.
 
-export type Routing = { applicationId: string; next: string | null; reasons: RejectReason[]; /** Drawn in Home's tab, so the post comes back there. */ home?: boolean };
+export type Routing = {
+  applicationId: string;
+  next: string | null;
+  reasons: RejectReason[];
+  /** Drawn in Home's tab, so the post comes back there. */
+  home?: boolean;
+  /** Drawn in the Inbox's pop-up, at this digest range, so the post comes back there with the next applicant open. */
+  inbox?: number;
+};
 export type MoveKey = "interview" | "testbench" | "decline";
 
 const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
@@ -41,17 +56,9 @@ function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
   return null;
 }
 
-/** design/tats's `.cx-seg.sm` pill: 28px, radius 16, a strong hairline. */
-export const pill =
-  "inline-flex h-7 items-center gap-2 rounded-full border border-[color:var(--line-strong)] px-3 text-[13.5px] font-[450] whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)] disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]";
+const label = "text-[12.5px] text-faint";
 
-export const pillPrimary = "border-[color:var(--accent)] bg-[color:var(--accent)] font-medium text-[color:var(--accent-ink)] hover:bg-[color:var(--accent)] hover:brightness-106";
-
-const label = "text-[13px] font-medium text-muted-foreground";
-/** design/tats's `.cp .chip`: the panel's 36px. */
-const control = "h-9 text-[14px]";
-
-/** A next step on the pill track (`.cp .cx-seg > *`). The picked one keeps the hover highlight, as the README asks. */
+/** A next step on the segmented track (`.cp .cx-seg > *`): the picked one raised, as Testbench's `.seg`. */
 function MovePill({ move, picked, onPick }: { move: (typeof MOVES)[number]; picked: boolean; onPick: () => void }) {
   return (
     <button
@@ -59,14 +66,11 @@ function MovePill({ move, picked, onPick }: { move: (typeof MOVES)[number]; pick
       aria-pressed={picked}
       aria-keyshortcuts={move.keyName}
       onClick={onPick}
-      className={cn(
-        pillOption(false),
-        "h-9 px-3.5 text-[14px] hover:bg-foreground/[0.12] md:px-[18px] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--accent)]",
-        picked && "bg-foreground/[0.12] text-foreground",
-      )}
+      title={`${move.pick} (${move.keyName})`}
+      className={cn(pillOption(picked), "gap-2 focus-visible:outline-offset-[-2px] @xl:px-3.5")}
     >
       {move.pick}
-      <Kbd decorative className="border-transparent bg-current/10 text-current max-md:hidden">
+      <Kbd className="@max-xl:hidden">
         {move.keyName}
       </Kbd>
     </button>
@@ -89,18 +93,18 @@ function Route({
 }) {
   const { pending } = useFormStatus();
   return (
-    <button ref={refFn} type="submit" name="route" value={value} disabled={pending} onClick={onClick} className={cn(pill, control, "px-4", primary && pillPrimary)}>
+    <button ref={refFn} type="submit" name="route" value={value} disabled={pending} onClick={onClick} className={buttonVariants({ variant: primary ? "default" : "outline" })}>
       {children}
     </button>
   );
 }
 
-/** The job's team: a fact here, not a choice. */
+/** The job's team: a fact here, not a choice, so plain text beside its label rather than anything that looks pressable. */
 export function TeamField({ team }: { team: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-2.5">
       <span className={label}>Team</span>
-      <span title={team} className={cn("inline-flex max-w-[260px] min-w-0 items-center rounded-full border border-[color:var(--line)] bg-[color:var(--raised)] px-3.5", control)}>
+      <span title={team} className="inline-flex h-9 max-w-[260px] min-w-0 items-center text-[13px]">
         <span className="truncate">{team}</span>
       </span>
     </div>
@@ -146,13 +150,15 @@ export function RoutingBar({
   };
 
   return (
-    <form action={routeApplicantAction} className="flex flex-wrap items-center gap-x-6 gap-y-3">
+    <form action={routeApplicantAction} className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
       <RoutingKeys pick={keyPick} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
       {routing.home ? <input type="hidden" name="home" value="1" /> : null}
+      {routing.inbox !== undefined ? <input type="hidden" name="inbox" value={routing.inbox} /> : null}
       <div className="flex max-w-full min-w-0 items-center gap-3">
-        <span id="next-step" className={cn(label, "flex-none")}>
+        {/* The options say what they are; the label is the group's name for a screen reader. */}
+        <span id="next-step" className="sr-only">
           Next step
         </span>
         <div role="group" aria-labelledby="next-step" className={pillTrack}>
@@ -161,32 +167,35 @@ export function RoutingBar({
           ))}
         </div>
       </div>
-      {/* Always in the form, showing or not, as it always was. */}
-      <span className={cn("max-w-full min-w-0", move !== "decline" && "hidden")}>
-        <label htmlFor="reasonId" className="sr-only">
-          Rejection reason
-        </label>
-        <select
-          ref={reason}
-          id="reasonId"
-          name="reasonId"
-          // Esc leaves the select, so the page keys work again.
-          onKeyDown={(e) => {
-            if (e.key === "Escape") e.currentTarget.blur();
-          }}
-          defaultValue=""
-          className={cn(pill, control, "w-[200px] max-w-full bg-transparent pr-2 text-muted-foreground outline-none focus-visible:border-[color:var(--accent)]")}
-        >
-          <option value="">Rejection reason…</option>
-          {routing.reasons.map((r) => (
-            <option key={r.reasonId} value={r.reasonId}>
-              {r.name}
-            </option>
-          ))}
-        </select>
+      {/* The reason and the team, on a line under the move by `order` alone: Tab still goes option, reason, button. */}
+      <span className={cn("order-3 flex min-w-0 basis-full flex-wrap items-center gap-x-5 gap-y-2.5", !team && move !== "decline" && "hidden")}>
+        {/* Always in the form, showing or not, as it always was. */}
+        <span className={cn("max-w-full min-w-0", move !== "decline" && "hidden")}>
+          <label htmlFor="reasonId" className="sr-only">
+            Rejection reason
+          </label>
+          <select
+            ref={reason}
+            id="reasonId"
+            name="reasonId"
+            // Esc leaves the select, so the page keys work again.
+            onKeyDown={(e) => {
+              if (e.key === "Escape") e.currentTarget.blur();
+            }}
+            defaultValue=""
+            className={cn(selectClass, "w-[220px] max-w-full")}
+          >
+            <option value="">Rejection reason…</option>
+            {routing.reasons.map((r) => (
+              <option key={r.reasonId} value={r.reasonId}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </span>
+        {team ? <TeamField team={team} /> : null}
       </span>
-      {team ? <TeamField team={team} /> : null}
-      <span className="md:ml-auto">
+      <span className="order-2 ml-auto">
         {/* Only the picked one is in the form: Enter in the reason submits the form's first button, which must be this. */}
         {MOVES.filter((m) => m.key === move && m.act).map((m) => (
           <Route

@@ -1,5 +1,5 @@
 import type { listPendingInvites } from "@tacit-ats/core";
-import { Avatar, Empty, Pill, Row, Rows, Section } from "@/components/page";
+import { Empty, Pill, Row, Rows, Section } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Input, selectClass } from "@/components/ui/input";
@@ -16,7 +16,25 @@ import { AccessForm } from "./access-form";
 // page for an external recruiter, whom Onboarding turns away. Props only (the pages
 // do the reads). Hiding the forms from others, and the picker from the only admin,
 // is presentation, not the control: the definer functions check the caller and
-// the last admin again, and the policies decide a title.
+// the last admin again, and the policies decide a title. Names stand alone, with
+// their facts spaced apart under them; who sees what at each access level is
+// in the picker's options, and the email WorkOS sends is the button's hover title.
+// A card's count is for a screen reader only: its rows already show how many.
+
+const EMAIL_HINT = "They get an email from WorkOS and sign in with this address.";
+
+/** Facts under a name, each its own span, spaced rather than dotted; nothing when there are none, so the row draws no empty line. */
+function factLine(facts: (string | null)[]) {
+  const shown = facts.filter((f): f is string => !!f);
+  if (!shown.length) return undefined;
+  return (
+    <span className="inline-flex flex-wrap gap-x-3">
+      {shown.map((f, i) => (
+        <span key={i}>{f}</span>
+      ))}
+    </span>
+  );
+}
 
 export type TeamMember = { id: string; display_name: string; email: string | null; access_level: string };
 
@@ -43,7 +61,8 @@ export function TeamSections({
   const onlyAdmin = soleAdmin(members, membersTruncated);
   return (
     <>
-      <Section title="Members" count={members.length} flush>
+      {/* How many is read out, not drawn beside the title: the rows show as much. */}
+      <Section title={<>Members<span className="sr-only">, {members.length}</span></>} flush>
         {membersTruncated ? <p className="m-0 px-3.5 pt-2 text-xs text-muted-foreground">Showing the first {members.length.toLocaleString("en-US")}; there are more.</p> : null}
         <Rows ruled>
           {members.map((m) => {
@@ -52,23 +71,22 @@ export function TeamSections({
             return (
               <Row
                 key={m.id}
-                icon={<Avatar name={m.display_name} />}
                 title={
                   <>
                     {m.display_name}
-                    {m.id === actorId ? <Pill className="ml-2 align-[1px]">you</Pill> : null}
+                    {m.id === actorId ? <Pill className="ml-2 align-[1px]">You</Pill> : null}
                   </>
                 }
-                sub={(editsTitle ? [m.email] : [title, m.email]).filter(Boolean).join(" · ") || undefined}
+                sub={factLine(editsTitle ? [m.email] : [title, m.email])}
                 meta={
                   <>
                     {editsTitle ? <TitleForm key={`${m.id}:${title ?? ""}`} actorId={m.id} name={m.display_name} title={title} /> : null}
                     {isAdmin && m.id !== onlyAdmin ? (
                       <AccessForm key={`${m.id}:${rendered}`} actorId={m.id} name={m.display_name} level={m.access_level} isSelf={m.id === actorId} />
                     ) : (
-                      <span className="text-faint" title={isAdmin ? "Your company needs an admin. Make someone else an admin to change this." : undefined}>
+                      <span className="inline-flex items-center gap-2 text-faint" title={isAdmin ? "Your company needs an admin. Make someone else an admin to change this." : undefined}>
                         {levelName(m.access_level)}
-                        {isAdmin ? " · only admin" : ""}
+                        {isAdmin ? <Pill>Only admin</Pill> : null}
                       </span>
                     )}
                   </>
@@ -81,7 +99,7 @@ export function TeamSections({
 
       {isAdmin ? (
         <>
-          <Section title="Invited, not signed in yet" count={pending.length} flush={pending.length > 0}>
+          <Section title={<>Invited, not signed in yet<span className="sr-only">, {pending.length}</span></>} flush={pending.length > 0}>
             {pending.length === 0 ? (
               <Empty>Nobody is waiting on an invitation.</Empty>
             ) : (
@@ -89,9 +107,8 @@ export function TeamSections({
                 {pending.map((p) => (
                   <Row
                     key={p.actorId}
-                    icon={<Avatar name={p.displayName} />}
                     title={p.displayName}
-                    sub={`${p.email} · ${levelName(p.accessLevel)}`}
+                    sub={factLine([p.email, levelName(p.accessLevel)])}
                     meta={
                       <>
                         <form action={inviteAction}>
@@ -134,10 +151,12 @@ export function TeamSections({
                   <option value="admin">Admin: every job (not confidential ones) and the team</option>
                 </select>
               </div>
-              <SubmitButton pendingLabel="Sending…" className="justify-self-start">
+              <SubmitButton pendingLabel="Sending…" title={EMAIL_HINT} aria-describedby="invite-email-hint" className="justify-self-start">
                 Send invitation
               </SubmitButton>
-              <p className="m-0 text-xs text-faint">They get an email from WorkOS and sign in with this address.</p>
+              <p id="invite-email-hint" className="sr-only">
+                {EMAIL_HINT}
+              </p>
             </form>
           </Section>
         </>

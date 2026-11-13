@@ -19,7 +19,7 @@ export function ControlPanel({ routing, reply, team }: { routing: Routing | null
   return (
     <div
       data-tour="route"
-      className="bottom-0 z-10 grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 pt-4 pb-5 shadow-[0_-8px_20px_-16px_oklch(var(--ink-a)/0.25)] md:sticky md:px-6"
+      className="@container bottom-0 z-10 grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-4 pb-5 shadow-[0_-12px_32px_-20px_oklch(var(--ink-a)/0.22)] md:sticky md:px-6"
     >
       {routing ? (
         <RoutingBar routing={routing} team={team} move={move} onMove={setMove} lead={!reply?.enabled || !reply.to} />

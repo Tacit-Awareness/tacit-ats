@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { FilterMenu } from "@/components/filter-menu";
 import { useKeyHelp, useKeys, type KeyHandler } from "@/components/keys";
-import { Avatar, Empty, Notice, Page, PageBar, SearchBox, pillOption, pillTrack } from "@/components/page";
+import { Empty, Notice, Page, PageBar, Pill, SearchBox, pillOption, pillTrack, textLink } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import {
   daysOf,
-  hourSpan,
-  minutesAt,
+  MIN_BLOCK_MINUTES,
   monthCells,
   placeDay,
   SCHEDULE_KEYS,
@@ -30,23 +30,34 @@ import {
 import { searchOrder } from "@/lib/client/schedule-search";
 import { withoutBook, type NextRound } from "@/lib/client/next-round-rules";
 import { cn } from "@/lib/utils";
-import { ScheduleDialog, type Flow } from "./booking";
+import { ScheduleDialog, type Anchor, type Flow } from "./booking";
+import { clock12, hour12, minutes12, minutesRange12, range12, zoneLong, zoneShort } from "./clock";
+import "./schedule.css";
 
-// The Calendar's markup, props only (page.tsx does the read): design/tats's
-// calendar page, edge to edge under its bar with no card: the search in the
-// bar, the controls row (Today and the joined arrows, the dates, the department
-// menu, the view pills), then a day or week grid, the month grid, or the month
-// as its interviews table. A search swaps the dates and the grid for one table
-// of every date's matches. A client component because it lays the interviews
-// out in the browser's own time zone, which the server does not know; until it
-// has the zone (the server render, and the first paint) it draws the frame with
-// no times in it, never UTC by mistake. Navigation is in the URL (`?view=`,
-// `?date=`, `?dept=`, `?q=`), with D / W / M / L, ← / →, `.` for today and `/`
-// for the search. Each event opens the interview on the Interviews page, except
-// one the member may still change (`canChange`): that opens its card, with
-// Reschedule and Cancel, and a drag moves it. A drag or a click on empty grid
-// starts a booking, and N and F open Book and Find a time. All of that is
-// booking.tsx; whatever would change a real calendar stops at its Confirm card.
+// The Calendar's markup, props only (page.tsx does the read), in Tacit
+// Testbench's look: the search alone in the title row, then one white card
+// holding the controls row (Today and the arrows, the dates, the departments
+// and the views, each on a segmented track) over a day or week grid, the month
+// grid, or the month as its interviews table. A search swaps the dates and the
+// grid for one table of every date's matches. A client component because it
+// lays the interviews out in the browser's own time zone, which the server does
+// not know; until it has the zone (the server render, and the first paint) it
+// draws the frame with no times in it, never UTC by mistake. Times read on a
+// 12-hour clock, the zone small over the hours (or by the list's times), never
+// beside the title. The card fills the window: the day and week open on 6 AM to
+// 6 PM, the rest of the day a scroll away inside the grid under its pinned
+// header; the month shares the card's height among its weeks, and the list
+// scrolls inside it. Each event names its department in its hover title; there
+// is no colour key. Navigation is in the URL (`?view=`, `?date=`, `?dept=`,
+// `?q=`), with D / W / M / L, ← / →, `.` for today and `/` for the search.
+// Each event opens the interview on the Interviews page, except one the member
+// may still change (`canChange`): that opens its card, with Reschedule and
+// Cancel, and a drag moves it. Booking starts on the grid, Google Calendar's
+// way: a click or a drag on an empty time holds that slot and opens the quick
+// popover beside it, and N does the same at the next free half hour. There is
+// no Book or Find a time button here; the Inbox's Next round still opens Find
+// a time (`?book=`). All of that is booking.tsx; whatever would change a real
+// calendar stops at its Confirm card.
 
 export type CalendarEvent = {
   id: string;
@@ -79,19 +90,34 @@ const TONE: Record<EventTone, string> = {
   lav: "bg-[color:var(--ev-lav)] text-[color:var(--ev-lav-ink)]",
   gray: "bg-[color:var(--ev-gray)] text-[color:var(--ev-gray-ink)]",
 };
-const DOT: Record<EventTone, string> = {
-  blue: "bg-[color:var(--ev-blue-ink)]",
-  mint: "bg-[color:var(--ev-mint-ink)]",
-  pink: "bg-[color:var(--ev-pink-ink)]",
-  peach: "bg-[color:var(--ev-peach-ink)]",
-  lav: "bg-[color:var(--ev-lav-ink)]",
-  gray: "bg-[color:var(--ev-gray-ink)]",
-};
 
-/** Pixels an hour: an hour's interview shows who, when, and the step. */
-const HOUR_PX = 56;
+/**
+ * The day and week open on the working day: 6 AM to 6 PM fills the card, and
+ * the hours either side are a scroll away inside the grid, its header (the days
+ * and the zone) staying put. An hour is the card's height shared among those
+ * twelve, so an interview reads at a comfortable size rather than a whole day
+ * squeezed in.
+ */
+const OPEN_HOURS = { first: 6, last: 18 } as const;
+/** Below this an hour is too short to read; a short window shows fewer of the twelve instead. */
+const MIN_HOUR_PX = 32;
+/** Room above 6 AM and below 6 PM as the grid opens, so their labels, which sit across their lines, read whole, with a pixel or two to spare for the browser's rounding. */
+const EDGE_PX = 12;
+const DAY_MINUTES = 24 * 60;
+/** A new interview's length when it is clicked rather than dragged out, and the N key's. */
+const NEW_MINUTES = 60;
+/** A drag held this close to the top or bottom of the hours in view scrolls the grid on. */
+const AUTO_SCROLL_PX = 28;
 /** A block's lines after the candidate, each shown once the block is this tall. */
 const LINE_AT = { time: 36, detail: 52, interviewers: 68, location: 84 } as const;
+/** The slot being booked takes its second line from this tall (its padding and two 16px lines), and a third from this. */
+const SLOT_TWO_LINES = 38;
+const SLOT_THREE_LINES = 55;
+/** A block's words are Geist Mono at 12px, every character 0.6em wide, so whether a time fits on its line is a sum. */
+const MONO_12 = 7.2;
+const fitsLine = (text: string, room: number) => text.length * MONO_12 <= room;
+/** A time as its line has room for it: the range when it fits, else the start alone, never cut short ("10:00 – 11:0…"). */
+const timeFor = (range: string, start: string, room: number) => (fitsLine(range, room) ? range : start);
 const VIEWS: { key: View; label: string }[] = [
   { key: "day", label: "Day" },
   { key: "week", label: "Week" },
@@ -101,9 +127,17 @@ const VIEWS: { key: View; label: string }[] = [
 
 const hrefFor = (view: View, date: Ymd | null, dept: string | null, q?: string | null) => scheduleHref({ view, date, dept, q });
 
-/** design/tats's `.cx-btn`: 32px, radius 8, the strong hairline. */
-const cxBtn =
-  "inline-flex h-8 items-center justify-center gap-2 border border-[color:var(--line-strong)] bg-[color:var(--paper)] text-[13.5px] font-medium whitespace-nowrap text-foreground transition-colors hover:bg-[color:var(--hover)]";
+/**
+ * Up to this many departments the filter is a segmented track beside the
+ * views (Testbench's `.seg`), Everyone first; past it, a track would crowd the
+ * controls row, so the filter stays a menu.
+ */
+const DEPT_SEGMENTS = 4;
+
+/** The controls row's buttons and both tracks share one height, 32px: Today, the arrows, and the small `.seg`. */
+const todayBtn = cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8");
+/** The arrows either side of the dates: square ghost buttons. */
+const stepBtn = cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-8 w-8 px-0 text-foreground");
 const arrow = (d: string) => (
   <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
     <path d={d} strokeLinecap="round" strokeLinejoin="round" />
@@ -129,11 +163,9 @@ function titleOf(view: View, days: Ymd[], shown: Ymd): string {
     : `${dayWords(first, { month: "short", year: "numeric" })} – ${dayWords(last, { month: "short", year: "numeric" })}`;
 }
 
-function useClock(timeZone: string) {
-  // design/tats's 24-hour clock, "09:30".
-  const time = React.useMemo(() => new Intl.DateTimeFormat(undefined, { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }), [timeZone]);
-  return (iso: string) => time.format(new Date(iso));
-}
+/** An event's hover: every fact on its own line, the time with its zone, its department last. */
+const eventTitle = (e: CalendarEvent, timeZone: string) =>
+  [e.candidate, `${range12(e.startsAt, e.endsAt, timeZone)} ${zoneShort(timeZone, Date.parse(e.startsAt))}`, e.step, e.job, e.interviewers.join(", "), e.location, e.department].filter(Boolean).join("\n");
 
 /** Opens an event's card on a plain click; ⌘-click and the like stay the link's, and an event the member cannot change is only a link. */
 const opener = (e: CalendarEvent, open: (e: CalendarEvent) => void) =>
@@ -145,38 +177,56 @@ const opener = (e: CalendarEvent, open: (e: CalendarEvent) => void) =>
       }
     : undefined;
 
-function EventBlock({ placed, clock, open, grab }: { placed: Placed<CalendarEvent>; clock: (iso: string) => string; open: (e: CalendarEvent) => void; grab: (down: React.PointerEvent<HTMLElement>, e: CalendarEvent) => void }) {
+/**
+ * One line that shows its first fact whole and the rest only where they fit:
+ * the facts wrap, and the box is one line tall, so a fact short of room drops
+ * out of sight rather than cutting the one before it. The hover title has them all.
+ */
+const oneLine = "flex max-h-4 min-w-0 flex-wrap gap-x-2 overflow-hidden leading-4";
+
+function EventBlock({ placed, y, wide, colPx, timeZone, open, grab }: { placed: Placed<CalendarEvent>; y: (minutes: number) => number; wide: boolean; colPx: number; timeZone: string; open: (e: CalendarEvent) => void; grab: (down: React.PointerEvent<HTMLElement>, e: CalendarEvent) => void }) {
   const { event: e, start, end, lane, lanes } = placed;
-  const height = Math.max(20, ((end - start) / 60) * HOUR_PX - 2);
+  const height = Math.max(18, y(end) - y(start) - 2);
   const tight = height < LINE_AT.time;
-  const time = `${clock(e.startsAt)} – ${clock(e.endsAt)}`;
-  const detail = [e.step, e.job].filter(Boolean).join(" · ");
+  const time = range12(e.startsAt, e.endsAt, timeZone);
+  // Its share of the column, less a pixel each side and 6px inside.
+  const room = colPx / lanes - 14;
   return (
     <Link
       href={e.href}
       draggable={false}
       onClick={opener(e, open)}
       onPointerDown={e.canChange ? (down) => grab(down, e) : undefined}
-      title={[e.candidate, time, detail, e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
-      style={{ top: (start / 60) * HOUR_PX + 1, height, left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)` }}
+      title={eventTitle(e, timeZone)}
+      // A pixel off each side and 6px inside: in a week's column at 1280 a name such as "Camille Laurent" still reads whole.
+      style={{ top: y(start) + 1, height, left: `calc(${(lane / lanes) * 100}% + 1px)`, width: `calc(${100 / lanes}% - 2px)` }}
       className={cn(
         e.canChange && "cursor-grab touch-pan-y",
-        "absolute z-[2] flex flex-col gap-px overflow-hidden px-2 text-xs leading-[1.3] transition-[filter,box-shadow] hover:z-[3] hover:shadow-[var(--shadow)] hover:brightness-[0.98] hover:saturate-[1.15]",
-        tight ? "justify-center py-0.5" : "py-1.5",
+        "absolute z-[2] flex flex-col gap-px overflow-hidden rounded-[6px] px-1.5 text-[12px] leading-4 transition-shadow duration-150 hover:z-[3] hover:shadow-[var(--shadow)]",
+        tight ? "justify-center py-0" : "py-1.5",
         TONE[e.tone],
       )}
     >
       {tight ? (
-        <span className="truncate">
-          <b className="font-semibold">{e.candidate}</b> <span className="opacity-90">{clock(e.startsAt)}</span>
+        // One line: who, whole, then when, and in a day's wide column what the round is, each only where it fits.
+        <span className={oneLine}>
+          <b className="max-w-full truncate font-medium">{e.candidate}</b>
+          <span className="opacity-80 tabular-nums">{wide ? time : clock12(e.startsAt, timeZone)}</span>
+          {wide ? <span className="opacity-80">{e.step}</span> : null}
+          {wide && e.job ? <span className="opacity-80">{e.job}</span> : null}
         </span>
       ) : (
         <>
-          <b className="truncate text-[12.5px] font-semibold">{e.candidate}</b>
-          <span className="truncate opacity-90">{time}</span>
-          {height >= LINE_AT.detail ? <span className="truncate opacity-90">{detail}</span> : null}
-          {height >= LINE_AT.interviewers && e.interviewers.length ? <span className="truncate opacity-90">{e.interviewers.join(", ")}</span> : null}
-          {height >= LINE_AT.location && e.location ? <span className="truncate opacity-90">{e.location}</span> : null}
+          <b className="truncate font-medium">{e.candidate}</b>
+          <span className="truncate opacity-80 tabular-nums">{timeFor(time, clock12(e.startsAt, timeZone), room)}</span>
+          {height >= LINE_AT.detail ? (
+            <span className="truncate opacity-80">
+              {e.step}
+              {e.job ? <span className="ml-2">{e.job}</span> : null}
+            </span>
+          ) : null}
+          {height >= LINE_AT.interviewers && e.interviewers.length ? <span className="truncate opacity-80">{e.interviewers.join(", ")}</span> : null}
+          {height >= LINE_AT.location && e.location ? <span className="truncate opacity-80">{e.location}</span> : null}
         </>
       )}
     </Link>
@@ -185,44 +235,136 @@ function EventBlock({ placed, clock, open, grab }: { placed: Placed<CalendarEven
 
 type Ghost = { day: Ymd; start: number; end: number; label: string };
 
+/** A slot being booked: the placeholder Google Calendar keeps on the grid while its quick popover is open. */
+export type Held = { day: Ymd; minutes: number; length: number };
+
+/** What the page asks of the grid: N's new interview, which needs the grid to find and show the slot. */
+export type GridHandle = { newAtNextFree: () => boolean };
+
 /** Past this many pixels a press is a drag. */
 const DRAG_PX = 4;
 
+/**
+ * The grid's scrolling body, measured so an hour is its share of 6 AM to 6 PM.
+ * It opens with 6 AM at the top and keeps whatever time is at the top as the
+ * window changes size, so a resize never jumps the member somewhere else.
+ */
+function useHourScale() {
+  const scroller = React.useRef<HTMLDivElement>(null);
+  const head = React.useRef<HTMLDivElement>(null);
+  const [hourPx, setHourPx] = React.useState(48);
+  /** The minute at the top of the hours in view, in a ref: scrolling is not a reason to redraw. */
+  const top = React.useRef<number>(OPEN_HOURS.first * 60);
+  const px = React.useRef(hourPx);
+  React.useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const fit = () => setHourPx(Math.max(MIN_HOUR_PX, (el.clientHeight - (head.current?.offsetHeight ?? 0) - 2 * EDGE_PX) / (OPEN_HOURS.last - OPEN_HOURS.first)));
+    fit();
+    const seen = new ResizeObserver(fit);
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, []);
+  React.useLayoutEffect(() => {
+    px.current = hourPx;
+    const el = scroller.current;
+    if (el) el.scrollTop = (top.current / 60) * hourPx - EDGE_PX;
+  }, [hourPx]);
+  const onScroll = () => {
+    const el = scroller.current;
+    if (!el) return;
+    // A scroll this hook made lands within a pixel of the minute it kept, the browser rounding it to a whole
+    // pixel: that minute stays, so switching between Day and Week never creeps a pixel at a time and clips 6 AM.
+    if (Math.abs(el.scrollTop - ((top.current / 60) * px.current - EDGE_PX)) < 1) return;
+    top.current = ((el.scrollTop + EDGE_PX) / px.current) * 60;
+  };
+  /** How tall the hours in view are: the body less its pinned header. */
+  const shownPx = () => (scroller.current?.clientHeight ?? 0) - (head.current?.offsetHeight ?? 0);
+  return { scroller, head, hourPx, onScroll, shownPx };
+}
+
+/** A minute snapped to the grid's slots, and kept inside the day. */
+const snap = (minutes: number) => Math.max(0, Math.min(DAY_MINUTES - SNAP_MINUTES, Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES));
+
 function TimeGrid({
-  days, events, timeZone, today, now, canBook, open, book, move,
+  ref, days, events, timeZone, today, now, canBook, held, open, book, move,
 }: {
+  ref?: React.Ref<GridHandle>;
   days: Ymd[];
   events: CalendarEvent[];
   timeZone: string;
   today: Ymd;
   now: number;
   canBook: boolean;
+  /** The slot the quick popover is open on, drawn until it closes. */
+  held: Held | null;
   open: (e: CalendarEvent) => void;
-  book: (at: { day: Ymd; minutes: number; length: number }) => void;
+  book: (at: { day: Ymd; minutes: number; length: number }, anchor: Anchor) => void;
   move: (e: CalendarEvent, to: { startsAt: string; endsAt: string }) => void;
 }) {
-  const clock = useClock(timeZone);
   const columns = days.map((day) => ({ day, placed: placeDay(events, day, timeZone) }));
-  const { first, last } = hourSpan(columns.flatMap((c) => c.placed));
-  const hours = Array.from({ length: last - first }, (_, i) => first + i);
+  const { scroller, head, hourPx, onScroll, shownPx } = useHourScale();
+  /** Where a minute of the day sits down the grid, and the minute at a point down it. */
+  const y = (minutes: number) => (minutes / 60) * hourPx;
+  const minutesAt = (at: number) => (at / hourPx) * 60;
   const [ghost, setGhost] = React.useState<Ghost | null>(null);
   const noClick = React.useRef(0);
+  /** A day's column's width, for whether a block's time fits its line; measured again as the window or the view changes. */
+  const [colPx, setColPx] = React.useState(0);
+  React.useLayoutEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const measure = () => setColPx(el.querySelector<HTMLElement>("[data-day]")?.clientWidth ?? 0);
+    measure();
+    const seen = new ResizeObserver(measure);
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, [scroller, days.length]);
 
-  /** Follows the pointer until it lifts. Nothing is booked or moved here: the end of a drag only opens a dialog. */
+  /** The day's column under a point across the grid, whatever its height: a drag may run past the hours in view. */
+  const columnAt = (x: number) =>
+    [...(scroller.current?.querySelectorAll<HTMLElement>("[data-day]") ?? [])].find((c) => {
+      const box = c.getBoundingClientRect();
+      return x >= box.left && x < box.right;
+    }) ?? null;
+
+  /**
+   * Follows the pointer until it lifts. Nothing is booked or moved here: the
+   * end of a drag only opens a dialog. Held near the top or bottom of the hours
+   * in view, the grid scrolls on, so a drag reaches the hours out of sight.
+   */
   const follow = (down: React.PointerEvent<HTMLElement>, onMove: (m: PointerEvent, col: HTMLElement | null) => void, onDone: (moved: boolean) => void) => {
     const x0 = down.clientX;
     const y0 = down.clientY;
     let moved = false;
+    let last: PointerEvent | null = null;
+    let frame = 0;
+    const track = (m: PointerEvent) => onMove(m, columnAt(m.clientX));
+    const scrollOn = () => {
+      frame = 0;
+      const el = scroller.current;
+      if (!el || !last) return;
+      const box = el.getBoundingClientRect();
+      const top = box.top + (head.current?.offsetHeight ?? 0);
+      const past = last.clientY < top + AUTO_SCROLL_PX ? last.clientY - top - AUTO_SCROLL_PX : last.clientY > box.bottom - AUTO_SCROLL_PX ? last.clientY - box.bottom + AUTO_SCROLL_PX : 0;
+      if (!past) return;
+      const was = el.scrollTop;
+      el.scrollTop += Math.sign(past) * Math.min(18, 2 + Math.abs(past) / 3);
+      if (el.scrollTop !== was) track(last);
+      frame = requestAnimationFrame(scrollOn);
+    };
     const leave = () => {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onCancel);
+      cancelAnimationFrame(frame);
     };
     const onPointerMove = (m: PointerEvent) => {
       if (Math.abs(m.clientX - x0) > DRAG_PX || Math.abs(m.clientY - y0) > DRAG_PX) moved = true;
       if (!moved) return;
-      const col = document.elementsFromPoint(m.clientX, m.clientY).find((n): n is HTMLElement => n instanceof HTMLElement && !!n.dataset.day) ?? null;
-      onMove(m, col);
+      last = m;
+      track(m);
+      if (!frame) frame = requestAnimationFrame(scrollOn);
     };
     const onUp = () => {
       leave();
@@ -238,33 +380,44 @@ function TimeGrid({
     window.addEventListener("pointercancel", onCancel);
   };
 
+  /** The slot on screen, for the quick popover to open beside (booking.tsx places it): its day's column across, its time down, and where it was pressed. */
+  const anchorOf = (column: HTMLElement, start: number, end: number, x: number): Anchor => {
+    const box = column.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top + y(start), bottom: box.top + y(end), x };
+  };
+
+  /**
+   * A click on an empty slot, or a drag down the grid, is how a booking
+   * starts: Google Calendar's way, it holds that slot and opens the quick
+   * popover beside it (booking.tsx), the time already set.
+   */
   const pressGrid = (down: React.PointerEvent<HTMLDivElement>, day: Ymd) => {
     if (!canBook || down.button !== 0 || (down.target as HTMLElement).closest("a")) return;
-    if (down.pointerType !== "touch") down.preventDefault();
-    const span = { first, last };
     const column = down.currentTarget;
-    const from = minutesAt(down.clientY - column.getBoundingClientRect().top - HOUR_PX / 8, HOUR_PX, span);
-    let to = from + 60;
-    const shape = () => ({ start: Math.min(from, to), end: Math.max(to, from + 30) });
+    if (down.pointerType !== "touch") down.preventDefault();
+    // Half a slot up, so the press lands in the slot it is in rather than the nearer edge.
+    const from = snap(minutesAt(down.clientY - column.getBoundingClientRect().top) - SNAP_MINUTES / 2);
+    const keep = (m: number) => Math.max(0, Math.min(DAY_MINUTES, m));
+    let to = keep(from + NEW_MINUTES);
+    const shape = () => ({ start: Math.min(from, to), end: Math.max(to, keep(from + 30)) });
     setGhost({ day, ...shape(), label: "New interview" });
     follow(
       down,
       (m) => {
-        to = minutesAt(m.clientY - column.getBoundingClientRect().top, HOUR_PX, span) + SNAP_MINUTES;
+        to = keep(snap(minutesAt(m.clientY - column.getBoundingClientRect().top)) + SNAP_MINUTES);
         setGhost({ day, ...shape(), label: "New interview" });
       },
       (moved) => {
         setGhost(null);
-        if (!moved) to = from + 60;
+        if (!moved) to = keep(from + NEW_MINUTES);
         const { start, end } = shape();
-        book({ day, minutes: start, length: end - start });
+        book({ day, minutes: start, length: end - start }, anchorOf(column, start, end, down.clientX));
       },
     );
   };
 
   const grab = (down: React.PointerEvent<HTMLElement>, e: CalendarEvent) => {
     if (down.button !== 0) return;
-    const span = { first, last };
     const length = Math.round((Date.parse(e.endsAt) - Date.parse(e.startsAt)) / 60_000);
     const grabbed = down.clientY - down.currentTarget.getBoundingClientRect().top;
     let at: { day: Ymd; start: number } | null = null;
@@ -272,7 +425,8 @@ function TimeGrid({
       down,
       (m, col) => {
         if (!col?.dataset.day) return;
-        at = { day: col.dataset.day, start: minutesAt(m.clientY - col.getBoundingClientRect().top - grabbed, HOUR_PX, span) };
+        const start = Math.max(0, Math.min(DAY_MINUTES - length, snap(minutesAt(m.clientY - col.getBoundingClientRect().top - grabbed))));
+        at = { day: col.dataset.day, start };
         setGhost({ ...at, end: at.start + length, label: e.candidate });
       },
       (moved) => {
@@ -289,23 +443,59 @@ function TimeGrid({
   const openUnlessDragged = (e: CalendarEvent) => {
     if (Date.now() - noClick.current > 300) open(e);
   };
+
+  /**
+   * N: the next free half hour on the grid, from now on today (never before
+   * 6 AM), from 6 AM on a later day, an hour long and clear of every interview
+   * shown. The grid scrolls to it, and its popover opens beside it as a click
+   * there would. False when no day shown has one left.
+   */
+  React.useImperativeHandle(ref, () => ({
+    newAtNextFree() {
+      const el = scroller.current;
+      if (!el) return false;
+      const nowAt = zoned(now, timeZone);
+      for (const { day, placed } of columns) {
+        if (day < nowAt.day) continue;
+        const from = Math.max(OPEN_HOURS.first * 60, day === nowAt.day ? Math.ceil(nowAt.minutes / 30) * 30 : 0);
+        for (let t = from; t + NEW_MINUTES <= DAY_MINUTES; t += 30) {
+          if (placed.some((p) => p.start < t + NEW_MINUTES && Math.max(p.end, p.start + MIN_BLOCK_MINUTES) > t)) continue;
+          if (y(t) < el.scrollTop + EDGE_PX || y(t + NEW_MINUTES) > el.scrollTop + shownPx() - EDGE_PX) el.scrollTop = y(t) - hourPx;
+          const column = el.querySelector<HTMLElement>(`[data-day="${day}"]`);
+          if (!column) return false;
+          const box = column.getBoundingClientRect();
+          book({ day, minutes: t, length: NEW_MINUTES }, anchorOf(column, t, t + NEW_MINUTES, box.left + Math.min(box.width / 3, 280)));
+          return true;
+        }
+      }
+      return false;
+    },
+  }));
+
   const nowAt = zoned(now, timeZone);
   const cols = { gridTemplateColumns: `64px repeat(${days.length}, minmax(0, 1fr))` };
+  // While the popover is open its slot stays drawn, unless a new drag is drawing another.
+  const shown: Ghost | null = ghost ?? (held ? { day: held.day, start: held.minutes, end: held.minutes + held.length, label: "New interview" } : null);
+  // Every hour is labelled down the side but midnight: the grid's top edge says it, and a label there would sit on the header's rule.
+  const hours = Array.from({ length: 23 }, (_, i) => i + 1);
 
   return (
-    <div className="overflow-x-auto">
+    // Fills the card's body and scrolls inside it, the header pinned; on a phone, where the card does not fill the window, a fixed height does.
+    <div ref={scroller} onScroll={onScroll} className="min-h-0 flex-1 overflow-auto overscroll-contain max-md:h-[600px] max-md:flex-none">
       <div className={cn(days.length > 1 && "min-w-[720px]")}>
-        <div className="grid border-b border-[color:var(--line)]" style={cols}>
-          <span />
+        <div ref={head} className="sticky top-0 z-[6] grid border-b border-[color:var(--line)] bg-card" style={cols}>
+          {/* Google Calendar's place for the time zone: small, over the hours, its full name on hover. */}
+          <span title={`Times in ${zoneLong(timeZone)}`} className="flex items-end justify-end pr-2.5 pb-1.5 text-[11px] text-faint">
+            {zoneShort(timeZone, now)}
+          </span>
           {days.map((d) => (
-            <div key={d} className="flex h-[52px] items-center gap-2 border-l border-[color:var(--line)] px-3.5">
-              <span className={cn("text-xs tracking-[0.04em] uppercase", d === today ? "text-[color:var(--accent)]" : "text-faint")}>
-                {dayWords(d, { weekday: "short" })}
-              </span>
+            <div key={d} aria-current={d === today ? "date" : undefined} className="flex h-[52px] items-center gap-2 border-l border-[color:var(--line)] px-3.5">
+              <span className={cn("text-[12px]", d === today ? "font-medium text-[color:var(--accent)]" : "text-faint")}>{dayWords(d, { weekday: "short" })}</span>
               <b
                 className={cn(
-                  "text-base font-medium tabular-nums",
-                  d === today && "inline-grid h-[26px] min-w-[26px] place-items-center rounded-full bg-[color:var(--accent)] px-1.5 text-[color:var(--accent-ink)]",
+                  "inline-grid h-[26px] min-w-[26px] place-items-center text-[15px] font-medium tabular-nums",
+                  // The current day's marker is a circle: a mark of where you are, not a status.
+                  d === today && "rounded-full bg-[color:var(--accent)] px-1.5 text-[color:var(--accent-ink)]",
                 )}
               >
                 {Number(d.slice(8))}
@@ -313,82 +503,131 @@ function TimeGrid({
             </div>
           ))}
         </div>
-        <div className="relative grid" style={{ ...cols, height: hours.length * HOUR_PX }}>
+        <div className="relative grid" style={{ ...cols, height: y(DAY_MINUTES) }}>
           <div className="relative">
-            {hours.map((h, i) => (
-              <span
-                key={h}
-                className={cn("absolute right-2.5 text-xs text-faint tabular-nums", i > 0 && "-translate-y-1/2")}
-                style={{ top: i === 0 ? 4 : i * HOUR_PX }}
-              >
-                {`${String(h).padStart(2, "0")}:00`}
+            {hours.map((h) => (
+              <span key={h} className="absolute right-2.5 -translate-y-1/2 text-[11.5px] whitespace-nowrap text-faint tabular-nums" style={{ top: y(h * 60) }}>
+                {hour12(h)}
               </span>
             ))}
           </div>
-          {columns.map(({ day, placed }) => (
+          {columns.map(({ day, placed }) => {
+            const slot = shown?.day === day ? shown : null;
+            const slotPx = slot ? Math.max(18, y(slot.end) - y(slot.start) - 2) : 0;
+            const slotTime = slot ? minutesRange12(slot.start, slot.end) : "";
+            return (
             <div
               key={day}
               data-day={day}
               onPointerDown={canBook ? (down) => pressGrid(down, day) : undefined}
-              className={cn("relative min-w-0 overflow-hidden border-l border-[color:var(--line)]", canBook && "cursor-cell", weekdayOf(day) % 6 === 0 && "bg-[color:color-mix(in_srgb,var(--soft)_55%,transparent)]")}
+              className={cn("relative min-w-0 overflow-hidden border-l border-[color:var(--line)]", canBook && "cursor-cell", weekdayOf(day) % 6 === 0 && "bg-[color:var(--surface)]")}
             >
-              {hours.map((h, i) => (i > 0 ? <i key={h} className="absolute inset-x-0 h-px bg-[color:var(--line)]" style={{ top: i * HOUR_PX }} /> : null))}
-              {/* Placed in minutes from midnight; the grid starts at `first`. */}
-              <div className="absolute inset-x-0" style={{ top: -first * HOUR_PX, height: 24 * HOUR_PX }}>
+              {hours.map((h) => (
+                <i key={h} className="absolute inset-x-0 h-px bg-[color:var(--line)]" style={{ top: y(h * 60) }} />
+              ))}
+              {/* Placed in minutes from midnight. The layer lets a press through to the column, and takes it on an interview. */}
+              <div className="pointer-events-none absolute inset-0 [&>a]:pointer-events-auto">
                 {placed.map((p) => (
-                  <EventBlock key={p.event.id} placed={p} clock={clock} open={openUnlessDragged} grab={grab} />
+                  <EventBlock key={p.event.id} placed={p} y={y} wide={days.length === 1} colPx={colPx} timeZone={timeZone} open={openUnlessDragged} grab={grab} />
                 ))}
-                {ghost?.day === day ? (
+                {slot ? (
+                  // Its lines 16px, as an interview's are, so a second line shows only where it has the room for all of it.
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-[3px] z-[4] flex flex-col gap-px overflow-hidden rounded-[6px] border border-dashed border-[color:var(--accent)] bg-[color:color-mix(in_srgb,var(--accent)_14%,var(--paper))] px-2 py-1 text-xs"
-                    style={{ top: (ghost.start / 60) * HOUR_PX + 2, height: ((ghost.end - ghost.start) / 60) * HOUR_PX - 4 }}
+                    className={cn(
+                      "absolute inset-x-px z-[4] flex flex-col overflow-hidden rounded-[6px] border border-[color:var(--accent)] bg-[color:var(--accent-soft)] px-1.5 text-[12px] leading-4 text-[color:var(--accent)]",
+                      ghost ? "border-dashed" : "shadow-[var(--shadow-sm)]",
+                      slotPx < SLOT_TWO_LINES ? "justify-center" : "gap-y-px py-1",
+                    )}
+                    style={{ top: y(slot.start) + 1, height: slotPx }}
                   >
-                    <b className="truncate font-semibold">{ghost.label}</b>
-                    <span className="truncate tabular-nums">
-                      {String(Math.floor(ghost.start / 60)).padStart(2, "0")}:{String(ghost.start % 60).padStart(2, "0")} – {String(Math.floor(ghost.end / 60) % 24).padStart(2, "0")}:{String(ghost.end % 60).padStart(2, "0")}
-                    </span>
+                    {slotPx < SLOT_TWO_LINES ? (
+                      <span className={oneLine}>
+                        <b className="max-w-full truncate font-medium">{slot.label}</b>
+                        <span className="tabular-nums">{slotTime}</span>
+                      </span>
+                    ) : (
+                      <>
+                        <b className="truncate font-medium">{slot.label}</b>
+                        {/* The range on one line where it fits (inside a pixel and a border each side, and 6px); in a
+                            narrow column the start, and the end under it once a drag gives it the room, as it grows. */}
+                        {fitsLine(slotTime, colPx - 16) ? (
+                          <span className="truncate tabular-nums">{slotTime}</span>
+                        ) : (
+                          <>
+                            <span className="tabular-nums">{minutes12(slot.start)}</span>
+                            {slotPx >= SLOT_THREE_LINES ? <span className="tabular-nums">– {minutes12(slot.end)}</span> : null}
+                          </>
+                        )}
+                      </>
+                    )}
                   </div>
                 ) : null}
-                {day === nowAt.day && nowAt.minutes >= first * 60 && nowAt.minutes <= last * 60 ? (
+                {day === nowAt.day ? (
                   <em
                     aria-hidden
-                    className="absolute -left-px right-0 z-[3] h-0.5 bg-[color:var(--red)] before:absolute before:-top-[3px] before:-left-1 before:size-2 before:rounded-full before:bg-[color:var(--red)]"
-                    style={{ top: (nowAt.minutes / 60) * HOUR_PX }}
+                    className="absolute -left-px right-0 z-[3] h-0.5 bg-[color:var(--accent)] before:absolute before:-top-[3px] before:-left-1 before:size-2 before:rounded-full before:bg-[color:var(--accent)]"
+                    style={{ top: y(nowAt.minutes) }}
                   />
                 ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-/** design/tats's month (`.mo-grid`): six weeks, a day's first three interviews, the rest in its day view. */
+/** A month row's room: the date and the cell's padding, then a line an interview (or "N more"). */
+const MONTH_DATE_PX = 32;
+const MONTH_LINE_PX = 22;
+
+/**
+ * design/tats's month (`.mo-grid`): six weeks filling the card, a day's first
+ * interviews (three, or as many as its row has room for), the rest in "N more"
+ * and its day view.
+ */
 function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<CalendarEvent>[]; timeZone: string; today: Ymd; dept: string | null; open: (e: CalendarEvent) => void }) {
-  const clock = useClock(timeZone);
+  const grid = React.useRef<HTMLUListElement>(null);
+  const [room, setRoom] = React.useState(3);
+  React.useLayoutEffect(() => {
+    const el = grid.current;
+    if (!el) return;
+    const fit = () => {
+      const row = el.clientHeight / Math.max(1, Math.ceil(cells.length / 7));
+      setRoom(Math.max(1, Math.floor((row - MONTH_DATE_PX) / MONTH_LINE_PX)));
+    };
+    fit();
+    const seen = new ResizeObserver(fit);
+    seen.observe(el);
+    return () => seen.disconnect();
+  }, [cells.length]);
   return (
-    <>
-      <div aria-hidden className="grid grid-cols-7 border-b border-[color:var(--line)]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+      <div aria-hidden className="grid flex-none grid-cols-7 border-b border-[color:var(--line)]">
         {cells.slice(0, 7).map((c) => (
-          <span key={c.day} className="px-1.5 py-2.5 text-xs tracking-[0.04em] text-faint uppercase md:px-3 md:text-[13px]">
+          <span key={c.day} className="px-1.5 py-2.5 text-[12px] text-faint md:px-3">
             {dayWords(c.day, { weekday: "short" })}
           </span>
         ))}
       </div>
-      <ul aria-label="Month" className="m-0 grid list-none auto-rows-fr grid-cols-7 p-0">
+      <ul ref={grid} aria-label="Month" className="m-0 grid min-h-[420px] flex-1 list-none auto-rows-fr grid-cols-7 p-0">
         {cells.map((c) => {
           const isToday = c.day === today;
           const dayHref = hrefFor("day", c.day, dept);
           const count = c.events.length;
+          // As many as the row has lines for, "N more" taking the last line when they do not all fit; it opens the day.
+          const total = c.listed.length + c.more;
+          const listed = total <= room ? c.listed : c.listed.slice(0, Math.max(0, room - 1));
+          const more = total - listed.length;
           return (
             <li
               key={c.day}
               className={cn(
-                "grid min-h-16 min-w-0 content-start gap-[3px] border-r border-b border-[color:var(--line)] px-1 pt-1.5 pb-2 md:min-h-28 md:px-1.5 [&:nth-child(7n)]:border-r-0",
-                !c.inMonth && "bg-[color:color-mix(in_srgb,var(--soft)_55%,transparent)]",
+                "grid min-h-16 min-w-0 content-start gap-0.5 overflow-hidden border-r border-b border-[color:var(--line)] px-1 pt-1 pb-1 md:px-1.5 [&:nth-child(7n)]:border-r-0 [&:nth-last-child(-n+7)]:border-b-0",
+                !c.inMonth && "bg-[color:var(--surface)]",
               )}
             >
               <Link
@@ -396,36 +635,37 @@ function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<Ca
                 aria-current={isToday ? "date" : undefined}
                 aria-label={`${dayWords(c.day, { weekday: "long", month: "long", day: "numeric" })}, ${count} ${count === 1 ? "interview" : "interviews"}`}
                 className={cn(
-                  "justify-self-start rounded-full px-1.5 py-0.5 text-[13px] font-medium tabular-nums md:text-sm",
-                  isToday ? "bg-[color:var(--accent)] text-[color:var(--accent-ink)]" : "hover:bg-[color:var(--hover)]",
+                  "inline-grid h-6 min-w-6 place-items-center justify-self-start px-1 text-[12.5px] font-medium tabular-nums transition-colors",
+                  // The current day's marker is a circle; any other date is a square you can press.
+                  isToday ? "rounded-full bg-[color:var(--accent)] text-[color:var(--accent-ink)]" : "rounded-[6px] hover:bg-[color:var(--hover)]",
                   !isToday && !c.inMonth && "text-faint",
                 )}
               >
                 {Number(c.day.slice(8))}
               </Link>
-              {c.listed.map((e) => (
+              {listed.map((e) => (
                 <Link
                   key={e.id}
                   href={e.href}
                   onClick={opener(e, open)}
-                  title={[e.candidate, `${clock(e.startsAt)} – ${clock(e.endsAt)}`, [e.step, e.job].filter(Boolean).join(" · "), e.interviewers.join(", "), e.location].filter(Boolean).join("\n")}
-                  className="flex h-[22px] min-w-0 items-center gap-[5px] px-[5px] text-[12.5px] text-foreground transition-colors hover:bg-[color:var(--hover)] max-md:hidden"
+                  title={eventTitle(e, timeZone)}
+                  className={cn("flex h-5 min-w-0 items-center rounded-[5px] px-1.5 text-[12px] transition-shadow duration-150 hover:shadow-[var(--shadow-sm)] max-md:hidden", TONE[e.tone])}
                 >
-                  <i aria-hidden className={cn("size-[7px] flex-none", DOT[e.tone])} />
-                  <span className="truncate">
-                    <span className="tabular-nums">{clock(e.startsAt)}</span> {e.candidate}
+                  {/* The name whole, the time after it where the cell has room (the hover has it always). */}
+                  <span className={cn(oneLine, "gap-x-1.5")}>
+                    <span className="max-w-full truncate font-medium">{e.candidate}</span>
+                    <span className="opacity-80 tabular-nums">{clock12(e.startsAt, timeZone)}</span>
                   </span>
                 </Link>
               ))}
-              {c.more ? (
-                <Link href={dayHref} className="px-1.5 text-[11.5px] text-faint transition-colors hover:text-foreground max-md:hidden">
-                  {c.more} more
+              {more ? (
+                <Link href={dayHref} className="justify-self-start rounded-[5px] px-1.5 text-[12px] leading-5 text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground max-md:hidden">
+                  {more} more
                 </Link>
               ) : null}
               {/* Too narrow for names on a phone: the count, and the date opens the day. */}
               {count ? (
-                <span aria-hidden className="flex items-center gap-1 px-1.5 text-[11.5px] text-faint tabular-nums md:hidden">
-                  <i className={cn("size-[7px] flex-none", DOT[c.events[0]!.tone])} />
+                <span aria-hidden className={cn("justify-self-start rounded-[5px] px-1.5 text-[11.5px] tabular-nums md:hidden", TONE[c.events[0]!.tone])}>
                   {count}
                 </span>
               ) : null}
@@ -433,102 +673,104 @@ function MonthGrid({ cells, timeZone, today, dept, open }: { cells: MonthCell<Ca
           );
         })}
       </ul>
-    </>
+    </div>
   );
 }
 
-/** The key under a grid: the departments of the interviews in view. */
-function Legend({ tones, gutter }: { tones: Map<string, EventTone>; gutter: boolean }) {
-  if (!tones.size) return null;
-  return (
-    <ul aria-label="Departments" className={cn("m-0 flex list-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-[color:var(--line)] py-2.5 pr-5 text-xs text-faint", gutter ? "pl-16" : "pl-5")}>
-      {[...tones].map(([name, tone]) => (
-        <li key={name} className="flex items-center gap-1.5">
-          <i aria-hidden className={cn("size-2.5", DOT[tone])} />
-          {name}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** design/tats's `.cx-pill`: booked green with a tick, past grey with a clock. */
+/** Testbench's `.tag`: booked green, past grey. */
 function StatusPill({ past }: { past: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-[26px] items-center gap-1.5 rounded-full border pr-[9px] pl-1 text-[13px] font-medium whitespace-nowrap",
-        past
-          ? "border-[color:var(--line)] bg-[color:var(--soft)] text-muted-foreground"
-          : "border-[color:color-mix(in_srgb,var(--green)_25%,transparent)] bg-[color:var(--green-soft)] text-positive",
-      )}
-    >
-      <i aria-hidden className={cn("grid size-4 place-items-center rounded-full text-white", past ? "bg-[color:var(--faint)]" : "bg-[color:var(--green)]")}>
-        <svg viewBox="0 0 16 16" className="size-2.5" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
-          <path d={past ? "M8 4.5V8l2.5 1.5" : "m3.5 8.5 3 3 6-7"} />
-        </svg>
-      </i>
-      {past ? "Past" : "Booked"}
-    </span>
-  );
+  return <Pill tone={past ? "grey" : "green"}>{past ? "Past" : "Booked"}</Pill>;
 }
 
-const CT_GRID = "grid grid-cols-[110px_minmax(150px,1fr)_minmax(150px,1fr)_minmax(150px,1fr)_120px_110px_minmax(160px,1.2fr)] items-center gap-3.5 px-5";
+/** Well-known meeting sites by the name people call them. */
+const PLACES: [RegExp, string][] = [
+  [/(^|\.)meet\.google\.com$/, "Google Meet"],
+  [/(^|\.)zoom\.us$/, "Zoom"],
+  [/(^|\.)teams\.(microsoft|live)\.com$/, "Teams"],
+];
 
-/** design/tats's interviews table (`.ct-row`): the rows in the order given, each opening the interview. */
+/** A link as a cell too narrow for the address says it: "Google Meet", else its site; the address itself when it does not parse. */
+const placeOf = (href: string) => {
+  try {
+    const host = new URL(href).host;
+    return PLACES.find(([site]) => site.test(host))?.[1] ?? host;
+  } catch {
+    return href;
+  }
+};
+
+/**
+ * The round takes the most room: its step and job sit side by side, the job
+ * giving way first. The date is "Nov 3" unless a row is in another year, when
+ * the column widens for "Nov 3, 2025".
+ */
+const CT_GRID = {
+  short: "grid grid-cols-[72px_minmax(120px,0.9fr)_minmax(160px,1.8fr)_minmax(120px,0.9fr)_64px_132px_minmax(110px,0.6fr)] items-center gap-3 px-4",
+  long: "grid grid-cols-[72px_minmax(120px,0.9fr)_minmax(160px,1.8fr)_minmax(120px,0.9fr)_100px_132px_minmax(110px,0.6fr)] items-center gap-3 px-4",
+};
+
+/** design/tats's interviews table (`.ct-row`): the rows in the order given, each opening the interview. It scrolls inside the card, the calendar's frame staying put. */
 function ListOf({ rows, timeZone, now, empty, open }: { rows: CalendarEvent[]; timeZone: string; now: number; empty: string; open: (e: CalendarEvent) => void }) {
-  const clock = useClock(timeZone);
+  const thisYear = zoned(now, timeZone).day.slice(0, 4);
+  const dayOf = (e: CalendarEvent) => zoned(e.startsAt, timeZone).day;
+  const grid = rows.some((e) => dayOf(e).slice(0, 4) !== thisYear) ? CT_GRID.long : CT_GRID.short;
   return (
-    <section aria-label="Interviews" className="pb-10">
-      <h2 className="m-0 flex items-center gap-2.5 px-5 py-3.5 text-[15px] font-semibold">
-        Interviews <span className="font-normal text-faint tabular-nums">{rows.length}</span>
+    <section aria-label="Interviews" className="min-h-0 flex-1 overflow-auto">
+      <h2 className="m-0 flex min-h-[52px] items-center gap-2 px-4 py-3 text-[15px] leading-[22px] font-semibold tracking-[-0.01em]">
+        Interviews <span className="font-mono text-[12.5px] font-normal tracking-normal text-faint tabular-nums">{rows.length}</span>
       </h2>
       {rows.length === 0 ? (
-        <Empty className="border-t border-[color:var(--line)] px-5 py-3 [overflow-wrap:anywhere]">{empty}</Empty>
+        <Empty className="my-0 border-t border-[color:var(--line)] px-4 py-3.5 [overflow-wrap:anywhere]">{empty}</Empty>
       ) : (
-        <div className="overflow-x-auto">
-          <div role="table" aria-label="Interviews" className="grid min-w-[980px]">
-            <div role="row" className={cn(CT_GRID, "min-h-[38px] border-t border-[color:var(--line)] bg-[color:var(--soft)] text-[12.5px] text-muted-foreground")}>
-              {["Status", "Applicant", "Round", "Interviewer", "Date", "Time", "Where"].map((h) => (
+        <div>
+          <div role="table" aria-label="Interviews" className="grid min-w-[920px]">
+            <div role="row" className={cn(grid, "sticky top-0 z-[2] min-h-10 border-y border-[color:var(--line)] bg-card text-[12px] text-faint")}>
+              {["Status", "Applicant", "Round", "Interviewer", "Date"].map((h) => (
                 <span key={h} role="columnheader">
                   {h}
                 </span>
               ))}
+              {/* The times' zone, beside the column it is about, its full name on hover. */}
+              <span role="columnheader" title={`Times in ${zoneLong(timeZone)}`}>
+                Time <span className="ml-1.5 text-[11px]">{zoneShort(timeZone, now)}</span>
+              </span>
+              <span role="columnheader">Where</span>
             </div>
             {rows.map((e) => {
-              const day = dayWords(zoned(e.startsAt, timeZone).day, { month: "short", day: "numeric", year: "numeric" });
-              const time = `${clock(e.startsAt)} – ${clock(e.endsAt)}`;
+              const ymd = dayOf(e);
+              // The year only when it is not this one; the hover has it always.
+              const day = dayWords(ymd, { month: "short", day: "numeric", year: "numeric" });
+              const shortDay = ymd.slice(0, 4) === thisYear ? dayWords(ymd, { month: "short", day: "numeric" }) : day;
+              const time = range12(e.startsAt, e.endsAt, timeZone);
               const [lead, ...more] = e.interviewers;
               return (
-                <div role="row" key={e.id} className={cn(CT_GRID, "relative min-h-[52px] border-t border-[color:var(--line)] text-[13px] transition-colors hover:bg-[color:var(--hover)]")}>
+                <div role="row" key={e.id} className={cn(grid, "relative min-h-12 border-b border-[color:var(--line)] text-[13px] transition-colors last:border-b-0 hover:bg-[color:var(--surface)]")}>
                   {/* The whole row opens the interview; the location link sits above it. */}
                   <Link href={e.href} onClick={opener(e, open)} aria-label={`${e.candidate}, ${e.step}, ${day} ${time}`} className="absolute inset-0" />
                   <span role="cell">
                     <StatusPill past={Date.parse(e.endsAt) <= now} />
                   </span>
                   <span role="cell" className="flex min-w-0 items-center gap-2">
-                    <span className="truncate">{e.candidate}</span>
+                    <span className="truncate font-medium">{e.candidate}</span>
                   </span>
-                  <span role="cell" className="flex min-w-0 items-center gap-2" title={[e.step, e.job, e.department].filter(Boolean).join(" · ")}>
-                    <i aria-hidden className={cn("size-2 flex-none rounded-full", DOT[e.tone])} />
-                    <span className="truncate">
-                      {e.step}
-                      <span className="text-muted-foreground"> · {e.job}</span>
-                    </span>
+                  {/* One line: the step whole, then the job where ten characters of it fit, cut short past that.
+                      Short of that room it wraps out of sight rather than show a stub like "F…"; the hover has it. */}
+                  <span role="cell" className="flex max-h-5 min-w-0 flex-wrap gap-x-2.5 overflow-hidden" title={[e.step, e.job, e.department].filter(Boolean).join("\n")}>
+                    <span className="max-w-full flex-none truncate">{e.step}</span>
+                    {e.job ? <span className="min-w-0 flex-1 basis-[10ch] truncate text-faint">{e.job}</span> : null}
                   </span>
                   <span role="cell" className="flex min-w-0 items-center gap-2" title={e.interviewers.join(", ") || undefined}>
                     {lead ? (
                       <>
-                        <Avatar name={lead} size="lg" />
                         <span className="truncate">{lead}</span>
-                        {more.length ? <span className="flex-none text-xs text-faint">+{more.length}</span> : null}
+                        {more.length ? <span className="flex-none text-[12px] text-faint">+{more.length} more</span> : null}
                       </>
                     ) : (
                       <span className="text-faint">No interviewer listed</span>
                     )}
                   </span>
-                  <span role="cell" className="whitespace-nowrap tabular-nums">
-                    {day}
+                  <span role="cell" title={day} className="whitespace-nowrap tabular-nums">
+                    {shortDay}
                   </span>
                   <span role="cell" className="whitespace-nowrap tabular-nums">
                     {time}
@@ -536,11 +778,14 @@ function ListOf({ rows, timeZone, now, empty, open }: { rows: CalendarEvent[]; t
                   <span role="cell" className="min-w-0 truncate">
                     {e.location ? (
                       e.locationHref ? (
-                        <a href={e.locationHref} target="_blank" rel="noopener noreferrer" className="relative z-[1] text-foreground/75 hover:text-[color:var(--accent)]">
-                          {e.location}
+                        // A link reads as its meeting's name or its site; the whole address is its hover, and where it goes.
+                        <a href={e.locationHref} target="_blank" rel="noopener noreferrer" title={e.location} className={cn(textLink, "relative z-[1] inline-block max-w-full truncate align-bottom text-[13px]")}>
+                          {placeOf(e.locationHref)}
                         </a>
                       ) : (
-                        <span className="text-muted-foreground">{e.location}</span>
+                        <span title={e.location} className="text-muted-foreground">
+                          {e.location}
+                        </span>
                       )
                     ) : (
                       <span className="text-faint">Not set</span>
@@ -573,7 +818,7 @@ export function ScheduleView({
   anchor: Ymd | null;
   /** A window wider than the view, so it holds the view's days in any zone; in a search, every date's matches. */
   events: CalendarEvent[];
-  /** The department menu's choices; empty hides it (an interviewer reads no department names). */
+  /** The department filter's choices; empty hides it (an interviewer reads no department names). */
   departments: string[];
   /** The `?dept=`, one of `departments`; null is everyone's. */
   dept: string | null;
@@ -605,9 +850,13 @@ export function ScheduleView({
     if (nextRound) router.replace(withoutBook(window.location.search), { scroll: false });
   }, [nextRound, router]);
   const openEvent = React.useCallback((event: CalendarEvent) => setFlow({ kind: "event", event }), []);
-  const bookAt = (find: boolean) => setFlow({ kind: "book", find, ...(shown ? { at: { day: shown, minutes: 10 * 60, length: 60 } } : {}) });
 
-  // Every key is a shortcut for a link here; `/` puts the cursor in the search.
+  const days = shown ? daysOf(view, shown) : [];
+  const grid = React.useRef<GridHandle>(null);
+  // N needs a grid with a day still ahead (today included) to find a slot on.
+  const canNew = canBook && !q && (view === "day" || view === "week") && !!today && days.length > 0 && days.at(-1)! >= today;
+
+  // Every key is a shortcut for a link here; `/` puts the cursor in the search, N in a new interview.
   const search = React.useRef<HTMLDivElement>(null);
   const bindings: Record<string, KeyHandler> = {
     "/": () => {
@@ -615,7 +864,7 @@ export function ScheduleView({
       input?.focus();
       input?.select();
     },
-    ...(canBook && timeZone ? { n: () => bookAt(false), f: () => bookAt(true) } : {}),
+    ...(canNew ? { n: () => void grid.current?.newAtNextFree() } : {}),
   };
   if (shown) {
     for (const key of SCHEDULE_KEYS) {
@@ -631,24 +880,19 @@ export function ScheduleView({
     { keys: "/", label: "Search interviews" },
     ...(canBook
       ? [
-          { keys: "N", label: "Book an interview" },
-          { keys: "F", label: "Find a time" },
-          { keys: "Drag", label: "Book in the grid, or move an interview" },
+          { keys: "Click or Drag", label: "New interview" },
+          ...(canNew ? [{ keys: "N", label: "Next free half hour" }] : []),
+          { keys: "Drag", label: "Move an interview" },
         ]
       : []),
   ]);
 
-  const days = shown ? daysOf(view, shown) : [];
   const inDept = events.filter((e) => !dept || e.department === dept);
   const inView =
     timeZone && days.length ? inDept.filter((e) => zoned(e.startsAt, timeZone).day <= days.at(-1)! && zoned(e.endsAt, timeZone).day >= days[0]!) : [];
   const cells = timeZone && shown && view === "month" && !q ? monthCells(inDept, shown, timeZone) : [];
   // The month shows an interview on the day it starts, so one still running into its first day is not in it.
   const visible = q ? inDept : view === "month" ? cells.flatMap((c) => c.events) : inView;
-  // The key: the departments of the interviews in view, for whoever may read their names.
-  const legend = new Map<string, EventTone>();
-  for (const e of visible) if (e.department) legend.set(e.department, e.tone);
-  if (legend.size && visible.some((e) => !e.department)) legend.set("No department", "gray");
   const inOrder = [...inView].sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt) || a.id.localeCompare(b.id));
 
   return (
@@ -659,123 +903,112 @@ export function ScheduleView({
             {/* Keyed by the search: the box holds what it was given, and the URL can change under it. */}
             <SearchBox key={q ?? ""} action="/client/schedule" defaultValue={q ?? ""} placeholder="Search interviews…" label="Search interviews" keep={{ view, date: anchor, dept }} />
           </div>
-          {canBook ? (
-            <>
-              <button type="button" onClick={() => bookAt(false)} disabled={!timeZone} title="Book an interview (N)" className={cn(cxBtn, "rounded-full px-3 disabled:opacity-50")}>
-                Book
-              </button>
-              <button
-                type="button"
-                onClick={() => bookAt(true)}
-                disabled={!timeZone}
-                title="Suggests a time every interviewer is free (F)"
-                className="inline-flex h-8 items-center gap-2 rounded-full border border-transparent bg-[color:var(--accent)] px-3 text-[13.5px] font-medium whitespace-nowrap text-[color:var(--accent-ink)] transition-[filter] hover:brightness-105 disabled:opacity-50"
-              >
-                Find a time
-              </button>
-            </>
-          ) : null}
         </PageBar>
       }
       bleed
-      className="grid-cols-[minmax(0,1fr)]"
+      // schedule.css: the column fills the box under the bar, so the card, and the grid in it, fill the window.
+      className="cal-fit grid-cols-[minmax(0,1fr)] md:flex md:min-h-0 md:flex-1 md:flex-col"
     >
       {banner}
-      {/* Wraps at every width: beside the sidebar a long department name would push the pills off the edge. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-2.5 md:px-5 md:py-3">
-        {q ? (
-          <>
-            <Link href={hrefFor(view, anchor, dept)} className={cn(cxBtn, "rounded-full px-3")} title="Back to the calendar">
-              Clear
-            </Link>
-            <h2 className="m-0 mr-1 ml-2 min-w-0 truncate text-[17px] font-medium tracking-[-0.014em] md:text-[19px]">Results for “{q}”</h2>
-          </>
-        ) : (
-          <>
-            <Link href={hrefFor(view, null, dept)} className={cn(cxBtn, "rounded-full px-3")} title="Today (.)">
-              Today
-            </Link>
-            <span className="inline-flex">
-              <Link
-                href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"}
-                aria-label="Previous"
-                title="Previous (←)"
-                className={cn(cxBtn, "rounded-l-full px-[11px]")}
-              >
-                {arrow("M10 3.5 5.5 8l4.5 4.5")}
-              </Link>
-              <Link
-                href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"}
-                aria-label="Next"
-                title="Next (→)"
-                className={cn(cxBtn, "-ml-px rounded-r-full px-[11px]")}
-              >
-                {arrow("M6 3.5 10.5 8 6 12.5")}
-              </Link>
-            </span>
-            <h2 className="m-0 mr-1 ml-2 text-[17px] font-medium tracking-[-0.014em] whitespace-nowrap md:text-[19px]">{days.length && shown ? titleOf(view, days, shown) : " "}</h2>
-          </>
-        )}
-        {timeZone ? <span className="hidden min-w-0 truncate text-[13px] text-muted-foreground min-[1100px]:inline">{timeZone.replace(/_/g, " ")}</span> : null}
-        <span className="min-w-2 flex-1" />
-        {departments.length ? (
-          <FilterMenu
-            label="Department"
-            value={dept ?? "Everyone"}
-            on={dept !== null}
-            options={[
-              { href: hrefFor(view, anchor, null, q), label: "Everyone", active: dept === null },
-              ...departments.map((d) => ({ href: hrefFor(view, anchor, d, q), label: d, active: dept === d })),
-            ]}
-          />
-        ) : null}
-        <nav aria-label="View" className={cn(pillTrack, "max-md:order-last")}>
-          {VIEWS.map((v) => (
-            <Link
-              key={v.key}
-              href={hrefFor(v.key, anchor, dept)}
-              aria-current={!q && v.key === view ? "page" : undefined}
-              title={`${v.label} (${v.key[0]!.toUpperCase()})`}
-              className={pillOption(!q && v.key === view)}
-            >
-              {v.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-      <div role="status">{notice ? <Notice className="mx-5 mt-3">{notice}</Notice> : null}</div>
+      <div role="status">{notice ? <Notice className="mx-[var(--page-gutter)] mb-3">{notice}</Notice> : null}</div>
       {truncated ? (
-        <Notice className="mx-5 mt-3">
+        <Notice className="mx-[var(--page-gutter)] mb-3">
           {q ? "Too many interviews to search them all; the oldest are left out." : "Too many interviews to show at once here; some later ones are left off. Try the day or week view."}
         </Notice>
       ) : null}
-      {!timeZone || !today ? (
-        <div aria-busy className="h-[668px]" />
-      ) : q ? (
-        <ListOf rows={searchOrder(inDept, now)} timeZone={timeZone} now={now} empty={`No interviews match “${q}”.`} open={openEvent} />
-      ) : view === "list" ? (
-        <ListOf rows={inOrder} timeZone={timeZone} now={now} empty="No interviews this month." open={openEvent} />
-      ) : (
-        <div className="pb-10">
-          {view === "month" ? (
-            <MonthGrid cells={cells} timeZone={timeZone} today={today} dept={dept} open={openEvent} />
+      {/* One white card: the controls over the grid or the table. Not clipped itself, so the department menu (many departments) can hang past its edge. */}
+      <div className="mb-[var(--page-gutter)] flex min-w-0 flex-col rounded-[14px] bg-card shadow-[var(--shadow)] md:mx-[var(--page-gutter)] md:min-h-0 md:flex-1">
+        {/* Wraps at every width: beside the sidebar a long department name would push the views off the edge. */}
+        <div className="flex flex-none flex-wrap items-center gap-2 border-b border-[color:var(--line)] px-3 py-3 md:px-4">
+          {q ? (
+            <>
+              <Link href={hrefFor(view, anchor, dept)} className={todayBtn} title="Back to the calendar">
+                Clear
+              </Link>
+              <h2 className="m-0 mr-1 ml-1.5 min-w-0 truncate text-[17px] leading-6 font-semibold tracking-[-0.015em]">Results for “{q}”</h2>
+            </>
           ) : (
-            <TimeGrid
-              days={days}
-              events={inView}
-              timeZone={timeZone}
-              today={today}
-              now={now}
-              canBook={canBook}
-              open={openEvent}
-              book={(at) => setFlow({ kind: "book", find: false, at })}
-              move={(event, to) => setFlow({ kind: "move", event, to })}
-            />
+            <>
+              <Link href={hrefFor(view, null, dept)} className={todayBtn} title="Today (.)">
+                Today
+              </Link>
+              <span className="inline-flex">
+                <Link href={shown ? hrefFor(view, stepAnchor(view, shown, -1), dept) : "#"} aria-label="Previous" title="Previous (←)" className={stepBtn}>
+                  {arrow("M10 3.5 5.5 8l4.5 4.5")}
+                </Link>
+                <Link href={shown ? hrefFor(view, stepAnchor(view, shown, 1), dept) : "#"} aria-label="Next" title="Next (→)" className={stepBtn}>
+                  {arrow("M6 3.5 10.5 8 6 12.5")}
+                </Link>
+              </span>
+              <h2 className="m-0 mr-1 ml-1 text-[17px] leading-6 font-semibold tracking-[-0.015em] whitespace-nowrap">{days.length && shown ? titleOf(view, days, shown) : " "}</h2>
+            </>
           )}
-          {visible.length ? null : <Empty className="border-t border-[color:var(--line)] px-5 py-3">No interviews this {view}.</Empty>}
-          <Legend tones={legend} gutter={view !== "month"} />
+          <span className="min-w-2 flex-1" />
+          {departments.length && departments.length <= DEPT_SEGMENTS ? (
+            <nav aria-label="Department" className={cn(pillTrack, "max-md:order-last")}>
+              {[null, ...departments].map((d) => (
+                <Link key={d ?? ""} href={hrefFor(view, anchor, d, q)} aria-current={dept === d ? "true" : undefined} className={pillOption(dept === d, "sm")}>
+                  {d ?? "Everyone"}
+                </Link>
+              ))}
+            </nav>
+          ) : departments.length ? (
+            <FilterMenu
+              label="Department"
+              value={dept ?? "Everyone"}
+              on={dept !== null}
+              options={[
+                { href: hrefFor(view, anchor, null, q), label: "Everyone", active: dept === null },
+                ...departments.map((d) => ({ href: hrefFor(view, anchor, d, q), label: d, active: dept === d })),
+              ]}
+            />
+          ) : null}
+          {/* A little apart from the departments' track, so the two read as two switches. */}
+          <nav aria-label="View" className={cn(pillTrack, "max-md:order-last md:ml-1")}>
+            {VIEWS.map((v) => (
+              <Link
+                key={v.key}
+                href={hrefFor(v.key, anchor, dept)}
+                aria-current={!q && v.key === view ? "page" : undefined}
+                title={`${v.label} (${v.key[0]!.toUpperCase()})`}
+                className={pillOption(!q && v.key === view, "sm")}
+              >
+                {v.label}
+              </Link>
+            ))}
+          </nav>
         </div>
-      )}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-b-[14px]">
+          {!timeZone || !today ? (
+            <div aria-busy className="min-h-[480px] flex-1" />
+          ) : q ? (
+            <ListOf rows={searchOrder(inDept, now)} timeZone={timeZone} now={now} empty={`No interviews match “${q}”.`} open={openEvent} />
+          ) : view === "list" ? (
+            <ListOf rows={inOrder} timeZone={timeZone} now={now} empty="No interviews this month." open={openEvent} />
+          ) : (
+            <>
+              {view === "month" ? (
+                <MonthGrid cells={cells} timeZone={timeZone} today={today} dept={dept} open={openEvent} />
+              ) : (
+                <TimeGrid
+                  ref={grid}
+                  days={days}
+                  events={inView}
+                  timeZone={timeZone}
+                  today={today}
+                  now={now}
+                  canBook={canBook}
+                  held={flow?.kind === "book" && flow.anchor && flow.at ? flow.at : null}
+                  open={openEvent}
+                  book={(at, anchor) => setFlow({ kind: "book", find: false, at, anchor })}
+                  move={(event, to) => setFlow({ kind: "move", event, to })}
+                />
+              )}
+              {visible.length ? null : <Empty className="my-0 flex-none border-t border-[color:var(--line)] px-4 py-3.5">No interviews this {view}.</Empty>}
+            </>
+          )}
+        </div>
+      </div>
       {flow && timeZone ? <ScheduleDialog key={flow.kind === "book" ? "book" : "event"} flow={flow} timeZone={timeZone} now={now} go={setFlow} close={() => setFlow(null)} done={setNotice} /> : null}
     </Page>
   );

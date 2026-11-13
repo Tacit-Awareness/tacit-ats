@@ -6,8 +6,8 @@ import { useKeyHelp, useKeys } from "@/components/keys";
 import { isReviewed, reviewCount, reviewSaver, reviewTarget, saveReview, type ReviewWrite } from "@/lib/client/interview-review-rules";
 import { cn } from "@/lib/utils";
 
-// The reviewed check, design/tats's `.ivr-check`: a round button on each past
-// row, E for the one you are on, and the bar's count. It shows at once and saves
+// The reviewed check, design/tats's `.ivr-check` in Testbench's square: a
+// check button on each past row, E for the one you are on, and the bar's count. It shows at once and saves
 // behind you, so E then J never waits; a write that fails puts the check back
 // and says so. The list keeps its links and server markup: this only wraps them.
 
@@ -82,12 +82,21 @@ export function ReviewProvider({ past, saved, selected, children }: { past: stri
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
-/** The bar's count. Live, so a check that did not save is heard as well as seen. */
+/**
+ * The bar's count. Live, so a check that did not save is heard as well as seen.
+ * The count itself ("23 to review") is read out but not drawn, as every page's
+ * count is (Hy counts it as eyebrow text); a check that did not save is drawn,
+ * in red, because it needs the member to act.
+ */
 export function ReviewCount() {
   const { past, saved, set, failed } = useReview();
   if (!saved) return null;
   const left = [...past].filter((id) => !isReviewed(id, saved, set)).length;
-  return <span role="status">{failed ? "Not saved, try again" : reviewCount(left, past.size)}</span>;
+  return (
+    <span role="status" className={failed ? "text-[13px] text-negative" : "sr-only"}>
+      {failed ? "Not saved, try again" : reviewCount(left, past.size)}
+    </span>
+  );
 }
 
 /** E, and its line in the `?` sheet. Render after the list, so the line follows J / K's. */
@@ -119,7 +128,10 @@ export function ReviewRow({ id, candidate, selected, children }: { id: string; c
       data-review-id={id}
       data-key-row
       data-reviewed={on ? "" : undefined}
-      className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center pr-[18px] transition-colors", selected ? "bg-[color:var(--sel)] shadow-[inset_2px_0_0_var(--ink)]" : "hover:bg-[color:var(--hover)]")}
+      className={cn(
+        "group grid grid-cols-[minmax(0,1fr)_auto] items-center border-b border-[color:var(--line)] pr-4 transition-colors",
+        selected ? "bg-[color:var(--sel)] shadow-[inset_2px_0_0_var(--ink)]" : "hover:bg-[color:var(--surface)]",
+      )}
     >
       {children}
       {reviewable ? (
@@ -134,17 +146,20 @@ export function ReviewRow({ id, candidate, selected, children }: { id: string; c
           aria-label={`${candidate} reviewed`}
           title={on ? "Mark not reviewed" : "Mark reviewed (E)"}
           className={cn(
-            "relative grid size-[26px] flex-none place-items-center rounded-full transition-colors after:absolute after:-inset-[9px]",
+            "relative grid size-5 flex-none place-items-center rounded-[6px] transition-[background-color,color,box-shadow] duration-150 after:absolute after:-inset-[10px]",
             on
               ? "bg-foreground text-[color:var(--paper)]"
-              : "text-transparent shadow-[0_0_0_1px_var(--line-strong)] group-hover:text-faint hover:bg-[color:var(--soft)] hover:text-foreground focus-visible:text-faint",
+              : "text-transparent shadow-[inset_0_0_0_1px_var(--line-strong)] group-hover:text-faint group-hover:shadow-[inset_0_0_0_1px_var(--field)] hover:bg-[color:var(--paper)] hover:text-foreground focus-visible:text-faint focus-visible:shadow-[inset_0_0_0_1px_var(--field)]",
           )}
         >
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-3" aria-hidden>
             <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
           </svg>
         </button>
-      ) : null}
+      ) : (
+        // Keeps the time in line with the rows that have a check.
+        <span aria-hidden className="size-5" />
+      )}
     </div>
   );
 }

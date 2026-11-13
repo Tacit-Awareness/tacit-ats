@@ -121,8 +121,8 @@ function typing(target: EventTarget | null) {
 
 const itemCls = (active: boolean, fresh = false) =>
   cn(
-    "sb-item flex w-full items-center gap-2.5 px-2.5 text-left text-[14.5px] whitespace-nowrap",
-    active ? "nav-on font-medium" : fresh ? "nav-new font-[450]" : "font-[450] hover:bg-[color:var(--hover)]",
+    "sb-item flex w-full items-center gap-2.5 px-2.5 text-left font-sans text-[14px] font-medium whitespace-nowrap transition-colors",
+    active ? "nav-on" : fresh ? "nav-new" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
   );
 
 /** `fresh` is the mark's tooltip, when something new is there. */
@@ -186,7 +186,7 @@ function Section({ label, open, onToggle, children }: { label: string; open: boo
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="sb-sec flex items-center gap-1.5 px-2.5 text-left text-[13.5px] font-[450] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+        className="sb-sec flex items-center gap-1.5 rounded-[8px] px-2.5 text-left font-sans text-[13px] font-medium text-faint transition-colors hover:text-foreground"
       >
         {label}
         <svg viewBox="0 0 8 8" className={cn("sb-tri size-2 fill-current", !open && "-rotate-90")} aria-hidden>
@@ -205,21 +205,21 @@ function IconButton({ label, onClick, children, className }: { label: string; on
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={cn("grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground", className)}
+      className={cn("grid size-8 shrink-0 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground", className)}
     >
       {children}
     </button>
   );
 }
 
-/** The org's square: its logo, on white so a dark one shows on the dark theme, or its initial on the accent, as design/tats's workspace logo. */
+/** The org's square: its logo, on white so a dark one shows on the dark theme, or its initial in ink, as Testbench's workspace glyph. */
 function OrgLogo({ org, logoUrl }: { org: string; logoUrl: string | null }) {
   if (logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element -- a stored public file, not a page asset
-    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 bg-white object-contain" />;
+    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 rounded-[6px] bg-white object-contain" />;
   }
   return (
-    <span className="grid size-[22px] shrink-0 place-items-center rounded-[6px] bg-[color:var(--accent)] text-[11px] font-semibold text-[color:var(--accent-ink)]" aria-hidden>
+    <span className="grid size-[22px] shrink-0 place-items-center rounded-[6px] bg-[color:var(--primary)] font-mono text-[10px] font-semibold text-[color:var(--primary-ink)]" aria-hidden>
       {initialsOf(org).slice(0, 1)}
     </span>
   );
@@ -386,13 +386,15 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
 
   return (
     <div className="ui-root flex" style={{ "--sbw": `${sb.width}px`, "--rail": `${SIDEBAR_RAIL}px` } as React.CSSProperties}>
+      {/* Testbench's box: the app sits in one rounded box on the sky (globals.css .tb-box). */}
+      <div className="tb-box max-md:rounded-none max-md:shadow-none">
       {/* phone: a slim bar with the menu button; the sidebar becomes a drawer */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 border-b border-[color:var(--line)] bg-frame px-3 md:hidden">
         <IconButton label="Open the sidebar" onClick={() => setDrawer(true)}>
           <Icon name="menu" className="size-4" />
         </IconButton>
         <OrgLogo org={org} logoUrl={orgLogoUrl} />
-        <span className="truncate text-sm font-semibold">{org}</span>
+        <span className="truncate font-sans text-[15px] font-semibold tracking-[-0.01em]">{org}</span>
         <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="ml-auto">
           <Icon name="search" />
         </IconButton>
@@ -406,7 +408,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
           if ((e.target as Element).closest("a")) setDrawer(false);
         }}
         className={cn(
-          "sb fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col overflow-y-auto bg-frame py-2.5 pr-2 pl-2.5 transition-transform duration-300 [scrollbar-width:none]",
+          "sb fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col overflow-y-auto bg-frame pt-4 pr-2 pb-3 pl-3 transition-transform duration-300 [scrollbar-width:none]",
           "md:static md:z-auto md:translate-x-0",
           rail ? "sb-rail md:w-[var(--rail)] md:pr-1.5" : "md:w-[var(--sbw)]",
           drawer ? "translate-x-0 shadow-[var(--pop-shadow)]" : "-translate-x-full",
@@ -419,7 +421,7 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
             onClick={() => setMenu(true)}
             title={rail ? org : undefined}
             aria-label={rail ? org : undefined}
-            className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 text-[14px] font-medium transition-colors hover:bg-[color:var(--hover)]"
+            className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 font-sans text-[15px] font-semibold tracking-[-0.01em] transition-colors hover:bg-[color:var(--hover)]"
           >
             <OrgLogo org={org} logoUrl={orgLogoUrl} />
             <span className="sb-label">{org}</span>
@@ -493,14 +495,15 @@ function Frame({ org, orgLogoUrl, user, jobs, sidebar: initial, children }: Omit
         onKeyDown={onResizeKey}
         className={cn(
           "relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize outline-none md:block",
-          "after:absolute after:inset-y-3.5 after:left-[3px] after:w-0.5 after:rounded-full after:transition-colors hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
+          "after:absolute after:inset-y-0 after:left-[3.5px] after:w-px after:bg-[color:var(--line)] after:transition-colors hover:after:inset-y-3 hover:after:left-[3px] hover:after:w-0.5 hover:after:rounded-full hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
         )}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col pt-12 md:py-2.5 md:pr-2.5 md:pl-1.5">
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-card md:rounded-[10px] md:border md:border-[color:var(--line)] md:shadow-[var(--shadow)]">
-          <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-8">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col pt-12 md:pt-0">
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-7">{children}</div>
         </main>
+      </div>
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />

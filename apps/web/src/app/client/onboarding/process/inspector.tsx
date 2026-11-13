@@ -1,12 +1,14 @@
 "use client";
 
 import type { Dispatch } from "react";
+import { pillOption, pillTrack } from "@/components/page";
 import { departmentOptions } from "@/lib/client/department-tree";
 import type { EditorAction, EditorState } from "@/lib/client/process-editor";
 import { NOTE_MAX, OWNERS, STEP_NAME_MAX, edgeName, type Owner, type ProcessEdge, type ProcessLookup, type ProcessNode, type StageType } from "@/lib/client/process-graph";
 import { cn } from "@/lib/utils";
 
-// What is selected on the canvas (design/tats's fcInspector). A <fieldset disabled>
+// What is selected on the canvas (design/tats's fcInspector), a card floating
+// over the canvas's right (onboarding.css). A <fieldset disabled>
 // makes it the read-only reading of the same thing for someone who may not edit.
 // "Another team" is stored and shown only. Who runs a step and how long it takes
 // are descriptive: nothing books from them, there being no bot to.
@@ -14,11 +16,12 @@ import { cn } from "@/lib/utils";
 const KINDS: Array<[StageType, string]> = [["review", "Review"], ["testbench", "Testbench"], ["interview", "Interview"]];
 const LENGTHS: Array<[number, string]> = [[30, "30m"], [45, "45m"], [60, "1h"], [90, "1.5h"], [180, "3h"]];
 
+/** Kind and Length: Testbench's small segmented control, the picked one raised. */
 function Pills<T extends string | number>({ label, options, value, onPick }: { label: string; options: Array<[T, string]>; value: T | undefined; onPick: (v: T) => void }) {
   return (
-    <div className="fc-pills" role="group" aria-label={label}>
+    <div className={cn(pillTrack, "fc-pills")} role="group" aria-label={label}>
       {options.map(([v, text]) => (
-        <button key={String(v)} type="button" className={cn(v === value && "on")} aria-pressed={v === value} onClick={() => onPick(v)}>
+        <button key={String(v)} type="button" className={cn(pillOption(v === value, "sm"), v === value && "on")} aria-pressed={v === value} onClick={() => onPick(v)}>
           {text}
         </button>
       ))}

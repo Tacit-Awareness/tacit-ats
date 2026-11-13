@@ -5,9 +5,12 @@ import { cn } from "@/lib/utils";
 
 // design/tats's careers chart (its app.js lineChart): one point per day (per
 // week for a quarter) as a smooth line over a soft area, or as columns, with
-// the period before drawn faint behind it. Client only for the crosshair and
-// its tooltip: the value for the nearest point, and the same point the
-// period before. The page computes every number (props only).
+// the period before drawn faint behind it. A line carries a marker only on its
+// last point and on any point standing alone (it has no line to show it), so
+// thirty days are not thirty rings; the pointer adds one where it rests. With
+// the period before on, each line is named at its right end, so no key. Client
+// only for the crosshair and its tooltip: the value for the nearest point, and
+// the same point the period before. The page computes every number (props only).
 
 export type ChartPoint = { label: string; current: number | null; previous: number | null };
 
@@ -69,6 +72,7 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
     .map((run) => `${smoothPath(run)}L${run.at(-1)![0]},300L${run[0][0]},300Z`)
     .join("");
   const every = Math.ceil(n / 7);
+  const runs = chartRuns(points.map((x) => x.current));
   const id = React.useId().replace(/:/g, "");
 
   const move = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -79,9 +83,27 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
   const hx = hot === null ? 0 : xAt(hot) / 10;
   const p = hot === null ? null : points[hot];
 
+  // With the period before on, each series is named at its last value, in a gutter right of the plot; two that end close are pushed apart.
+  const lastOf = (key: "current" | "previous") => [...points].reverse().find((x) => x[key] !== null)?.[key] ?? null;
+  const ends = compare
+    ? [
+        { key: "current", name: "This period", top: yAt(lastOf("current")) / 3 },
+        { key: "previous", name: "Period before", top: yAt(lastOf("previous")) / 3 },
+      ]
+    : [];
+  if (ends.length === 2 && Math.abs(ends[0].top - ends[1].top) < 12) {
+    const mid = (ends[0].top + ends[1].top) / 2;
+    const [hi, lo] = ends[0].top <= ends[1].top ? [ends[0], ends[1]] : [ends[1], ends[0]];
+    hi.top = mid - 6;
+    lo.top = mid + 6;
+  }
+
   return (
     <div
-      className="grid grid-cols-[44px_minmax(0,1fr)] grid-rows-[220px_30px] px-3 pt-3.5 pb-1 min-[768px]:grid-rows-[260px_30px] min-[768px]:pr-6"
+      className={cn(
+        "grid grid-rows-[150px_28px] px-3 pt-3 pb-1 min-[768px]:grid-rows-[190px_28px] [@media(max-height:820px)]:grid-rows-[124px_28px]",
+        compare ? "grid-cols-[44px_minmax(0,1fr)_104px]" : "grid-cols-[44px_minmax(0,1fr)] min-[768px]:pr-6",
+      )}
       role="img"
       aria-label={points.map((x) => `${x.label}: ${fmt(x.current, share)}`).join(", ")}
     >
@@ -118,17 +140,19 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
               {compare ? <path d={line("previous")} fill="none" stroke="var(--faint)" strokeWidth={1.5} opacity={0.7} vectorEffect="non-scaling-stroke" /> : null}
               <path d={line("current")} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
             </svg>
-            {n <= 31
-              ? points.map((x, i) =>
-                  x.current === null ? null : (
-                    <i
-                      key={i}
-                      className="pointer-events-none absolute -mt-1 -ml-1 size-2 rounded-full bg-[color:var(--paper)] shadow-[0_0_0_1.5px_var(--accent)]"
-                      style={{ left: `${xAt(i) / 10}%`, top: `${yAt(x.current) / 3}%` }}
-                    />
-                  ),
-                )
-              : null}
+            {runs.map((run) => {
+              // The end of the series, and a point alone in its stretch.
+              const last = run === runs.at(-1);
+              if (!last && run.length > 1) return null;
+              const i = run.at(-1)!;
+              return (
+                <i
+                  key={i}
+                  className="pointer-events-none absolute -mt-1 -ml-1 size-2 rounded-full bg-[color:var(--paper)] shadow-[0_0_0_1.5px_var(--accent)]"
+                  style={{ left: `${xAt(i) / 10}%`, top: `${yAt(points[i].current) / 3}%` }}
+                />
+              );
+            })}
           </>
         )}
         {p ? (
@@ -142,7 +166,7 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
             )}
             <div
               className={cn(
-                "pointer-events-none absolute top-1 z-[3] grid gap-px rounded-[8px] bg-raised px-2.5 py-2 text-[12px] whitespace-nowrap shadow-[var(--pop-shadow)]",
+                "pointer-events-none absolute top-1 z-[3] grid gap-px rounded-[8px] bg-raised px-2.5 py-2 text-[12.5px] whitespace-nowrap shadow-[var(--pop-shadow)]",
                 hx > 70 ? "-translate-x-[calc(100%+12px)]" : "translate-x-3",
               )}
               style={{ left: `${hx}%` }}
@@ -154,12 +178,25 @@ export function CareersChart({ points, top, share, compare, bars, step }: {
           </>
         ) : null}
       </div>
+      {compare ? (
+        <div className="relative" aria-hidden>
+          {ends.map((e) => (
+            <span
+              key={e.key}
+              className={cn("absolute left-3 -translate-y-1/2 text-[12.5px] whitespace-nowrap", e.key === "current" ? "text-foreground" : "text-faint")}
+              style={{ top: `${Math.min(100, Math.max(0, e.top))}%` }}
+            >
+              {e.name}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="relative col-start-2">
         {points.map((x, i) =>
           i % every === 0 ? (
             <span
               key={i}
-              className={cn("absolute top-[9px] text-[11.5px] whitespace-nowrap text-faint", i === 0 ? "" : xAt(i) > 940 ? "-translate-x-full" : "-translate-x-1/2")}
+              className={cn("absolute top-[8px] text-[11.5px] whitespace-nowrap text-faint", i === 0 ? "" : xAt(i) > 940 ? "-translate-x-full" : "-translate-x-1/2")}
               style={{ left: `${xAt(i) / 10}%` }}
             >
               {x.label}

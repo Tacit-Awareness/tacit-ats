@@ -1,26 +1,32 @@
 "use client";
 
 import { useActionState } from "react";
-import { Notice } from "@/components/page";
+import { MiniTitle, Notice, Pill } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { Input, selectClass } from "@/components/ui/input";
 import {
   CLOSE_REASON_MAX, JOB_SETTINGS_ERRORS, JOB_SETTINGS_NOTICES, JOB_STATUS_LABEL, JOB_TITLE_MAX, OPENINGS_ADD_MAX, SETTABLE_STATUSES,
   type JobFormState, type JobSettings as Settings, type OpeningsFormState,
 } from "@/lib/client/job-settings-rules";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { addOpeningsAction, closeOpeningAction, saveJobAction } from "./actions";
 
-// The job itself, under the posting editor's "Only your team sees this":
+// The job itself, in the posting editor's "Only your team sees this" card:
 // design/tats's Live / Paused chip, as the job's status (open, paused, closed;
 // filled is the database's, on the last hire), the job's own title (the
 // post's title above is what applicants read), and its openings. Each form
 // saves at once, apart from the post's draft, and answers in place: React
 // resets a form to its defaults when its action ends, so the defaults are a
-// refusal's draft or what the page read.
+// refusal's draft or what the page read. Testbench's fields: a label in Geist
+// Mono 500 over a raised field; what a field means is its hover title, not a
+// caption under it.
 
 const FIRST = {};
-const heading = "m-0 mb-2 text-[13px] font-semibold";
+const label = "grid gap-1.5";
+const labelText = "font-mono text-[13px] leading-[18px] font-medium text-foreground";
+const TITLE_MEANS = "The job title is what your team sees on the board and in lists.";
+const STATUS_MEANS = "A post takes applications only while its job is open.";
 
 function Said({ state }: { state: JobFormState | OpeningsFormState }) {
   if (state.error) return <Notice tone="error">{JOB_SETTINGS_ERRORS[state.error]}</Notice>;
@@ -35,7 +41,7 @@ function JobForm({ settings }: { settings: Settings }) {
   const status = state.draft && state.error !== "status_changed" ? state.draft.status : settings.status;
   const statuses: string[] = (SETTABLE_STATUSES as readonly string[]).includes(settings.status) ? [...SETTABLE_STATUSES] : [settings.status, ...SETTABLE_STATUSES];
   return (
-    <form action={action} className="grid gap-2">
+    <form action={action} className="grid gap-3">
       <input type="hidden" name="jobId" value={settings.jobId} />
       <input type="hidden" name="was:title" value={settings.title} />
       {/* The status the select was drawn against, kept with it: a select only
@@ -45,13 +51,13 @@ function JobForm({ settings }: { settings: Settings }) {
           while was:status moved on, and a title-only save would send it back. */}
       <input type="hidden" name="was:status" value={settings.status} />
       <Said state={state} />
-      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_auto] sm:items-end">
-        <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-          Job title
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end">
+        <label className={label} title={TITLE_MEANS}>
+          <span className={labelText}>Job title</span>
           <Input name="title" defaultValue={draft.title} maxLength={JOB_TITLE_MAX} required />
         </label>
-        <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-          Status
+        <label className={label} title={STATUS_MEANS}>
+          <span className={labelText}>Status</span>
           <select key={`${settings.status}:${status}`} name="status" defaultValue={status} className={selectClass}>
             {statuses.map((s) => (
               <option key={s} value={s}>
@@ -62,8 +68,8 @@ function JobForm({ settings }: { settings: Settings }) {
         </label>
         <SubmitButton variant="outline">Save job</SubmitButton>
       </div>
-      <p className="m-0 text-xs text-faint">
-        The job title is what your team sees on the board and in lists. A post takes applications only while its job is open.
+      <p className="sr-only">
+        {TITLE_MEANS} {STATUS_MEANS}
       </p>
     </form>
   );
@@ -74,28 +80,26 @@ function Openings({ jobId, openings }: { jobId: string; openings: NonNullable<Se
   const [closed, close] = useActionState<OpeningsFormState, FormData>(closeOpeningAction, FIRST);
   const { counts } = openings;
   return (
-    <div className="grid gap-2">
-      <p className={cn(heading, "mb-0")}>
-        Openings{" "}
-        <span className="font-normal text-faint">
-          {counts.open} open · {counts.filled} filled{counts.closed ? ` · ${counts.closed} closed` : ""}
-        </span>
-      </p>
+    <div className="grid gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <MiniTitle className="mt-0 mr-1">Openings</MiniTitle>
+        <Pill>{counts.open} open</Pill>
+        <Pill>{counts.filled} filled</Pill>
+        {counts.closed ? <Pill>{counts.closed} closed</Pill> : null}
+      </div>
       <Said state={added} />
       <Said state={closed} />
       {openings.open.length ? (
         <ul className="m-0 list-none p-0">
           {openings.open.map((o) => (
-            <li key={o.openingId} className="border-b border-[color:var(--line)] py-1.5">
+            <li key={o.openingId} className="border-b border-[color:var(--line)] first:border-t">
               <details open={closed.draft?.openingId === o.openingId} className="group/op">
-                <summary className="flex cursor-pointer list-none items-center gap-2 text-[13px] [&::-webkit-details-marker]:hidden">
-                  <span>
-                    Opening {o.number}
-                    {o.code ? <span className="text-faint"> · {o.code}</span> : null}
-                  </span>
-                  <span className="ml-auto text-xs text-faint group-open/op:hidden">Close…</span>
+                <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[8px] px-2 text-[13px] transition-colors hover:bg-[color:var(--surface)] [&::-webkit-details-marker]:hidden">
+                  <span className="font-medium">Opening {o.number}</span>
+                  {o.code ? <span className="text-faint">{o.code}</span> : null}
+                  <span className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "ml-auto group-open/op:hidden")}>Close…</span>
                 </summary>
-                <form action={close} className="mt-2 flex flex-wrap items-center gap-2">
+                <form action={close} className="flex flex-wrap items-center gap-2 px-2 pt-1 pb-3">
                   <input type="hidden" name="openingId" value={o.openingId} />
                   <Input
                     name="reason"
@@ -136,14 +140,19 @@ function Openings({ jobId, openings }: { jobId: string; openings: NonNullable<Se
   );
 }
 
+/** The job's own part of the team's card: the job, then its openings, a hairline between and under them. */
 export function JobSettingsPanel({ settings }: { settings: Settings }) {
   return (
-    <div className="mb-5 grid gap-5 border-b border-[color:var(--line)] pb-5">
-      <div>
-        <p className={heading}>The job</p>
+    <div className="grid gap-5 border-b border-[color:var(--line)] pt-4 pb-5">
+      <div className="grid gap-3">
+        <MiniTitle className="mt-0">The job</MiniTitle>
         <JobForm settings={settings} />
       </div>
-      {settings.openings ? <Openings jobId={settings.jobId} openings={settings.openings} /> : null}
+      {settings.openings ? (
+        <div className="border-t border-[color:var(--line)] pt-5">
+          <Openings jobId={settings.jobId} openings={settings.openings} />
+        </div>
+      ) : null}
     </div>
   );
 }

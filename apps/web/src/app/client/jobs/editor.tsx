@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { clientTools } from "@tacit-ats/core";
 import { CopyButton } from "@/components/copy-button";
-import { Notice, Page, PageBar, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
+import { MiniTitle, Notice, Page, PageBar, Section, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { selectClass } from "@/components/ui/input";
 import { stripMarks, type Mark } from "@/lib/inline-marks";
 import { holdLeave } from "@/lib/leave-guard";
 import {
@@ -21,7 +22,8 @@ import type { DepartmentChoice } from "@/lib/client/postings";
 import type { PostBlock } from "@/lib/public/post-text";
 import { cn } from "@/lib/utils";
 import {
-  Answer, Application, ApplicationEnd, Fact, PostBody, Req, ResumeBox, StatusChip, answerBox, applicationSections, day, postState, sheetHeading,
+  Answer, Application, ApplicationEnd, Fact, PostBody, Req, ResumeBox, SHEET_TABS, StatusChip, answerBox, applicationSections, day, fieldLabel, postState,
+  sheetCard, sheetHeading, sheetTab, sheetTitle,
 } from "./[id]/post/sheet";
 import { createRoleAction, savePostingAction } from "./actions";
 import { Editable, type EditableControls } from "./editable";
@@ -35,6 +37,12 @@ import { POSTING_ERRORS, POSTING_NOTICES, QUESTION_ERRORS, type PostingError, ty
 // description, written out from the blocks (lib/public/post-text.ts). Hiring
 // steps are the job's interview plan, which the public page does not read, so
 // they sit under "Only your team sees this" and Preview leaves them out.
+//
+// In Testbench's look: the title row (sticky) holds the post's state beside
+// the title and the actions on the right; the sheet is one white card with
+// Edit / Preview as applicant at its top, where it changes what the card
+// shows; the team's part is a second card. A text edited in place shows a
+// field's edge on hover and a field's ink ring while it is typed in.
 
 type EditorPost = Pick<
   clientTools.JobPost,
@@ -45,8 +53,26 @@ type Status = "live" | "closed" | null;
 /** `status` is what the refused save was also doing, for "Save mine over it" to finish. */
 type Message = { notice: PostingNotice; keptOnInterviews: number } | { error: PostingError; status: Status };
 
-const select = "border border-[color:var(--line)] bg-transparent px-1.5 py-0.5 text-[12.5px] text-muted-foreground";
-const addButton = "mt-1.5 -ml-2 inline-flex h-7 items-center gap-1.5 rounded-full px-2 text-[13px] font-medium text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground";
+/** A question's answer type: a small Testbench field. */
+const select = cn(selectClass, "h-[30px] w-auto pr-8 pl-2.5 text-[12.5px]");
+/** "Add a line", "Add a step", "Add a question": a ghost button, so it reads as something to press. */
+const addButton = cn(buttonVariants({ variant: "ghost", size: "sm" }), "mt-1.5 -ml-2.5 gap-1.5 px-2.5 [&_svg]:size-3");
+/** What the sheet is, said once: on the Edit option's hover title and to a screen reader, not as a line over the title. */
+const SHEET_HINT = "This is what applicants see. Click any text to change it.";
+/** Why Name and Email have no remove: on the About you heading's hover title. */
+const ALWAYS_ASKED = "Name and email are on every application. Everything else here is yours to change.";
+
+/** The team's card's mark: an eye with a line through it, bare beside the heading. */
+function TeamOnlyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-[15px] flex-none fill-none stroke-current text-[color:var(--ink-4)] [stroke-width:1.4] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
+      <path d="M2.5 2.5l11 11M6.6 6.7a2 2 0 0 0 2.7 2.7M4.4 4.6C2.9 5.6 1.9 7 1.5 8c.9 2.2 3.4 4.5 6.5 4.5 1.3 0 2.5-.4 3.5-1M7 3.6c.3 0 .7-.1 1-.1 3.1 0 5.6 2.3 6.5 4.5-.3.7-.8 1.5-1.4 2.2" />
+    </svg>
+  );
+}
+
+/** A list's marker: a small square, never a dot or a number. */
+const bullet = "size-[5px] flex-none rounded-[1px] bg-[color:var(--ink-4)]";
 
 function Plus() {
   return (
@@ -95,7 +121,7 @@ function Remove({ label, onClick }: { label: string; onClick: () => void }) {
       aria-label={label}
       title="Remove"
       onClick={onClick}
-      className="grid size-[22px] flex-none place-items-center rounded-full text-faint opacity-0 transition-opacity group-hover/line:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground focus-visible:opacity-100 max-sm:opacity-100"
+      className="grid size-[22px] flex-none place-items-center rounded-[6px] text-faint opacity-0 transition-opacity duration-150 group-hover/line:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground focus-visible:opacity-100 max-sm:opacity-100"
     >
       <svg viewBox="0 0 16 16" className="size-3 fill-none stroke-current [stroke-width:1.5]" aria-hidden>
         <path d="M4 4l8 8M12 4l-8 8" />
@@ -134,12 +160,12 @@ function Lines({
     <>
       <ul className="m-0 list-none p-0">
         {lines.map((line, i) => (
-          <li key={i} className={cn("group/line flex gap-2.5 text-muted-foreground", numbered ? "items-center border-b border-[color:var(--line)] py-2 text-foreground" : "items-start py-[3px]")}>
-            {numbered ? (
-              <em className="grid size-5 flex-none place-items-center rounded-full bg-[color:var(--soft-strong)] text-[11.5px] font-medium text-muted-foreground not-italic">{i + 1}</em>
-            ) : (
-              <span className="mt-[9px] size-[5px] flex-none bg-[color:var(--faint)]" />
-            )}
+          <li
+            key={i}
+            className={cn("group/line flex gap-3", numbered ? "min-h-11 items-center border-b border-[color:var(--line)] py-1.5 text-foreground" : "items-start py-[3px] text-muted-foreground")}
+          >
+            {/* The order is the list's own, so a step carries no number: the same square as any line. */}
+            <span aria-hidden className={cn(bullet, !numbered && "mt-[9px]")} />
             <Editable
               value={line}
               onChange={(v) => onChange(lines.map((l, n) => (n === i ? v : l)))}
@@ -186,10 +212,10 @@ function Lines({
 function Overview({ blocks, onChange, focus }: { blocks: PostBlock[]; onChange: (blocks: PostBlock[]) => void; focus: (path: string) => void }) {
   const set = (i: number, next: PostBlock) => onChange(blocks.map((b, n) => (n === i ? next : b)));
   return (
-    <div className="text-[14px] leading-[1.55]">
+    <div className="max-w-[680px] font-sans text-[14px] leading-[22px] text-muted-foreground">
       {blocks.map((b, i) =>
         b.kind === "text" ? (
-          <p key={i} className="m-0 mb-3.5">
+          <p key={i} className="m-0 mb-4">
             <Editable
               value={b.text}
               onChange={(text) => set(i, { ...b, text })}
@@ -197,12 +223,12 @@ function Overview({ blocks, onChange, focus }: { blocks: PostBlock[]; onChange: 
               placeholder="One or two sentences on what this person will do"
               path={`block-${i}`}
               multiline
-              className={cn("block min-h-[1.5em]", i === 0 && "text-[17px] leading-[1.5] tracking-[-0.01em]")}
+              className={cn("block min-h-[22px]", i === 0 && "min-h-[26px] text-[17px] leading-[26px] tracking-[-0.01em] text-foreground")}
             />
           </p>
         ) : (
           <div key={i}>
-            <h3 className={cn(sheetHeading, "first:mt-7")}>
+            <h3 className={cn(sheetHeading, "first:mt-8")}>
               <Editable value={b.heading} onChange={(heading) => set(i, { ...b, heading })} label={`Section ${i + 1} heading`} placeholder="A heading" path={`heading-${i}`} className="min-w-[3em]" />
             </h3>
             <Lines lines={b.lines} onChange={(lines) => set(i, { ...b, lines })} path={`lines-${i}`} noun="Line" placeholder="A line" addLabel="Add a line" focus={focus} />
@@ -215,7 +241,7 @@ function Overview({ blocks, onChange, focus }: { blocks: PostBlock[]; onChange: 
 
 function Toggle({ question, onChange }: { question: DraftQuestion; onChange: (patch: Partial<DraftQuestion>) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 text-[12.5px] text-faint">
+    <label className="inline-flex cursor-pointer items-center gap-2 text-[12.5px] text-muted-foreground">
       <input type="checkbox" checked={question.required} onChange={(e) => onChange({ required: e.target.checked })} />
       Required
     </label>
@@ -236,13 +262,11 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
   };
 
   return (
-    <div className="text-[14px] leading-[1.55]">
-      <p className="m-0 mb-1 rounded-[8px] bg-[color:var(--soft)] px-3 py-2.5 text-[13px] text-muted-foreground">
-        Name and email are on every application. Everything else here is yours to change.
-      </p>
+    <div className="text-[13px]">
+      <p className="sr-only">{ALWAYS_ASKED}</p>
       {resume.map((q) => (
         <div key={q.key} className="group/line">
-          <h3 className={cn(sheetHeading, "items-center first:mt-7")}>
+          <h3 className={cn(sheetHeading, "items-center")}>
             {q.label}
             <Req on={q.required} />
             <Remove label={`Remove ${q.label}`} onClick={() => remove(q.key)} />
@@ -253,13 +277,15 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
           </div>
         </div>
       ))}
-      <h3 className={sheetHeading}>About you</h3>
-      <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+      <h3 className={sheetHeading} title={ALWAYS_ASKED}>
+        About you
+      </h3>
+      <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
         {about.map((q) => {
           const fixed = q.type === "name" || q.type === "email";
           return (
-            <div key={q.key} className="group/line flex flex-col gap-1.5 text-[13px]">
-              <span className="flex items-center gap-0.5">
+            <div key={q.key} className="group/line flex flex-col gap-1.5">
+              <span className={cn(fieldLabel, "flex min-h-[22px] items-center gap-0.5")} title={fixed ? "On every application" : undefined}>
                 {q.label}
                 <Req on={q.required} />
                 {fixed ? null : <Remove label={`Remove ${q.label}`} onClick={() => remove(q.key)} />}
@@ -271,7 +297,7 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
         })}
       </div>
       {missing.length ? (
-        <div className="mt-1.5 flex flex-wrap gap-x-3">
+        <div className="mt-2 flex flex-wrap gap-x-1">
           {missing.map(([type, label]) => (
             <button key={type} type="button" className={cn(addButton, "ml-0")} onClick={() => addBuiltIn(type, label)}>
               <Plus />
@@ -282,8 +308,8 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
       ) : null}
       <h3 className={sheetHeading}>Questions</h3>
       {rest.map((q) => (
-        <div key={q.key} className="border-b border-[color:var(--line)] py-3.5">
-          <div className="group/line mb-2.5 flex items-start gap-0.5 font-medium">
+        <div key={q.key} className="border-b border-[color:var(--line)] py-4">
+          <div className={cn(fieldLabel, "group/line mb-2.5 flex items-start gap-0.5")}>
             <QuestionText value={q.label} onChange={(label) => patch(q.key, { label })} path={`question-${q.key}`} required={q.required} />
             <Remove label={q.label ? `Remove ${stripMarks(q.label)}` : "Remove this question"} onClick={() => remove(q.key)} />
           </div>
@@ -300,7 +326,7 @@ function Questions({ questions, onChange, focus }: { questions: DraftQuestion[];
           ) : (
             <Answer q={q} />
           )}
-          <div className="mt-2.5 flex items-center gap-4">
+          <div className="mt-3 flex items-center gap-4">
             <select
               aria-label="Answer type"
               className={select}
@@ -474,13 +500,20 @@ export function PostingEditor({
   
 
   const bar = (
-    <PageBar crumbs={[{ href: "/client/jobs", label: "Job Postings" }]} title={draft.title.trim() || job.title}>
+    <PageBar
+      crumbs={[{ href: "/client/jobs", label: "Job Postings" }]}
+      title={draft.title.trim() || job.title}
+      lead={post ? <StatusChip accepting={post.accepting} label={postState(post)} /> : <StatusChip accepting={false} label="Not posted" />}
+    >
       {link ? (
-        <span className="mr-1 flex items-center gap-1">
+        <span className="flex items-center gap-0.5">
           <a href={link.path} target="_blank" rel="noreferrer" className={textLink}>
             Public page
+            <svg viewBox="0 0 16 16" className="size-3 fill-none stroke-current [stroke-width:1.5] [stroke-linecap:round] [stroke-linejoin:round]" aria-hidden>
+              <path d="M5.5 10.5l5-5M6.5 5.5h4v4" />
+            </svg>
           </a>
-          <CopyButton value={link.url} label="Copy the public link" />
+          <CopyButton value={link.url} label="Copy the public link" className="rounded-[7px]" />
         </span>
       ) : null}
       {job.id ? (
@@ -488,15 +521,6 @@ export function PostingEditor({
           Open the board
         </Link>
       ) : null}
-      <div role="group" aria-label="Mode" className={pillTrack}>
-        <button type="button" aria-pressed={!preview} className={pillOption(!preview)} onClick={() => setPreview(false)}>
-          Edit
-        </button>
-        <button type="button" aria-pressed={preview} className={pillOption(preview)} onClick={() => setPreview(true)}>
-          Preview as applicant
-        </button>
-      </div>
-      {post ? <StatusChip accepting={post.accepting} label={postState(post)} /> : <StatusChip accepting={false} label="Not posted" />}
       {post?.status === "live" ? (
         <Button variant="outline" disabled={pending} onClick={() => save("closed")}>
           Close post
@@ -523,9 +547,10 @@ export function PostingEditor({
   );
 
   return (
-    <Page className="max-w-[1000px]" bar={bar} stickyBar>
-      <div ref={root} className="grid gap-4">
-        <div ref={said} className="scroll-mt-16 empty:hidden">
+    // In a narrower window the actions wrap under the title; they keep to the right there too.
+    <Page className="mx-0 max-w-[1160px] pt-4" bar={<div className="[&_.page-bar>div:last-child]:ml-auto">{bar}</div>} stickyBar>
+      <div ref={root} className="grid gap-5">
+        <div ref={said} className="scroll-mt-20 empty:hidden">
           {message ? (
             "error" in message ? (
               <Notice tone="error">
@@ -533,11 +558,11 @@ export function PostingEditor({
                 {message.error === "changed" ? (
                   <>
                     {" "}
-                    <button type="button" className="underline" disabled={pending} onClick={() => save(message.status, true)}>
+                    <button type="button" className="underline underline-offset-[3px]" disabled={pending} onClick={() => save(message.status, true)}>
                       Save mine over it{message.status === "live" ? " and publish" : message.status === "closed" ? " and close" : ""}
                     </button>
                     {" or "}
-                    <a className="underline" href={window.location.href}>
+                    <a className="underline underline-offset-[3px]" href={window.location.href}>
                       reload to see theirs
                     </a>
                     .
@@ -556,20 +581,27 @@ export function PostingEditor({
         </div>
         {postTabs.length > 1 ? <Tabs tabs={postTabs} label="Posts on this job" /> : null}
 
-        <article className="rounded-[12px] border border-[color:var(--line)] bg-card px-5 py-6 shadow-[var(--shadow)] sm:px-11 sm:pt-10 sm:pb-12">
-          {preview ? null : (
-            <p className="m-0 mb-2.5 text-[13px] text-faint">
-              This is what applicants see. Click any text to change it.
-            </p>
-          )}
-          <h2 className="m-0 mb-5 text-[28px] leading-[1.15] font-medium tracking-[-0.025em] sm:mb-9 sm:text-[38px]">
-            {preview ? (
-              draft.title
-            ) : (
-              <Editable value={draft.title} onChange={(title) => setDraft((d) => ({ ...d, title }))} label="Role title" placeholder="Role title" path="title" className="-mx-2.5 -my-1 inline-block min-w-[3em] px-2.5 py-1" />
-            )}
-          </h2>
-          <div className="grid gap-5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-12">
+        <article className={sheetCard}>
+          {preview ? null : <p className="sr-only">{SHEET_HINT}</p>}
+          <header className="mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-3 sm:mb-9">
+            <h2 className={cn(sheetTitle, "min-w-0 flex-1")}>
+              {preview ? (
+                draft.title
+              ) : (
+                <Editable value={draft.title} onChange={(title) => setDraft((d) => ({ ...d, title }))} label="Role title" placeholder="Role title" path="title" className="-mx-2.5 -my-1 inline-block min-w-[3em] px-2.5 py-1" />
+              )}
+            </h2>
+            {/* Edit / Preview changes what this card shows, so it sits on the card. */}
+            <div role="group" aria-label="Mode" className={cn(pillTrack, "mt-0.5 flex-none")}>
+              <button type="button" aria-pressed={!preview} title={SHEET_HINT} className={pillOption(!preview)} onClick={() => setPreview(false)}>
+                Edit
+              </button>
+              <button type="button" aria-pressed={preview} className={pillOption(preview)} onClick={() => setPreview(true)}>
+                Preview as applicant
+              </button>
+            </div>
+          </header>
+          <div className="grid gap-6 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-12">
             <aside className="flex flex-col">
               <Fact label="Location">
                 {preview ? (
@@ -585,7 +617,7 @@ export function PostingEditor({
                   ) : (
                     <select
                       aria-label="Department"
-                      className="-mx-1.5 max-w-full border-0 bg-transparent px-1 py-0.5 text-[13px] text-muted-foreground hover:bg-[color:var(--hover)]"
+                      className={cn(selectClass, "h-[34px] max-w-full text-foreground")}
                       value={draft.departmentId}
                       onChange={(e) => setDraft((d) => withDepartment(d, e.target.value, jobId ? null : seeds, stepsEdited))}
                     >
@@ -610,20 +642,10 @@ export function PostingEditor({
               {post && post.applications !== null && !preview ? <Fact label="Applied">{post.applications}</Fact> : null}
             </aside>
             <div className="min-w-0">
-              <div role="tablist" aria-label="Post" className="mb-6 flex gap-5 border-b border-[color:var(--line)]">
+              <div role="tablist" aria-label="Post" className="mb-7 flex gap-6 border-b border-[color:var(--line)]">
                 {(["overview", "application"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === t}
-                    onClick={() => setTab(t)}
-                    className={cn(
-                      "-mb-px h-[34px] border-b-2 text-[13.5px] capitalize transition-colors",
-                      tab === t ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {t}
+                  <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={sheetTab(tab === t)}>
+                    {SHEET_TABS[t]}
                   </button>
                 ))}
               </div>
@@ -632,7 +654,7 @@ export function PostingEditor({
                   payload.description ? (
                     <PostBody text={payload.description} />
                   ) : (
-                    <p className="m-0 text-[13.5px] text-faint">No description yet: applicants see the title, the location and the form.</p>
+                    <p className="m-0 text-[13px] text-faint">No description yet: applicants see the title, the location and the form.</p>
                   )
                 ) : (
                   <Application questions={previewQuestions(draft)} />
@@ -647,24 +669,27 @@ export function PostingEditor({
         </article>
 
         {preview ? null : (
-          <section className="rounded-[12px] border border-dashed border-[color:var(--line-strong)] px-[22px] py-[18px] text-[14px] leading-[1.55]">
-            <h3 className="m-0 mb-1.5 text-xs font-medium tracking-[0.04em] text-faint uppercase">Only your team sees this</h3>
+          <Section title="Only your team sees this" icon={<TeamOnlyIcon />} className="gap-0 pb-3">
             {settings ? <JobSettingsPanel settings={settings} /> : null}
-            <p className="m-0 mb-2 text-[13px] font-semibold">Hiring steps</p>
-            <Lines
-              lines={draft.steps}
-              onChange={(steps) => {
-                setStepsEdited(true);
-                setDraft((d) => ({ ...d, steps }));
-              }}
-              path="step"
-              noun="Step"
-              placeholder="A step"
-              addLabel="Add a step"
-              numbered
-              focus={focus}
-            />
-          </section>
+            <div className="grid gap-1 pt-5">
+              <MiniTitle className="mt-0">Hiring steps</MiniTitle>
+              <div>
+                <Lines
+                  lines={draft.steps}
+                  onChange={(steps) => {
+                    setStepsEdited(true);
+                    setDraft((d) => ({ ...d, steps }));
+                  }}
+                  path="step"
+                  noun="Step"
+                  placeholder="A step"
+                  addLabel="Add a step"
+                  numbered
+                  focus={focus}
+                />
+              </div>
+            </div>
+          </Section>
         )}
       </div>
     </Page>

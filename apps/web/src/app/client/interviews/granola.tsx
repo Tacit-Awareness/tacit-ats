@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type * as React from "react";
 import type { Db } from "@tacit/db";
-import { Empty } from "@/components/page";
+import { Empty, Pill, textLink } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import { readGranolaNotes, type GranolaReading } from "@/lib/client/granola-notes";
 import { granolaHref, granolaText, granolaTranscript, matchedLine, type GranolaSection } from "@/lib/client/interview-granola";
 import type { AccessLevel } from "@/lib/client/session";
@@ -16,12 +17,12 @@ import { cn } from "@/lib/utils";
 // design/tats shows a question-by-question breakdown with timestamps here; that
 // was sample data, and Granola's text has no such fields.
 
-/** Granola's text, set apart from the page's own and never parsed into anything but plain text. */
+/** Granola's text, set apart from the page's own by a rule down its left (or, for the transcript, a well), and never parsed into anything but plain text. Read as prose, in Mona Sans. */
 function Fenced({ label, className, children }: { label: string; className?: string; children: string }) {
   return (
     <div
       data-untrusted={label}
-      className={cn("m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 text-[14px] leading-normal break-words whitespace-pre-wrap", className)}
+      className={cn("m-0 border-l-2 border-[color:var(--line-strong)] py-0.5 pl-3.5 font-sans text-[14px] leading-[22px] break-words whitespace-pre-wrap", className)}
     >
       {children}
     </div>
@@ -31,18 +32,22 @@ function Fenced({ label, className, children }: { label: string; className?: str
 function Sections({ sections, label }: { sections: GranolaSection[]; label: string }) {
   return sections.map((s, i) => (
     <div key={i} className="grid gap-1.5">
-      {s.label ? <b className="text-[13px] font-medium text-muted-foreground">{s.label}</b> : null}
+      {s.label ? <b className="text-[12.5px] font-medium text-muted-foreground">{s.label}</b> : null}
       <Fenced label={label}>{s.text}</Fenced>
     </div>
   ));
 }
 
+/** The reader's last part, under a hairline like the others: its heading, then a tag saying whose these are; how the meeting was matched is the tag's hover. */
 function Frame({ children, line }: { children: React.ReactNode; line?: string | null }) {
   return (
-    <section aria-label="Your Granola notes" className="grid gap-3.5 border-t border-[color:var(--line)] px-4 pt-5 pb-[22px] @2xl:px-[26px]">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-[14.5px]">
-        <b className="font-medium">Your Granola notes</b>
-        <span className="text-[13px] text-faint">{line ? `${line} · ` : null}Only you see these</span>
+    <section aria-label="Your Granola notes" className="grid min-w-0 gap-4 border-t border-[color:var(--line)] px-4 pt-4 pb-6 @2xl:px-6">
+      <div className="flex min-h-[30px] flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h2 className="m-0 font-sans text-[15px] leading-[22px] font-semibold tracking-[-0.01em]">Your Granola notes</h2>
+        <Pill title={line ?? undefined}>
+          Only you see these
+          {line ? <span className="sr-only">. {line}</span> : null}
+        </Pill>
       </div>
       {children}
     </section>
@@ -50,7 +55,6 @@ function Frame({ children, line }: { children: React.ReactNode; line?: string | 
 }
 
 const INTEGRATIONS = "/client/settings#granola";
-const quiet = "text-[13px] text-muted-foreground underline underline-offset-2 hover:text-foreground";
 
 export function GranolaLoading() {
   return (
@@ -78,7 +82,7 @@ export function GranolaPanel({
       <Frame>
         <Empty className="my-0">
           {reading.status === "reconnect" ? "Granola no longer accepts Tacit's access. " : "Connect Granola to read your notes from this interview here. "}
-          <Link href={INTEGRATIONS} className={quiet}>
+          <Link href={INTEGRATIONS} className={textLink}>
             {reading.status === "reconnect" ? "Connect again" : "Integrations"}
           </Link>
         </Empty>
@@ -99,15 +103,26 @@ export function GranolaPanel({
           {reading.nearby.length ? "No Granola meeting of yours matched this interview. These were around then:" : "You have no Granola meetings from around this interview."}
         </Empty>
         {reading.nearby.length ? (
-          <ul className="m-0 grid list-none gap-2 p-0">
+          <ul className="m-0 grid list-none overflow-hidden rounded-[10px] p-0 shadow-[inset_0_0_0_1px_var(--line)]">
             {reading.nearby.map((n) => {
               const meeting = granolaText(n.excerpt);
+              const named = [meeting.title, meeting.date].filter((t): t is string => !!t);
               return (
-                <li key={n.noteId} className="flex items-baseline justify-between gap-3 border-t border-[color:var(--line)] pt-2 first:border-t-0 first:pt-0">
-                  <Fenced label="granola meeting" className="min-w-0 flex-1 border-l-0 pl-0 text-[13.5px]">
-                    {[meeting.title, meeting.date].filter(Boolean).join(" · ") || meeting.sections[0]?.text || "A meeting with no title"}
-                  </Fenced>
-                  <Link href={granolaHref(interviewId, { note: n.noteId }, base)} className={cn(quiet, "flex-none")} prefetch={false}>
+                <li key={n.noteId} className="flex min-h-12 items-center justify-between gap-3 border-t border-[color:var(--line)] py-2 pr-2 pl-4 first:border-t-0">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3">
+                    {named.length ? (
+                      named.map((t, i) => (
+                        <Fenced key={i} label="granola meeting" className={cn("min-w-0 border-l-0 pl-0 font-mono text-[13px] leading-5", i > 0 && "text-faint")}>
+                          {t}
+                        </Fenced>
+                      ))
+                    ) : (
+                      <Fenced label="granola meeting" className="min-w-0 border-l-0 pl-0 font-mono text-[13px] leading-5">
+                        {meeting.sections[0]?.text || "A meeting with no title"}
+                      </Fenced>
+                    )}
+                  </span>
+                  <Link href={granolaHref(interviewId, { note: n.noteId }, base)} className={buttonVariants({ variant: "outline", size: "sm" })} prefetch={false}>
                     Use this one
                   </Link>
                 </li>
@@ -126,13 +141,13 @@ export function GranolaPanel({
   return (
     <Frame line={matchedLine(reading.matchedBy)}>
       {notes.title ? (
-        <Fenced label="granola notes" className="border-l-0 pl-0 font-medium">
+        <Fenced label="granola notes" className="border-l-0 pl-0 text-[15px] font-semibold">
           {notes.title}
         </Fenced>
       ) : null}
       {notes.sections.length ? <Sections sections={notes.sections} label="granola notes" /> : <Empty className="my-0">Granola has no notes on this meeting.</Empty>}
       {reading.transcriptStatus === "not_requested" ? (
-        <Link href={granolaHref(interviewId, { note: noteId, transcript: true }, base)} className={cn(quiet, "justify-self-start")} prefetch={false}>
+        <Link href={granolaHref(interviewId, { note: noteId, transcript: true }, base)} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-self-start")} prefetch={false}>
           Show the transcript
         </Link>
       ) : null}
@@ -140,20 +155,20 @@ export function GranolaPanel({
         <Empty className="my-0">Granola has no transcript of this one for you. Transcripts need a paid Granola plan.</Empty>
       ) : null}
       {reading.transcriptStatus === "included" && transcript ? (
-        <div className="grid gap-1.5">
-          <div className="flex items-baseline justify-between gap-3">
-            <b className="text-[13px] font-medium text-muted-foreground">Transcript</b>
-            <Link href={granolaHref(interviewId, { note: noteId }, base)} className={quiet} prefetch={false}>
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <b className="text-[12.5px] font-medium text-muted-foreground">Transcript</b>
+            <Link href={granolaHref(interviewId, { note: noteId }, base)} className={buttonVariants({ variant: "ghost", size: "sm" })} prefetch={false}>
               Hide
             </Link>
           </div>
           {/* A scrolling region needs focus to scroll by keyboard. */}
-          <div tabIndex={0} role="region" aria-label="Transcript" className="max-h-[480px] overflow-y-auto">
-            <Fenced label="granola transcript">{transcript}</Fenced>
+          <div tabIndex={0} role="region" aria-label="Transcript" className="max-h-[480px] overflow-y-auto rounded-[10px] bg-[color:var(--soft)] p-4 shadow-[inset_0_0_0_1px_var(--line)]">
+            <Fenced label="granola transcript" className="border-l-0 pl-0">{transcript}</Fenced>
           </div>
         </div>
       ) : null}
-      {reading.truncated ? <p className="m-0 text-xs text-faint">Cut for length. The whole of it is in Granola.</p> : null}
+      {reading.truncated ? <p className="m-0 text-[12px] text-faint">Cut for length. The whole of it is in Granola.</p> : null}
     </Frame>
   );
 }

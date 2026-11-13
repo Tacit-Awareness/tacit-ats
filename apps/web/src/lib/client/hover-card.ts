@@ -100,15 +100,19 @@ export async function readCandidateCard(member: Member, candidateId: string, now
 
 export type MemberFacts = { title: string | null; teams: string[]; profile: StoredProfile | null; thisWeek: number };
 
-/** The card from what the reads brought back, pure. A member with no profile the reader may read has no lines. */
+/**
+ * The card from what the reads brought back, pure. A member with no profile the
+ * reader may read has no lines. Its labels are the Interviewers page's words
+ * (Skills, Reach on), so the card and the page name a thing the same way.
+ */
 export function memberCard(name: string | null, facts: MemberFacts, link: HoverCardData["link"], now: Date): HoverCardData {
   const p = facts.profile;
   const rows: HoverRow[] = [];
   if (p) {
     const load = awayLabel(p.awayUntil, now) ?? (p.weeklyCap !== null ? `${facts.thisWeek} of ${p.weeklyCap} this week` : `${facts.thisWeek} this week`);
     rows.push(p.preference ? { label: "Interviews", value: PREFERENCE_LABELS[p.preference], faint: load } : { label: "Interviews", value: load });
-    if (p.focusAreas.length) rows.push({ label: "Knows", value: p.focusAreas.join(", ") });
-    if (p.channel) rows.push({ label: "Reach", value: CHANNEL_LABELS[p.channel] });
+    if (p.focusAreas.length) rows.push({ label: "Skills", value: p.focusAreas.join(", ") });
+    if (p.channel) rows.push({ label: "Reach on", value: CHANNEL_LABELS[p.channel] });
   }
   return { kind: "member", name: name?.trim() || "Unnamed member", line: [facts.title, ...facts.teams].filter(Boolean).join(" · ") || null, state: null, rows, link };
 }

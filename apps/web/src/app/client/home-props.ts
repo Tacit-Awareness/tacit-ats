@@ -10,7 +10,7 @@ import type { Bar, BottleneckIcon, HomeViewProps, WaitCard } from "./home-view";
 // Home's read (lib/client/home.ts) shaped for home-view.tsx: the period,
 // department and job links, each card's words and bars, the bottlenecks' sentences. No reads.
 
-/** People a time-in-stage row lists before "All in Pipeline". */
+/** People a time-in-stage row lists before "All in pipeline". */
 const STAGE_PREVIEW = 8;
 /** Bars the workload card shows, most hours first. */
 const LOAD_ROWS = 6;
@@ -30,11 +30,11 @@ const TARGET_CARDS: Record<TargetMetric, string> = {
 
 /** Each bottleneck's tile and the page that clears it (design/tats's "Decide in Inbox", here the Pipeline's own columns). */
 const BOTTLENECK_GO: Record<BottleneckKey, { icon: BottleneckIcon; label: string }> = {
-  review: { icon: "ticket", label: "Screen in Pipeline" },
-  schedule: { icon: "cal", label: "Schedule in Pipeline" },
-  decide: { icon: "flag", label: "Decide in Pipeline" },
+  review: { icon: "ticket", label: "Screen in pipeline" },
+  schedule: { icon: "cal", label: "Schedule in pipeline" },
+  decide: { icon: "flag", label: "Decide in pipeline" },
   feedback: { icon: "quote", label: "Open Interview Judgement" },
-  stalled: { icon: "clock", label: "Open Pipeline" },
+  stalled: { icon: "clock", label: "Open pipeline" },
 };
 
 function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what: string; why: string } {
@@ -49,7 +49,7 @@ function bottleneckWords(b: Bottleneck, days: number, allJobs: boolean): { what:
     case "feedback":
       return { what: `${plural(b.n, "piece")} of interviewer feedback outstanding`, why: `From interviews that ended in the last ${days} days${allJobs ? ", on every job you manage" : ""}` };
     case "stalled":
-      return { what: `${plural(b.n, "candidate")} stalled`, why: `Untouched for a while or overdue · oldest touch ${oldest} ago` };
+      return { what: `${plural(b.n, "candidate")} stalled`, why: `Untouched for a while or overdue, oldest touch ${oldest} ago` };
   }
 }
 
@@ -137,25 +137,19 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
   const total = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const lastHires = read.hires.slice(HIRE_WEEKS);
 
-  const menu = (label: string, options: { href: string; label: string; active: boolean }[]) => {
-    const picked = options.find((o) => o.active) ?? options[0];
-    return { label, value: picked.label, on: picked !== options[0], options };
-  };
+  // The prototype's period, team and role chips, as segmented controls: the period always; the department
+  // for an org that has them; the job for one with an open job, only the picked department's (lib/client/home.ts).
+  // The department's "All" is short so the period and the department share a row; its hover says it in full.
   const departments = departmentTabs({ options: read.departments, departmentId: department, jobIds: null }, (d) => href({ department: d, job: null }));
-  // The prototype's period, team and role chips; an org with no departments gets no department chip, one with no open job no job chip.
-  const filters = [
-    {
-      ...menu(
-        "Period",
-        HOME_PERIODS.map((d) => ({ href: href({ days: d }), label: `Last ${d} days`, active: d === days })),
-      ),
-      on: days !== HOME_PERIODS[0],
-    },
-    ...(departments.length ? [menu("Department", departments)] : []),
-    ...(read.jobs.length
-      ? [menu("Job", [{ href: href({ job: null }), label: "All jobs", active: !job }, ...read.jobs.map((j) => ({ href: href({ job: j.id }), label: j.title, active: job === j.id }))])]
-      : []),
-  ];
+  const filters: HomeViewProps["filters"] = {
+    period: { label: "Period", options: HOME_PERIODS.map((d) => ({ href: href({ days: d }), label: `${d} days`, title: `Last ${d} days`, active: d === days })) },
+    department: departments.length
+      ? { label: "Department", options: departments.map((o, i) => (i === 0 ? { ...o, label: "All", title: o.label } : o)) }
+      : null,
+    job: read.jobs.length
+      ? { label: "Job", options: [{ href: href({ job: null }), label: "All jobs", active: !job }, ...read.jobs.map((j) => ({ href: href({ job: j.id }), label: j.title, active: job === j.id }))] }
+      : null,
+  };
 
   return {
     title: "Recruiting Overview",
@@ -249,7 +243,7 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
         wait: fmtHours(x.hours),
         href: `/client/candidates/${x.personId}`,
       })),
-      more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.column ?? undefined), label: `All ${r.people.length} in Pipeline` } : null,
+      more: r.people.length > STAGE_PREVIEW ? { href: pipeline(r.column ?? undefined), label: `All ${r.people.length} in pipeline` } : null,
     })),
     active: read.waiting.length,
     efficiency: read.efficiency && {

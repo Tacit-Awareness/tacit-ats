@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Avatar } from "@/components/page";
-import { SNAP_MINUTES, spanAt, todayIn, zoned, type Ymd } from "@/lib/client/schedule-layout";
+import { flushSync } from "react-dom";
+import { Kbd, pillOption, pillTrack, textLink } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
+import { Input, selectClass } from "@/components/ui/input";
+import { parseYmd, SNAP_MINUTES, spanAt, todayIn, zoned, type Ymd } from "@/lib/client/schedule-layout";
 import { prefill, type NextRound } from "@/lib/client/next-round-rules";
 import type { ApplicationChoice, BookingChoices } from "@/lib/client/schedule-choices";
 import { bookLines, changeLines, conflictLines, doneSentence } from "@/lib/client/schedule-copy";
@@ -14,10 +17,20 @@ import {
 } from "@/lib/client/schedule-requests";
 import { cn } from "@/lib/utils";
 import { bookingChoicesAction } from "./actions";
+import { clock12, range12, zoneLong, zoneShort } from "./clock";
 
-// The Calendar's book, move, cancel and Find a time, design/tats's popover as
-// one native <dialog>, modal, so keys.ts stops every page and shell key behind
-// it. Nothing that changes a real calendar happens without its Confirm card:
+// The Calendar's book, move, cancel and Find a time as one native <dialog>,
+// modal, so keys.ts stops every page and shell key behind it: Testbench's
+// dialog (16px corners on the box surface, a Mona Sans title, the buttons right
+// over a hairline) in the middle of the window, or, for a time picked on the
+// grid (a book flow with an `anchor`), Google Calendar's quick-create beside
+// that slot, in the same dress: a handle to move it and Close along the top,
+// the candidate and step as its heading, then a row each, a small line icon in
+// a column at the left, for when (the slot's time, which a click makes
+// editable), the candidate, the interviewers, the step and where; More options
+// (the whole form) and Book at the foot. The rows hold only what a booking
+// saves. Both are the same form, so moving from one to the other keeps what
+// was picked and the booking's one id. Nothing that changes a real calendar happens without its Confirm card:
 // the card shows core's dry run, who holds the event and who hears from Google,
 // and only its button sends `confirmed`. A clash found by the dry run, or by
 // the write itself, turns the button into "anyway", pressed on purpose. All of
@@ -42,24 +55,182 @@ export type CalendarEventRef = {
   endsAt: string;
 };
 
+/** Where a slot picked on the grid is on screen, so the quick popover can open beside it: the slot's box, and where across it it was pressed. */
+export type Anchor = { left: number; right: number; top: number; bottom: number; x: number };
+
 export type Flow =
-  | { kind: "book"; find: boolean; at?: { day: Ymd; minutes: number; length: number }; /** The Inbox's Next round: who, and the step, picked once the choices are read. */ next?: NextRound }
+  | {
+      kind: "book";
+      find: boolean;
+      at?: { day: Ymd; minutes: number; length: number };
+      /** The Inbox's Next round: who, and the step, picked once the choices are read. */
+      next?: NextRound;
+      /** A slot picked on the grid: the form opens as the quick popover beside it. */
+      anchor?: Anchor;
+    }
   | { kind: "event"; event: CalendarEventRef }
   | { kind: "move"; event: CalendarEventRef; to?: { startsAt: string; endsAt: string } }
   | { kind: "cancel"; event: CalendarEventRef };
 
 const DURATIONS = [30, 45, 60, 90];
+const DAY_MINUTES = 24 * 60;
 const FIND_DAYS = 14;
 /** Keeps a date field's year to four digits, as far as the browser will. `spanAt` holds the rest. */
 const LAST_DAY = "2200-12-31";
 
-const field =
-  "w-full border border-[color:var(--line-strong)] bg-transparent px-2.5 py-1.5 text-[13px] text-foreground outline-none focus-visible:border-[color:var(--accent)] disabled:opacity-60";
-const button = "inline-flex h-[34px] items-center justify-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors disabled:pointer-events-none disabled:opacity-50";
-const plain = "border-[color:var(--line-strong)] bg-[color:var(--paper)] text-foreground hover:bg-[color:var(--hover)]";
-const primary = "border-transparent bg-[color:var(--accent)] text-[color:var(--accent-ink)] hover:brightness-105";
-const danger = "border-[color:var(--red)] bg-[color:var(--red)] text-white hover:brightness-105";
-const pickRow = "flex w-full items-center gap-2.5 border border-transparent px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-[color:var(--hover)]";
+/** Testbench's buttons: a raised face for the quiet ones, black for the one that goes ahead, red words for the one that undoes. */
+const plain = buttonVariants({ variant: "outline" });
+/** Until it can go ahead (Book before a candidate and an interviewer are picked), a flat grey face with faint words: plainly not ready, where a faded black reads as a grey button. */
+const primary = cn(buttonVariants(), "disabled:bg-[color:var(--soft-strong)] disabled:text-faint disabled:opacity-100");
+const danger = cn(buttonVariants({ variant: "outline" }), "text-[color:var(--red)]");
+/** A row in a pick list, Testbench's `.menu-item`. */
+const pickRow = "flex min-h-[34px] w-full items-center gap-2.5 rounded-[7px] px-2.5 py-1.5 text-left text-[13px] transition-colors hover:bg-[color:var(--hover)]";
+/** A pick list: a quiet framed box the rows scroll in. */
+const pickList = "m-0 grid list-none grid-cols-[minmax(0,1fr)] overflow-y-auto rounded-[10px] bg-[color:var(--paper)] p-1 shadow-[inset_0_0_0_1px_var(--line)]";
+const label = "grid gap-1.5 text-[12.5px] text-muted-foreground";
+/** A card's sides: 24px in the dialog; in the quick popover the text column's, past the icons, 20px at the right. */
+const sides = "px-6 group-data-[quick]/dlg:pr-5 group-data-[quick]/dlg:pl-14";
+const legend = "mb-1.5 p-0 text-[12.5px] text-muted-foreground";
+/** The two pick lists' heights, giving a little on a short window (1280x800), so the form fits it without scrolling. */
+const appListH = "max-h-[clamp(112px,18vh,176px)]";
+const peopleListH = "max-h-[clamp(96px,15vh,148px)]";
+/** The quick popover's pick lists, under their row while it has focus. */
+const quickListH = "max-h-[168px]";
+
+/** A quiet bar standing in for a line of text while the choices are read; it breathes only for those who allow motion. */
+const bone = "rounded-[4px] bg-[color:var(--soft-strong)] motion-safe:animate-pulse";
+
+/**
+ * The form's shape while the choices are read: each picker's label, search
+ * field and list as quiet bars at the sizes they will have, so the dialog
+ * paints at its full size and does not jump when the pickers arrive.
+ */
+function FormSkeleton() {
+  const field = "h-9 rounded-[7px] bg-[color:var(--paper)] shadow-[inset_0_0_0_1px_var(--line)]";
+  // A fieldset's legend sits outside its grid's gaps, so here the label's own line takes the gap's place.
+  const picker = (listH: string) => (
+    <div className="grid gap-1.5">
+      <p className="m-0 text-[12.5px]">
+        <span className={cn(bone, "inline-block h-3 w-20 align-middle")} />
+      </p>
+      <span className={field} />
+      <div className={cn(pickList, "content-start", listH)}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="flex min-h-[34px] items-center px-2.5">
+            <span className={cn(bone, "h-3", i % 2 ? "w-28" : "w-36")} />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <div aria-busy className="grid gap-4">
+      {picker("h-[clamp(112px,18vh,176px)]")}
+      {picker("h-[clamp(96px,15vh,148px)]")}
+      {/* The length track, the date and time, and Where, at their sizes. */}
+      <span className="h-[34px] w-[288px] rounded-[11px] bg-[color:var(--track)]" />
+      <span className={cn(field, "w-[304px]")} />
+      <div className="grid gap-1.5">
+        <p className="m-0 text-[12.5px]">
+          <span className={cn(bone, "inline-block h-3 w-12 align-middle")} />
+        </p>
+        <span className={field} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The quick popover's row icons, in the sidebar's line style (shell-frame.tsx's
+ * ICONS: a 16px grid, 1.35 strokes, round ends). The people and team icons are
+ * the sidebar's own; the step is Interview Process's, where steps are made.
+ */
+const ROW_ICONS = {
+  clock: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 4.8V8l2.2 1.5",
+  people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
+  team: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2",
+  route: "M3 2.5h4v3.5H3ZM9 10h4v3.5H9ZM5 6v3a2 2 0 0 0 2 2h2",
+  video: "M3.5 4.5H9a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1ZM10 7l3.5-2v6L10 9",
+  grip: "M4 6.5h8M4 9.5h8",
+  close: "m4 4 8 8M12 4l-8 8",
+  chevron: "m4.5 6.5 3.5 3.5 3.5-3.5",
+} as const;
+
+function RowIcon({ name, className }: { name: keyof typeof ROW_ICONS; className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.35} strokeLinecap="round" strokeLinejoin="round" className={cn("size-4 shrink-0", className)} aria-hidden>
+      <path d={ROW_ICONS[name]} />
+    </svg>
+  );
+}
+
+/**
+ * The quick popover's fields, Google Calendar's rows: no box at rest, a soft
+ * fill on hover, and once focused Testbench's field (Input's white face, ink
+ * edge and soft ring). `quietBox` is the same for a box holding a field and
+ * more, such as the interviewers' chips, lit while focus is inside it.
+ */
+const quietField =
+  "h-9 w-full min-w-0 rounded-[7px] border-0 bg-transparent px-2.5 text-[13px] text-foreground outline-none transition-[background-color,box-shadow] duration-150 placeholder:text-faint hover:bg-[color:var(--hover)] focus-visible:bg-[color:var(--paper)] focus-visible:shadow-[inset_0_0_0_1.5px_var(--ink),0_0_0_3px_rgba(34,35,38,0.12)]";
+const quietBox =
+  "rounded-[7px] transition-[background-color,box-shadow] duration-150 not-focus-within:hover:bg-[color:var(--hover)] focus-within:bg-[color:var(--paper)] focus-within:shadow-[inset_0_0_0_1.5px_var(--ink),0_0_0_3px_rgba(34,35,38,0.12)]";
+
+/** A row of the quick popover: its icon faint in the left column, level with the row's first line. */
+function QuickRow({ icon, label: name, children }: { icon: keyof typeof ROW_ICONS; label: string; children: React.ReactNode }) {
+  return (
+    <div role="group" aria-label={name} className="grid grid-cols-[36px_minmax(0,1fr)] items-start">
+      <RowIcon name={icon} className="mt-2.5 text-faint" />
+      {/* Out by a field's padding each side, so the text in a field lines up with the heading's. */}
+      <div className="-mx-2.5 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+/** A row that is open while focus is anywhere in it: its list shows under its field, and folds away when focus leaves. */
+function useOpenWhileFocused() {
+  const [open, setOpen] = React.useState(false);
+  const row = {
+    onFocus: () => setOpen(true),
+    onBlur: (e: React.FocusEvent<HTMLElement>) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
+    },
+  };
+  return [open, row] as const;
+}
+
+/** A press in a pick list keeps focus in the row's field, so the row stays open for the click to land. */
+const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
+/** The quick popover's rows while the choices are read, at their sizes: the candidate's open list, then who interviews and where. */
+function QuickSkeleton() {
+  const line = (w: string) => (
+    <span className="flex h-9 items-center px-2.5">
+      <span className={cn(bone, "h-3", w)} />
+    </span>
+  );
+  return (
+    <div aria-busy className="grid gap-1">
+      <QuickRow icon="people" label="Candidate">
+        {line("w-32")}
+        <div className={cn(pickList, "mt-1 h-[168px] content-start")}>
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="flex min-h-[34px] items-center px-2.5">
+              <span className={cn(bone, "h-3", i % 2 ? "w-28" : "w-36")} />
+            </span>
+          ))}
+        </div>
+      </QuickRow>
+      <QuickRow icon="team" label="Interviewers">
+        {line("w-36")}
+      </QuickRow>
+      <QuickRow icon="video" label="Where">
+        {line("w-44")}
+      </QuickRow>
+    </div>
+  );
+}
+/** A line that warns or limits, on its own soft fill. */
+const amberNote = "m-0 rounded-[8px] bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words";
 
 async function ask(request: ScheduleRequest): Promise<ScheduleAnswer> {
   try {
@@ -79,10 +250,8 @@ async function ask(request: ScheduleRequest): Promise<ScheduleAnswer> {
 
 const dateWords = (iso: string, timeZone: string) =>
   new Intl.DateTimeFormat(undefined, { timeZone, weekday: "long", month: "long", day: "numeric" }).format(new Date(iso));
-const clockOf = (iso: string, timeZone: string) =>
-  new Intl.DateTimeFormat(undefined, { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
-const whenWords = (startsAt: string, endsAt: string, timeZone: string) =>
-  `${dateWords(startsAt, timeZone)}, ${clockOf(startsAt, timeZone)} – ${clockOf(endsAt, timeZone)}`;
+/** "Thursday, November 12, 10 – 11 AM": the 12-hour clock, the period said once. */
+const whenWords = (startsAt: string, endsAt: string, timeZone: string) => `${dateWords(startsAt, timeZone)}, ${range12(startsAt, endsAt, timeZone)}`;
 const hhmm = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 const minutesOf = (value: string) => {
   const [h, m] = value.split(":").map(Number);
@@ -91,29 +260,74 @@ const minutesOf = (value: string) => {
 
 function Err({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="m-0 mt-3 bg-[color:var(--red-soft)] px-3 py-2 text-[13px] break-words text-[color:var(--red)]">
+    <p role="alert" className="m-0 rounded-[8px] bg-[color:var(--red-soft)] px-3 py-2 text-[13px] break-words text-[color:var(--red)]">
       {children}
     </p>
   );
 }
 
-function Foot({ children, note }: { children: React.ReactNode; note?: string }) {
+/**
+ * Testbench's `.dialog-foot`: the buttons right over a hairline, with no hint
+ * line beside them (what a button does not do yet is its hover title). `lead`
+ * is a way out of the dialog, on the left. The buttons keep together: short of
+ * room they wrap as a group, never one of them alone.
+ */
+function Foot({ children, lead }: { children: React.ReactNode; lead?: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5 border-t border-[color:var(--line)] bg-[color:var(--soft)] px-3.5 py-3">
-      {note ? <span className="w-full text-[12px] text-faint">{note}</span> : null}
-      {children}
+    <div className={cn("flex flex-wrap items-center justify-end gap-x-4 gap-y-2.5 border-t border-[color:var(--line)] py-3.5 group-data-[quick]/dlg:py-3", sides)}>
+      {lead}
+      <div className="ml-auto flex flex-wrap items-center justify-end gap-2">{children}</div>
     </div>
   );
 }
 
-function Head({ title, sub, id }: { title: string; sub?: string; id: string }) {
+/**
+ * Testbench's `.dialog-head`: the title in Mona Sans and nothing under it; the
+ * facts are the body's first lines. In the quick popover it sits under the
+ * handle and Close, in the text column past the icons, as Google's title does.
+ */
+function Head({ title, id }: { title: string; id: string }) {
   return (
-    <header className="pt-4 pr-11 pl-5">
-      <h2 id={id} className="m-0 text-[17px] font-medium tracking-[-0.012em] break-words">
+    <header className="pt-[22px] pr-14 pb-1.5 pl-6 group-data-[quick]/dlg:pt-0 group-data-[quick]/dlg:pr-5 group-data-[quick]/dlg:pb-2 group-data-[quick]/dlg:pl-14">
+      <h2 id={id} className="m-0 font-sans text-[20px] leading-[26px] font-semibold tracking-[-0.015em] break-words">
         {title}
       </h2>
-      {sub ? <p className="m-0 mt-1 text-[13px] break-words text-muted-foreground">{sub}</p> : null}
     </header>
+  );
+}
+
+/** When an interview is, as the first fact of a card's body; in the quick popover with its clock in the icon column. */
+function When({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="relative m-0 font-medium break-words tabular-nums">
+      <RowIcon name="clock" className="absolute top-0.5 -left-9 hidden text-faint group-data-[quick]/dlg:block" />
+      {children}
+    </p>
+  );
+}
+
+/** The zone the times are in, small and faint, its full name on hover, as Google Calendar puts it by the hours. */
+function Zone({ timeZone }: { timeZone: string }) {
+  return (
+    <span title={zoneLong(timeZone)} className="text-[12px] whitespace-nowrap text-faint">
+      {zoneShort(timeZone)}
+    </span>
+  );
+}
+
+/**
+ * The date and the start, then when it ends and the zone, on one line as
+ * Google Calendar's editor has them: no "Date" or "Starts" over the fields,
+ * which say it themselves (and to a screen reader, by their names).
+ */
+function WhenFields({ day, time, setDay, setTime, min, end, timeZone }: { day: Ymd; time: string; setDay: (d: Ymd) => void; setTime: (t: string) => void; min?: Ymd; end: string | null; timeZone: string }) {
+  return (
+    <div role="group" aria-label="When" className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+      <Input type="date" aria-label="Date" value={day} min={min} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-[164px] text-foreground" />
+      <Input type="time" aria-label="Starts" title={`In ${zoneLong(timeZone)}`} step={SNAP_MINUTES * 60} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} className="w-[132px] text-foreground" />
+      {end ? <span className="text-[13px] whitespace-nowrap text-muted-foreground tabular-nums">– {end}</span> : null}
+      <Zone timeZone={timeZone} />
+    </div>
   );
 }
 
@@ -174,26 +388,28 @@ function ConfirmCard({ c, back, backLabel, done, setBusy, reread }: { c: Confirm
         }
       }}
     >
-      <Head id="schedule-dialog-title" title={state.title} sub={state.when} />
-      <div className="mt-3 grid gap-1.5 overflow-y-auto px-5 pb-4 text-[13px]">
+      <Head id="schedule-dialog-title" title={state.title} />
+      <div className={cn("grid gap-2 overflow-y-auto pt-3 pb-5 text-[13px]", sides)}>
+        <When>{state.when}</When>
         {state.lines.map((l) => (
           <p key={l} className="m-0 break-words">
             {l}
           </p>
         ))}
         {state.warned.map((l) => (
-          <p key={l} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 break-words text-foreground">
+          <p key={l} className={cn(amberNote, "text-[13px] text-foreground")}>
             {l}
           </p>
         ))}
         {error ? <Err>{error}</Err> : null}
       </div>
-      <Foot note="⌘↵ to confirm">
-        <button type="button" onClick={back} disabled={pending} className={cn(button, plain)}>
+      <Foot>
+        <button type="button" onClick={back} disabled={pending} className={plain}>
           {backLabel}
         </button>
-        <button ref={button_} type="button" onClick={() => void send()} disabled={pending} className={cn(button, state.danger ? danger : primary)}>
+        <button ref={button_} type="button" onClick={() => void send()} disabled={pending} title={`${state.confirm} (⌘↵)`} className={state.danger ? danger : primary}>
           {pending ? "Working…" : state.confirm}
+          {pending ? null : <Kbd>⌘↵</Kbd>}
         </button>
       </Foot>
     </div>
@@ -238,22 +454,23 @@ function changeConfirm(request: MoveRequest | CancelRequest, answer: Extract<Sch
 }
 
 export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; timeZone: string; pick: (startsAt: string, endsAt: string) => void; picked?: string | null }) {
+  // The times are in the browser's zone, as on the grid; the list's hover names it.
   return (
     <div className="grid gap-1.5">
       {found.unknown.map((u) => (
-        <p key={u.name} className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
+        <p key={u.name} className={amberNote}>
           Not checked: {u.name} {u.why}.
         </p>
       ))}
       {found.limited.map((l) => (
-        <p key={l.name} className="m-0 rounded-[8px] bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words">
+        <p key={l.name} className="m-0 rounded-[8px] bg-[color:var(--soft)] px-3 py-2 text-[12.5px] break-words shadow-[inset_0_0_0_1px_var(--line)]">
           Times left out: {l.name}, {l.why}.
         </p>
       ))}
       {found.slots.length === 0 ? (
         <p className="m-0 text-[13px] text-muted-foreground">Nobody checked is free for that long in the next two weeks, in working hours.</p>
       ) : (
-        <ul aria-label="Free times" className="m-0 grid max-h-[220px] list-none gap-1.5 overflow-y-auto p-0">
+        <ul aria-label="Free times" title={`Times in ${zoneLong(timeZone)}`} className="m-0 grid max-h-[220px] list-none gap-1.5 overflow-y-auto p-0">
           {found.slots.map((s) => (
             <li key={s.startsAt}>
               <button
@@ -261,13 +478,13 @@ export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; ti
                 onClick={() => pick(s.startsAt, s.endsAt)}
                 aria-pressed={picked === s.startsAt}
                 className={cn(
-                  "flex w-full items-center gap-3 border px-3.5 py-2.5 text-left text-[13px] transition-colors hover:bg-[color:var(--soft)]",
-                  picked === s.startsAt ? "border-[color:var(--accent)]" : "border-[color:var(--line)] hover:border-[color:var(--line-strong)]",
+                  "flex min-h-10 w-full items-center gap-3 rounded-[8px] bg-[color:var(--paper)] px-3.5 py-2 text-left text-[13px] transition-[background-color,box-shadow] duration-150 hover:bg-[color:var(--hover)]",
+                  picked === s.startsAt ? "shadow-[inset_0_0_0_1.5px_var(--ink)]" : "shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line-strong)]",
                 )}
               >
                 <b className="flex-1 font-medium">{dateWords(s.startsAt, timeZone)}</b>
                 <span className="text-muted-foreground tabular-nums">
-                  {clockOf(s.startsAt, timeZone)} – {clockOf(s.endsAt, timeZone)}
+                  {range12(s.startsAt, s.endsAt, timeZone)}
                 </span>
               </button>
             </li>
@@ -278,7 +495,7 @@ export function Slots({ found, timeZone, pick, picked }: { found: FoundTimes; ti
   );
 }
 
-function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flow, { kind: "book" }>; timeZone: string; now: number; confirm: (c: Confirming) => void; setBusy: (b: boolean) => void }) {
+function BookForm({ flow, timeZone, now, confirm, setBusy, go }: { flow: Extract<Flow, { kind: "book" }>; timeZone: string; now: number; confirm: (c: Confirming) => void; setBusy: (b: boolean) => void; go: (f: Flow) => void }) {
   const [choices, setChoices] = React.useState<(BookingChoices & { failed: boolean }) | null>(null);
   const [appQ, setAppQ] = React.useState("");
   const [ivQ, setIvQ] = React.useState("");
@@ -300,6 +517,11 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
   const first = React.useRef<HTMLInputElement>(null);
   const ivSearch = React.useRef<HTMLInputElement>(null);
   const next = flow.next;
+  // The quick popover's rows: the time turns into fields on a click; a picker's list shows while its row has focus.
+  const [editWhen, setEditWhen] = React.useState(false);
+  const dateField = React.useRef<HTMLInputElement>(null);
+  const [appOpen, appRow] = useOpenWhileFocused();
+  const [ivOpen, ivRow] = useOpenWhileFocused();
 
   React.useEffect(() => {
     let live = true;
@@ -321,7 +543,11 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
       live = false;
     };
   }, [next]);
-  React.useEffect(() => (first.current ?? ivSearch.current)?.focus(), [choices]);
+  // Before paint, so the candidate's list is open in the first frame the choices show: the popover is drawn once at its size, not short and then tall.
+  React.useLayoutEffect(() => (first.current ?? ivSearch.current)?.focus(), [choices]);
+  React.useEffect(() => {
+    if (editWhen) dateField.current?.focus();
+  }, [editWhen]);
 
   const app = choices?.applications.find((a) => a.applicationId === applicationId) ?? null;
   const steps = app?.steps ?? [];
@@ -329,8 +555,20 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
   const apps = (choices?.applications ?? []).filter((a) => match(`${a.candidate} ${a.jobTitle}`, appQ)).slice(0, 50);
   const people = (choices?.interviewers ?? []).filter((p) => interviewerIds.includes(p.actorId) || match(p.name, ivQ)).slice(0, 50);
 
-  const at = spanAt(day, minutesOf(time), length, timeZone);
+  const start = minutesOf(time);
+  const at = spanAt(day, start, length, timeZone);
   const ready = !!app && interviewerIds.length > 0 && (!steps.length || !!step) && !!at && !!time;
+  /** Opened from a slot on the grid: Google Calendar's quick-create beside it. */
+  const quick = !!flow.anchor && !flow.find;
+  /** From the popover to the dialog, the same form: what was picked, and the slot's time, come along. */
+  const widen = () => go({ kind: "book", find: false, ...(flow.at ? { at: { day, minutes: start, length } } : {}), ...(next ? { next } : {}) });
+
+  // The popover's slot stays drawn on the grid as its time is changed here, Google Calendar's way.
+  React.useEffect(() => {
+    if (!quick || !flow.at || !parseYmd(day)) return;
+    if (flow.at.day === day && flow.at.minutes === start && flow.at.length === length) return;
+    go({ ...flow, at: { day, minutes: start, length } });
+  }, [quick, flow, day, start, length, go]);
 
   const onFind = async () => {
     if (pending || !ready || !app) return;
@@ -387,18 +625,214 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
     void onReview({ startsAt: s, endsAt: e });
   };
 
+  const pickApp = (id: string | null) => {
+    setApplicationId(id);
+    setStep("");
+    setFound(null);
+  };
+  const toggleInterviewer = (id: string) => {
+    setFound(null);
+    setInterviewerIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  };
+
+  if (quick) {
+    const picked = interviewerIds.map((id) => choices?.interviewers.find((p) => p.actorId === id)).filter((p): p is NonNullable<typeof p> => !!p);
+    const chosenStep = step.trim();
+    return (
+      <>
+        {/* The interview as Google's title would read it: who, then which round once there is one. */}
+        <Head id="schedule-dialog-title" title={app ? (chosenStep ? `${app.candidate}, ${chosenStep}` : app.candidate) : "New interview"} />
+        <div className="grid gap-1 overflow-y-auto px-5 pt-1 pb-4">
+          <QuickRow icon="clock" label="When">
+            {editWhen || !at ? (
+              // The start and the end, as Google's editor has them; a new end keeps the start and changes the length.
+              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 py-px">
+                <Input ref={dateField} type="date" aria-label="Date" value={day} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-[140px] text-foreground" />
+                <Input type="time" aria-label="Starts" title={`In ${zoneLong(timeZone)}`} step={SNAP_MINUTES * 60} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} className="w-[128px] text-foreground" />
+                <span aria-hidden className="text-muted-foreground">
+                  –
+                </span>
+                <Input
+                  type="time"
+                  aria-label="Ends"
+                  title={`In ${zoneLong(timeZone)}`}
+                  step={SNAP_MINUTES * 60}
+                  value={hhmm((start + length) % DAY_MINUTES)}
+                  onChange={(e) => {
+                    const minutes = e.target.value ? minutesOf(e.target.value) - start : 0;
+                    if (minutes > 0) setLength(minutes);
+                  }}
+                  className="w-[128px] text-foreground"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditWhen(true)}
+                title={`Change the date or time. Times in ${zoneLong(timeZone)}`}
+                className="flex min-h-9 w-full flex-wrap items-center gap-x-3 rounded-[7px] px-2.5 py-1.5 text-left text-[13px] tabular-nums transition-colors hover:bg-[color:var(--hover)]"
+              >
+                <span>{dateWords(at.startsAt, timeZone)}</span>
+                <span>{range12(at.startsAt, at.endsAt, timeZone)}</span>
+              </button>
+            )}
+          </QuickRow>
+          {!choices ? (
+            <QuickSkeleton />
+          ) : choices.failed ? (
+            <div className="pl-9">
+              <Err>Could not read who can be booked. Try again.</Err>
+            </div>
+          ) : !choices.applications.length ? (
+            <p className="m-0 py-2 pl-9 text-[13px] text-muted-foreground">Nobody in process on a job you schedule for.</p>
+          ) : (
+            <>
+              <QuickRow icon="people" label="Candidate">
+                {app ? (
+                  <div className="flex min-h-9 items-center gap-2.5 py-0.5 pr-0.5 pl-2.5 text-[13px]">
+                    <span className="flex min-w-0 flex-1 gap-2.5">
+                      <span className="max-w-full shrink-0 truncate font-medium">{app.candidate}</span>
+                      <span className="truncate text-muted-foreground">{app.jobTitle}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className={buttonVariants({ variant: "ghost", size: "sm" })}
+                      onClick={() => {
+                        pickApp(null);
+                        requestAnimationFrame(() => first.current?.focus());
+                      }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <div {...appRow}>
+                    <input ref={first} value={appQ} onChange={(e) => setAppQ(e.target.value)} placeholder="Add candidate" aria-label="Search candidates" autoComplete="off" className={quietField} />
+                    {appOpen ? (
+                      <ul aria-label="Candidates" onMouseDown={keepFocus} title={choices.truncated ? "The most recently active candidates" : undefined} className={cn(pickList, "mt-1", quickListH)}>
+                        {apps.map((a) => (
+                          <li key={a.applicationId}>
+                            <button
+                              type="button"
+                              className={pickRow}
+                              onClick={() => {
+                                pickApp(a.applicationId);
+                                // Who interviews is what is left: its row opens.
+                                ivSearch.current?.focus();
+                              }}
+                            >
+                              <span className="flex min-w-0 flex-1 gap-2.5">
+                                <span className="max-w-full shrink-0 truncate">{a.candidate}</span>
+                                <span className="truncate text-muted-foreground">{a.jobTitle}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                        {!apps.length ? <li className="px-2.5 py-1.5 text-[13px] text-muted-foreground">{choices.truncated ? "No match among the most recently active candidates." : "No match."}</li> : null}
+                      </ul>
+                    ) : null}
+                  </div>
+                )}
+              </QuickRow>
+
+              <QuickRow icon="team" label="Interviewers">
+                <div {...ivRow}>
+                  {/* The picked as chips, then the search, in one box that lights as a field does; a press on its blank part goes to the search. */}
+                  <div
+                    onMouseDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      e.preventDefault();
+                      ivSearch.current?.focus();
+                    }}
+                    className={cn(quietBox, "flex min-h-9 cursor-text flex-wrap items-center gap-1.5 py-1 px-2.5")}
+                  >
+                    {picked.map((p) => (
+                      <span key={p.actorId} className="inline-flex h-7 items-center gap-0.5 rounded-[6px] bg-[color:var(--soft-strong)] pr-0.5 pl-2 text-[12.5px]">
+                        {p.name}
+                        <button type="button" onClick={() => toggleInterviewer(p.actorId)} aria-label={`Remove ${p.name}`} title="Remove" className="grid size-6 place-items-center rounded-[5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground">
+                          <RowIcon name="close" className="size-3" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      ref={ivSearch}
+                      value={ivQ}
+                      onChange={(e) => setIvQ(e.target.value)}
+                      placeholder={picked.length ? "Add another" : "Add interviewers"}
+                      aria-label="Search teammates"
+                      autoComplete="off"
+                      className="h-7 min-w-[110px] flex-1 border-0 bg-transparent p-0 text-[13px] text-foreground outline-none placeholder:text-faint"
+                    />
+                  </div>
+                  {ivOpen ? (
+                    <ul aria-label="Interviewers" onMouseDown={keepFocus} className={cn(pickList, "mt-1", quickListH)}>
+                      {people.map((p) => {
+                        const on = interviewerIds.includes(p.actorId);
+                        return (
+                          <li key={p.actorId}>
+                            <label className={cn(pickRow, "cursor-pointer")}>
+                              <input type="checkbox" checked={on} disabled={!on && interviewerIds.length >= 10} onChange={() => toggleInterviewer(p.actorId)} />
+                              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                      {!people.length ? <li className="px-2.5 py-1.5 text-[13px] text-muted-foreground">No match.</li> : null}
+                    </ul>
+                  ) : null}
+                </div>
+              </QuickRow>
+
+              {app ? (
+                <QuickRow icon="route" label="Step">
+                  {steps.length ? (
+                    // Without the browser's own arrow and inset, so the words sit on the text column; the chevron is drawn in the row icons' line.
+                    <div className="relative">
+                      <select value={step} onChange={(e) => setStep(e.target.value)} aria-label="Step" className={cn(quietField, "cursor-pointer appearance-none pr-9", !step && "text-faint")}>
+                        <option value="">Choose a step</option>
+                        {steps.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      <RowIcon name="chevron" className="pointer-events-none absolute top-2.5 right-2.5 text-faint" />
+                    </div>
+                  ) : (
+                    <input value={step} onChange={(e) => setStep(e.target.value)} maxLength={120} placeholder="Add a step" aria-label="Step" className={quietField} />
+                  )}
+                </QuickRow>
+              ) : null}
+
+              <QuickRow icon="video" label="Where">
+                <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={500} placeholder="Google Meet, or a room or link" aria-label="Where" title="Left empty, a calendar invite gets a Google Meet link" className={quietField} />
+              </QuickRow>
+            </>
+          )}
+          {error ? (
+            <div className="pt-1 pl-9">
+              <Err>{error}</Err>
+            </div>
+          ) : null}
+        </div>
+        <Foot>
+          <button type="button" onClick={widen} disabled={pending} className={buttonVariants({ variant: "ghost" })}>
+            More options
+          </button>
+          <button type="button" onClick={() => void onReview()} disabled={pending || !ready} title="Nothing is booked until you confirm" className={primary}>
+            {pending ? "Checking…" : "Book"}
+          </button>
+        </Foot>
+      </>
+    );
+  }
+
   return (
     <>
-      <Head
-        id="schedule-dialog-title"
-        title={next ? (app ? `Next round for ${app.candidate}` : "Next round") : flow.find ? "Find a time" : "Book an interview"}
-        sub={flow.find ? "Picks from the times every interviewer is free, in the next two weeks." : `Times are in ${timeZone.replace(/_/g, " ")}.`}
-      />
-      <div className="grid gap-3 overflow-y-auto px-5 pt-3 pb-4">
+      <Head id="schedule-dialog-title" title={next ? (app ? `Next round for ${app.candidate}` : "Next round") : flow.find ? "Find a time" : "Book an interview"} />
+      <div className={cn("grid gap-4 overflow-y-auto pt-3 pb-5", sides)}>
         {!choices ? (
-          <p className="m-0 text-[13px] text-muted-foreground" aria-busy>
-            Loading…
-          </p>
+          <FormSkeleton />
         ) : choices.failed ? (
           <Err>Could not read who can be booked. Try again.</Err>
         ) : !choices.applications.length ? (
@@ -406,60 +840,54 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
         ) : (
           <>
             {missing && !app ? (
-              <p className="m-0 bg-[color:var(--amber-soft)] px-3 py-2 text-[12.5px] break-words">
+              <p className={amberNote}>
                 They aren&apos;t someone you can book for here: their application has closed, or you don&apos;t schedule for that job. Pick who to book.
               </p>
             ) : null}
             <fieldset className="m-0 grid gap-1.5 border-0 p-0">
-              <legend className="mb-1 p-0 text-[12.5px] text-muted-foreground">Candidate</legend>
+              <legend className={legend}>Candidate</legend>
               {app ? (
-                <div className="flex items-center gap-2.5 text-[13px]">
-                  <span className="min-w-0 flex-1 truncate">
-                    {app.candidate} <span className="text-muted-foreground">· {app.jobTitle}</span>
+                <div className="flex min-h-9 items-center gap-3 rounded-[8px] bg-[color:var(--paper)] py-1 pr-1.5 pl-3 text-[13px] shadow-[inset_0_0_0_1px_var(--line)]">
+                  <span className="flex min-w-0 flex-1 gap-2.5">
+                    <span className="max-w-full shrink-0 truncate font-medium">{app.candidate}</span>
+                    <span className="truncate text-muted-foreground">{app.jobTitle}</span>
                   </span>
-                  <button type="button" className="text-[12.5px] text-muted-foreground underline" onClick={() => { setApplicationId(null); setStep(""); setFound(null); }}>
+                  <button type="button" className={buttonVariants({ variant: "ghost", size: "sm" })} onClick={() => pickApp(null)}>
                     Change
                   </button>
                 </div>
               ) : (
                 <>
-                  <input ref={first} value={appQ} onChange={(e) => setAppQ(e.target.value)} placeholder="Search by name or job" aria-label="Search candidates" className={field} autoComplete="off" />
-                  <ul aria-label="Candidates" className="m-0 grid max-h-[176px] list-none overflow-y-auto p-0">
+                  <Input ref={first} value={appQ} onChange={(e) => setAppQ(e.target.value)} placeholder="Search by name or job" aria-label="Search candidates" autoComplete="off" />
+                  {/* A list cut short says so on hover, and when a search finds nobody, not in a line under it. */}
+                  <ul aria-label="Candidates" title={choices.truncated ? "The most recently active candidates" : undefined} className={cn(pickList, appListH)}>
                     {apps.map((a) => (
                       <li key={a.applicationId}>
-                        <button type="button" className={pickRow} onClick={() => { setApplicationId(a.applicationId); setStep(""); setFound(null); }}>
-                          <span className="min-w-0 flex-1 truncate">
-                            {a.candidate} <span className="text-muted-foreground">· {a.jobTitle}</span>
+                        <button type="button" className={pickRow} onClick={() => pickApp(a.applicationId)}>
+                          {/* The name whole; the job gives way first. */}
+                          <span className="flex min-w-0 flex-1 gap-2.5">
+                            <span className="max-w-full shrink-0 truncate">{a.candidate}</span>
+                            <span className="truncate text-muted-foreground">{a.jobTitle}</span>
                           </span>
                         </button>
                       </li>
                     ))}
-                    {!apps.length ? <li className="px-2 py-1.5 text-[13px] text-muted-foreground">No match.</li> : null}
+                    {!apps.length ? <li className="px-2.5 py-1.5 text-[13px] text-muted-foreground">{choices.truncated ? "No match among the most recently active candidates." : "No match."}</li> : null}
                   </ul>
-                  {choices.truncated ? <p className="m-0 text-[12px] text-faint">Showing the most recently active candidates.</p> : null}
                 </>
               )}
             </fieldset>
 
             <fieldset className="m-0 grid gap-1.5 border-0 p-0">
-              <legend className="mb-1 p-0 text-[12.5px] text-muted-foreground">Interviewers</legend>
-              <input ref={ivSearch} value={ivQ} onChange={(e) => setIvQ(e.target.value)} placeholder="Search teammates" aria-label="Search teammates" className={field} autoComplete="off" />
-              <ul aria-label="Interviewers" className="m-0 grid max-h-[148px] list-none overflow-y-auto p-0">
+              <legend className={legend}>Interviewers</legend>
+              <Input ref={ivSearch} value={ivQ} onChange={(e) => setIvQ(e.target.value)} placeholder="Search teammates" aria-label="Search teammates" autoComplete="off" />
+              <ul aria-label="Interviewers" className={cn(pickList, peopleListH)}>
                 {people.map((p) => {
                   const on = interviewerIds.includes(p.actorId);
                   return (
                     <li key={p.actorId}>
                       <label className={cn(pickRow, "cursor-pointer")}>
-                        <input
-                          type="checkbox"
-                          checked={on}
-                          disabled={!on && interviewerIds.length >= 10}
-                          onChange={() => {
-                            setFound(null);
-                            setInterviewerIds((ids) => (on ? ids.filter((id) => id !== p.actorId) : [...ids, p.actorId]));
-                          }}
-                        />
-                        <Avatar name={p.name} />
+                        <input type="checkbox" checked={on} disabled={!on && interviewerIds.length >= 10} onChange={() => toggleInterviewer(p.actorId)} />
                         <span className="min-w-0 flex-1 truncate">{p.name}</span>
                       </label>
                     </li>
@@ -469,10 +897,10 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
             </fieldset>
 
             {app ? (
-              <label className="grid gap-1 text-[12.5px] text-muted-foreground">
+              <label className={label}>
                 Step
                 {steps.length ? (
-                  <select value={step} onChange={(e) => setStep(e.target.value)} className={field}>
+                  <select value={step} onChange={(e) => setStep(e.target.value)} className={cn(selectClass, "text-foreground")}>
                     <option value="">Choose a step</option>
                     {steps.map((s) => (
                       <option key={s} value={s}>
@@ -481,12 +909,12 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
                     ))}
                   </select>
                 ) : (
-                  <input value={step} onChange={(e) => setStep(e.target.value)} maxLength={120} placeholder="Optional, such as Technical screen" className={field} />
+                  <Input value={step} onChange={(e) => setStep(e.target.value)} maxLength={120} placeholder="Optional, such as Technical screen" className="text-foreground" />
                 )}
               </label>
             ) : null}
 
-            <div role="group" aria-label="Length" className="flex flex-wrap gap-1.5">
+            <div role="group" aria-label="Length" className={cn(pillTrack, "self-start")}>
               {[...new Set([...DURATIONS, length])].sort((a, b) => a - b).map((m) => (
                 <button
                   key={m}
@@ -496,7 +924,7 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
                     setLength(m);
                     setFound(null);
                   }}
-                  className={cn("h-7 rounded-full border px-3 text-[12.5px]", length === m ? "border-transparent bg-[color:var(--soft-strong)] font-medium" : "border-[color:var(--line-strong)] hover:bg-[color:var(--hover)]")}
+                  className={cn(pillOption(length === m), "h-7 font-mono text-[12.5px]")}
                 >
                   {m} min
                 </button>
@@ -508,33 +936,30 @@ function BookForm({ flow, timeZone, now, confirm, setBusy }: { flow: Extract<Flo
                 <Slots found={found} timeZone={timeZone} pick={pickSlot} picked={pickedAt} />
               ) : null
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-                  Date
-                  <input type="date" value={day} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
-                </label>
-                <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-                  Starts
-                  <input type="time" step={SNAP_MINUTES * 60} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} className={field} />
-                </label>
-              </div>
+              <WhenFields day={day} time={time} setDay={setDay} setTime={setTime} end={at ? clock12(at.endsAt, timeZone) : null} timeZone={timeZone} />
             )}
 
-            <label className="grid gap-1 text-[12.5px] text-muted-foreground">
+            <label className={label}>
               Where
-              <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={500} placeholder="A room or a link. Empty gets a Meet link" className={field} />
+              <Input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={500} placeholder="A room or a link. Empty gets a Meet link" className="text-foreground" />
             </label>
           </>
         )}
         {error ? <Err>{error}</Err> : null}
       </div>
-      <Foot note="Nothing is booked until you confirm">
+      <Foot>
         {flow.find ? (
-          <button type="button" onClick={() => void onFind()} disabled={pending || !ready} className={cn(button, primary)}>
+          <button
+            type="button"
+            onClick={() => void onFind()}
+            disabled={pending || !ready}
+            title="Picks from the times every interviewer is free, in the next two weeks. Nothing is booked until you confirm."
+            className={primary}
+          >
             {pending ? "Reading calendars…" : found ? "Look again" : "Find times"}
           </button>
         ) : (
-          <button type="button" onClick={() => void onReview()} disabled={pending || !ready} className={cn(button, primary)}>
+          <button type="button" onClick={() => void onReview()} disabled={pending || !ready} title="Nothing is booked until you confirm" className={primary}>
             {pending ? "Checking…" : "Review"}
           </button>
         )}
@@ -548,13 +973,17 @@ function EventCard({ event, timeZone, go }: { event: CalendarEventRef; timeZone:
   React.useEffect(() => open.current?.focus(), []);
   return (
     <>
-      <Head id="schedule-dialog-title" title={`${event.candidate}, ${event.step}`} sub={whenWords(event.startsAt, event.endsAt, timeZone)} />
-      <div className="grid gap-1.5 px-5 pt-2 pb-4 text-[13px]">
+      <Head id="schedule-dialog-title" title={`${event.candidate}, ${event.step}`} />
+      <div className={cn("grid justify-items-start gap-2 pt-3 pb-5 text-[13px]", sides)}>
+        <p className="m-0 flex flex-wrap items-baseline gap-x-2.5">
+          <span className="font-medium break-words tabular-nums">{whenWords(event.startsAt, event.endsAt, timeZone)}</span>
+          <Zone timeZone={timeZone} />
+        </p>
         <p className="m-0 break-words text-muted-foreground">{event.job}</p>
         {event.interviewers.length ? <p className="m-0 break-words">With {event.interviewers.join(", ")}</p> : null}
         {event.location ? (
           event.locationHref ? (
-            <a href={event.locationHref} target="_blank" rel="noopener noreferrer" className="break-words text-[color:var(--accent)] hover:underline">
+            <a href={event.locationHref} target="_blank" rel="noopener noreferrer" className={cn(textLink, "text-[13px] break-all")}>
               {event.location}
             </a>
           ) : (
@@ -562,19 +991,22 @@ function EventCard({ event, timeZone, go }: { event: CalendarEventRef; timeZone:
           )
         ) : null}
         {event.eventLink ? (
-          <a href={event.eventLink} target="_blank" rel="noopener noreferrer" className="text-[color:var(--accent)] hover:underline">
+          <a href={event.eventLink} target="_blank" rel="noopener noreferrer" className={cn(textLink, "text-[13px]")}>
             Open in Google Calendar
           </a>
         ) : null}
       </div>
-      <Foot>
-        <Link href={event.href} className={cn(button, plain, "mr-auto")}>
-          Open interview
-        </Link>
-        <button type="button" onClick={() => go({ kind: "cancel", event })} className={cn(button, plain)}>
+      <Foot
+        lead={
+          <Link href={event.href} className={plain}>
+            Open interview
+          </Link>
+        }
+      >
+        <button type="button" onClick={() => go({ kind: "cancel", event })} className={plain}>
           Cancel interview
         </button>
-        <button ref={open} type="button" onClick={() => go({ kind: "move", event })} className={cn(button, primary)}>
+        <button ref={open} type="button" onClick={() => go({ kind: "move", event })} className={primary}>
           Reschedule
         </button>
       </Foot>
@@ -628,31 +1060,28 @@ function MoveForm({ event, timeZone, now, confirm, back, setBusy }: { event: Cal
   const at = spanAt(day, minutesOf(time), length, timeZone);
   return (
     <>
-      <Head id="schedule-dialog-title" title="Reschedule" sub={`${event.candidate}, ${event.step}. Now ${whenWords(event.startsAt, event.endsAt, timeZone)}.`} />
-      <div className="grid gap-3 overflow-y-auto px-5 pt-3 pb-4">
-        <div className="grid grid-cols-2 gap-2">
-          <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-            Date
-            <input type="date" value={day} min={todayIn(timeZone, now)} max={LAST_DAY} onChange={(e) => e.target.value && setDay(e.target.value)} className={field} />
-          </label>
-          <label className="grid gap-1 text-[12.5px] text-muted-foreground">
-            Starts
-            <input type="time" step={SNAP_MINUTES * 60} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} className={field} />
-          </label>
+      <Head id="schedule-dialog-title" title="Reschedule" />
+      <div className={cn("grid gap-4 overflow-y-auto pt-3 pb-5", sides)}>
+        <div className="grid gap-1 text-[13px]">
+          <When>
+            {event.candidate}, {event.step}
+          </When>
+          <p className="m-0 break-words text-muted-foreground tabular-nums">Now {whenWords(event.startsAt, event.endsAt, timeZone)}</p>
         </div>
+        <WhenFields day={day} time={time} setDay={setDay} setTime={setTime} min={todayIn(timeZone, now)} end={at ? clock12(at.endsAt, timeZone) : null} timeZone={timeZone} />
         {found ? <Slots found={found} timeZone={timeZone} pick={(s, e) => void review(s, e)} /> : null}
         {error ? <Err>{error}</Err> : null}
       </div>
-      <Foot note="Nothing moves until you confirm">
-        <button type="button" onClick={back} disabled={pending} className={cn(button, plain)}>
+      <Foot>
+        <button type="button" onClick={back} disabled={pending} className={plain}>
           Back
         </button>
         {event.interviewerIds.length ? (
-          <button type="button" onClick={() => void onFind()} disabled={pending} className={cn(button, plain)}>
-            {found ? "Look again" : "Find a time"}
+          <button type="button" onClick={() => void onFind()} disabled={pending} title="The times everyone on it is free, in the next two weeks" className={plain}>
+            {found ? "Look again" : "Free times"}
           </button>
         ) : null}
-        <button type="button" onClick={() => at && void review(at.startsAt, at.endsAt)} disabled={pending || !at} className={cn(button, primary)}>
+        <button type="button" onClick={() => at && void review(at.startsAt, at.endsAt)} disabled={pending || !at} title="Nothing moves until you confirm" className={primary}>
           {pending ? "Checking…" : "Review"}
         </button>
       </Foot>
@@ -688,9 +1117,9 @@ function Previewing({ request, event, timeZone, confirm, back, setBusy }: { requ
   return (
     <>
       <Head id="schedule-dialog-title" title={request.op === "move" ? `Move ${event.candidate}'s ${event.step}` : `Cancel ${event.candidate}'s ${event.step}`} />
-      <div className="px-5 pt-2 pb-4 text-[13px] text-muted-foreground">{error ? <Err>{error}</Err> : <span aria-busy>Checking the calendars…</span>}</div>
+      <div className={cn("pt-3 pb-5 text-[13px] text-muted-foreground", sides)}>{error ? <Err>{error}</Err> : <span aria-busy>Checking the calendars…</span>}</div>
       <Foot>
-        <button type="button" onClick={back} className={cn(button, plain)}>
+        <button type="button" onClick={back} className={plain}>
           Back
         </button>
       </Foot>
@@ -714,6 +1143,66 @@ export function Panels({ card, form, other }: { card: React.ReactNode; form: Rea
   );
 }
 
+/** How far the quick popover keeps inside the app's box, and from its slot. */
+const POP_EDGE = 12;
+const POP_GAP = 10;
+/** Over a day's wide slot, the room kept clear at its left, where the slot says "New interview" and its time on one line ("New interview 11:45 AM – 12:45 PM"). */
+const POP_LABEL_ROOM = 260;
+
+type Room = { left: number; top: number; right: number; bottom: number };
+type Place = { left: number; top: number; maxHeight: number };
+
+/**
+ * The room the quick popover has: the app's rounded box (the shell's
+ * `.tb-box`) less a margin, so it never hangs past the box into the sky, nor
+ * past the window; the window itself where there is no box (a phone).
+ */
+function popRoom(): Room {
+  const box = document.querySelector(".tb-box")?.getBoundingClientRect();
+  const b = box && box.width > 0 && box.height > 0 ? box : { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+  return {
+    left: Math.max(0, b.left) + POP_EDGE,
+    top: Math.max(0, b.top) + POP_EDGE,
+    right: Math.min(innerWidth, b.right) - POP_EDGE,
+    bottom: Math.min(innerHeight, b.bottom) - POP_EDGE,
+  };
+}
+
+const keepIn = (r: Room, p: { left: number; top: number }, w: number, h: number): Place => ({
+  left: Math.max(r.left, Math.min(p.left, r.right - w)),
+  top: Math.max(r.top, Math.min(p.top, r.bottom - h)),
+  maxHeight: r.bottom - r.top,
+});
+
+/**
+ * Which side of its slot the popover takes, Google Calendar's way: beside it,
+ * to the right, else the left; a slot too wide for either (a day's column)
+ * puts it below, else above; with no room anywhere clear of the slot, it sits
+ * over the slot's right part, the slot's own words left in view.
+ */
+type Side = "right" | "left" | "below" | "above" | "over";
+function sideFor(a: Anchor, w: number, h: number, r: Room): Side {
+  if (a.right + POP_GAP + w <= r.right) return "right";
+  if (a.left - POP_GAP - w >= r.left) return "left";
+  if (a.bottom + POP_GAP + h <= r.bottom) return "below";
+  if (a.top - POP_GAP - h >= r.top) return "above";
+  return "over";
+}
+
+/** On its side, level with the slot's top beside it, centred on the press above or below it; then kept in the room. */
+function placeOn(side: Side, a: Anchor, w: number, h: number, r: Room): Place {
+  const level = a.top - 8;
+  const centred = a.x - w / 2;
+  const at =
+    side === "right" ? { left: a.right + POP_GAP, top: level }
+    : side === "left" ? { left: a.left - POP_GAP - w, top: level }
+    : side === "below" ? { left: centred, top: a.bottom + POP_GAP }
+    : side === "above" ? { left: centred, top: a.top - POP_GAP - h }
+    : { left: Math.max(a.left + POP_LABEL_ROOM, a.x + POP_GAP), top: level };
+  return keepIn(r, at, w, h);
+}
+const closeBtn = "grid size-8 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground";
+
 /** The dialog: whichever card the flow is on, and its Confirm card once a dry run is back. */
 export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow: Flow; timeZone: string; now: number; go: (f: Flow) => void; close: () => void; done: (sentence: string) => void }) {
   const dialog = React.useRef<HTMLDialogElement>(null);
@@ -725,10 +1214,75 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
     busy.current = b;
   }, []);
 
-  React.useEffect(() => {
+  // Opened before anything measures it, so the quick popover can be placed before it paints. Focus starts on the
+  // box itself rather than on Close, which would light up while the form loads; each card then moves it to its
+  // first field or button.
+  React.useLayoutEffect(() => {
     const d = dialog.current;
-    if (d && !d.open) d.showModal();
+    if (d && !d.open) {
+      d.showModal();
+      d.focus();
+    }
   }, []);
+
+  // A book flow from a slot on the grid opens beside it, Google Calendar's quick-create (sideFor, placeOn), kept
+  // inside the app's box. The side is chosen once, as it opens, so the popover does not hop from one side to the
+  // other as its lists open and close; it only slides to stay in the box. Moved by its handle, or once the
+  // window changes size (the slot is elsewhere then), it stays where it is, still kept in the box.
+  const anchor = flow.kind === "book" && !flow.find ? (flow.anchor ?? null) : null;
+  const [place, setPlace] = React.useState<Place | null>(null);
+  const moved = React.useRef(false);
+  const side = React.useRef<Side | null>(null);
+  React.useLayoutEffect(() => {
+    const d = dialog.current;
+    moved.current = false;
+    side.current = null;
+    if (!d || !anchor) {
+      setPlace(null);
+      return;
+    }
+    const fit = () => {
+      const { offsetWidth: w, offsetHeight: h } = d;
+      const r = popRoom();
+      if (moved.current) return setPlace((was) => (was ? keepIn(r, was, w, h) : was));
+      side.current ??= sideFor(anchor, w, h, r);
+      setPlace(placeOn(side.current, anchor, w, h, r));
+    };
+    const resized = () => {
+      moved.current = true;
+      fit();
+    };
+    fit();
+    // Its height changes as its lists open and close: placed again before that frame paints (flushSync), so no
+    // frame shows it where the old height put it, past the box's edge.
+    const seen = new ResizeObserver(() => flushSync(fit));
+    seen.observe(d);
+    window.addEventListener("resize", resized);
+    return () => {
+      seen.disconnect();
+      window.removeEventListener("resize", resized);
+    };
+  }, [anchor]);
+  /** The handle: the popover follows the pointer until it lifts, kept inside the app's box. */
+  const drag = (down: React.PointerEvent<HTMLElement>) => {
+    const d = dialog.current;
+    if (down.button !== 0 || !d || !place) return;
+    down.preventDefault();
+    const from = { x: down.clientX, y: down.clientY, ...place };
+    const r = popRoom();
+    const onMove = (m: PointerEvent) => {
+      moved.current = true;
+      setPlace(keepIn(r, { left: from.left + m.clientX - from.x, top: from.top + m.clientY - from.y }, d.offsetWidth, d.offsetHeight));
+    };
+    const stop = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  };
 
   const finish = (sentence: string) => {
     done(sentence);
@@ -744,6 +1298,7 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
     <dialog
       ref={dialog}
       aria-labelledby="schedule-dialog-title"
+      tabIndex={-1}
       onClose={close}
       onCancel={(e) => {
         if (busy.current) e.preventDefault();
@@ -751,19 +1306,37 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) dismiss();
       }}
-      className="relative m-auto max-h-[calc(100vh-32px)] w-[min(460px,calc(100vw-32px))] overflow-hidden border border-[color:var(--line-strong)] bg-raised p-0 text-foreground shadow-[var(--pop-shadow)] backdrop:bg-[color:var(--scrim)] open:flex open:flex-col"
+      data-quick={anchor ? "" : undefined}
+      style={anchor && place ? { margin: 0, left: place.left, top: place.top, right: "auto", bottom: "auto", maxHeight: place.maxHeight } : undefined}
+      className={cn(
+        "group/dlg relative overflow-hidden border-0 p-0 text-foreground outline-none open:flex open:flex-col",
+        anchor
+          ? // The quick-create: Testbench's dialog (16px corners, the box surface, its soft shadow) over the grid, with
+            // no scrim, so the slot stays in view behind it. Wide enough for the date and both times on one line.
+            "max-h-[calc(100vh-24px)] w-[min(480px,calc(100vw-24px))] rounded-[16px] bg-[color:var(--surface)] shadow-[var(--box-shadow)] backdrop:bg-transparent"
+          : "m-auto max-h-[calc(100vh-40px)] w-[min(500px,calc(100vw-32px))] rounded-[16px] bg-[color:var(--surface)] shadow-[var(--box-shadow)] backdrop:bg-[color:var(--scrim)]",
+      )}
     >
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Close"
-        title="Close (Esc)"
-        className="absolute top-3 right-3 z-[1] grid size-7 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
-      >
-        <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" aria-hidden>
-          <path d="m4 4 8 8M12 4l-8 8" />
-        </svg>
-      </button>
+      {anchor ? (
+        // Google's top line: the handle at the left, over the icon column, and Close at the right.
+        <div className="flex h-11 flex-none items-center justify-between pr-3 pl-3">
+          <span
+            aria-hidden
+            onPointerDown={drag}
+            title="Drag to move"
+            className="grid size-8 cursor-grab touch-none place-items-center rounded-[8px] text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-muted-foreground active:cursor-grabbing"
+          >
+            <RowIcon name="grip" />
+          </span>
+          <button type="button" onClick={dismiss} aria-label="Close" title="Close (Esc)" className={closeBtn}>
+            <RowIcon name="close" />
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={dismiss} aria-label="Close" title="Close (Esc)" className={cn(closeBtn, "absolute top-[18px] right-4 z-[1]")}>
+          <RowIcon name="close" />
+        </button>
+      )}
       <Panels
         card={
           confirming ? (
@@ -779,7 +1352,7 @@ export function ScheduleDialog({ flow, timeZone, now, go, close, done }: { flow:
         }
         form={
           flow.kind === "book" ? (
-            <BookForm flow={flow} timeZone={timeZone} now={now} confirm={setConfirming} setBusy={setBusy} />
+            <BookForm flow={flow} timeZone={timeZone} now={now} confirm={setConfirming} setBusy={setBusy} go={go} />
           ) : flow.kind === "move" && !flow.to ? (
             <MoveForm event={flow.event} timeZone={timeZone} now={now} confirm={setConfirming} back={backToEvent} setBusy={setBusy} />
           ) : null

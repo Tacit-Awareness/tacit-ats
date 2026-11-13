@@ -84,13 +84,13 @@ beforeEach(async () => {
     { id: WITHDREW_REASON, org_id: ACME, kind: "withdrew", name: "Took another offer" },
   ]));
 
-  // 1, 2: engineer applicants from the board; 3: designer; 4: the board, but already screening; 5: sourced by hand; 6: a referral.
+  // 1, 2: engineer applicants from the board; 3: designer; 4: the board, but already screening; 5: added by hand (New Applicants' "Add applicant"); 6: a referral.
   const apps = [
     [1, ENGINEER, "sourced", "job_board", -1],
     [2, ENGINEER, "sourced", "job_board", -5],
     [3, DESIGNER, "sourced", "job_board", -3],
     [4, ENGINEER, "screening", "job_board", -2],
-    [5, ENGINEER, "sourced", "sourced", -1],
+    [5, ENGINEER, "sourced", "sourced", -6],
     [6, DESIGNER, "sourced", "referral", -4],
   ] as const;
   must(await db().from("people").insert([
@@ -116,9 +116,9 @@ beforeEach(async () => {
 afterAll(clear);
 
 describe("New Applicants", () => {
-  test("an admin sees every applicant and referral still at the first stage, newest first, with their answers", async () => {
+  test("an admin sees every applicant, referral and person added by hand still at the first stage, newest first, with their answers", async () => {
     const queue = await readApplicantQueue(member("user_ap_ada"), reader(ADMIN, "admin"));
-    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(3), app(6), app(2)]);
+    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(3), app(6), app(2), app(5)]);
     expect(queue[0]).toMatchObject({ jobId: ENGINEER, jobTitle: "Founding Engineer", name: "Applicant 1", post: "Careers page" });
     expect(queue[0]!.answers.map((a) => a.value)).toEqual(["Applicant 1", "linkedin.com/in/applicant1"]);
   });
@@ -135,7 +135,7 @@ describe("New Applicants", () => {
 
   test("a hiring manager sees only their job's applicants", async () => {
     const queue = await readApplicantQueue(member("user_ap_lee"), reader(LEAD, "elevated"));
-    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(2)]);
+    expect(queue.map((e) => e.applicationId)).toEqual([app(1), app(2), app(5)]);
     expect((await readRouting(member("user_ap_lee"), ENGINEER)).canEdit).toBe(true);
     expect((await readRouting(member("user_ap_lee"), DESIGNER)).canEdit).toBe(false);
   });

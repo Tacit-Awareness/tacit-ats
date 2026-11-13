@@ -1,7 +1,7 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import { Avatar, Chip, Chips } from "@/components/page";
+import { Chip, Chips, Count, Pill } from "@/components/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { applyRun, runState, type RunState, type SheetPerson, type SheetType, type SkillSheet } from "@/lib/client/skill-sheet";
@@ -12,8 +12,9 @@ import type { Refused } from "../step-refusal";
 import { addTypeAction, archiveTypeAction, renameTypeAction, saveSkillsAction, setRunAction, setStarAction } from "./actions";
 import { StepCard } from "../step-card";
 
-// design/tats's `#setup~skills`: the interview types a company runs, then each
-// person's skills and the types they run, with a star for who to ask first. Every
+// design/tats's `#setup~skills`: the interview types a company runs, then a row
+// per person under one head (their name and teams, their skills, the types they
+// run), with a star for who to ask first. Every
 // change saves at once, shows at once, and goes back on a refusal, which a toast
 // explains. The prototype's one button cycles off, on and starred; here the star is
 // its own button, so each state says what it does. Nothing is seeded.
@@ -38,7 +39,7 @@ function TypeRow({ type, editable }: { type: SheetType; editable: boolean }) {
   const [name, setName] = useState(type.name);
   const [pending, start] = useTransition();
   return (
-    <li className="flex min-h-10 min-w-0 flex-wrap items-center gap-2 border-b border-[color:var(--line)] py-1.5 text-[13px] last:border-b-0">
+    <li className="flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-[color:var(--line)] py-2 text-[13px] last:border-b-0">
       {renaming ? (
         <form
           className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
@@ -69,9 +70,11 @@ function TypeRow({ type, editable }: { type: SheetType; editable: boolean }) {
       ) : (
         <>
           <span className="min-w-0 flex-[1_1_180px] font-medium [overflow-wrap:anywhere]">{type.name}</span>
-          <span className={cn("text-xs tabular-nums", type.interviewers ? "text-faint" : "text-[color:var(--red)]")}>
-            {type.interviewers ? `${type.interviewers} ${type.interviewers === 1 ? "person runs" : "people run"} this` : "No one runs this yet"}
-          </span>
+          {type.interviewers ? (
+            <span className="text-[12px] text-faint tabular-nums">{`${type.interviewers} ${type.interviewers === 1 ? "person runs" : "people run"} this`}</span>
+          ) : (
+            <Pill tone="amber">No one runs this yet</Pill>
+          )}
           {editable ? (
             <span className="flex gap-1">
               <Button type="button" variant="ghost" size="sm" aria-label={`Rename ${type.name}`} onClick={() => setRenaming(true)}>
@@ -123,17 +126,27 @@ function AddType({ first }: { first: boolean }) {
   );
 }
 
+// Drawn, not a ★ character, so it sits on the chip's centre line in any font.
+function Star({ filled }: { filled: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" className="size-[13px]" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" aria-hidden>
+      <path d="m8 1.9 1.8 3.8 4.1.5-3 2.9.8 4.1L8 11.2l-3.7 2 .8-4.1-3-2.9 4.1-.5z" />
+    </svg>
+  );
+}
+
 function RunChip({ person, type, state, change }: { person: string; type: SheetType; state: RunState; change?: (next: RunState) => void }) {
   if (!change) {
     if (state === "off") return null;
     return <Chip title={state === "starred" ? "Asked first" : undefined}>{`${state === "starred" ? "★ " : ""}${type.name}`}</Chip>;
   }
   const on = state !== "off";
+  // Testbench's `.chip-btn`: an outline, the ink edge when it is on; dashed while it is off.
   return (
     <span
       className={cn(
-        "inline-flex h-7 max-w-full min-w-0 items-center rounded-full border text-[12.5px]",
-        on ? "border-[color:var(--line-strong)] bg-[color:var(--soft)] text-foreground" : "border-dashed border-[color:var(--line-strong)] text-muted-foreground",
+        "inline-flex h-[30px] max-w-full min-w-0 items-center rounded-[7px] font-mono text-[12.5px] transition-[background-color,box-shadow,color] duration-150",
+        on ? "bg-[color:var(--paper)] text-foreground shadow-[inset_0_0_0_1.5px_var(--ink)]" : "border border-dashed border-[color:var(--line-strong)] text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
       )}
     >
       {on ? (
@@ -143,12 +156,12 @@ function RunChip({ person, type, state, change }: { person: string; type: SheetT
           aria-label={state === "starred" ? `${person} is asked first for ${type.name}. Stop` : `Ask ${person} first for ${type.name}`}
           title={state === "starred" ? "Asked first" : "Ask them first"}
           onClick={() => change(state === "starred" ? "runs" : "starred")}
-          className={cn("h-full pr-1 pl-2.5 leading-none", state === "starred" ? "text-[color:var(--accent)]" : "text-faint hover:text-foreground")}
+          className={cn("grid h-full place-items-center rounded-l-[7px] pr-1.5 pl-2.5", state === "starred" ? "text-foreground" : "text-faint hover:text-foreground")}
         >
-          {state === "starred" ? "★" : "☆"}
+          <Star filled={state === "starred"} />
         </button>
       ) : null}
-      <button type="button" aria-pressed={on} aria-label={`${person} runs ${type.name}`} title={type.name} onClick={() => change(on ? "off" : "runs")} className={cn("h-full min-w-0 truncate pr-2.5", !on && "pl-2.5")}>
+      <button type="button" aria-pressed={on} aria-label={`${person} runs ${type.name}`} title={type.name} onClick={() => change(on ? "off" : "runs")} className={cn("h-full min-w-0 truncate rounded-r-[7px] pr-2.5", !on && "rounded-l-[7px] pl-2.5")}>
         {type.name}
       </button>
     </span>
@@ -174,16 +187,14 @@ function PersonCard({ person, types, editable }: { person: SheetPerson; types: S
   };
 
   return (
-    <li className="grid min-w-0 gap-2.5 border-b border-[color:var(--line)] py-3 last:border-b-0">
-      <span className="flex min-w-0 items-center gap-2.5 text-[13px]">
-        <Avatar name={person.name} />
-        <span className="grid min-w-0">
-          <b className="font-medium [overflow-wrap:anywhere]">{person.name}</b>
-          {person.teams.length ? <span className="text-xs text-faint [overflow-wrap:anywhere]">{person.teams.join(" · ")}</span> : null}
-        </span>
+    <li className={cn("grid min-w-0 items-start gap-x-6 gap-y-2.5 border-b border-[color:var(--line)] py-3.5 last:border-b-0 last:pb-0", columns(types.length > 0))}>
+      <span className="grid min-w-0 gap-0.5 pt-2 text-[13px] md:pt-[7px]">
+        <b className="font-medium [overflow-wrap:anywhere]">{person.name}</b>
+        {person.teams.length ? <span className="text-[12px] text-faint [overflow-wrap:anywhere]">{person.teams.join(", ")}</span> : null}
       </span>
       <div className="grid min-w-0 gap-1">
-        <span className="text-xs text-faint">Skills</span>
+        {/* The column's head says it from a tablet up; a phone has no head row. */}
+        <span className="text-[12px] text-faint md:sr-only">Skills</span>
         {editable ? (
           <TagInput
             tags={skills}
@@ -198,29 +209,32 @@ function PersonCard({ person, types, editable }: { person: SheetPerson; types: S
             }
           />
         ) : skills.length ? (
-          <Chips>
+          <Chips className="md:min-h-9">
             {skills.map((s) => (
               <Chip key={s}>{s}</Chip>
             ))}
           </Chips>
         ) : (
-          <span className="text-[13px] text-muted-foreground">None yet</span>
+          <span className="text-[13px] text-faint md:leading-9">None yet</span>
         )}
       </div>
       {types.length ? (
         <div className="grid min-w-0 gap-1">
-          <span className="text-xs text-faint">Interviews</span>
-          <Chips className="min-w-0">
+          <span className="text-[12px] text-faint md:sr-only">Interviews</span>
+          <Chips className="min-w-0 md:min-h-9">
             {types.map((t) => (
               <RunChip key={t.id} person={person.name} type={t} state={runState(runs, t.id)} change={editable ? (next) => change(t, next) : undefined} />
             ))}
-            {!editable && !Object.keys(runs).length ? <span className="text-[13px] text-muted-foreground">None yet</span> : null}
+            {!editable && !Object.keys(runs).length ? <span className="text-[13px] text-faint">None yet</span> : null}
           </Chips>
         </div>
       ) : null}
     </li>
   );
 }
+
+/** The person, their skills and, once there are types, the ones they run: one template for the head and each row. */
+const columns = (withTypes: boolean) => (withTypes ? "md:grid-cols-[168px_minmax(0,1fr)_minmax(0,1.3fr)]" : "md:grid-cols-[168px_minmax(0,1fr)]");
 
 export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: boolean }) {
   const { people, types } = sheet;
@@ -229,7 +243,7 @@ export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: b
       <StepCard
         title={
           <>
-            Interview types{types.length ? <span className="ml-2 text-sm font-normal text-faint tabular-nums">{types.length}</span> : null}
+            Interview types{types.length ? <Count>{types.length}</Count> : null}
           </>
         }
         sub="The kinds of interview your company runs. Each person then says which they run."
@@ -241,7 +255,7 @@ export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: b
             ))}
           </ul>
         ) : (
-          <p className="m-0 text-[13px] text-muted-foreground">{editable ? "Add an interview type to say who runs it." : "No interview types yet."}</p>
+          <p className="m-0 text-[13px] text-faint">{editable ? "Add an interview type to say who runs it." : "No interview types yet."}</p>
         )}
         {editable ? <AddType first={!types.length} /> : null}
       </StepCard>
@@ -249,11 +263,19 @@ export function SkillsStep({ sheet, editable }: { sheet: SkillSheet; editable: b
         title="Say what each person interviews for"
         sub={editable ? "Tap an interview type if they run it, and star it to ask them first." : "What each person knows, and the interview types they run. A star means ask them first."}
       >
-        <ul className="m-0 grid list-none p-0">
-          {people.map((p) => (
-            <PersonCard key={p.id} person={p} types={types} editable={editable} />
-          ))}
-        </ul>
+        <div className="grid min-w-0">
+          {/* Heads once, over the columns, as the Teams matrix's: each row's own label is for a screen reader. */}
+          <div aria-hidden className={cn("-mx-5 hidden gap-x-6 border-b border-[color:var(--line)] px-5 pb-2.5 text-[12px] text-faint sm:-mx-7 sm:px-7 md:grid", columns(types.length > 0))}>
+            <span />
+            <span>Skills</span>
+            {types.length ? <span>Interviews</span> : null}
+          </div>
+          <ul className="m-0 grid list-none p-0">
+            {people.map((p) => (
+              <PersonCard key={p.id} person={p} types={types} editable={editable} />
+            ))}
+          </ul>
+        </div>
       </StepCard>
     </>
   );

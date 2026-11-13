@@ -1,0 +1,13 @@
+/* The Interview Calendar fits the window (view.tsx): from a tablet up, the page
+   under its bar is a column that fills the box, so the card, and the day, week
+   or month grid in it, take the height left and the page itself never scrolls.
+   The shell's page wrapper only knows to do this for a list and reader, so the
+   calendar says it here, for itself alone. */
+@media (min-width: 768px) {
+  .shell-page:has(> .cal-fit) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+}

@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { addAreas } from "@/lib/client/interviewer-profile";
 
 // Skill tags, for the profile dialog and Onboarding's Interview skills step:
-// chips, then a field where Enter adds one. Not a comma: "Go, Rust" is one area if
+// Testbench chips (6px, an outline) each with its own remove, then a field where
+// Enter adds one. Not a comma: "Go, Rust" is one area if
 // they wrote it so. A paste of several lines adds each. With `name` it sends the
 // tags as one line each, the shape profileFromForm reads, with what is still in the
 // field as the last line, so Save does not drop it. With `busy` the field keeps its
-// focus but takes no change, so a second add waits for the first to land.
+// focus but takes no change, so a second add waits for the first to land. Add
+// is the field's height, as a field and its button sit together.
 
 export function TagInput({
   tags,
@@ -50,7 +52,7 @@ export function TagInput({
       {tags.length ? (
         <ul className="m-0 flex min-w-0 list-none flex-wrap gap-1.5 p-0">
           {tags.map((t) => (
-            <li key={t} className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border border-[color:var(--line-strong)] py-0.5 pr-1 pl-2.5 text-[12.5px] text-foreground">
+            <li key={t} className="inline-flex min-h-[26px] max-w-full min-w-0 items-center gap-1 rounded-[6px] bg-[color:var(--paper)] py-0.5 pr-0.5 pl-[9px] text-[12.5px] text-foreground shadow-[inset_0_0_0_1px_var(--line-strong)]">
               <span className="min-w-0 [overflow-wrap:anywhere]">{t}</span>
               <button
                 type="button"
@@ -60,7 +62,7 @@ export function TagInput({
                   setRefused(null);
                   onChange(tags.filter((x) => x !== t));
                 }}
-                className="grid size-5 shrink-0 place-items-center rounded-full text-faint hover:bg-[color:var(--hover)] hover:text-foreground"
+                className="grid size-[22px] shrink-0 place-items-center rounded-[5px] text-faint transition-colors hover:bg-[color:var(--hover)] hover:text-foreground disabled:opacity-50"
               >
                 ×
               </button>
@@ -93,7 +95,7 @@ export function TagInput({
           className="w-[220px] max-w-full min-w-0"
         />
         {draft.trim() ? (
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => add(draft)}>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => add(draft)}>
             Add
           </Button>
         ) : null}

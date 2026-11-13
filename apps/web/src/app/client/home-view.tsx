@@ -1,23 +1,28 @@
 import Link from "next/link";
 import { useId } from "react";
-import { Avatar, Empty, PageBar, SubBar, Tabs, textLink } from "@/components/page";
+import { Count, Empty, PageBar, StatusGlyph, SubBar, Tabs, pillOption, pillTrack, textLink } from "@/components/page";
 import { cn } from "@/lib/utils";
-import { FilterMenu, type FilterOption } from "@/components/filter-menu";
 import { homeSubBase, type HomeSub } from "@/lib/client/home-tabs";
 import { defaultWidgets, type Placed, type WidgetKey } from "@/lib/client/home-widgets";
 import { HomeBoard } from "./home-board";
 import { TargetChip, type TargetChipProps } from "./home-target";
+import { Figure } from "./stat-number";
 
-// Home's markup (design/tats's Recruiting Overview), props only: page.tsx
-// does the reads and the counting. The prototype's bar (the crumb, then the
-// period, department and job chips) and its Overview / New Applicants /
-// Interviews / Referrals tabs, then the Overview as widgets, each drawn here
-// and placed by home-board.tsx from the member's own layout: a rounded panel
-// with the number first, a quiet label under it, the change or the count on
-// the right, then one chart (a line, bars or a split bar, plain SVG and CSS,
-// no chart library). Colour only for meaning: the chart's blue, red for a fall
-// or a missed target. A card's target sits at the left of its foot
-// (home-target.tsx). Styles are home-widgets.css.
+// Home's markup (design/tats's Recruiting Overview, in Testbench's dress), props
+// only: page.tsx does the reads and the counting. The bar (the title), its
+// Overview / New Applicants / Interview Judgement / Referrals tabs with the
+// period, department and job as segmented controls, then the Overview as widgets, each drawn
+// here and placed by home-board.tsx from the member's own layout. A number card
+// says one thing, in one voice (Mona Sans): its name, one number (the app's
+// number style, stat-number.tsx) with its change, and at most one quiet graphic
+// (a line, columns, a split bar or rounded meters, plain SVG and CSS, no chart
+// library), labelled directly and sparingly. What the old secondary lines said
+// (how many are waiting, the oldest, how many are outstanding) is the number's
+// or the graphic's hover. Its controls stay in Geist Mono and keep out of the
+// way: a target that is set sits on the number's row (home-target.tsx); "Set a
+// target" and the way to the pipeline show on the card's hover and whenever focus
+// is inside it. Colour only for meaning: the accent for the data, red for a fall
+// or a missed target. Styles are home-widgets.css.
 
 export type Bar = { n: number; label: string; title: string; /** Reads red: past the target, or with none set, one of the oldest. */ late?: boolean };
 
@@ -39,11 +44,14 @@ export type BottleneckIcon = keyof typeof ICONS;
 
 export type Part = { label: string; n: number };
 
+/** A filter as a segmented control of links (the URL is the filter state): its name for a screen reader, and its options. */
+export type Segment = { label: string; options: { href: string; label: string; title?: string; active: boolean }[] };
+
 export type HomeViewProps = {
   title: string;
   days: number;
-  /** The chips: the period always, the department and the job when there is one to pick. */
-  filters: { label: string; value: string; on: boolean; options: FilterOption[] }[];
+  /** The period always; the department and the job when there is one to pick. */
+  filters: { period: Segment; department: Segment | null; job: Segment | null };
   pipelineHref: string;
   newApps: { value: number; change: number | null; bars: Bar[]; target: TargetChipProps | null };
   /** Applications per day: this period and the one before, each oldest first, and their totals. */
@@ -91,7 +99,7 @@ export type HomeViewProps = {
   efficiency: { closed: number; hires: number; rounds: { label: string; share: number; value: string; title: string }[]; perHire: string; hoursPerHire: string } | null;
   stays: { label: string; avgDays: number | null; stays: number }[];
   truncated: boolean;
-  /** The member's layout (lib/client/home-widgets.ts); without one, the default. */
+  /** The member's layout (lib/client/home-widgets.ts); without one, its default. */
   layout?: Placed[];
 };
 
@@ -104,6 +112,9 @@ const ICONS = {
   flag: "M3.5 14V2.8M3.5 3h8l-1.6 3 1.6 3h-8",
   clock: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 5v3.2l2 1.3",
   chevR: "M6 4l4 4-4 4",
+  arrow: "M3.5 8h9M9 4.5 12.5 8 9 11.5",
+  up: "M4 10l4-4 4 4",
+  down: "M4 6l4 4 4-4",
 } as const;
 
 function Icon({ name, className }: { name: keyof typeof ICONS; className?: string }) {
@@ -124,6 +135,23 @@ const NAV: { sub: HomeSub | null; href: string; label: string }[] = [
 
 const HomeTabs = ({ on }: { on: HomeSub | null }) => <Tabs strip label="Overview pages" tabs={NAV.map(({ sub, ...n }) => ({ ...n, active: sub === on }))} />;
 
+/**
+ * A filter as Testbench's small segmented control (`.seg.small`): its options as
+ * links on one track, the picked one raised. One line always: a track wider than
+ * its row scrolls sideways (home-widgets.css `.hm-seg`), never wraps.
+ */
+function Segments({ seg }: { seg: Segment }) {
+  return (
+    <div role="group" aria-label={seg.label} className={cn(pillTrack, "hm-seg")}>
+      {seg.options.map((o) => (
+        <Link key={o.href} href={o.href} title={o.title} aria-current={o.active ? "true" : undefined} className={pillOption(o.active, "sm")}>
+          {o.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 /** A tab's page under Home's bar and tabs (design/tats's `.hm-sub`): the page brings its own actions, the bar says where you are. */
 export function HomeTab({ sub, children }: { sub: HomeSub; children: React.ReactNode }) {
   return (
@@ -137,17 +165,27 @@ export function HomeTab({ sub, children }: { sub: HomeSub; children: React.React
   );
 }
 
-const SEGMENT_KEYS = ["Under a day", "1 to 3 days", "Over 3 days"];
-const SEGMENT_FILL = ["bg-[color:var(--soft-strong)]", "bg-[color-mix(in_srgb,var(--ink)_45%,var(--paper))]", "bg-[color:var(--ink)]"];
+/** The three waits a time-in-stage bar splits into, short as the columns' own labels, and in words for a hover. */
+const SEGMENTS = [
+  { short: "<1d", long: "Under a day" },
+  { short: "1–3d", long: "1 to 3 days" },
+  { short: "3d+", long: "Over 3 days" },
+];
+/** Light to dark as the wait grows, so the oldest reads heaviest without a key. */
+const SEGMENT_FILL = ["bg-[color:var(--line-strong)]", "bg-[color:var(--ink-4)]", "bg-[color:var(--ink)]"];
 
-/** A column chart: one bar per bin, its label under it, the count on hover. */
+const count = (n: number) => n.toLocaleString("en-US");
+
+/** A column chart: one rounded column per bin, its label under it and its count on its hover, so nothing floats over the columns. */
 function Bars({ bars, late }: { bars: Bar[]; late?: boolean }) {
   const max = Math.max(1, ...bars.map((b) => b.n));
   return (
     <div className="hm-hist" role="img" aria-label={bars.map((b) => b.title).join(", ")}>
       {bars.map((b, i) => (
         <span key={`${b.label}-${i}`} title={b.title}>
-          <i className={late && b.n && b.late ? "over" : undefined} style={{ height: b.n ? `${Math.max(6, (b.n / max) * 100)}%` : 0 }} />
+          <span className="hm-col">
+            <i className={cn(!b.n && "none", late && b.n && b.late && "over")} style={{ "--f": b.n ? Math.max(0.06, b.n / max) : 0 } as React.CSSProperties} />
+          </span>
           <em>{b.label}</em>
         </span>
       ))}
@@ -157,113 +195,174 @@ function Bars({ bars, late }: { bars: Bar[]; late?: boolean }) {
 
 const CHART_W = 300;
 
-/** A line chart: the first series solid with a fade under it and a dot on now, any second a lighter line behind. Scales to its box; strokes keep their width. */
-function Spark({ series, height = 84, grid = 0, label }: { series: number[][]; height?: number; grid?: number; label: string }) {
+/**
+ * A line chart: the first series solid with a fade under it and a point on now,
+ * any second a quieter line behind, over a baseline and no grid. Scales to its
+ * box; strokes keep their width. `ends` names each line at its right end, in the
+ * chart's gutter, so there is no key.
+ */
+function Spark({ series, height = 84, label, ends }: { series: number[][]; height?: number; label: string; ends?: React.ReactNode[] }) {
   const id = useId();
   const n = series[0].length;
   const max = Math.max(1, ...series.flat()) * 1.15;
   const x = (i: number) => (n === 1 ? CHART_W : (i / (n - 1)) * CHART_W);
   const y = (v: number) => height - 2 - (v / max) * (height - 8);
   const line = (vs: number[]) => vs.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join("");
+  const at = (vs: number[]) => (y(vs[vs.length - 1]) / height) * 100;
+  // Each end label at its line's last value; when the two lines end close together, held at least a
+  // line apart about their middle, in pixels, since the chart's height is whatever its card leaves it.
+  const tops = series.map((vs) => Math.min(100, Math.max(0, at(vs))));
+  const endTop = (i: number) => {
+    if (tops.length !== 2) return `${tops[i].toFixed(1)}%`;
+    const mid = ((tops[0] + tops[1]) / 2).toFixed(1);
+    const upper = tops[i] < tops[1 - i] || (tops[i] === tops[1 - i] && i === 0);
+    return upper ? `min(${tops[i].toFixed(1)}%, calc(${mid}% - 10px))` : `max(${tops[i].toFixed(1)}%, calc(${mid}% + 10px))`;
+  };
   return (
-    <div className="wg-chart" style={{ height }} role="img" aria-label={label}>
+    <div className={cn("wg-chart", ends && "ends")} style={{ height }} role="img" aria-label={label}>
       <svg viewBox={`0 0 ${CHART_W} ${height}`} preserveAspectRatio="none" aria-hidden>
         <defs>
           <linearGradient id={id} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" style={{ stopColor: "var(--chart)", stopOpacity: 0.2 }} />
-            <stop offset="1" style={{ stopColor: "var(--chart)", stopOpacity: 0 }} />
+            <stop offset="0" style={{ stopColor: "var(--accent)", stopOpacity: 0.14 }} />
+            <stop offset="1" style={{ stopColor: "var(--accent)", stopOpacity: 0 }} />
           </linearGradient>
         </defs>
-        {grid ? (
-          Array.from({ length: grid + 1 }, (_, i) => <path key={i} className="wg-gl" d={`M${((i / grid) * CHART_W).toFixed(1)} 0V${height}`} />)
-        ) : (
-          <path className="wg-base" d={`M0 ${height - 0.5}H${CHART_W}`} />
-        )}
+        <path className="wg-base" d={`M0 ${height - 0.5}H${CHART_W}`} />
         {series.slice(1).map((vs, i) => (
           <path key={i} className="wg-l2" d={line(vs)} />
         ))}
         <path d={`${line(series[0])}L${CHART_W} ${height}L0 ${height}Z`} fill={`url(#${id})`} />
         <path className="wg-l1" d={line(series[0])} />
       </svg>
-      <i className="wg-dot" style={{ top: `${((y(series[0][n - 1]) / height) * 100).toFixed(1)}%` }} />
+      <i className="wg-dot" style={{ top: `${at(series[0]).toFixed(1)}%` }} />
+      {ends?.map((e, i) => (
+        <span key={i} className={cn("wg-end", i > 0 && "l2")} style={{ top: endTop(i) }}>
+          {e}
+        </span>
+      ))}
     </div>
   );
 }
 
+/** A rise or a fall as a tag beside its number: green up, red down. What it is measured against is its hover, not a caption. */
+function Change({ change, against }: { change: number; against: string }) {
+  const up = change >= 0;
+  const pct = Math.abs(Math.round(change * 100));
+  return (
+    <span className={cn("wg-delta", up ? "good" : "bad")} title={`${up ? "Up" : "Down"} ${pct}% ${against}`}>
+      <Icon name={up ? "up" : "down"} className="size-[11px]" />
+      <span className="sr-only">{up ? "Up" : "Down"} </span>
+      {pct}%<span className="sr-only"> {against}</span>
+    </span>
+  );
+}
+
 /** The change against what came before, as the prototype's: nothing before, nothing to say. */
-function Delta({ value, before }: { value: number; before: number }) {
+function Delta({ value, before, against }: { value: number; before: number; against: string }) {
   if (!before) return null;
-  const change = (value - before) / before;
-  return (
-    <b className={cn("wg-delta", change >= 0 ? "good" : "bad")}>
-      {change >= 0 ? "▲" : "▼"} {Math.abs(Math.round(change * 100))}%
-    </b>
-  );
+  return <Change change={(value - before) / before} against={against} />;
 }
 
-/** A share, split: one bar in shades of the chart colour, then a legend with each part's count and share. */
-function Shares({ parts }: { parts: Part[] }) {
-  const total = parts.reduce((s, p) => s + p.n, 0);
-  const shade = (i: number) => `color-mix(in oklch, var(--chart) ${Math.round(100 - (i / Math.max(1, parts.length - 1)) * 72)}%, var(--paper))`;
+/**
+ * A whole, split: one rounded bar, each piece's name and count on its hover.
+ * With `named`, each part is also written under the bar in the bar's order, its
+ * name then its count, spaced apart and never dotted; hovering a name or its
+ * piece of the bar lights both and quiets the rest (home-widgets.css), so there
+ * is no colour key.
+ */
+function Shares({ parts, fills, named = true, label }: { parts: Part[]; fills?: string[]; named?: boolean; label?: string }) {
+  const shade = (i: number) => fills?.[i] ?? `color-mix(in oklch, var(--accent) ${Math.round(100 - (i / Math.max(1, parts.length - 1)) * 72)}%, var(--paper))`;
   return (
-    <>
-      <div className="wg-seg">{parts.map((p, i) => (p.n ? <i key={p.label} style={{ flex: p.n, background: shade(i) }} title={`${p.label}: ${p.n}`} /> : null))}</div>
-      <div className="wg-leg">
-        {parts.map((p, i) => (
-          <div key={p.label}>
-            <i style={{ background: shade(i) }} />
-            <span title={p.label}>{p.label}</span>
-            <b>{p.n.toLocaleString("en-US")}</b>
-            <em>{total ? Math.round((p.n / total) * 100) : 0}%</em>
-          </div>
-        ))}
+    <div className="wg-shares">
+      <div className="wg-seg" role="img" aria-label={label ?? parts.map((p) => `${p.label}: ${p.n}`).join(", ")}>
+        {parts.map((p, i) => (p.n ? <i key={p.label} data-i={i} style={{ flex: p.n, background: shade(i) }} title={`${p.label}: ${count(p.n)}`} /> : null))}
       </div>
-    </>
+      {named ? (
+        <div className="wg-key">
+          {/* A part with nobody in it has no piece of the bar to name: it is in the bar's label for a screen reader, and the pipeline. */}
+          {parts.map((p, i) =>
+            p.n ? (
+              <span key={p.label} data-i={i}>
+                {p.label}
+                <b>{count(p.n)}</b>
+              </span>
+            ) : null,
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-function Card({ label, def, value, unit, side, target, foot, children }: {
+type Go = { href: string; label: string };
+
+/**
+ * A number card: its name, then the number with its change (and a target, when
+ * one is set, at the row's far end), then its one graphic, which starts the
+ * same gap under the number in every card (home-widgets.css), so a row of cards
+ * lines up and none has a hole between its number and its graphic. Everything in it but its controls is
+ * Mona Sans. "Set a target" and `go` (the way to the pipeline) are quiet: they
+ * show on the card's hover and whenever focus is inside it (home-widgets.css
+ * `.hm-reveal`), so a keyboard always finds them.
+ */
+function Card({ label, def, value, valueTitle, unit, change, target, go, children }: {
   label: string;
-  def: string;
-  value: React.ReactNode;
+  def?: string;
+  /** Left out, the card has no number (a widget with too little to count). */
+  value?: string | number;
+  /** Said on the number's hover: what the old secondary lines said, and what it covers when no tag says so. */
+  valueTitle?: string;
+  /** A word the number needs to make sense, beside it. */
   unit?: string;
-  side: React.ReactNode;
+  change?: React.ReactNode;
   target?: TargetChipProps | null;
-  foot?: React.ReactNode;
+  go?: Go;
   children?: React.ReactNode;
 }) {
   return (
-    <section className="hm-card">
+    <section className={cn("hm-card", value === undefined && "bare")}>
       <div className="wg-top">
-        <div>
-          <div className="hm-v">
-            <b>{value}</b>
-            {unit ? <span className="hm-sub">{unit}</span> : null}
-          </div>
-          <div className="hm-l" title={def}>
+        <div className="hm-head">
+          <h3 className="hm-l" title={def}>
             {label}
-          </div>
+          </h3>
+          {go ? (
+            <Link href={go.href} className="hm-go hm-icon hm-reveal" aria-label={go.label} title={go.label}>
+              <Icon name="arrow" className="size-[14px]" />
+            </Link>
+          ) : null}
         </div>
-        <div className="wg-side">{side}</div>
+        {value === undefined ? null : (
+          <div className="hm-v">
+            <b title={valueTitle}>
+              <Figure value={value} />
+              {valueTitle ? <span className="sr-only">, {valueTitle}</span> : null}
+            </b>
+            {unit ? <span className="hm-q">{unit}</span> : null}
+            {change}
+            {target ? (
+              <span className={cn("hm-tg", target.canEdit && target.shown === null && "hm-reveal")}>
+                <TargetChip {...target} />
+              </span>
+            ) : null}
+          </div>
+        )}
       </div>
       {children}
-      {target || foot ? (
-        <div className="hm-f">
-          {target ? <TargetChip {...target} /> : <span />}
-          {foot}
-        </div>
-      ) : null}
     </section>
   );
 }
 
-/** A list or a table: its heading, then the block. */
-function Box({ title, count, aside, children }: { title: string; count?: React.ReactNode; aside?: React.ReactNode; children: React.ReactNode }) {
+/** A list or a table: its heading (what it covers is the heading's hover), then the block. */
+function Box({ title, def, count, aside, children }: { title: string; def?: string; count?: React.ReactNode; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="hm-box">
       <div className="hm-h">
-        <b>{title}</b>
-        {count === undefined ? null : <span>{count}</span>}
+        <h3 title={def}>
+          {title}
+          {def ? <span className="sr-only">, {def}</span> : null}
+        </h3>
+        {count === undefined ? null : <Count>{count}</Count>}
         {aside ? <div className="hm-h-aside">{aside}</div> : null}
       </div>
       {children}
@@ -271,83 +370,101 @@ function Box({ title, count, aside, children }: { title: string; count?: React.R
   );
 }
 
+/** A box's link in its heading: quiet like a card's, shown on the box's hover and on focus inside it. */
 const go = (href: string, label: string) => (
-  <Link href={href} className="hm-go">
-    {label} →
+  <Link href={href} className="hm-go hm-reveal">
+    {label}
+    <Icon name="arrow" className="size-[13px]" />
   </Link>
 );
 
-function Waits({ label, def, card, foot }: { label: string; def: string; card: WaitCard; foot: React.ReactNode }) {
+/** A list row's second line: its facts side by side, spaced, never dotted, wrapping rather than cut short. */
+const Facts = ({ line }: { line: string }) => (
+  <span className="flex min-w-0 flex-wrap gap-x-3 text-faint">
+    {line.split(" · ").map((x, i) => (
+      <span key={i} className="max-w-full truncate">
+        {x}
+      </span>
+    ))}
+  </span>
+);
+
+/** A Linear-style row of a list widget: who, their facts under, the wait at the right. */
+function PersonRow({ href, name, line, wait }: { href: string; name: string; line: string; wait: string }) {
+  return (
+    <Link href={href} className="hm-row">
+      <span className="grid min-w-0">
+        <b className="truncate font-medium">{name}</b>
+        <Facts line={line} />
+      </span>
+      <em>{wait}</em>
+    </Link>
+  );
+}
+
+const more = (m: { href: string; label: string }) => (
+  <Link href={m.href} className={cn(textLink, "mt-1 self-start px-2 py-1.5")}>
+    {m.label}
+  </Link>
+);
+
+/** The typical wait as the number; how many wait and the oldest are its hover; the columns split them by age. */
+function Waits({ label, def, card, go }: { label: string; def: string; card: WaitCard; go: Go }) {
   return (
     <Card
       label={label}
       def={def}
       value={card.typical ?? "None"}
-      unit={card.typical ? "typical" : undefined}
-      side={
-        card.waiting ? (
-          <>
-            <b className={card.target?.off ? "bad" : undefined}>
-              {card.waiting} waiting
-            </b>
-            <span>oldest {card.oldest}</span>
-          </>
-        ) : (
-          <>
-            <b>0 waiting</b>
-            <span>all clear</span>
-          </>
-        )
-      }
+      valueTitle={card.waiting ? `Typical wait; ${card.waiting} waiting, oldest ${card.oldest}` : "Nobody waiting"}
       target={card.target}
-      foot={foot}
+      go={go}
     >
       <Bars bars={card.buckets} late />
     </Card>
   );
 }
 
-/** The feedback card's one bar: on time, late, still outstanding. */
+/** The feedback card's one bar: on time, late, still outstanding, each piece's count on its hover and no legend. */
 function FeedbackSplit({ onTime, late, outstanding, hours }: { onTime: number; late: number; outstanding: number; hours: number }) {
   const parts = [
-    { n: onTime, label: `Within ${hours}h`, fill: "bg-[color:var(--chart)]" },
-    { n: late, label: "Late", fill: "bg-[color:var(--amber)]" },
-    { n: outstanding, label: "Outstanding", fill: "bg-[color-mix(in_srgb,var(--red)_70%,var(--paper))]" },
+    { n: onTime, label: `Within ${hours}h` },
+    { n: late, label: "Late" },
+    { n: outstanding, label: "Outstanding" },
   ];
   if (!parts.some((x) => x.n)) return <Empty>No interviews ended in this period.</Empty>;
   return (
-    <>
-      <div className="wg-seg" role="img" aria-label={parts.map((x) => `${x.n} ${x.label.toLowerCase()}`).join(", ")}>
-        {parts.map((x) => (x.n ? <i key={x.label} className={x.fill} style={{ flex: x.n }} /> : null))}
-      </div>
-      <div className="wg-key flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted-foreground">
-        {parts.map((x) => (
-          <span key={x.label} className="inline-flex items-center gap-1.5">
-            <i className={cn("block size-2", x.fill)} />
-            {x.label} <b className="font-medium text-foreground tabular-nums">{x.n}</b>
-          </span>
-        ))}
-      </div>
-    </>
+    <Shares
+      parts={parts}
+      fills={["var(--green)", "var(--amber)", "color-mix(in srgb, var(--red) 80%, var(--paper))"]}
+      named={false}
+      label={parts.map((x) => `${x.n} ${x.label.toLowerCase()}`).join(", ")}
+    />
   );
 }
 
-/** A horizontal bar row: name, bar, value. */
-function HBar({ lead, name, share, value, aside }: { lead?: React.ReactNode; name: string; share: number; value: string; aside?: React.ReactNode }) {
+/**
+ * Rounded meters, a row each: its name, the meter, its value, the names in one
+ * column as wide as the longest (up to half the card) so the meters line up.
+ * Anything more about a row (`note`) is its hover.
+ */
+function Meters({ rows }: { rows: { key: string; name: string; share: number; value: string; note?: string }[] }) {
   return (
-    <div className="grid grid-cols-[auto_minmax(64px,110px)_minmax(0,1fr)_auto_auto] items-center gap-2 py-[5px] text-[13px]">
-      {lead ?? <span />}
-      <span className="truncate" title={name}>
-        {name}
-      </span>
-      <span className="wg-meter">
-        <i style={{ width: share > 0 ? `${Math.max(2, share * 100)}%` : 0 }} />
-      </span>
-      <em className="text-right tabular-nums not-italic">{value}</em>
-      {aside ?? <span />}
+    <div className="hm-load">
+      {rows.map((r) => (
+        <div key={r.key} title={`${r.name}: ${r.value}${r.note ? `, ${r.note}` : ""}`}>
+          <span>{r.name}</span>
+          <span className="wg-meter">
+            <i style={{ width: r.share > 0 ? `${Math.max(2, r.share * 100)}%` : 0 }} />
+          </span>
+          <b>{r.value}</b>
+          {r.note ? <span className="sr-only">, {r.note}</span> : null}
+        </div>
+      ))}
     </div>
   );
 }
+
+const plural = (n: number, one: string) => `${count(n)} ${one}${n === 1 ? "" : "s"}`;
 
 /** Every widget this member can have, drawn. One whose numbers aren't theirs (feedback) is left out, so the gallery doesn't offer it. */
 function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNode>> {
@@ -356,26 +473,19 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
   const maxFeedback = Math.max(1, ...(p.feedback?.interviewers ?? []).map((x) => x.medianHours ?? 0));
   const maxStay = Math.max(1, ...p.stays.map((s) => s.avgDays ?? 0));
   const before = `the ${p.days} days before`;
-  const allJobs = p.feedback?.allJobs ? <span>every job you manage</span> : undefined;
+  const pipeline: Go = { href: p.pipelineHref, label: "Open pipeline" };
+  // With a job or a department picked, the feedback numbers still cover every job they manage: said on hover.
+  const allJobs = p.feedback?.allJobs ? "Covers every job you manage" : undefined;
+  const fb = p.feedback;
 
   return {
     apps: (
       <Card
         label="New applications"
         def="Applications added in the period, applied or sourced"
-        value={p.newApps.value.toLocaleString("en-US")}
-        side={
-          p.newApps.change === null ? (
-            <span>none in {before}</span>
-          ) : (
-            <>
-              <b className={cn("wg-delta", p.newApps.change >= 0 ? "good" : "bad")}>
-                {p.newApps.change >= 0 ? "▲" : "▼"} {Math.round(Math.abs(p.newApps.change) * 100)}%
-              </b>
-              <span>vs {before}</span>
-            </>
-          )
-        }
+        value={count(p.newApps.value)}
+        valueTitle={p.newApps.change === null ? `None in ${before}` : undefined}
+        change={p.newApps.change === null ? null : <Change change={p.newApps.change} against={`on ${before}`} />}
         target={p.newApps.target}
       >
         <Spark series={[p.newApps.bars.map((b) => b.n)]} label={p.newApps.bars.map((b) => b.title).join(", ")} />
@@ -385,52 +495,28 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
       <Card
         label="Candidates in process"
         def={p.inProcess.byProcess ? "Everyone in an open job's pipeline, by stage of your interview process" : "Everyone in an open job's pipeline, by column of the Pipeline board"}
-        value={p.inProcess.value.toLocaleString("en-US")}
-        side={
-          <>
-            <b>{p.inProcess.parts.filter((x) => x.n).length}</b>
-            <span>stages</span>
-          </>
-        }
-        foot={go(p.pipelineHref, "Open Pipeline")}
+        value={count(p.inProcess.value)}
+        go={pipeline}
       >
         <Shares parts={p.inProcess.parts} />
       </Card>
     ),
-    review: (
-      <Waits
-        label="Waiting for review"
-        def="New candidates, sourced or contacted and not yet screened: how long they have waited"
-        card={p.review}
-        foot={go(p.pipelineHref, "Open Pipeline")}
-      />
-    ),
-    sched: (
-      <Waits
-        label="Waiting to be scheduled"
-        def="Interviewing with nothing booked or held yet: how long since they moved to interviewing"
-        card={p.schedule}
-        foot={go(p.pipelineHref, "Open Pipeline")}
-      />
-    ),
-    ...(p.feedback
+    review: <Waits label="Waiting for review" def="New candidates, sourced or contacted and not yet screened: how long they have waited" card={p.review} go={pipeline} />,
+    sched: <Waits label="Waiting to be scheduled" def="Interviewing with nothing booked or held yet: how long since they moved to interviewing" card={p.schedule} go={pipeline} />,
+    ...(fb
       ? {
           cards: (
             <Card
               label="Interviewer feedback on time"
-              def={`Feedback filed within ${p.feedback.onTimeHours}h of the interview ending, for interviews that ended in the period on the jobs you manage`}
-              value={p.feedback.onTimeShare === null ? "None" : `${Math.round(p.feedback.onTimeShare * 100)}%`}
-              unit={p.feedback.onTimeShare === null ? undefined : `of ${p.feedback.filed} filed`}
-              side={
-                <>
-                  {p.feedback.outstanding ? <b className="bad">{p.feedback.outstanding} outstanding</b> : <b>All feedback is in</b>}
-                  {p.feedback.typical ? <span>typically {p.feedback.typical}</span> : null}
-                  {allJobs}
-                </>
-              }
-              target={p.feedback.target}
+              def={`Feedback filed within ${fb.onTimeHours}h of the interview ending, for interviews that ended in the period on the jobs you manage${allJobs ? `. ${allJobs}` : ""}`}
+              value={fb.onTimeShare === null ? "None" : `${Math.round(fb.onTimeShare * 100)}%`}
+              valueTitle={[
+                fb.filed ? `${fb.onTime} of ${fb.filed} filed within ${fb.onTimeHours}h${fb.typical ? `, typically in ${fb.typical}` : ""}` : "None filed yet",
+                fb.outstanding ? `${fb.outstanding} outstanding` : "all feedback is in",
+              ].join("; ")}
+              target={fb.target}
             >
-              <FeedbackSplit onTime={p.feedback.onTime} late={p.feedback.filed - p.feedback.onTime} outstanding={p.feedback.outstanding} hours={p.feedback.onTimeHours} />
+              <FeedbackSplit onTime={fb.onTime} late={fb.filed - fb.onTime} outstanding={fb.outstanding} hours={fb.onTimeHours} />
             </Card>
           ),
         }
@@ -440,121 +526,68 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
         label="Interview workload"
         def={`Interviewer hours${p.workload.byTeam ? ", by the job's department" : ""}: interviews held in the last ${p.days} days and booked in the next ${p.days}`}
         value={p.workload.hours}
-        side={
-          <>
-            <b>{p.workload.interviews}</b>
-            <span>
-              {p.workload.held} held · {p.workload.booked} booked
-            </span>
-          </>
-        }
+        valueTitle={`${plural(p.workload.interviews, "interview")}: ${count(p.workload.held)} held, ${count(p.workload.booked)} booked`}
         target={p.workload.target}
       >
         {p.workload.rows.length ? (
-          <div className="hm-load">
-            {p.workload.rows.map((x) => (
-              <div key={x.id}>
-                <span title={x.name}>{x.name}</span>
-                <span className="wg-meter">
-                  <i style={{ width: `${(x.hours / maxLoad) * 100}%` }} />
-                </span>
-                <b>{x.label}</b>
-              </div>
-            ))}
-          </div>
+          <Meters rows={p.workload.rows.map((x) => ({ key: x.id, name: x.name, share: x.hours / maxLoad, value: x.label }))} />
         ) : (
           <Empty>No interviews in this window.</Empty>
         )}
       </Card>
     ),
     trend: (
-      <section className="hm-box">
-        <div className="wg-top">
-          <div>
-            <div className="hm-l">Applications over time</div>
-            <div className="hm-v big">
-              <b>{p.trend.total.toLocaleString("en-US")}</b>
-              <Delta value={p.trend.total} before={p.trend.before} />
-              <span className="hm-sub">vs last period</span>
-            </div>
-          </div>
-        </div>
-        <Spark series={[p.trend.current, p.trend.previous]} height={170} grid={Math.min(p.trend.current.length - 1, 14)} label={`${p.trend.total} applications this period, ${p.trend.before} the period before`} />
-        <div className="wg-axis">
+      <Card
+        label="Applications over time"
+        def="Applications added each day, this period against the period before"
+        value={count(p.trend.total)}
+        valueTitle={p.trend.before ? undefined : `None in ${before}`}
+        change={<Delta value={p.trend.total} before={p.trend.before} against={`on ${before}, which had ${count(p.trend.before)}`} />}
+        // New applications' target, since this chart says the same number and has its place on the default board.
+        target={p.newApps.target}
+      >
+        <Spark
+          series={[p.trend.current, p.trend.previous]}
+          height={170}
+          label={`${p.trend.total} applications this period, ${p.trend.before} the period before`}
+          ends={["This period", "Last period"]}
+        />
+        <div className="wg-axis ends">
           <span>{p.days} days ago</span>
           <span>Now</span>
         </div>
-        <div className="wg-pp">
-          <span>
-            Last period <b className="l2">{p.trend.before.toLocaleString("en-US")}</b>
-          </span>
-          <span>
-            This period <b>{p.trend.total.toLocaleString("en-US")}</b>
-          </span>
-        </div>
-      </section>
+      </Card>
     ),
     hires: (
-      <section className="hm-box">
-        <div className="wg-top">
-          <div>
-            <div className="hm-v">
-              <b>{p.hires.total}</b>
-            </div>
-            <div className="hm-l" title="Applications that reached hired, by the week they did">
-              Hires
-            </div>
-          </div>
-          <div className="wg-side">
-            <Delta value={p.hires.total} before={p.hires.before} />
-            <span>vs the 12 weeks before</span>
-          </div>
-        </div>
+      <Card
+        label="Hires"
+        def="Applications that reached hired, by the week they did"
+        value={p.hires.total}
+        valueTitle={p.hires.before ? undefined : "In the last 12 weeks, with none in the 12 weeks before"}
+        change={<Delta value={p.hires.total} before={p.hires.before} against="on the 12 weeks before" />}
+      >
         <Spark series={[p.hires.weeks]} label={`${p.hires.total} hires in the last 12 weeks`} />
         <div className="wg-axis">
           <span>12 weeks ago</span>
           <span>Now</span>
         </div>
-      </section>
+      </Card>
     ),
     sources: (
-      <section className="hm-box">
-        <div className="wg-top">
-          <div>
-            <div className="hm-v">
-              <b>{p.sources.reduce((n, s) => n + s.n, 0).toLocaleString("en-US")}</b>
-            </div>
-            <div className="hm-l">Where applicants come from</div>
-          </div>
-          <div className="wg-side">
-            <b>{p.days} days</b>
-            <span>this period</span>
-          </div>
-        </div>
+      <Card label="Where applicants come from" value={count(p.sources.reduce((n, s) => n + s.n, 0))} valueTitle={`In the last ${p.days} days`}>
         <Shares parts={p.sources} />
-      </section>
+      </Card>
     ),
     offers: (
       <Box title="Offers awaiting approval" count={p.offers.total}>
         {p.offers.rows.length === 0 ? (
           <Empty>No offers waiting on you.</Empty>
         ) : (
-          <div className="-mx-2 grid">
+          <div className="hm-rows">
             {p.offers.rows.map((o) => (
-              <Link key={o.id} href={o.href} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 px-2 py-2 text-[13.5px] hover:bg-[color:var(--hover)]">
-                <Avatar name={o.requestedBy ?? o.candidate} size="md" />
-                <span className="grid min-w-0">
-                  <b className="truncate font-medium">{o.candidate}</b>
-                  <span className="truncate text-[12.5px] text-muted-foreground">{o.line}</span>
-                </span>
-                <em className="whitespace-nowrap text-muted-foreground tabular-nums not-italic">{o.wait}</em>
-              </Link>
+              <PersonRow key={o.id} href={o.href} name={o.candidate} line={o.line} wait={o.wait} />
             ))}
-            {p.offers.more ? (
-              <Link href={p.offers.more.href} className={cn(textLink, "px-2 py-1.5")}>
-                {p.offers.more.label} →
-              </Link>
-            ) : null}
+            {p.offers.more ? more(p.offers.more) : null}
           </div>
         )}
       </Box>
@@ -564,25 +597,27 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
         {p.bottlenecks.length === 0 ? (
           <Empty>Nothing is waiting.</Empty>
         ) : (
-          <div className="-mx-3 grid">
+          <div className="hm-rows">
             {p.bottlenecks.map((b) => (
-              <Link key={b.key} href={b.href} className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-3 p-3 hover:bg-[color:var(--hover)]">
-                <span className={cn("grid size-8 place-items-center rounded-lg bg-[color:var(--soft)]", b.over ? "text-[color:var(--red)]" : "text-muted-foreground")}>
-                  <Icon name={b.icon} />
-                </span>
+              <Link key={b.key} href={b.href} className="hm-row hm-neck">
+                <Icon name={b.icon} className={b.over ? "text-[color:var(--red)]" : "text-faint"} />
                 <span className="grid min-w-0 gap-0.5">
-                  <b className="text-[14px] font-medium">{b.what}</b>
-                  <span className="text-[13px] text-muted-foreground">
+                  <b className="font-medium">{b.what}</b>
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-3 text-faint">
                     {b.over ? (
-                      <>
-                        <i className="mr-1.5 inline-block size-[7px] rounded-full bg-[color:var(--red)] align-[1px]" aria-hidden />
-                        Over target ·{" "}
-                      </>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 text-negative">
+                        <StatusGlyph kind="alert" className="size-[13px]" />
+                        Over target
+                      </span>
                     ) : null}
-                    {b.why}
+                    <span>{b.why}</span>
                   </span>
                 </span>
-                <span className="text-[13px] font-medium whitespace-nowrap text-muted-foreground">{b.label} →</span>
+                {/* Where it goes, shown on the row's hover and focus: the whole row is the link. */}
+                <span className="hm-go hm-row-go">
+                  {b.label}
+                  <Icon name="arrow" className="size-[13px]" />
+                </span>
               </Link>
             ))}
           </div>
@@ -591,63 +626,60 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
     ),
     stages: (
       <Box title="Time in stage" count={`${p.active} active`} aside={p.editStages ? go(p.editStages, "Edit stages") : undefined}>
-        <div className="flex flex-wrap gap-4 text-[12.5px] text-muted-foreground">
-          {SEGMENT_KEYS.map((k, i) => (
-            <span key={k} className="inline-flex items-center gap-1.5">
-              <i className={cn("block size-2.5", SEGMENT_FILL[i])} />
-              {k}
-            </span>
-          ))}
-        </div>
-        <div className="grid">
-          <div className="grid grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] gap-3 border-b border-[color:var(--line-strong)] px-2 pb-1 pl-6 text-[12.5px] text-faint">
+        <div className="hm-stages grid">
+          <div className="hm-st hm-st-h">
             <span>Stage</span>
             <span>Candidates</span>
-            <span>Waiting</span>
+            <span className="flex min-w-0 gap-3" title="Waiting: each bar splits who is waiting by how long, under a day, 1 to 3 days and over 3 days">
+              <span className="sr-only">Waiting</span>
+              {SEGMENTS.map((g, i) => (
+                <span key={g.short} data-seg={i} title={g.long}>
+                  {g.short}
+                </span>
+              ))}
+            </span>
+            <span>Typical</span>
             <span>Longest</span>
           </div>
           {p.stages.map((s) => {
             const row = (
               <>
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <Icon name="chevR" className="size-[13px] text-faint transition-transform group-open:rotate-90" />
+                  <Icon name="chevR" className={cn("size-[13px] text-faint transition-transform duration-200 group-open:rotate-90", !s.n && "invisible")} />
                   <span className="truncate">{s.label}</span>
                 </span>
-                <b className="font-medium tabular-nums">{s.n}</b>
-                <span className="flex min-w-0 items-center gap-2">
+                <b className="font-normal tabular-nums">{s.n}</b>
+                <span className="flex min-w-0 items-center">
                   {s.n ? (
-                    <span className="flex h-2.5 gap-0.5" style={{ width: `${(s.n / maxStage) * 70}%` }}>
+                    <span className="hm-split" style={{ width: `${(s.n / maxStage) * 100}%` }}>
                       {s.segments.map((n, i) =>
-                        n ? <i key={i} className={cn("block h-full min-w-[3px]", SEGMENT_FILL[i])} style={{ flex: n }} title={`${n} waiting ${SEGMENT_KEYS[i].toLowerCase()}`} /> : null,
+                        n ? <i key={i} data-seg={i} className={SEGMENT_FILL[i]} style={{ flex: n }} title={`${n} waiting ${SEGMENTS[i].long.toLowerCase()}`} /> : null,
                       )}
                     </span>
                   ) : null}
-                  <em className="text-[13px] whitespace-nowrap text-muted-foreground not-italic">{s.typical ? `typical ${s.typical}` : "None"}</em>
                 </span>
-                <span className="text-[13px] text-muted-foreground tabular-nums">{s.longest ?? ""}</span>
+                <span className="text-faint tabular-nums">{s.typical ?? "None"}</span>
+                <span className="text-faint tabular-nums">{s.longest ?? ""}</span>
               </>
             );
-            const cls = "grid min-h-[40px] grid-cols-[minmax(0,1.4fr)_90px_minmax(0,1.6fr)_80px] items-center gap-3 px-2 text-[13.5px]";
             return s.n ? (
               <details key={s.key} className="group">
-                <summary className={cn(cls, "cursor-pointer list-none hover:bg-[color:var(--hover)] group-open:bg-[color:var(--hover)] [&::-webkit-details-marker]:hidden")}>{row}</summary>
-                <div className="mb-2 ml-4 grid border-l border-[color:var(--line)] pl-3">
+                <summary className="hm-st cursor-pointer list-none rounded-[8px] hover:bg-[color:var(--surface)] group-open:bg-[color:var(--surface)] [&::-webkit-details-marker]:hidden">{row}</summary>
+                <div className="mb-2 ml-[18px] grid border-l border-[color:var(--line)] pl-2">
                   {s.people.map((x) => (
-                    <Link key={x.id} href={x.href} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 py-1.5 text-[13px] hover:bg-[color:var(--hover)]">
-                      <b className="font-medium">{x.name}</b>
-                      <span className="truncate text-muted-foreground">{x.line}</span>
-                      <em className="text-muted-foreground tabular-nums not-italic">{x.wait}</em>
+                    <Link key={x.id} href={x.href} className="hm-row min-h-[36px] py-1.5">
+                      <span className="flex min-w-0 gap-3">
+                        <b className="shrink-0 font-medium">{x.name}</b>
+                        <span className="truncate text-faint">{x.line}</span>
+                      </span>
+                      <em>{x.wait}</em>
                     </Link>
                   ))}
-                  {s.more ? (
-                    <Link href={s.more.href} className={cn(textLink, "px-2 py-1.5")}>
-                      {s.more.label} →
-                    </Link>
-                  ) : null}
+                  {s.more ? more(s.more) : null}
                 </div>
               </details>
             ) : (
-              <div key={s.key} className={cn(cls, "text-faint")}>
+              <div key={s.key} className="hm-st text-faint">
                 {row}
               </div>
             );
@@ -656,106 +688,58 @@ function widgetNodes(p: HomeViewProps): Partial<Record<WidgetKey, React.ReactNod
       </Box>
     ),
     stays: (
-      <Box title="Average stay in each stage" aside={<span>applications added in the last {p.days} days</span>}>
+      <Card label="Average stay in each stage" def={`Applications added in the last ${p.days} days`}>
         {p.stays.every((s) => s.avgDays === null) ? (
           <Empty>No candidate added in this period has moved on yet.</Empty>
         ) : (
-          <div className="grid">
-            {p.stays.map((s) => (
-              <HBar
-                key={s.label}
-                name={s.label}
-                share={(s.avgDays ?? 0) / maxStay}
-                value={s.avgDays === null ? "—" : `${s.avgDays}d`}
-                aside={<span className="text-right text-[12px] whitespace-nowrap text-faint">{s.stays ? `${s.stays} moved on` : ""}</span>}
-              />
-            ))}
-          </div>
+          <Meters
+            rows={p.stays.map((s) => ({ key: s.label, name: s.label, share: (s.avgDays ?? 0) / maxStay, value: s.avgDays === null ? "None" : `${s.avgDays}d`, note: s.stays ? `${count(s.stays)} moved on` : undefined }))}
+          />
         )}
-      </Box>
+      </Card>
     ),
-    ...(p.feedback
+    ...(fb
       ? {
           byiv: (
-            <Box title="Time to feedback, by interviewer" aside={allJobs}>
-              {p.feedback.interviewers.length === 0 ? (
+            <Card label="Time to feedback, by interviewer" def={allJobs}>
+              {fb.interviewers.length === 0 ? (
                 <Empty>No interviews ended in this period.</Empty>
               ) : (
-                <div className="grid">
-                  {p.feedback.interviewers.map((x) => (
-                    <HBar
-                      key={x.id}
-                      lead={<Avatar name={x.name} />}
-                      name={x.name}
-                      share={(x.medianHours ?? 0) / maxFeedback}
-                      value={x.median ?? "—"}
-                      aside={<span className={cn("text-right text-[12px] whitespace-nowrap", x.out ? "text-negative" : "")}>{x.out ? `${x.out} out` : ""}</span>}
-                    />
-                  ))}
-                </div>
+                <Meters
+                  rows={fb.interviewers.map((x) => ({ key: x.id, name: x.name, share: (x.medianHours ?? 0) / maxFeedback, value: x.median ?? "None", note: x.out ? `${count(x.out)} outstanding` : undefined }))}
+                />
               )}
-            </Box>
+            </Card>
           ),
         }
       : {}),
-    eff: (
-      <Box title="Interview efficiency" aside={<span>closed in the last 12 months</span>}>
-        {p.efficiency ? (
-          <>
-            {p.efficiency.rounds.length ? (
-              <div className="grid">
-                {p.efficiency.rounds.map((r) => (
-                  <div key={r.label} title={r.title} className="grid gap-1.5 py-1.5">
-                    <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
-                      <span className="min-w-0">{r.label}</span>
-                      <b className="font-medium tabular-nums">{r.value}</b>
-                    </div>
-                    <span className="wg-meter">
-                      <i style={{ width: `${r.share * 100}%` }} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            <div className={cn("grid grid-cols-2 gap-4", p.efficiency.rounds.length ? "border-t border-[color:var(--line)] pt-3" : "")}>
-              <div className="grid gap-0.5" title={`${p.efficiency.closed} closed, ${p.efficiency.hires} hired`}>
-                <b className="text-[22px] font-medium tracking-[-0.01em] tabular-nums">{p.efficiency.perHire}</b>
-                <span className="text-[12.5px] text-muted-foreground">interviews per hire</span>
-              </div>
-              <div className="grid gap-0.5">
-                <b className="text-[22px] font-medium tracking-[-0.01em] tabular-nums">{p.efficiency.hoursPerHire}</b>
-                <span className="text-[12.5px] text-muted-foreground">interviewer time per hire</span>
-              </div>
-            </div>
-          </>
-        ) : (
-          <Empty>Not enough closed yet.</Empty>
-        )}
-      </Box>
+    eff: p.efficiency ? (
+      <Card
+        label="Interview efficiency"
+        def="Closed in the last 12 months"
+        value={p.efficiency.perHire}
+        unit="interviews per hire"
+        valueTitle={`${p.efficiency.hoursPerHire} interviewer time per hire; ${count(p.efficiency.closed)} closed, ${count(p.efficiency.hires)} hired`}
+      >
+        {p.efficiency.rounds.length ? <Meters rows={p.efficiency.rounds.map((r) => ({ key: r.label, name: r.label, share: r.share, value: r.value, note: r.title }))} /> : null}
+      </Card>
+    ) : (
+      <Card label="Interview efficiency" def="Closed in the last 12 months">
+        <Empty>Not enough closed yet.</Empty>
+      </Card>
     ),
     ...(p.outstanding
       ? {
           outfb: (
-            <Box title="Outstanding feedback" count={p.outstanding.total} aside={allJobs}>
+            <Box title="Outstanding feedback" count={p.outstanding.total} def={allJobs}>
               {p.outstanding.rows.length === 0 ? (
                 <Empty>All feedback is in.</Empty>
               ) : (
-                <div className="-mx-2 grid">
+                <div className="hm-rows">
                   {p.outstanding.rows.map((o) => (
-                    <Link key={o.id} href={o.href} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 px-2 py-2 text-[13.5px] hover:bg-[color:var(--hover)]">
-                      <Avatar name={o.interviewer} size="md" />
-                      <span className="grid min-w-0">
-                        <b className="truncate font-medium">{o.interviewer}</b>
-                        <span className="truncate text-[12.5px] text-muted-foreground">{o.line}</span>
-                      </span>
-                      <em className="whitespace-nowrap text-muted-foreground tabular-nums not-italic">{o.wait}</em>
-                    </Link>
+                    <PersonRow key={o.id} href={o.href} name={o.interviewer} line={o.line} wait={o.wait} />
                   ))}
-                  {p.outstanding.more ? (
-                    <Link href={p.outstanding.more.href} className={cn(textLink, "px-2 py-1.5")}>
-                      {p.outstanding.more.label} →
-                    </Link>
-                  ) : null}
+                  {p.outstanding.more ? more(p.outstanding.more) : null}
                 </div>
               )}
             </Box>
@@ -770,9 +754,13 @@ export function HomeView(p: HomeViewProps) {
     <HomeBoard
       title={p.title}
       icon={<Icon name="home" />}
-      filters={p.filters.map((f) => (
-        <FilterMenu key={f.label} {...f} />
-      ))}
+      filters={
+        <>
+          <Segments seg={p.filters.period} />
+          {p.filters.department ? <Segments seg={p.filters.department} /> : null}
+        </>
+      }
+      jobs={p.filters.job ? <Segments seg={p.filters.job} /> : null}
       tabs={<HomeTabs on={null} />}
       widgets={widgetNodes(p)}
       layout={p.layout ?? defaultWidgets()}

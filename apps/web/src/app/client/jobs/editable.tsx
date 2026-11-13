@@ -73,7 +73,11 @@ const read = (el: HTMLElement, multiline: boolean) => {
   return multiline ? text.replace(/\n$/, "") : text.replace(/\s*\n\s*/g, " ");
 };
 
-const placed = "cursor-text px-1.5 py-0.5 -mx-1.5 -my-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] outline-none transition-[background-color,box-shadow] hover:bg-[color:var(--hover)] focus:bg-card focus:shadow-[0_0_0_1.5px_var(--accent)] empty:before:text-faint empty:before:content-[attr(data-ph)]";
+// In Testbench's look the text stays where it sits, and only shows it is a
+// field when it matters: on hover a field's faint edge on the surface, while
+// typing a field's raised face with its ink ring (ui/input.tsx's focus).
+const placed =
+  "cursor-text rounded-[6px] px-1.5 py-0.5 -mx-1.5 -my-0.5 whitespace-pre-wrap [overflow-wrap:anywhere] outline-none transition-[background-color,box-shadow] duration-150 hover:bg-[color:var(--surface)] hover:shadow-[inset_0_0_0_1px_var(--line-strong)] focus:bg-card focus:shadow-[inset_0_0_0_1.5px_var(--ink),0_0_0_3px_color-mix(in_srgb,var(--ink)_12%,transparent)] focus-visible:outline-none empty:before:text-faint empty:before:content-[attr(data-ph)]";
 
 export function Editable({
   value,

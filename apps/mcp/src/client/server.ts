@@ -2916,7 +2916,7 @@ export function buildClientHandler(member: ClientMember, source: clientTools.Cli
         {
           title: "New applicants and referrals",
           description:
-            "People who applied through a job post or were referred and are still at the first stage, newest first " +
+            "People who applied through a job post, were referred, or were added by a member (add_candidate) and are still at the first stage, newest first " +
             "(job_id narrows to one job), each with candidate_id, application_id, their source, the post they " +
             "applied through and their answers, or who referred them. Moving them on with update_stage takes " +
             "them out of the inbox. " +
