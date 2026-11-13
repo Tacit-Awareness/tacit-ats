@@ -38,12 +38,10 @@ export default async function CareersPage({
   const channel = landingChannel(await searchParams, h.get("referer"), h.get("x-forwarded-host") ?? h.get("host"));
   return (
     <CareersFrame company={read.company} brand={brand} boardHref={withVia(`/careers/${org}`, channel)}>
-      <div className="wrap">
-        <section className="board">
-          <h1 className="h1">Careers at {read.company}</h1>
-          <Roles roles={read.roles} channel={channel} />
-        </section>
-      </div>
+      <section className="wrap board">
+        <h1 className="h1">Careers at {read.company}</h1>
+        <Roles roles={read.roles} channel={channel} />
+      </section>
     </CareersFrame>
   );
 }

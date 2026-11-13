@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Avatar } from "@/components/page";
+import { STAGE_GLYPH, StatusGlyph } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
+import { STAGE_LABELS } from "@/lib/client/stage-labels";
 import { CARD_FRESH_MS, parseHoverTarget, placeCard, raisesCard, restMs, type HoverCardData } from "@/lib/hover-card";
 
 // design/tats's hover cards (`.hcard`): rest a mouse or a pen on a name marked
@@ -12,6 +14,8 @@ import { CARD_FRESH_MS, parseHoverTarget, placeCard, raisesCard, restMs, type Ho
 // raises one, nor does anything while a dialog, a menu or a drag is up. The card
 // holds nothing that isn't on the page it links to, so the keys go there instead;
 // Esc closes it. Its words are React text: a candidate's name is never markup.
+// Drawn as a Testbench popover: white, 12px corners, the pop shadow, the name in
+// Mona Sans, the stage as its square glyph, never a picture.
 
 type Up = { key: string; anchor: Element; card: HoverCardData };
 
@@ -128,42 +132,49 @@ export function HoverCard() {
   );
 }
 
-/** `.hcard`: the avatar and who, the stage, the rows, the way on. A row with nothing to say isn't in `rows`. */
+/** The card says the stage in words (crm-views.ts's stageLabel); its glyph is the stage's. */
+const glyphOf = (label: string) => STAGE_GLYPH[Object.keys(STAGE_LABELS).find((k) => STAGE_LABELS[k] === label) ?? ""] ?? "empty";
+
+/** `.hcard`: who, the stage, the rows, the way on. A row with nothing to say isn't in `rows`. */
 export function CardBody({ card }: { card: HoverCardData }) {
   return (
-    <div className="grid gap-2.5 rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-3 text-[13px] shadow-[var(--pop-shadow)]">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <Avatar name={card.name} size="xl" candidate={card.kind === "candidate"} />
-        <div className="grid min-w-0 gap-0.5">
-          <b className="truncate text-[14px] font-semibold">{card.name}</b>
-          {card.line ? <span className="line-clamp-2 text-[12.5px] text-muted-foreground">{card.line}</span> : null}
-        </div>
+    <div className="grid gap-3 rounded-[12px] bg-[color:var(--paper)] p-4 text-[13px] shadow-[var(--pop-shadow)]">
+      <div className="grid min-w-0 gap-1">
+        <b className="truncate font-sans text-[15px] leading-5 font-semibold tracking-[-0.01em]">{card.name}</b>
+        {/* The line comes joined with "·" (lib/client/hover-card.ts); its facts sit apart here, without the dots. */}
+        {card.line ? (
+          <span className="flex flex-wrap gap-x-2.5 text-[12.5px] text-faint">
+            {card.line.split(" · ").map((fact, i) => (
+              <span key={i} className="line-clamp-2">
+                {fact}
+              </span>
+            ))}
+          </span>
+        ) : null}
       </div>
       {card.state ? (
-        <p className="m-0 flex min-w-0 items-center gap-1.5">
-          <i aria-hidden className="size-1.5 flex-none rounded-full bg-foreground/55" />
-          <span className="flex-none">{card.state.stage}</span>
-          <span className="truncate text-faint">· {card.state.note}</span>
+        <p className="m-0 flex min-w-0 items-center gap-2">
+          <StatusGlyph kind={glyphOf(card.state.stage)} />
+          <span className="flex-none font-medium">{card.state.stage}</span>
+          <span className="truncate text-faint">{card.state.note}</span>
         </p>
       ) : null}
       {card.rows.length ? (
-        <dl className="m-0 grid gap-1 border-t border-[color:var(--line)] pt-2">
+        <dl className="m-0 grid gap-1.5 border-t border-[color:var(--line)] pt-3">
           {card.rows.map((r) => (
             <div key={r.label} className="grid grid-cols-[76px_minmax(0,1fr)] gap-2">
-              <dt className="text-[12.5px] text-faint">{r.label}</dt>
-              <dd className="m-0 min-w-0 truncate">
-                {r.value}
-                {r.faint ? <span className="ml-1.5 text-faint">{r.faint}</span> : null}
+              <dt className="text-faint">{r.label}</dt>
+              {/* Wraps between words rather than cutting a value short ("Either way  1 of 4 this week"); a value stays whole. */}
+              <dd className="m-0 flex min-w-0 flex-wrap gap-x-1.5">
+                <span>{r.value}</span>
+                {r.faint ? <span className="text-faint">{r.faint}</span> : null}
               </dd>
             </div>
           ))}
         </dl>
       ) : null}
       {card.link ? (
-        <Link
-          href={card.link.href}
-          className="inline-flex h-7 items-center justify-self-start rounded-full border border-[color:var(--line)] bg-[color:var(--paper)] px-3 text-[12.5px] transition-colors hover:bg-[color:var(--hover)]"
-        >
+        <Link href={card.link.href} className={`${buttonVariants({ variant: "outline", size: "sm" })} justify-self-start`}>
           {card.link.label}
         </Link>
       ) : null}

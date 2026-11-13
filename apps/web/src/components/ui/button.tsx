@@ -4,20 +4,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border text-[13.5px] font-medium whitespace-nowrap transition-all duration-150 outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ease-[var(--spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+  // Testbench's `.btn`: 7px corners, Geist Mono 13px, a raised white face with an
+  // inset ring; the primary is ink (black), a ghost has no face. A press settles to .98.
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[7px] border-0 font-mono text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none ease-[var(--ease)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-[15px]",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-[color-mix(in_srgb,var(--accent)_88%,#000)]",
-        outline:
-          "border-[color:var(--line-strong)] bg-surface hover:bg-accent hover:text-accent-foreground",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-[color:var(--soft-strong)]",
-        ghost: "border-transparent hover:bg-accent hover:text-accent-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-[color:var(--primary-hover)]",
+        outline: "bg-[color:var(--paper)] text-foreground shadow-[var(--btn-ring)] hover:bg-[color:var(--hover)] [&_svg]:text-muted-foreground",
+        secondary: "bg-[color:var(--soft-strong)] text-foreground hover:bg-[color:var(--press)]",
+        ghost: "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
       },
       size: {
-        default: "h-8 px-[13px]",
-        sm: "h-[26px] px-2.5 text-[12.5px]",
-        lg: "h-10 px-4 text-sm",
+        default: "h-9 px-3.5",
+        sm: "h-[30px] rounded-[6px] px-2.5 text-[12.5px]",
+        lg: "h-11 px-4 text-[14px]",
       },
     },
     defaultVariants: {

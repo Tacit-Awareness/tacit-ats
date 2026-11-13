@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 import { Avatar } from "./page";
 
 describe("Avatar", () => {
-  test("an applicant has no picture, and the team keeps theirs", () => {
+  test("nobody gets a picture or initials: a name stands alone, as in Testbench", () => {
     expect(renderToStaticMarkup(<Avatar name="Nia Okafor" candidate />)).toBe("");
-    expect(renderToStaticMarkup(<Avatar name="Nia Okafor" />)).toContain("NO");
+    expect(renderToStaticMarkup(<Avatar name="Nia Okafor" />)).toBe("");
   });
 });

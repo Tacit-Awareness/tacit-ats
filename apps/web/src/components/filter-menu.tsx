@@ -4,11 +4,15 @@ import Link from "next/link";
 import * as React from "react";
 import { fitShift } from "@/lib/menu-fit";
 import { cn } from "@/lib/utils";
+import "./overlays.css";
 
 // design/tats's filter chip: the current value and a chevron, opening a menu
 // of links (the URL is the filter state). Client only to open and close it:
 // a click outside, Escape or picking an option closes it. It hangs from the
-// chip's right edge, and slides along for a chip near the window's left.
+// chip's right edge, and slides along for a chip near the window's left. The
+// chip is Testbench's `.filter` on a white face, as tall as the SearchBox
+// beside it (34px), and the list its `.menu` (overlays.css). A chip that is
+// filtering (`data-on`) takes a darker ring, the ink and a quiet fill.
 
 export type FilterOption = { href: string; label: string; active: boolean };
 
@@ -62,15 +66,15 @@ export function FilterMenu({
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
+        data-on={on || undefined}
         className={cn(
-          block
-            ? "flex h-9 w-full items-center justify-between gap-1.5 rounded-[8px] border border-[color:var(--line-strong)] bg-[color:var(--paper)] px-3 text-[13.5px] font-medium whitespace-nowrap text-foreground shadow-[var(--shadow)] transition-colors hover:bg-[color:var(--hover)]"
-            : "inline-flex h-8 max-w-[240px] items-center gap-1.5 rounded-full border px-2.5 text-[12.5px] whitespace-nowrap text-foreground transition-colors",
-          !block && (on ? "border-transparent bg-[color:var(--sel)]" : "border-[color:var(--line)] bg-[color:var(--paper)] hover:border-[color:var(--line-strong)]"),
+          "items-center gap-1.5 rounded-[7px] bg-[color:var(--paper)] font-mono text-[13px] whitespace-nowrap transition-colors hover:bg-[color:var(--hover)] hover:text-foreground aria-expanded:bg-[color:var(--hover)] aria-expanded:text-foreground",
+          block ? "flex h-9 w-full justify-between pr-2.5 pl-3" : "inline-flex h-[34px] max-w-[240px] pr-2.5 pl-3",
+          on && !block ? "bg-[color:var(--sel)] text-foreground shadow-[inset_0_0_0_1px_var(--faint)]" : "text-muted-foreground shadow-[inset_0_0_0_1px_var(--line-strong)]",
         )}
       >
         <span className="truncate">{value}</span>
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} className="size-[13px] shrink-0 text-muted-foreground" aria-hidden>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-[13px] shrink-0 text-faint" aria-hidden>
           <path d="M4 6l4 4 4-4" />
         </svg>
       </button>
@@ -80,7 +84,7 @@ export function FilterMenu({
           id={id}
           role="menu"
           aria-label={label}
-          className="absolute right-0 z-50 mt-1 grid max-h-[340px] max-w-[300px] min-w-[220px] gap-px overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+          className="ov-menu absolute right-0 z-50 mt-1.5 grid max-h-[340px] max-w-[320px] min-w-[240px] origin-top-right overflow-y-auto"
         >
           {options.map((o) => (
             <Link
@@ -89,11 +93,11 @@ export function FilterMenu({
               role="menuitemradio"
               aria-checked={o.active}
               onClick={() => setOpen(false)}
-              className={cn("flex h-8 items-center gap-2 px-2 text-[13px] hover:bg-[color:var(--soft-strong)]", o.active && "font-medium")}
+              className={cn("ov-item", o.active && "font-medium")}
             >
               <span className="min-w-0 flex-1 truncate">{o.label}</span>
               {o.active ? (
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} className="size-3.5 shrink-0" aria-hidden>
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="ml-auto size-3.5" aria-hidden>
                   <path d="M3.5 8.5l3 3 6-7" />
                 </svg>
               ) : null}

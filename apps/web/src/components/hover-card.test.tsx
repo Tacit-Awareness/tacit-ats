@@ -24,10 +24,11 @@ describe("a hover card's words", () => {
     expect(html).toContain("&lt;img src=x");
   });
 
-  test("a candidate draws no avatar, a member does; a card with no rows draws no list", () => {
+  test("nobody draws an avatar, as in Testbench; a card with no rows draws no list", () => {
     expect(renderToStaticMarkup(<CardBody card={card} />)).not.toContain("av-tone");
     const member = renderToStaticMarkup(<CardBody card={{ kind: "member", name: "Ivy", line: null, state: null, rows: [], link: null }} />);
-    expect(member).toContain("av-tone");
+    expect(member).not.toContain("av-tone");
+    expect(member).toContain("Ivy");
     expect(member).not.toContain("<dl");
     expect(member).not.toContain("<a ");
   });

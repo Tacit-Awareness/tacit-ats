@@ -1,208 +1,255 @@
 @import "tailwindcss";
 
-/* ---------- Tacit ATS design tokens ----------
-   Hy's tATS client dashboard (design/tats, the prototype this area is being
-   ported from): brand-tinted neutrals, one scale (--n0 to --n1000) from
-   near-white to near-black, every step carrying the brand's hue at a whisper of
-   chroma, so it reads as cool white and graphite, never blue. --brand-h retints
-   it, --tint sets how strong. Every frame, panel, line, shadow and text colour
-   comes off that scale; colour otherwise is one indigo accent for the primary
-   action, green for ok / done, red for what's broken. The steps do not flip with
-   the theme, the mappings do: a thing that must stay light in dark mode (the
-   application's white page) names a step directly. Values are the prototype's
-   resolved ones (its style.css redefines them in layers; the last :root wins).
+/* ---------- Tacit ATS, drawn in Tacit Testbench's system ----------
+   The ATS and Testbench are one product, so the ATS wears Testbench's staff and
+   applicant design (mockups/staff-portal and candidate-sky.css in
+   tacit-testbench): the day sky sits at the back, the work sits in one rounded
+   box on top of it, and inside the box everything is soft white cards on a cool
+   grey surface. Mona Sans names things (titles, the nav, headings); Geist Mono
+   is everything you act on or read as data, which is most of the page.
+
+   Colour is grey, with one blue accent for focus, links and what is live; ink
+   (near black) is the primary action, as Testbench's black buttons; green is
+   ok or done, red is broken or overdue, amber is waiting. A company's brand
+   accent (components/brand-style.tsx) takes the accent's place, so it reaches
+   focus, selection and the furthest tier, while buttons stay ink.
+
+   Rounding, from the outside in: the box 16px, a dialog 16px, a card 14px, a
+   menu 12px, a segmented track 11px, a nav row, option or row hover 8px, a
+   button or field 7px, a tag 6px. Nothing you press is a pill any more.
+
+   The token names below are the ones the pages already use (they came from
+   design/tats and tacit-internal before it); only their values changed, so the
+   pages moved with them. The --n scale is Testbench's cool grey, and the
+   semantic names map onto Testbench's --c-* set:
+   --frame / --surface / --pane / --band   the box's surface        #F9FAFC
+   --paper / --raised                      a card, a popover        #FFFFFF
+   --soft                                  a recessed fill          #F4F5F8
+   --soft-strong                           a track, a meter         #E7E9EE
+   --line / --line-strong / --hairline     line-soft, line, strong
+   --ink / --muted-text / --faint          ink, ink-2, ink-3
    Two themes: light below, dark in the blocks after it. With no choice made the
-   page follows the system; the account menu's switch stores one in the `tacit-theme`
-   cookie, which the root layout renders as <html data-theme>, so there is no
-   flash of the wrong theme and no before-paint script.
-
-   Anything you press is a pill (rounded-full), and a set of options is one
-   grey pill track with the picked one dark (`pillTrack` and `pillOption` in
-   components/page.tsx). Structure keeps its own rounding, as design/tats-ui-update
-   does since it dropped the prototype's square rule: a panel, section, card or
-   dialog 12px, a menu or popover 10px, a sidebar row, board card or field 8px.
-   Tailwind's named radii are its own again.
-
-   Until 2026-10-29 these were tacit-internal's apps/internal tokens (its
-   green-black Overseer skin); the names stayed, so the components did not
-   change. --green* is the prototype's --ok, --muted-text its --muted. The
-   older token names (--canvas, --hairline, --card-border, ...) are kept
-   because the copied primitives still name them. */
+   page follows the system; the account menu's switch stores one in the
+   `tacit-theme` cookie, which the root layout renders as <html data-theme>. */
 :root {
-  --brand-h: 271;
+  --brand-h: 262;
   --tint: 1;
-  /* backgrounds: 1%, 5%, 10%, and the two line steps between 10 and 20 */
-  --n0: oklch(0.995 calc(0.0015 * var(--tint)) var(--brand-h));
-  --n25: oklch(0.985 calc(0.0025 * var(--tint)) var(--brand-h)); /* 1% */
-  --n35: oklch(0.978 calc(0.0033 * var(--tint)) var(--brand-h)); /* 3%, the frame and sidebar */
-  --n50: oklch(0.97 calc(0.0041 * var(--tint)) var(--brand-h)); /* 5%, #f4f5f8 */
-  --n100: oklch(0.948 calc(0.0048 * var(--tint)) var(--brand-h)); /* 10% */
-  --n150: oklch(0.922 calc(0.0052 * var(--tint)) var(--brand-h));
-  --n200: oklch(0.89 calc(0.0055 * var(--tint)) var(--brand-h));
-  --n300: oklch(0.8 calc(0.0058 * var(--tint)) var(--brand-h));
-  --n400: oklch(0.68 calc(0.006 * var(--tint)) var(--brand-h));
-  --n500: oklch(0.6 calc(0.006 * var(--tint)) var(--brand-h));
-  --n600: oklch(0.53 calc(0.006 * var(--tint)) var(--brand-h));
-  /* text: 70%, 80%, 90% */
-  --n700: oklch(0.515 calc(0.006 * var(--tint)) var(--brand-h)); /* 70% */
-  --n800: oklch(0.39 calc(0.006 * var(--tint)) var(--brand-h)); /* 80% */
-  --n900: oklch(0.256 calc(0.0058 * var(--tint)) var(--brand-h)); /* 90%, #222326 */
-  /* dark surfaces, under and over the 90% step */
-  --n850: oklch(0.288 calc(0.0058 * var(--tint)) var(--brand-h));
-  --n950: oklch(0.226 calc(0.0055 * var(--tint)) var(--brand-h));
-  --n1000: oklch(0.198 calc(0.0052 * var(--tint)) var(--brand-h));
-  /* the ink and the paper as channels, for lines, hovers and shadows at any opacity */
-  --ink-a: 0.256 calc(0.0058 * var(--tint)) var(--brand-h);
-  --paper-a: 0.97 calc(0.0041 * var(--tint)) var(--brand-h);
+  /* Testbench's neutrals, light to dark */
+  --n0: #ffffff;
+  --n25: #f9fafc;
+  --n35: #f7f8fb;
+  --n50: #f4f5f8;
+  --n100: #e7e9ee;
+  --n150: #e0e3e8;
+  --n200: #d3d6dd;
+  --n300: #b4b7c0;
+  --n400: #8a8d96;
+  --n500: #7b7e87;
+  --n600: #6e717a;
+  --n700: #62656e;
+  --n800: #4a4d55;
+  --n850: #1e1f23;
+  --n900: #16171a;
+  --n950: #111215;
+  --n1000: #0c0d0f;
+  /* the ink and the paper as oklch channels, for lines, hovers and shadows at any opacity */
+  --ink-a: 0.205 0.006 275;
+  --paper-a: 0.97 0.004 275;
 
-  --spring: cubic-bezier(0.3, 1.25, 0.6, 1); /* a slight spring: dialogs, menus, the pick in a pill track */
+  /* Testbench's motion: things you start finish in 300ms or less */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --spring: cubic-bezier(0.23, 1, 0.32, 1);
 
-  --frame: var(--n35); /* the sidebar and everything behind the panel */
-  --surface: var(--n25); /* header strips and table heads, one step down from the panel */
-  --paper: var(--n0); /* the panel a page sits on, and cards */
-  --raised: var(--n0); /* popovers */
-  --pane: var(--n25); /* a reader pane, one shade under its list */
-  --band: var(--n25); /* group headers */
-  --ink: var(--n900);
-  --fg-rgb: 34, 35, 38; /* ink as a triplet, for alpha-stepped uses */
-  --muted-text: var(--n800);
-  --faint: var(--n700);
-  --line: var(--n100); /* hairlines inside a box */
-  --line-strong: var(--n150); /* structure: bars, splits, table heads; inputs, outlined buttons */
-  --soft: var(--n50); /* recessed fill: hovers, bands, avatar chips */
-  --soft-strong: var(--n100); /* the track of a pill group */
-  --pick: var(--n900); /* the picked option in a pill track */
-  --pick-ink: var(--n25);
-  --glass: rgba(118, 118, 128, 0.16); /* the pill that follows the pointer along a track */
-  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --hover: oklch(var(--ink-a) / 0.04);
-  --sel: var(--n100); /* a selected row */
-  --scrim: oklch(var(--ink-a) / 0.3);
-  --accent: #5e6ad2; /* indigo: the primary action, focus */
-  --accent-ink: #ffffff; /* text on the accent */
-  --accent-soft: #eeeffb;
-  --green: #2c8a4f; /* ok / done */
-  --green-bright: #2c8a4f;
-  --green-soft: #e7f5ec;
-  --red: #e5484d;
-  --red-soft: #fdecec;
-  --amber: #a8650a;
-  --amber-soft: #fcf1dc;
-  --blue: #2f6fe0;
-  --blue-soft: #eaf1fd;
-  --orange: #f2784b;
-  --dot-off: oklch(var(--ink-a) / 0.1);
-  --shadow: 0 1px 2px oklch(var(--ink-a) / 0.04), 0 4px 12px -6px oklch(var(--ink-a) / 0.07);
-  --pop-shadow: 0 2px 4px oklch(var(--ink-a) / 0.05), 0 12px 28px -10px oklch(var(--ink-a) / 0.16);
+  /* the day sky behind the box (candidate-sky.css) */
+  --sky-0: #8db5e4;
+  --sky-1: #789ce5;
+  --sky-2: #89a4e4;
+  --sky-3: #c7d0e3;
+  --sky-4: #f7f4e7;
+  --sky-5: #f9f6e9;
+  --sky-ink: #222326;
+  --sky-ink-2: #3c3e45;
+
+  --frame: #f9fafc; /* the box: the sidebar and the page behind the cards */
+  --surface: #f9fafc;
+  --paper: #ffffff; /* a card */
+  --raised: #ffffff; /* a popover or menu */
+  --pane: #f9fafc; /* a reader pane beside its list */
+  --band: #f4f5f8; /* a group header inside a list card */
+  --ink: #16171a;
+  --fg-rgb: 22, 23, 26;
+  --muted-text: #4a4d55;
+  --faint: #62656e;
+  --ink-4: #8a8d96; /* decoration only: never text */
+  --line: #e6e8ec; /* a hairline inside a card */
+  --line-strong: #d3d6dd; /* structure */
+  --field: #84868e; /* a field's 3:1 edge */
+  --soft: #f4f5f8;
+  --soft-strong: #e7e9ee;
+  --pick: #ffffff; /* the picked option on a segmented track is raised, as Testbench's */
+  --pick-ink: #16171a;
+  --pick-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.1);
+  --track: rgba(22, 23, 26, 0.05);
+  --glass: rgba(22, 23, 26, 0.045); /* the hover that follows the pointer along a track */
+  --glass-edge: none;
+  --hover: #eef0f4;
+  --press: #e4e6eb;
+  --sel: #eef0f4; /* a selected row */
+  --scrim: rgba(20, 24, 40, 0.32);
+  --primary: #222326; /* the primary action: Testbench's black button */
+  --primary-hover: #34353b;
+  --primary-ink: #ffffff;
+  --accent: #3f6fd8; /* blue: focus, links, what is live; a brand accent replaces it */
+  --accent-ink: #ffffff;
+  --accent-soft: #e8eefb;
+  --green: #1f7a45;
+  --green-bright: #1f7a45;
+  --green-soft: #e7f2eb;
+  --red: #b3261e;
+  --red-soft: #f6eceb;
+  --amber: #8a5a00;
+  --amber-soft: #f7f0e1;
+  --blue: #3f6fd8;
+  --blue-soft: #e8eefb;
+  --orange: #c2611f;
+  --dot-off: rgba(22, 23, 26, 0.1);
+  /* Testbench's shadows carry their own 1px ring, so a card needs no border */
+  --ring: 0 0 0 1px rgba(22, 23, 26, 0.07);
+  --shadow: 0 0 0 1px rgba(22, 23, 26, 0.06), 0 1px 2px rgba(22, 23, 26, 0.05), 0 12px 32px -12px rgba(22, 23, 26, 0.18);
+  --shadow-sm: 0 0 0 1px rgba(22, 23, 26, 0.07), 0 1px 2px rgba(22, 23, 26, 0.06);
+  --pop-shadow: 0 0 0 1px rgba(22, 23, 26, 0.08), 0 16px 40px -12px rgba(22, 23, 26, 0.28), 0 2px 6px rgba(22, 23, 26, 0.06);
+  --box-shadow: 0 0 0 1px rgba(22, 23, 26, 0.08), 0 24px 60px -24px rgba(22, 23, 26, 0.35);
+  --btn-ring: inset 0 0 0 1px rgba(22, 23, 26, 0.14);
   --active-inset: 0 0 0 0.5px var(--line);
-  /* one ordered scale for tiers: grey (just started) to indigo (furthest along) */
-  --tone-1: #d6d7da;
-  --tone-2: #a3a5ab;
-  --tone-3: #f0cc5c;
-  --tone-4: #f2994a;
-  --tone-5: #5e6ad2;
-  /* pipeline status dots, New to Your call, and the closed states */
-  --st-1: #a3a5ab;
-  --st-2: #a3a5ab;
-  --st-3: #e8b931;
-  --st-4: #f2994a;
-  --st-5: #5e6ad2;
-  --done: #5e6ad2;
-  --closed: #a3a5ab;
+  /* one ordered scale for tiers: grey (just started) to blue (furthest along) */
+  --tone-1: #d3d6dd;
+  --tone-2: #a3a6ae;
+  --tone-3: #e0b44a;
+  --tone-4: #eb8a4f;
+  --tone-5: #3f6fd8;
+  /* pipeline stages, New to Your call, and the closed states */
+  --st-1: #8a8d96;
+  --st-2: #8a8d96;
+  --st-3: #d9a51a;
+  --st-4: #eb6834;
+  --st-5: #3f6fd8;
+  --done: #3f6fd8;
+  --closed: #b4b7c0;
   /* calendar events: a fill and its text */
-  --ev-blue: #d3e6f8;
-  --ev-blue-ink: #1f4f7d;
-  --ev-mint: #c5ecdd;
+  --ev-blue: #dce7fb;
+  --ev-blue-ink: #2a4f9e;
+  --ev-mint: #d5f0e4;
   --ev-mint-ink: #1b5d47;
-  --ev-pink: #f9d2e4;
+  --ev-pink: #f8dce8;
   --ev-pink-ink: #8a2b5b;
-  --ev-peach: #fcdcbc;
+  --ev-peach: #fbe3cc;
   --ev-peach-ink: #7c4516;
-  --ev-lav: #e4dcfd;
+  --ev-lav: #e7e1fb;
   --ev-lav-ink: #5638b8;
-  --ev-gray: var(--n100);
-  --ev-gray-ink: var(--n800);
-  /* chart series, in a segment's order (Analytics); the prototype's c1-c3 first */
-  --series-1: #1baf7a;
-  --series-2: #2a78d6;
-  --series-3: #eb6834;
+  --ev-gray: #eceef2;
+  --ev-gray-ink: #4a4d55;
+  /* chart series, in a segment's order: the validated dataviz palette Testbench's charts use */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
   --series-4: #8b5cf6;
   --series-5: #d9a51a;
   --series-6: #d6457a;
-  /* the spacing scale; 24px is the page gutter */
+  /* the spacing scale */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-  --page-gutter: clamp(16px, 2.4vw, 40px); /* a page's side padding: 16px on a phone, 40px on a wide screen */
+  --page-gutter: clamp(16px, 2.4vw, 36px); /* a page's side padding inside the box */
+  --box-inset: clamp(12px, 2vw, 28px); /* the sky around the box */
   color-scheme: light;
 
   /* legacy names still referenced by components; mapped onto the palette */
   --canvas: var(--surface);
-  --hairline: var(--line-strong); /* strong line: input hover, palette frame */
+  --hairline: var(--n300); /* strong line: a field's hover */
   --pill-outline: var(--line);
   --divider: var(--line);
   --panel: var(--soft);
   --card-border: var(--line);
 }
 
+/* Testbench's night: the sky turns to dusk and the box to graphite. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --frame: var(--n1000);
-    --surface: var(--n950);
-    --paper: var(--n900);
-    --raised: var(--n850);
-    --pane: var(--n950);
-    --band: oklch(var(--paper-a) / 0.025);
-    --ink: var(--n50);
+    --sky-0: #0e1226;
+    --sky-1: #161b3a;
+    --sky-2: #242a5a;
+    --sky-3: #3b3d75;
+    --sky-4: #5a4c7a;
+    --sky-5: #6e5a7e;
+    --sky-ink: #f4f5f8;
+    --sky-ink-2: #c9cbd2;
+    --frame: #16171a;
+    --surface: #16171a;
+    --paper: #1e1f23;
+    --raised: #232428;
+    --pane: #16171a;
+    --band: #161719; /* recessed below --paper, so a group header reads as one */
+    --ink: #f4f5f8;
     --fg-rgb: 244, 245, 248;
-    --muted-text: var(--n300);
-    --faint: var(--n400);
-    --line: oklch(var(--paper-a) / 0.07);
-    --line-strong: oklch(var(--paper-a) / 0.12);
-    --soft: oklch(var(--paper-a) / 0.04);
-    --soft-strong: oklch(var(--paper-a) / 0.07);
-    --pick: var(--n50);
-    --pick-ink: var(--n900);
-    --glass: rgba(255, 255, 255, 0.1);
-    --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
-    --hover: oklch(var(--paper-a) / 0.04);
-    --sel: oklch(var(--paper-a) / 0.07);
-    --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
-    --accent: #7c85e6;
-    --accent-ink: #ffffff;
-    --accent-soft: rgba(124, 133, 230, 0.16);
-    --green: #6fcf97;
-    --green-bright: #6fcf97;
-    --green-soft: rgba(111, 207, 151, 0.12);
-    --red: #f07178;
-    --red-soft: rgba(240, 113, 120, 0.12);
-    --amber: #e8b45a;
-    --amber-soft: rgba(232, 180, 90, 0.12);
-    --blue: #7aa7f5;
-    --blue-soft: rgba(122, 167, 245, 0.12);
-    --orange: #f2895c;
-    --dot-off: rgba(0, 0, 0, 0.3);
-    --shadow: 0 1px 2px oklch(0.1 0.004 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.004 var(--brand-h) / 0.45);
-    --pop-shadow: 0 12px 32px -10px oklch(0.08 0.004 var(--brand-h) / 0.65);
-    --active-inset: 0 0 0 0.5px var(--line);
+    --muted-text: #c9cbd2;
+    --faint: #9ea1aa;
+    --ink-4: #7a7d86;
+    --line: #26282d;
+    --line-strong: #2e3036;
+    --field: #6b6e76;
+    --soft: #111215;
+    --soft-strong: #26272c;
+    --pick: #26272c;
+    --pick-ink: #f4f5f8;
+    --pick-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+    --track: rgba(255, 255, 255, 0.06);
+    --glass: rgba(255, 255, 255, 0.05);
+    --hover: #232428;
+    --press: #2a2b31;
+    --sel: #26272c;
+    --scrim: rgba(4, 5, 10, 0.55);
+    --primary: #f4f5f8;
+    --primary-hover: #dcdee3;
+    --primary-ink: #16171a;
+    --accent: #7ea2f0;
+    --accent-ink: #0e1226;
+    --accent-soft: #1c2438;
+    --green: #6fd3a0;
+    --green-bright: #6fd3a0;
+    --green-soft: #16271e;
+    --red: #f08a82;
+    --red-soft: #2c1b1a;
+    --amber: #e0b05c;
+    --amber-soft: #2a2316;
+    --blue: #7ea2f0;
+    --blue-soft: #1c2438;
+    --orange: #d95926;
+    --dot-off: rgba(255, 255, 255, 0.12);
+    --ring: 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+    --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --pop-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+    --box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+    --btn-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
     --tone-1: #3a3b40;
     --tone-2: #6c6f76;
     --tone-3: #d9b444;
     --tone-4: #e8914a;
-    --tone-5: #7c85e6;
-    --st-1: #7c7f86;
-    --st-2: #7c7f86;
-    --st-3: #e8c14a;
+    --tone-5: #7ea2f0;
+    --st-1: #7a7d86;
+    --st-2: #7a7d86;
+    --st-3: #e0b05c;
     --st-4: #f2a15a;
-    --st-5: #7c85e6;
-    --done: #7c85e6;
-    --closed: #6c6f76;
-    --ev-blue: rgba(96, 165, 250, 0.18);
-    --ev-blue-ink: #a4cbf6;
-    --ev-mint: rgba(52, 211, 153, 0.16);
+    --st-5: #7ea2f0;
+    --done: #7ea2f0;
+    --closed: #44464d;
+    --ev-blue: rgba(126, 162, 240, 0.18);
+    --ev-blue-ink: #a9c2f6;
+    --ev-mint: rgba(111, 211, 160, 0.16);
     --ev-mint-ink: #8fdcbb;
     --ev-pink: rgba(244, 114, 182, 0.17);
     --ev-pink-ink: #f3a9cb;
@@ -211,10 +258,10 @@
     --ev-lav: rgba(167, 139, 250, 0.18);
     --ev-lav-ink: #c6b6fa;
     --ev-gray: rgba(255, 255, 255, 0.07);
-    --ev-gray-ink: #a6a6ad;
-    --series-1: #3cc792;
-    --series-2: #4f93e8;
-    --series-3: #f0804f;
+    --ev-gray-ink: #a6a8b0;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
     --series-4: #a07cf8;
     --series-5: #e6b83a;
     --series-6: #e46a96;
@@ -222,59 +269,77 @@
   }
 }
 :root[data-theme="dark"] {
-  --frame: var(--n1000);
-  --surface: var(--n950);
-  --paper: var(--n900);
-  --raised: var(--n850);
-  --pane: var(--n950);
-  --band: oklch(var(--paper-a) / 0.025);
-  --ink: var(--n50);
+  --sky-0: #0e1226;
+  --sky-1: #161b3a;
+  --sky-2: #242a5a;
+  --sky-3: #3b3d75;
+  --sky-4: #5a4c7a;
+  --sky-5: #6e5a7e;
+  --sky-ink: #f4f5f8;
+  --sky-ink-2: #c9cbd2;
+  --frame: #16171a;
+  --surface: #16171a;
+  --paper: #1e1f23;
+  --raised: #232428;
+  --pane: #16171a;
+  --band: #161719;
+  --ink: #f4f5f8;
   --fg-rgb: 244, 245, 248;
-  --muted-text: var(--n300);
-  --faint: var(--n400);
-  --line: oklch(var(--paper-a) / 0.07);
-  --line-strong: oklch(var(--paper-a) / 0.12);
-  --soft: oklch(var(--paper-a) / 0.04);
-  --soft-strong: oklch(var(--paper-a) / 0.07);
-  --pick: var(--n50);
-  --pick-ink: var(--n900);
-  --glass: rgba(255, 255, 255, 0.1);
-  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
-  --hover: oklch(var(--paper-a) / 0.04);
-  --sel: oklch(var(--paper-a) / 0.07);
-  --scrim: oklch(0.1 calc(0.004 * var(--tint)) var(--brand-h) / 0.6);
-  --accent: #7c85e6;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(124, 133, 230, 0.16);
-  --green: #6fcf97;
-  --green-bright: #6fcf97;
-  --green-soft: rgba(111, 207, 151, 0.12);
-  --red: #f07178;
-  --red-soft: rgba(240, 113, 120, 0.12);
-  --amber: #e8b45a;
-  --amber-soft: rgba(232, 180, 90, 0.12);
-  --blue: #7aa7f5;
-  --blue-soft: rgba(122, 167, 245, 0.12);
-  --orange: #f2895c;
-  --dot-off: rgba(0, 0, 0, 0.3);
-  --shadow: 0 1px 2px oklch(0.1 0.004 var(--brand-h) / 0.35), 0 4px 12px -4px oklch(0.1 0.004 var(--brand-h) / 0.45);
-  --pop-shadow: 0 12px 32px -10px oklch(0.08 0.004 var(--brand-h) / 0.65);
-  --active-inset: 0 0 0 0.5px var(--line);
+  --muted-text: #c9cbd2;
+  --faint: #9ea1aa;
+  --ink-4: #7a7d86;
+  --line: #26282d;
+  --line-strong: #2e3036;
+  --field: #6b6e76;
+  --soft: #111215;
+  --soft-strong: #26272c;
+  --pick: #26272c;
+  --pick-ink: #f4f5f8;
+  --pick-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --track: rgba(255, 255, 255, 0.06);
+  --glass: rgba(255, 255, 255, 0.05);
+  --hover: #232428;
+  --press: #2a2b31;
+  --sel: #26272c;
+  --scrim: rgba(4, 5, 10, 0.55);
+  --primary: #f4f5f8;
+  --primary-hover: #dcdee3;
+  --primary-ink: #16171a;
+  --accent: #7ea2f0;
+  --accent-ink: #0e1226;
+  --accent-soft: #1c2438;
+  --green: #6fd3a0;
+  --green-bright: #6fd3a0;
+  --green-soft: #16271e;
+  --red: #f08a82;
+  --red-soft: #2c1b1a;
+  --amber: #e0b05c;
+  --amber-soft: #2a2316;
+  --blue: #7ea2f0;
+  --blue-soft: #1c2438;
+  --orange: #d95926;
+  --dot-off: rgba(255, 255, 255, 0.12);
+  --ring: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pop-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 16px 40px -12px rgba(0, 0, 0, 0.7);
+  --box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --btn-ring: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   --tone-1: #3a3b40;
   --tone-2: #6c6f76;
   --tone-3: #d9b444;
   --tone-4: #e8914a;
-  --tone-5: #7c85e6;
-  --st-1: #7c7f86;
-  --st-2: #7c7f86;
-  --st-3: #e8c14a;
+  --tone-5: #7ea2f0;
+  --st-1: #7a7d86;
+  --st-2: #7a7d86;
+  --st-3: #e0b05c;
   --st-4: #f2a15a;
-  --st-5: #7c85e6;
-  --done: #7c85e6;
-  --closed: #6c6f76;
-  --ev-blue: rgba(96, 165, 250, 0.18);
-  --ev-blue-ink: #a4cbf6;
-  --ev-mint: rgba(52, 211, 153, 0.16);
+  --st-5: #7ea2f0;
+  --done: #7ea2f0;
+  --closed: #44464d;
+  --ev-blue: rgba(126, 162, 240, 0.18);
+  --ev-blue-ink: #a9c2f6;
+  --ev-mint: rgba(111, 211, 160, 0.16);
   --ev-mint-ink: #8fdcbb;
   --ev-pink: rgba(244, 114, 182, 0.17);
   --ev-pink-ink: #f3a9cb;
@@ -283,10 +348,10 @@
   --ev-lav: rgba(167, 139, 250, 0.18);
   --ev-lav-ink: #c6b6fa;
   --ev-gray: rgba(255, 255, 255, 0.07);
-  --ev-gray-ink: #a6a6ad;
-  --series-1: #3cc792;
-  --series-2: #4f93e8;
-  --series-3: #f0804f;
+  --ev-gray-ink: #a6a8b0;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
   --series-4: #a07cf8;
   --series-5: #e6b83a;
   --series-6: #e46a96;
@@ -296,12 +361,14 @@
 @theme inline {
   --color-background: var(--surface);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
-  --font-pixel: var(--font-departure), "Geist Mono", ui-monospace, monospace;
+  /* the body is Geist Mono, as Testbench's; `font-sans` is Mona Sans for what names things */
+  --font-sans: var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-mona), "Mona Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* the big numbers were a pixel face; Testbench draws them in Geist Mono */
+  --font-pixel: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
 
-  --color-ring: color-mix(in srgb, var(--accent) 45%, transparent); /* indigo focus ring */
+  --color-ring: color-mix(in srgb, var(--accent) 45%, transparent);
   --color-input: var(--line-strong);
   --color-border: var(--line);
   --color-destructive: var(--red);
@@ -312,11 +379,9 @@
   --color-muted: var(--soft);
   --color-muted-foreground: var(--muted-text);
 
-  /* primary actions are the accent, design/tats's .btn.primary, so a company's
-     brand reaches them; a fill that isn't a button says ink itself. The
-     active-state tint is the soft band */
-  --color-primary: var(--accent);
-  --color-primary-foreground: var(--accent-ink);
+  /* the primary action is ink, Testbench's black button */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-ink);
   --color-primary-soft: var(--soft-strong);
 
   --color-secondary: var(--soft);
@@ -340,32 +405,73 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    font-family: var(--font-mono);
+    font-size: 16px;
+  }
   body {
     @apply bg-frame text-foreground;
+    font-size: 13px;
+    line-height: 20px;
     -webkit-font-smoothing: antialiased;
-    text-rendering: geometricPrecision;
+    -moz-osx-font-smoothing: grayscale;
+    /* the sky, under a whisper of grain, fixed so it never scrolls */
+    background-color: var(--sky-5);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E"),
+      linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 20%, var(--sky-2) 40%, var(--sky-3) 60%, var(--sky-4) 80%, var(--sky-5) 100%);
+    background-size: 220px 220px, 100% 100%;
+    background-attachment: fixed, fixed;
   }
-  html {
-    @apply font-sans;
+  /* Mona Sans names things */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
   }
   h1,
   h3 {
     font-weight: 600;
     letter-spacing: -0.02em;
   }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+    color: inherit;
+  }
   ::selection {
     background: var(--accent-soft);
     color: var(--ink);
   }
+  /* one keyboard ring, Testbench's: 2px of the accent, 2px out */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   /* the rounding a component does not set itself (see the header); a utility wins */
   dialog {
-    border-radius: 12px;
+    border-radius: 16px;
   }
   input:not([type="checkbox"], [type="radio"], [type="range"]),
   select,
-  textarea,
+  textarea {
+    border-radius: 7px;
+  }
   .toast {
-    border-radius: 8px;
+    border-radius: 10px;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--primary);
+  }
+  /* scroll bars stay out of the way, as in the box */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
   }
 }
 
@@ -403,6 +509,32 @@ body:has(.ui-root) {
   height: 100dvh;
 }
 
+/* The box: the whole signed-in app sits in one rounded box on the sky, as
+   Testbench's staff side and the applicant's screens do (shell-frame.tsx). */
+.tb-box {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--frame);
+  box-shadow: var(--box-shadow);
+}
+
+@media (min-width: 768px) {
+  .ui-root {
+    padding: var(--box-inset);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tb-box {
+    animation: ov-in 0.3s ease both;
+  }
+}
+
 .shell-page:has(> .list-reader),
 .shell-page:has(> .home-sub) {
   display: flex;
@@ -419,21 +551,23 @@ body:has(.ui-root) {
   padding: 0;
 }
 
-/* where you are: the current page is a solid ink block with paper text, the
-   same treatment as a selected pill. The tokens swap, so dark inverts it. */
+/* where you are: the current page is raised off the box, as the picked option
+   of Testbench's segmented nav. */
 .nav-on,
 .nav-on:hover {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--pick);
+  color: var(--ink);
+  box-shadow: var(--pick-shadow);
 }
 
 /* design/tats's sidebar mark: something arrived since you last opened the page. */
 .nav-new {
-  background: color-mix(in srgb, var(--red) 8%, transparent);
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+  color: var(--ink);
 }
 
 .nav-new:hover {
-  background: color-mix(in srgb, var(--red) 12%, transparent);
+  background: color-mix(in srgb, var(--red) 11%, transparent);
 }
 
 /* the sidebar's rhythm follows the window's height. Three tiers: tight between
@@ -441,7 +575,7 @@ body:has(.ui-root) {
    Each grows with the window between a floor and a ceiling, so the sidebar
    fills the height; below the floor it scrolls and nothing overlaps. */
 .sb {
-  --sb-item-h: clamp(28px, 3.5vh, 34px); /* each row */
+  --sb-item-h: clamp(30px, 3.6vh, 34px); /* each row */
   --sb-gap: clamp(0px, 0.3vh, 4px); /* between items */
   --sb-sec-h: clamp(24px, 3.3vh, 30px); /* a section label */
   --sb-sec-gap: clamp(2px, 0.8vh, 8px); /* label to its first item */
@@ -541,20 +675,21 @@ body:has(.ui-root) {
   background: var(--frame);
 }
 
-/* design/tats's account: the name alone, as a quiet pill */
+/* Testbench's account button: the name alone, never a picture, on a raised button */
 .sb-acct {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
-  height: 32px;
+  height: 34px;
   margin-left: 2px;
-  padding: 0 12px;
+  padding: 0 10px 0 12px;
   overflow: hidden;
-  border-radius: 999px;
-  font-size: 13.5px;
-  font-weight: 500;
+  border-radius: 7px;
+  background: var(--paper);
+  box-shadow: var(--btn-ring);
+  font: 500 13px/1 var(--font-mono);
 }
 
 .sb-acct:hover,
@@ -632,9 +767,9 @@ body:has(.ui-root) {
 
   .sb-rail .sb-acct {
     gap: 0;
-    max-width: 32px;
-    margin-left: 4px;
-    padding: 0 8px;
+    max-width: 34px;
+    margin-left: 3px;
+    padding: 0 9px;
   }
 
   .sb-rail .sb-acct-glyph {
@@ -791,13 +926,10 @@ body:has(.ui-root) {
   left: 0;
   z-index: 0;
   display: block;
-  border-radius: 999px;
+  border-radius: 8px;
   pointer-events: none;
   opacity: 0;
   background: var(--glass);
-  box-shadow: var(--glass-edge);
-  -webkit-backdrop-filter: blur(8px) saturate(1.8);
-  backdrop-filter: blur(8px) saturate(1.8);
   transition:
     transform 0.2s var(--spring),
     width 0.2s var(--spring),

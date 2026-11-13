@@ -10,10 +10,10 @@ import "./banner.css";
 
 // design/tats's Banner (`banner()` in its app.js, after Fluid Functionalism's):
 // a status message with an icon, a title, a line under it, up to three actions
-// and a ✕. Low contrast is the card's own fill with the icon in the status
-// colour, high a light wash of it. Inline sits in the page; fixed is a
-// full-bleed bar stuck to the top of its scroller. Compact is one line, the
-// actions on the right. The rules are lib/banner-rules.ts.
+// and a ✕, drawn as Testbench's small raised card (banner.css). Low contrast
+// is white with the icon in the status colour, high a light wash of it. Inline
+// sits in the page; fixed is a full-bleed bar stuck to the top of its scroller.
+// Compact is one line, the actions on the right. The rules are lib/banner-rules.ts.
 //
 // Dismissing folds the height to nothing, then remembers the `id` in this
 // browser (lib/browser-memory.ts: blocked storage keeps it until a reload).
