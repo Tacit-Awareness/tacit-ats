@@ -20,7 +20,7 @@ const { requireClient, setMemberAccess, setMemberTitle, inviteClientMember, with
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/client/session", () => ({ requireClient }));
-vi.mock("@/lib/client/workos", () => ({ clientInvitations: vi.fn() }));
+vi.mock("@/lib/client/invite-email", () => ({ supabaseInvitations: vi.fn() }));
 vi.mock("@tacit-ats/core", async (original) => {
   const real = await original<typeof import("@tacit-ats/core")>();
   return { ...real, inviteClientMember, withdrawClientInvite, clientTools: { ...real.clientTools, setMemberAccess, setMemberTitle } };
@@ -30,7 +30,7 @@ import { ClientInviteError, clientTools } from "@tacit-ats/core";
 import { inviteAction, saveTitleAction, setAccessAction, withdrawAction } from "./actions";
 import { TITLE_ERRORS } from "./messages";
 
-const MEMBER = { db: { fake: true }, actorId: "a1", accessLevel: "admin", org: { id: "o1", workosOrgId: "org_1" }, user: { workosUserId: "user_1" } };
+const MEMBER = { db: { fake: true }, actorId: "a1", accessLevel: "admin", org: { id: "o1" }, user: {} };
 const TARGET = "e6a00000-0000-4000-8000-0000000000a2";
 
 const form = (fields: Record<string, string | File>) => {
@@ -141,8 +141,8 @@ describe("inviteAction and withdrawAction", () => {
   });
 
   test("an invitation lands back on People, with the checklist refreshed, and the org is the token's", async () => {
-    await expect(inviteAction(form({ email: "a@b.co", displayName: "A", accessLevel: "admin", workosOrgId: "other" }))).rejects.toThrow("REDIRECT");
-    expect(inviteClientMember.mock.calls[0]?.[2]).toMatchObject({ workosOrgId: "org_1", inviterUserId: "user_1", accessLevel: "admin" });
+    await expect(inviteAction(form({ email: "a@b.co", displayName: "A", accessLevel: "admin" }))).rejects.toThrow("REDIRECT");
+    expect(inviteClientMember.mock.calls[0]?.[2]).toMatchObject({ orgId: "o1", accessLevel: "admin" });
     expect(revalidatePath).toHaveBeenCalledWith("/client/onboarding", "layout");
     expect(url()).toBe("/client/onboarding/people?notice=invited");
   });

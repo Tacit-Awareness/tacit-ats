@@ -6,9 +6,7 @@ import { ClientInviteError, clientTools, inviteClientMember, withdrawClientInvit
 import { changeMemberAccess, type ChangeAccessOutcome } from "@/lib/client/member-access";
 import { requireClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
-import { clientAuthProvider } from "@/lib/client/config";
 import { supabaseInvitations } from "@/lib/client/invite-email";
-import { clientInvitations } from "@/lib/client/workos";
 import type { TeamError, TeamNotice, TitleAnswer, TitleError } from "./messages";
 
 // The team's writes, from Onboarding's People step. All of them run on the
@@ -35,12 +33,6 @@ const refresh = () => {
   revalidatePath("/client/interviewers");
 };
 
-// Who sends the email: WorkOS until the cutover, then Supabase Auth. Core passes
-// the organization to it as is: WorkOS's for WorkOS, our own org id otherwise.
-const invitations = () => (clientAuthProvider() === "supabase" ? supabaseInvitations() : clientInvitations());
-const invitationOrg = (org: { id: string; workosOrgId: string | null }) =>
-  clientAuthProvider() === "supabase" ? org.id : (org.workosOrgId ?? org.id);
-
 function codeFor(err: unknown, what: string): TeamError {
   if (err instanceof ClientInviteError) return err.code;
   console.error(`[client-team] ${what} failed:`, err instanceof Error ? err.message : err);
@@ -48,16 +40,15 @@ function codeFor(err: unknown, what: string): TeamError {
 }
 
 export async function inviteAction(form: FormData): Promise<void> {
-  const { db, org, user } = await requireClient();
+  const { db, org } = await requireClient();
   const level = str(form, "accessLevel");
   let notice: TeamNotice;
   try {
-    const invited = await inviteClientMember(db, invitations(), {
+    const invited = await inviteClientMember(db, supabaseInvitations(), {
       email: str(form, "email"),
       displayName: str(form, "displayName"),
       accessLevel: level === "admin" || level === "elevated" ? level : "limited",
-      workosOrgId: invitationOrg(org),
-      inviterUserId: user.workosUserId ?? undefined,
+      orgId: org.id,
     });
     notice = invited.resent ? "resent" : "invited";
   } catch (err) {
@@ -73,7 +64,7 @@ export async function withdrawAction(form: FormData): Promise<void> {
   if (!UUID.test(actorId)) return back({ error: "not_found" });
   let withdrawn: boolean;
   try {
-    ({ withdrawn } = await withdrawClientInvite(db, invitations(), { actorId, workosOrgId: invitationOrg(org) }));
+    ({ withdrawn } = await withdrawClientInvite(db, supabaseInvitations(), { actorId, orgId: org.id }));
   } catch (err) {
     return back({ error: codeFor(err, "withdrawing an invitation") });
   }

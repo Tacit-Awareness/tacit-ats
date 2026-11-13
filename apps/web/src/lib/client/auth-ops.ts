@@ -1,8 +1,8 @@
 import { createUserClient } from "@tacit/db";
-import { CLIENT_PREFIX, CLIENT_SIGN_IN_PATH, clientAuthProvider, safeClientNext } from "@/lib/client/config";
+import { CLIENT_PREFIX, CLIENT_SIGN_IN_PATH, safeClientNext } from "@/lib/client/config";
 import { signedInClaims, supabaseAuthClient } from "@/lib/client/supabase-auth";
 
-// What Supabase Auth's sign-in screens do (CLIENT_AUTH_PROVIDER=supabase),
+// What Supabase Auth's sign-in screens do,
 // served by app/(client-auth)/client/auth/[op]/route.ts. Each acts only on the
 // caller's own session, with the publishable key: signing in, asking for a
 // reset email, choosing a password or a company. None can name anyone else.
@@ -12,8 +12,6 @@ import { signedInClaims, supabaseAuthClient } from "@/lib/client/supabase-auth";
 // Each answers `{ error }` (a sentence the screen shows) or `{ to }`.
 
 export type AuthAnswer = { error: string } | { to: string };
-
-const UNAVAILABLE: AuthAnswer = { error: "Sign-in isn't available here." };
 
 function words(message: string | undefined): string {
   if (!message) return "Something went wrong. Try again.";
@@ -29,7 +27,6 @@ function words(message: string | undefined): string {
 const str = (v: unknown, max: number): string | null => (typeof v === "string" && v.length > 0 && v.length <= max ? v : null);
 
 export async function signInAction(input: { email: unknown; password: unknown; next?: unknown }): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   const email = str(input.email, 320)?.trim().toLowerCase();
   const password = str(input.password, 512);
   if (!email || !password) return { error: "Email or password is incorrect" };
@@ -40,7 +37,6 @@ export async function signInAction(input: { email: unknown; password: unknown; n
 }
 
 export async function requestResetAction(input: { email: unknown }): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   const email = str(input.email, 320)?.trim().toLowerCase();
   if (!email) return { error: "Enter your work email." };
   const auth = await supabaseAuthClient();
@@ -52,7 +48,6 @@ export async function requestResetAction(input: { email: unknown }): Promise<Aut
 }
 
 export async function setPasswordAction(input: { password: unknown }): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   const password = str(input.password, 512);
   if (!password || password.length < 8) return { error: "Use at least 8 characters." };
   const auth = await supabaseAuthClient();
@@ -63,7 +58,6 @@ export async function setPasswordAction(input: { password: unknown }): Promise<A
 }
 
 export async function pickCompanyAction(input: { orgId: unknown }): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   const orgId = str(input.orgId, 64);
   if (!orgId) return { error: "Choose a company." };
   const auth = await supabaseAuthClient();
@@ -81,7 +75,6 @@ export async function pickCompanyAction(input: { orgId: unknown }): Promise<Auth
 }
 
 export async function signOutAction(): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   const auth = await supabaseAuthClient();
   await auth.auth.signOut();
   return { to: CLIENT_SIGN_IN_PATH };
@@ -134,7 +127,7 @@ async function oauthApi(path: string, token: string, init: { method: "GET" | "PO
 const urlOrNull = (v: unknown): string | null => (typeof v === "string" && URL.canParse(v) ? v : null);
 
 export async function readConsent(authorizationId: string): Promise<ConsentRead> {
-  if (clientAuthProvider() !== "supabase" || !isConsentId(authorizationId)) return { kind: "gone" };
+  if (!isConsentId(authorizationId)) return { kind: "gone" };
   const me = await memberSession();
   if (!me) return { kind: "gone" };
   const details = await oauthApi(encodeURIComponent(authorizationId), me.token, { method: "GET" });
@@ -161,7 +154,6 @@ const GONE = "This connection request has expired or was already answered. Start
  * only the company is recorded, before the app redeems its code.
  */
 export async function consentAction(input: { authorizationId: unknown; orgId: unknown; approve: unknown; approved: unknown }): Promise<AuthAnswer> {
-  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
   if (!isConsentId(input.authorizationId)) return { error: GONE };
   const me = await memberSession();
   if (!me) return { to: CLIENT_SIGN_IN_PATH };

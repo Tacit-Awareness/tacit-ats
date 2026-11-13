@@ -24,7 +24,7 @@ export class ClientInviteError extends Error {
   }
 }
 
-/** What WorkOS needs beyond core's IdentityProvider to take an invitation back. */
+/** What an identity provider needs beyond core's IdentityProvider to take an invitation back. */
 export type InvitationRevoker = {
   revokeInvitations(input: { email: string; organizationId: string }): Promise<void>;
 };
@@ -59,10 +59,8 @@ export async function inviteClientMember(
     email: string;
     displayName: string;
     accessLevel: AccessLevel;
-    /** The WorkOS organization on the inviter's own token. */
-    workosOrgId: string;
-    /** The inviter's WorkOS user, named in the invitation email. */
-    inviterUserId?: string;
+    /** The inviter's own org (orgs.id), as their token names it; the identity provider sends into it. */
+    orgId: string;
   },
 ): Promise<ClientInviteResult> {
   const email = input.email.trim().toLowerCase();
@@ -76,7 +74,7 @@ export async function inviteClientMember(
   if (!row) throw new Error("invite_org_member returned nothing");
 
   try {
-    await idp.sendInvitation({ email, organizationId: input.workosOrgId, inviterUserId: input.inviterUserId });
+    await idp.sendInvitation({ email, organizationId: input.orgId });
   } catch (err) {
     // A re-send leaves the existing invitation as it was; a first one is undone.
     if (!row.resent) {
@@ -113,7 +111,7 @@ export async function listPendingInvites(db: Db): Promise<PendingInvite[]> {
 export async function withdrawClientInvite(
   db: Db,
   idp: InvitationRevoker,
-  input: { actorId: string; workosOrgId: string },
+  input: { actorId: string; orgId: string },
 ): Promise<{ withdrawn: boolean }> {
   const pending = (await listPendingInvites(db)).find((p) => p.actorId === input.actorId);
   const { data, error } = await db.rpc("withdraw_org_invite", { p_actor: input.actorId });
@@ -121,7 +119,7 @@ export async function withdrawClientInvite(
   if (!data) return { withdrawn: false };
   if (pending) {
     try {
-      await idp.revokeInvitations({ email: pending.email, organizationId: input.workosOrgId });
+      await idp.revokeInvitations({ email: pending.email, organizationId: input.orgId });
     } catch (err) {
       console.error("[client-invite] the WorkOS invitation was not revoked:", err instanceof Error ? err.message : err);
     }

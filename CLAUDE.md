@@ -26,7 +26,7 @@ Nothing staff-only lives in this repo: no staff session, no console.
 
 ```
 apps/
-  web/        Next.js -- the /client area members sign in to (WorkOS AuthKit)
+  web/        Next.js -- the /client area members sign in to (Supabase Auth)
   mcp/        Next.js -- /api/client, the MCP connector members add to Claude (OAuth)
   cli/        tats -- the same connector from the terminal, for coding agents and scripts
 packages/
@@ -67,7 +67,7 @@ Run from the repo root:
 
 ## Deploy
 
-Two Vercel projects, one per app (`apps/web`, `apps/mcp`), each with its own `vercel.json` build command. Env vars are in `.env.example`; the WorkOS redirect URI and the connector's resource URL must name these apps' own domains.
+Two Vercel projects, one per app (`apps/web`, `apps/mcp`), each with its own `vercel.json` build command. Env vars are in `.env.example`; the Supabase Site URL, the OAuth consent path and the connector's resource URL must name these apps' own domains. Sign-in moved from WorkOS to Supabase Auth on `tacit-ats` on 2026-11-13 (`scripts/client-track/supabase-cutover.mjs` relinked the members).
 
 ## Conventions
 

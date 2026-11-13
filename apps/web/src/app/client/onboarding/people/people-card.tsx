@@ -63,7 +63,7 @@ function AddRow() {
         </SubmitButton>
       </div>
       <p className="m-0 text-xs text-faint">
-        An interviewer sees only the people they interview, the hiring team the jobs they are added to, and an admin every job (not confidential ones) and the team. They get an email from WorkOS and sign in with this address.
+        An interviewer sees only the people they interview, the hiring team the jobs they are added to, and an admin every job (not confidential ones) and the team. They get an email to choose a password and sign in with this address.
       </p>
     </form>
   );

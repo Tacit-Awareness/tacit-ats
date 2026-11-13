@@ -1,6 +1,5 @@
 import { Section } from "@/components/page";
 import { Button } from "@/components/ui/button";
-import { clientAuthProvider } from "@/lib/client/config";
 import type { ClientGate } from "@/lib/client/session";
 
 // What a client-area page shows when resolveClient() turns the user away.
@@ -17,17 +16,9 @@ const REFUSALS: Record<RefusalReason, { title: string; body: string }> = {
     title: "Verify your email first",
     body: "Your email address hasn't been verified. Check your inbox for a verification link, then sign in again.",
   },
-  no_org: {
-    title: "No company on this sign-in",
-    body: "You signed in without a company. Sign out, then open the invitation link your admin sent you.",
-  },
-  unknown_org: {
-    title: "This company isn't set up yet",
-    body: "Your company doesn't have a Tacit workspace yet. Contact your Tacit partner.",
-  },
   subject_mismatch: {
     title: "This email is linked to another sign-in",
-    body: "Sign in the same way you did the first time, or ask your admin to re-send your invitation.",
+    body: "Ask your admin to re-send your invitation, or contact your Tacit partner.",
   },
   token_rejected: {
     title: "We couldn't open your workspace",
@@ -45,9 +36,9 @@ export function Refusal({ reason }: { reason: RefusalReason }) {
       <Section>
         <h1 className="m-0 text-xl font-semibold tracking-[-0.02em]">{refusal.title}</h1>
         <p className="m-0 text-[13.5px] leading-relaxed text-muted-foreground">{refusal.body}</p>
-        {/* A refused sign-in gets no sidebar, so this is its only way out of the session. With
-            Supabase, "signed out" can be a stale cookie (an account deleted since), which this clears. */}
-        {reason === "signed_out" && clientAuthProvider() !== "supabase" ? null : (
+        {/* A refused sign-in gets no sidebar, so this is its only way out of the session. "Signed out"
+            can be a stale cookie (an account deleted since), which this clears too. */}
+        {(
           <form action="/client/signout" method="post">
             <Button type="submit" variant="outline" size="sm">
               Sign out

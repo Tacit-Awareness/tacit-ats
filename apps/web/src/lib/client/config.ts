@@ -7,7 +7,6 @@
 // (src/client-area.test.ts walks the imports).
 
 export const CLIENT_PREFIX = "/client";
-export const CLIENT_CALLBACK_PATH = "/client/callback";
 
 export function isClientPath(pathname: string): boolean {
   return pathname === CLIENT_PREFIX || pathname.startsWith(`${CLIENT_PREFIX}/`);
@@ -16,32 +15,13 @@ export function isClientPath(pathname: string): boolean {
 type Env = Record<string, string | undefined>;
 
 /**
- * Who signs members in: WorkOS AuthKit (the default, until the cutover) or
- * Supabase Auth on this project (`CLIENT_AUTH_PROVIDER=supabase`). One switch
- * for the whole client area; the plan is
- * https://claude.ai/artifact/DTK4YUVXtJhbCJRq52EEmb.
- */
-export type ClientAuthProvider = "workos" | "supabase";
-
-export function clientAuthProvider(env: Env = process.env): ClientAuthProvider {
-  return env.CLIENT_AUTH_PROVIDER?.trim().toLowerCase() === "supabase" ? "supabase" : "workos";
-}
-
-/**
- * Client sign-in is off until every piece it needs is configured: the two a
- * per-user database client is built from, and, for WorkOS, its three values.
- * Off means the whole client area answers 404, which is how this ships dormant.
+ * Client sign-in is off until the two values a per-user database client is
+ * built from are set: then members sign in through Supabase Auth on this
+ * project. Off means the whole client area answers 404, which is how this
+ * ships dormant.
  */
 export function clientSignInConfigured(env: Env = process.env): boolean {
-  const database = Boolean(env.SUPABASE_URL?.trim() && env.SUPABASE_PUBLISHABLE_KEY?.trim());
-  if (clientAuthProvider(env) === "supabase") return database;
-  return Boolean(
-    env.WORKOS_CLIENT_ID?.trim() &&
-      env.WORKOS_API_KEY?.trim() &&
-      // AuthKit seals the session cookie with it and refuses anything shorter.
-      (env.WORKOS_COOKIE_PASSWORD?.length ?? 0) >= 32 &&
-      database,
-  );
+  return Boolean(env.SUPABASE_URL?.trim() && env.SUPABASE_PUBLISHABLE_KEY?.trim());
 }
 
 // Supabase Auth's own pages, outside the client layout (app/(client-auth)).
@@ -82,7 +62,3 @@ export function safeClientNext(next: string | null | undefined): string {
   return isClientPath(next.split(/[?#]/)[0]) ? next : CLIENT_PREFIX;
 }
 
-/** Where WorkOS sends the browser back. Registered in the WorkOS dashboard. */
-export function clientRedirectUri(origin: string, env: Env = process.env): string {
-  return env.NEXT_PUBLIC_WORKOS_REDIRECT_URI?.trim() || `${origin}${CLIENT_CALLBACK_PATH}`;
-}

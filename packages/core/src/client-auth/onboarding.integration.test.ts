@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createClientOrg, inviteOrgMember, type IdentityProvider } from "@tacit/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
-import { bindClientActor } from "./bind.js";
+import { bindSupabaseUser } from "./bind.js";
 
 // Staff onboarding (tacit-internal's ATS Admin, /admin/orgs, @tacit/core's createClientOrg and
 // inviteOrgMember) handing over to this repo's first sign-in. The onboarding
@@ -52,12 +52,12 @@ describe("client org onboarding, then the first sign-in, against real Postgres",
       .from("actors").select("org_id, email, access_level, auth_subject").eq("id", invited.actorId).single();
     expect(actor).toEqual({ org_id: org.id, email: "ada@acme.test", access_level: "admin", auth_subject: null });
 
-    // The round trip /client makes on a first sign-in.
+    // The round trip /client makes on a first sign-in (Supabase Auth: by the verified email).
     expect(
-      await bindClientActor(db(), {
-        workosUserId: "user_ada", workosOrgId: org.workosOrgId, email: "ada@acme.test", emailVerified: true,
-      }),
-    ).toEqual({ status: "ok", actorId: invited.actorId, orgId: org.id, firstSignIn: true });
+      await bindSupabaseUser(db(), { userId: "5a000000-0000-4000-8000-0000000000ad", email: "ada@acme.test", emailVerified: true }),
+    ).toEqual({ status: "ok", companies: 1, firstSignIn: true });
+    const { data: bound } = await db().from("actors").select("auth_subject").eq("id", invited.actorId).single();
+    expect(bound?.auth_subject).toBe("5a000000-0000-4000-8000-0000000000ad");
 
     // Once signed in, a second invitation is refused rather than re-sent.
     await expect(
@@ -74,9 +74,10 @@ describe("client org onboarding, then the first sign-in, against real Postgres",
     const g = await inviteOrgMember(db(), idp, { orgId: globex.id, email: "both@example.test", displayName: "Both", accessLevel: "limited" });
     expect(a.actorId).not.toBe(g.actorId);
 
-    // The same WorkOS user binds in each, by the organization on the token.
-    const who = { workosUserId: "user_both", email: "both@example.test", emailVerified: true };
-    expect(await bindClientActor(db(), { ...who, workosOrgId: acme.workosOrgId })).toMatchObject({ actorId: a.actorId });
-    expect(await bindClientActor(db(), { ...who, workosOrgId: globex.workosOrgId })).toMatchObject({ actorId: g.actorId });
+    // One Supabase user binds in both at once, by the verified email; the company is picked at sign-in.
+    const userId = "5a000000-0000-4000-8000-0000000000b0";
+    expect(await bindSupabaseUser(db(), { userId, email: "both@example.test", emailVerified: true })).toEqual({ status: "ok", companies: 2, firstSignIn: true });
+    const { data: rows } = await db().from("actors").select("id, auth_subject").in("id", [a.actorId, g.actorId]);
+    expect(rows?.every((r) => r.auth_subject === userId)).toBe(true);
   });
 });

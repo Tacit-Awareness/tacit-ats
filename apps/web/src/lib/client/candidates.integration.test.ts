@@ -50,7 +50,7 @@ const member = (subject: string, workosOrgId = ACME_WORKOS) => {
   const signer = { alg: "HS256" as const, secret: process.env.SUPABASE_JWT_SECRET! };
   return createUserClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, () => mintClientMemberToken(signer, { subject, workosOrgId }));
 };
-const ctxOf = (actorId: string, accessLevel: "admin" | "elevated" | "limited") => toolCtx({ actorId, accessLevel, org: { id: ACME, name: "Acme", slug: "acme", workosOrgId: ACME_WORKOS, brandAccent: null, brandLogoUrl: null } });
+const ctxOf = (actorId: string, accessLevel: "admin" | "elevated" | "limited") => toolCtx({ actorId, accessLevel, org: { id: ACME, name: "Acme", slug: "acme", brandAccent: null, brandLogoUrl: null } });
 
 const NOW = Date.now();
 const H = 3_600_000;

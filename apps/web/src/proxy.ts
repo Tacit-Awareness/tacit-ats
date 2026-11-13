@@ -1,19 +1,10 @@
-// The auth gate. Members of a client org sign in through WorkOS AuthKit or,
-// with CLIENT_AUTH_PROVIDER=supabase, Supabase Auth on this project; and
-// everything they can reach lives under /client (lib/client/config.ts). There
+// The auth gate. Members of a client org sign in through Supabase Auth on this
+// project, and everything they can reach lives under /client (lib/client/config.ts). There
 // is no other session in this app: Tacit's own team works in tacit-internal's
 // apps/internal, on another domain, and its session means nothing here.
-import { applyResponseHeaders, authkit, handleAuthkitHeaders, partitionAuthkitHeaders } from "@workos-inc/authkit-nextjs";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import {
-  CLIENT_CALLBACK_PATH,
-  CLIENT_SIGN_IN_PATH,
-  clientAuthProvider,
-  clientRedirectUri,
-  clientSignInConfigured,
-  isPublicClientPath,
-} from "@/lib/client/config";
+import { CLIENT_SIGN_IN_PATH, clientSignInConfigured, isPublicClientPath } from "@/lib/client/config";
 
 export const config = {
   matcher: ["/client", "/client/:path*"],
@@ -26,22 +17,7 @@ export const config = {
  */
 export async function proxy(request: NextRequest) {
   if (!clientSignInConfigured()) return new NextResponse(null, { status: 404 });
-  return clientAuthProvider() === "supabase" ? supabaseGate(request) : workosGate(request);
-}
-
-async function workosGate(request: NextRequest) {
-  const { session, headers, authorizationUrl } = await authkit(request, {
-    redirectUri: clientRedirectUri(request.nextUrl.origin),
-  });
-  if (!session.user && request.nextUrl.pathname !== CLIENT_CALLBACK_PATH) {
-    if (!authorizationUrl) return new NextResponse(null, { status: 404 });
-    return handleAuthkitHeaders(request, headers, { redirect: authorizationUrl });
-  }
-
-  // AuthKit's own request headers go to the page (withAuth reads them) and
-  // never to the browser.
-  const { requestHeaders, responseHeaders } = partitionAuthkitHeaders(request, headers);
-  return applyResponseHeaders(NextResponse.next({ request: { headers: requestHeaders } }), responseHeaders);
+  return supabaseGate(request);
 }
 
 /**

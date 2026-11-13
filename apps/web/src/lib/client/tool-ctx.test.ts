@@ -7,8 +7,8 @@ describe("toolCtx", () => {
       db: {},
       actorId: "actor-1",
       accessLevel: "elevated" as const,
-      org: { id: "org-1", name: "Acme", slug: "acme", workosOrgId: "org_x", brandAccent: null, brandLogoUrl: null },
-      user: { email: "a@acme.test", name: "Ada", workosUserId: "user_x" },
+      org: { id: "org-1", name: "Acme", slug: "acme", brandAccent: null, brandLogoUrl: null },
+      user: { email: "a@acme.test", name: "Ada" },
     };
     expect(toolCtx(member)).toEqual({ actorId: "actor-1", orgId: "org-1", accessLevel: "elevated", source: "dashboard" });
   });

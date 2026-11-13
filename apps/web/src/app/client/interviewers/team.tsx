@@ -137,7 +137,7 @@ export function TeamSections({
               <SubmitButton pendingLabel="Sending…" className="justify-self-start">
                 Send invitation
               </SubmitButton>
-              <p className="m-0 text-xs text-faint">They get an email from WorkOS and sign in with this address.</p>
+              <p className="m-0 text-xs text-faint">They get an email to choose a password and sign in with this address.</p>
             </form>
           </Section>
         </>

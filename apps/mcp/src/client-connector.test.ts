@@ -82,7 +82,7 @@ describe("the client connector never holds a database client other than the memb
 
   test("the seven allowed modules export only their functions, and no client", () => {
     for (const [file, names] of [
-      ["client/bind.ts", ["bindMember", "bindSupabaseMember"]],
+      ["client/bind.ts", ["bindSupabaseMember"]],
       ["client/audit.ts", ["auditClientCall", "clientBreadthExceeded"]],
       ["client/files.ts", ["signFileUrl", "putFile", "removeFiles"]],
       ["client/calendar.ts", ["calendarConnections"]],

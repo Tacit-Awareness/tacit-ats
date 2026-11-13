@@ -232,7 +232,7 @@
  {
   "name": "invite_member",
   "title": "Invite someone to your company's workspace",
-  "description": "Invites a colleague by email: they get an email from WorkOS to join. Access is interviewer (their own interviews and a short card on each candidate), hiring team (the jobs they are on, through the hiring team) or admin (every job, the team and invitations). Inviting an address already invited sends ",
+  "description": "Invites a colleague by email: they get an email to choose a password and join. Access is interviewer (their own interviews and a short card on each candidate), hiring team (the jobs they are on, through the hiring team) or admin (every job, the team and invitations). Inviting an address already invited sends ",
   "inputSchema": {
    "type": "object",
    "$schema": "https://json-schema.org/draft/2020-12/schema",
