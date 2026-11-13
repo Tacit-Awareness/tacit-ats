@@ -5,6 +5,39 @@
 // back with the interviewer's read. You only see it again when it's your call.
 // Plain DOM: render() redraws from `state`; clicks route through data-act.
 
+/* ---------------- UI scale: the whole interface grows with the window ----------------
+   The layout is drawn for a ~1440 x 840 window. Larger windows zoom the body by the smaller of the two ratios
+   (capped at 1.6), so type, spacing and panels grow together. Under zoom the browser reports rects, pointer
+   positions and the window size in screen pixels while CSS lengths stay unscaled; the shims below translate
+   them back into the page's own CSS pixels, so every drag, popover and measurement keeps working unchanged. */
+const UI = { z: 1, base: { w: 1440, h: 840 }, max: 1.6 };
+{
+  const own = (o, k) => Object.getOwnPropertyDescriptor(o, k);
+  const W0 = own(window, "innerWidth").get, H0 = own(window, "innerHeight").get;
+  const realW = () => W0.call(window), realH = () => H0.call(window);
+  Object.defineProperty(window, "innerWidth", { configurable: true, get: () => realW() / UI.z });
+  Object.defineProperty(window, "innerHeight", { configurable: true, get: () => realH() / UI.z });
+  for (const P of [MouseEvent.prototype, window.Touch && Touch.prototype].filter(Boolean))
+    for (const k of ["clientX", "clientY", "pageX", "pageY", "x", "y"]) {
+      const d = own(P, k); if (!d || !d.get) continue;
+      Object.defineProperty(P, k, { configurable: true, enumerable: true, get() { return d.get.call(this) / UI.z; } });
+    }
+  const rect = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () { const r = rect.call(this); return UI.z === 1 ? r : new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z); };
+  const rects = Element.prototype.getClientRects;
+  Element.prototype.getClientRects = function () { const rs = rects.call(this); return UI.z === 1 ? rs : [...rs].map((r) => new DOMRect(r.x / UI.z, r.y / UI.z, r.width / UI.z, r.height / UI.z)); };
+  const at = Document.prototype.elementFromPoint, ats = Document.prototype.elementsFromPoint;
+  Document.prototype.elementFromPoint = function (x, y) { return at.call(this, x * UI.z, y * UI.z); };
+  Document.prototype.elementsFromPoint = function (x, y) { return ats.call(this, x * UI.z, y * UI.z); };
+  const fit = () => {
+    const z = Math.round(Math.max(1, Math.min(UI.max, realW() / UI.base.w, realH() / UI.base.h)) * 100) / 100;
+    if (z === UI.z) return;
+    UI.z = z; document.documentElement.style.setProperty("--ui-scale", z);
+  };
+  fit(); addEventListener("resize", fit);
+}
+
+
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -23,7 +56,45 @@ const state = {
   lastList: [],
   tq: 0,
 };
+// ?surface=slack or ?surface=cli opens the Grokbot somewhere else: a Slack DM or a terminal. tATS tabs hear it and do the work.
+const SURFACE = new URLSearchParams(location.search).get("surface");
+const GROK_CH = "BroadcastChannel" in window ? new BroadcastChannel("tats-grokbot") : null;
 try { const t = localStorage.getItem("tats-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+
+/* ---------------- Warmth correction: undo Night Shift / True Tone ----------------
+   macOS warms a display (True Tone on the built-in screen, Night Shift on a schedule) after the page has drawn,
+   and no web API reports it. So each display is corrected once by eye, and tATS reapplies it by itself: the
+   level is remembered per display (size, pixel density, colour range) and per day or night, and re-read when the
+   window moves to another screen or the evening starts. A correction pulls red and some green down so whites
+   return to neutral; blue can't go above full, so it cools by trimming the others. Off draws no filter at all. */
+const WB = { levels: [[1, 1], [0.965, 0.985], [0.93, 0.97], [0.89, 0.95], [0.85, 0.93]], key: "", lv: 0 };
+const wbNight = () => { const h = new Date().getHours(); return h >= 19 || h < 7; };
+const wbDisplay = () => `${screen.width}x${screen.height}@${devicePixelRatio}${matchMedia("(color-gamut: p3)").matches ? "p3" : ""}`;
+const wbStore = () => { try { return JSON.parse(localStorage.getItem("tats-wb")) || {}; } catch { return {}; } };
+function wbApply() {
+  const key = `${wbDisplay()}|${wbNight() ? "night" : "day"}`, lv = wbStore()[key] || 0;
+  WB.key = key; WB.lv = lv;
+  let svg = document.getElementById("wb-svg");
+  if (!svg) {
+    svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "wb-svg"; svg.setAttribute("aria-hidden", "true");
+    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden";
+    svg.innerHTML = `<filter id="wb" color-interpolation-filters="sRGB"><feColorMatrix type="matrix"/></filter>`;
+    document.body.appendChild(svg);
+  }
+  const [r, g] = WB.levels[lv];
+  svg.querySelector("feColorMatrix").setAttribute("values", `${r} 0 0 0 0  0 ${g} 0 0 0  0 0 1 0 0  0 0 0 1 0`);
+  document.documentElement.classList.toggle("wb-on", lv > 0);
+}
+function setWarmth(lv) {
+  const s = wbStore(); if (lv) s[WB.key] = lv; else delete s[WB.key];
+  try { localStorage.setItem("tats-wb", JSON.stringify(s)); } catch {}
+  wbApply();
+}
+wbApply();
+addEventListener("resize", () => { if (!WB.key.startsWith(wbDisplay() + "|")) wbApply(); });
+if (screen.addEventListener) screen.addEventListener("change", wbApply);
+setInterval(() => { if (WB.key.endsWith(wbNight() ? "|day" : "|night")) wbApply(); }, 60000);
 
 /* ---------------- formatting ---------------- */
 const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -46,6 +117,11 @@ function ago(ms) {
 
 /* ---------------- icons ---------------- */
 const P = {
+  sun: "M8 5.2a2.8 2.8 0 1 0 0 5.6 2.8 2.8 0 0 0 0-5.6ZM8 1.5v1.3M8 13.2v1.3M1.5 8h1.3M13.2 8h1.3M3.4 3.4l.9.9M11.7 11.7l.9.9M3.4 12.6l.9-.9M11.7 4.3l.9-.9",
+  moon: "M13.2 9.6A5.5 5.5 0 0 1 6.4 2.8a5.5 5.5 0 1 0 6.8 6.8Z",
+  monitor: "M2.5 3h11v7.5h-11ZM6 13.5h4M8 10.5v3",
+  logout: "M6.5 2.5H3v11h3.5M10 5l3 3-3 3M13 8H6.5",
+  user: "M8 2.5a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4ZM3 13.5c.6-2.4 2.6-3.8 5-3.8s4.4 1.4 5 3.8",
   court: "M8 2.5v11M5 13.5h6M3 5.5h10M4.5 5.5 2.5 10a2 2 0 0 0 4 0Zm7 0-2 4.5a2 2 0 0 0 4 0Z",
   triage: "M2.5 4.5h11M2.5 8h7M2.5 11.5h4M11.5 9.5l2 2-2 2",
   people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
@@ -67,7 +143,7 @@ const P = {
   db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
   chevU: "M4 10l4-4 4 4",
   mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
-  gear: "M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM8 1.8v1.6M8 12.6v1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M1.8 8h1.6M12.6 8h1.6M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1",
+  gear: "M12.61 6.05 L14.22 6.48 L14.22 9.52 L12.61 9.95 L12.63 9.88 L13.47 11.32 L11.32 13.47 L9.88 12.63 L9.95 12.61 L9.52 14.22 L6.48 14.22 L6.05 12.61 L6.12 12.63 L4.68 13.47 L2.53 11.32 L3.37 9.88 L3.39 9.95 L1.78 9.52 L1.78 6.48 L3.39 6.05 L3.37 6.12 L2.53 4.68 L4.68 2.53 L6.12 3.37 L6.05 3.39 L6.48 1.78 L9.52 1.78 L9.95 3.39 L9.88 3.37 L11.32 2.53 L13.47 4.68 L12.63 6.12Z M10.2 8a2.2 2.2 0 1 1-4.4 0a2.2 2.2 0 1 1 4.4 0Z",
   alert: "M8 2.5 14 13H2ZM8 6.5v3M8 11.3h.01",
   help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
   pause: "M5.5 3.5v9M10.5 3.5v9",
@@ -120,12 +196,16 @@ const CH_NAME = { slack: "Slack", imessage: "iMessage", gmail: "Gmail", cal: "Ca
 
 /* ---------------- avatars, court ---------------- */
 const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
+const personAv = (id, size = "") => `<span class="av ${size}" style="background:${PEOPLE[id].color};--c:${PEOPLE[id].color}" data-hc="p:${id}" aria-label="${esc(PEOPLE[id].name)}">${initials(PEOPLE[id].name)}</span>`;
 // A Grokbot is its person's avatar with a spark badge: it acts as them.
-const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot">${personAv(id, size)}<i>${SPARK}</i></span>`;
-const candAv = (a, size = "") => `<span class="av cand ${size}" data-hc="a:${a.id}" aria-label="${esc(a.name)}">${initials(a.name)}</span>`;
-const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color}"></i>`;
-const teamKey = (k) => `<span class="team-key" style="background:${TEAMS[k].color}">${TEAMS[k].name[0]}</span>`;
+// Every Grokbot wears the Grokbot picture; whose it is shows in the text beside it.
+const botAv = (id, size = "") => `<span class="bot ${size}" data-hc="p:${id}" aria-label="${esc(first(id))}'s Grokbot" title="${esc(first(id))}'s Grokbot"><span class="av grok ${size}"></span></span>`;
+// Applicants have no photos, so they get no picture placeholder: their name carries the row.
+const candAv = () => "";
+const teamDot = (k) => `<i class="tdot" style="background:${TEAMS[k].color};--c:${TEAMS[k].color}"></i>`;
+// Each team has its own mark (Research a flask, Engineering a server stack, Product a layout), so it reads at a glance.
+const TEAM_ICO = { research: "M6 2.5h4M6.5 2.5v4L3 12.5a1 1 0 0 0 .9 1.5h8.2a1 1 0 0 0 .9-1.5L9.5 6.5v-4M4.6 10h6.8", infra: "M3 3h10v3.5H3zM3 9.5h10V13H3zM5.5 4.75h.01M5.5 11.25h.01", product: "M2.5 3h11v10h-11zM2.5 6h11M6 6v7" };
+const teamKey = (k) => `<span class="team-key t-${k}" style="--c:${TEAMS[k].color}" title="${esc(TEAMS[k].name)}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${TEAM_ICO[k] || P.users}"/></svg></span>`;
 function court(a) {
   const c = STATES[a.state].court;
   if (c === "you") return { av: personAv(ME), label: "You" };
@@ -197,6 +277,18 @@ function ev(a, at, actor, html, extra = {}) {
 }
 const nm = (id) => `<b>${esc(first(id))}</b>`;
 const likesText = (p) => (p.likes === "loves" ? "likes interviewing" : p.likes === "avoids" ? "would rather not" : "fine either way");
+// Interview types the company runs, and who runs which. 1 = prioritize them for it (they scale it best).
+const IV_TYPES = ["Technical screen", "Systems design", "GPU performance deep dive", "Research deep dive", "FDE customer scenario", "Product and design", "Final with the CTO"];
+const ROLE_IV = { eng: "Systems design", inf: "GPU performance deep dive", res: "Research deep dive", evals: "Research deep dive", pe: "FDE customer scenario", des: "Product and design" };
+const SKILL_SUGGEST = ["GPU performance", "CUDA", "Inference", "Distributed systems", "Storage", "Networking", "Kubernetes", "Post-training", "Evals", "RL", "FDE", "Customer-facing", "Frontend", "Product design", "Systems design", "Hiring bar"];
+const RUNS_DEFAULT = { daniel: { "Final with the CTO": 1, "Systems design": 0 }, sam: { "Technical screen": 1, "Systems design": 0 }, wei: { "GPU performance deep dive": 1, "Technical screen": 0 }, noor: { "Technical screen": 0, "Systems design": 0 },
+  marcus: { "Research deep dive": 1 }, aisha: { "Research deep dive": 0, "Technical screen": 0 }, theo: { "Research deep dive": 0, "GPU performance deep dive": 0 }, lena: { "Product and design": 1 }, jonah: { "FDE customer scenario": 1, "Product and design": 0 } };
+Object.entries(PEOPLE).forEach(([id, p]) => { if (!p.team) return; p.runs ||= RUNS_DEFAULT[id] || {}; p.bot ||= "on"; });
+PEOPLE.wei.focus = ["GPU performance", "CUDA", "Storage"];
+PEOPLE.jonah.focus = ["FDE", "Customer-facing", "Frontend"];
+// Theo trains models on the infra team's clusters: one person, two teams.
+if (!TEAMS.infra.members.includes("theo")) TEAMS.infra.members.push("theo");
+const teamsOf = (id) => Object.keys(TEAMS).filter((k) => TEAMS[k].members.includes(id));
 // The orchestrator's pick: wants it, has room, knows the area, spreads the load.
 // Each reply keeps its score parts so the run can show why.
 function pickInterviewer(tk, role, exclude = []) {
@@ -207,6 +299,7 @@ function pickInterviewer(tk, role, exclude = []) {
     const p = PEOPLE[id];
     const no = (text) => replies.push({ id, ok: false, text });
     if (exclude.includes(id)) { no(`${first(id)} already met them`); continue; }
+    if (p.bot && p.bot !== "on") { no(`${possessive(first(id))} Grokbot isn't connected yet`); continue; }
     if (p.quiet) { no(`${first(id)}: ${p.quiet.toLowerCase()}`); continue; }
     if (on("room") && p.load >= p.cap) { no(`${first(id)} is full this week (${p.load} of ${p.cap})`); continue; }
     if (on("want") && p.likes === "avoids") { no(`${first(id)} would rather not right now (${p.said} lately)`); continue; }
@@ -215,8 +308,10 @@ function pickInterviewer(tk, role, exclude = []) {
       room: on("room") ? (p.cap - p.load) / p.cap : 0,
       match: on("match") && ROLES[role].team === tk ? 0.3 : 0,
       fair: on("fair") && id === "daniel" ? -0.4 : 0,
+      // Runs this kind of interview; more if they're prioritized for it.
+      fit: p.runs && ROLE_IV[role] in p.runs ? (p.runs[ROLE_IV[role]] ? 0.5 : 0.25) : 0,
     };
-    const score = parts.want + parts.room + parts.match + parts.fair;
+    const score = parts.want + parts.room + parts.match + parts.fair + parts.fit;
     replies.push({ id, ok: true, text: `${first(id)} has room (${p.load} of ${p.cap} this week), ${likesText(p)}`, parts, score });
     if (score > bestScore) { bestScore = score; best = id; }
   }
@@ -489,6 +584,13 @@ function tbPanel(a, compact) {
     ${t.note ? `<p class="tb-note">${esc(t.note)}</p>` : ""}
     <button class="tlink" data-act="replay">${ico("play")}Replay the session</button></div>`;
 }
+// Everything they sent, page by page, the same pages New Applicants reads from.
+function appBlock(a) {
+  const pages = docPages(a), i = Math.min(state.tkPage?.[a.id] || 0, pages.length - 1);
+  return `<div class="block"><div class="block-head">Application<span class="n">${pages.length} ${pages.length === 1 ? "page" : "pages"}</span></div>
+    <div class="tk-app"><div class="pills tk-app-tabs" role="tablist">${pages.map((p, j) => `<button class="${i === j ? "on" : ""}" data-act="tkPage" data-id="${a.id}" data-i="${j}" role="tab" aria-selected="${i === j}">${esc(p.name)}</button>`).join("")}</div>
+      <article class="pg pg-${pages[i].k} tk-pg">${pages[i].html}</article></div></div>`;
+}
 function profile(a) {
   return `<ul class="sum">${a.sum.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
     ${a.exp.length ? `<div class="exp">${a.exp.map(([co, ti, yr]) => `<div><b>${esc(co)}</b><span>${esc(ti)}</span><span class="faint">${esc(yr)}</span></div>`).join("")}</div>` : ""}
@@ -520,12 +622,30 @@ const srcOf = (role) => weighted([["Applied", 55], ["Tacit", 25], [`Referral · 
 const usedNames = new Set(APPLICANTS.map((a) => a.name));
 function personName() { for (let i = 0; i < 20; i++) { const n = `${pickOne(FIRSTS)} ${pickOne(LASTS)}`; if (!usedNames.has(n) || i === 19) { usedNames.add(n); return n; } } }
 const BULK = [];
+// A profile for each generated applicant: three highlights for their kind of role, two jobs, a link.
+const BULK_SUM = {
+  eng: ["Led the move of a 40-service fleet to Kubernetes with no customer-facing downtime", "Wrote the rate limiter that fronts every public API", "Cut p99 latency on the checkout path from 900ms to 210ms", "Ran the on-call rotation for a 99.99% availability tier", "Built the deploy pipeline the whole company ships through"],
+  inf: ["Profiled and fixed a GPU memory leak that cost a week of training runs", "Owns the cluster scheduler for 2,000 accelerators", "Halved checkpoint time by moving to async sharded writes", "Wrote the incident playbook the infra team still uses"],
+  res: ["Built an eval suite for long-context retrieval used across three model launches", "First author on a workshop paper on reward-model overoptimization", "Found a contamination bug that inflated a benchmark by 20 points", "Trained and shipped a 7B model end to end"],
+  evals: ["Owns the eval harness for every pre-release model", "Cut eval turnaround from a day to forty minutes by sharding the harness", "Designed graders that report their own uncertainty", "Caught a regression in tool use two days before a launch"],
+  pe: ["Shipped the onboarding flow that lifted activation 18%", "Rebuilt the settings pages in React and TypeScript with full test coverage", "Owns the design system's component library", "Took a feature from prototype to GA in six weeks"],
+  des: ["Led the redesign of a B2B dashboard used by 40k teams", "Built the design system from scratch", "Ran weekly research sessions with customers for two years", "Portfolio: three shipped products, one acquired"],
+};
+const PRIOR_TITLE = { eng: "Software engineer", inf: "Systems engineer", res: "Research assistant", evals: "Data scientist", pe: "Frontend engineer", des: "Product designer" };
+function bulkProfile(a, r) {
+  const pool = [...(BULK_SUM[a.role] || BULK_SUM.eng)];
+  a.sum = [0, 1, 2].map(() => pool.splice(Math.floor(r() * pool.length), 1)[0]);
+  const [title, co] = a.hl.split(" at "), start = 2026 - Math.min(a.yrs, 4);
+  a.exp = [[co[0].toUpperCase() + co.slice(1), title, `${start}–now`], [COS[Math.floor(r() * COS.length)], PRIOR_TITLE[a.role] || "Engineer", `${start - 1 - Math.floor(r() * 3)}–${start}`]];
+  a.links = [`github.com/${a.name.toLowerCase().replace(/[^a-z]+/g, "")}`];
+}
 for (let i = 0; i < 264; i++) {
   const role = roleOf(), team = ROLES[role].team, st = weighted([["testbench", 22], ["routing", 6], ["asked", 10], ["scheduling", 12], ["scheduled", 22], ["debrief", 8], ["judgment", 10]]);
   const iv = pickOne(TEAMS[team].members), when = NOW - Math.floor(rnd() * { testbench: 2.5, routing: 2, asked: 2, scheduling: 3, scheduled: 9, debrief: 4, judgment: 5 }[st] * DAY) - HR;
   const score = 55 + Math.floor(rnd() * 44);
   const a = { id: `APP-${2001 + i}`, bulk: true, pri: weighted([[0, 3], [1, 1], [2, 3], [3, 4], [4, 2]]), name: personName(), hl: `${pickOne(HL_ROLE[role])} at ${pickOne(COS)}`, role, src: srcOf(role), loc: pickOne(CITIES), yrs: 1 + Math.floor(rnd() * 12), links: [], state: st, when, sum: [], exp: [],
     labels: rnd() < 0.08 ? ["Competing offer"] : rnd() < 0.08 ? ["Relocating"] : [] };
+  bulkProfile(a, rng(9001 + i));
   if (st === "testbench") { a.tbSent = when; a.tb = { state: rnd() < 0.5 ? "running" : "sent", progress: 0.4 }; }
   else { a.team = team; a.iv = iv; a.tb = TB(score, "", "2h 30m", Math.min(99, score), [4, 4, 4, 4], ""); if (score >= 90) a.labels = [...a.labels, "Top Testbench"]; }
   if (st === "scheduled") a.at = NOW + Math.floor(1 + rnd() * 8) * DAY + (9 + Math.floor(rnd() * 8)) * HR - new Date(NOW).getHours() * HR;
@@ -641,7 +761,7 @@ function openHist(id) {
       ${h.score ? `<dt>Testbench</dt><dd>${h.score}/100</dd>` : ""}
       <dt>Closed</dt><dd>${fmtDate(h.closed)} · ${esc(h.outcome)}</dd></dl>
       ${h.again ? `<p class="h-note">${esc(first2(A[h.again]))} applied again. <a href="#t~${h.again}" data-close>Open the active application</a></p>` : ""}`,
-    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in Applicant Tickets`); } });
+    submit: h.again ? null : "Start a new application", onSubmit: () => { toast(`${h.name} is back in New Applicants`); } });
 }
 /* ---------------- CRM: everyone the funnel has closed, as one database ---------------- */
 // One row per closed application, hired or not. A Grokbot can sort it and post a list to Slack.
@@ -672,7 +792,7 @@ function crmPage() {
   const view = CRM_VIEWS.find((x) => x[0] === (state.crmView || "all"));
   return `<div class="bar"><div class="crumbs">${ico("db")}<b>CRM</b></div><span class="spacer"></span>
     <label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
-  <div class="crm-tabs">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div>
+  <div class="crm-tabs"><div class="pills">${CRM_VIEWS.map(([k, n, f]) => `<button class="crm-tab ${view[0] === k ? "on" : ""}" data-act="crmView" data-v="${k}">${n}<span>${crmBase().filter(f).length.toLocaleString()}</span></button>`).join("")}</div></div>
   <div class="crm">
     <div class="crm-head">${ico("db")}<b>${view[1]}</b><span class="faint">${xs.length.toLocaleString()}</span><span class="grow"></span>
       <form class="crm-ask" id="crmAskForm">${botAv(ME)}<input id="crmask" placeholder="${pick.size ? `Ask Grokbot about these ${pick.size}` : "Ask Grokbot for a list"}" autocomplete="off"><button class="btn sm" type="submit">${pick.size ? `Send ${pick.size} to Slack` : "Get the list"}</button></form></div>
@@ -681,7 +801,7 @@ function crmPage() {
         ${CRM_COLS.map(([k, n, ic]) => `<button class="crm-hc ${sort.k === k ? "on" : ""}" data-act="crmSort" data-k="${k}">${ico(ic)}${n}${sort.k === k ? `<i>${sort.dir < 0 ? "↓" : "↑"}</i>` : ""}</button>`).join("")}</div>
       ${rows.map((h) => `<div class="crm-r ${pick.has(h.id) ? "picked" : ""}" role="row" data-tid="${h.id}" data-act="openHist" data-id="${h.id}">
         <span class="crm-c"><button class="ck ${pick.has(h.id) ? "on" : ""}" data-act="crmPick" data-id="${h.id}" aria-label="Select ${esc(h.name)}"></button></span>
-        <span class="crm-name"><span class="av cand">${initials(h.name)}</span><b>${esc(h.name)}</b>${h.again ? `<a class="h-again" href="#t~${h.again}">Active again</a>` : ""}</span>
+        <span class="crm-name"><b>${esc(h.name)}</b>${h.again ? `<a class="h-again" href="#t~${h.again}">Active again</a>` : ""}</span>
         <span><span class="crm-tag">${esc(ROLES[h.role].title)}</span></span>
         <span class="crm-link">${profileOf(h)}</span>
         <span class="crm-own">${esc(PEOPLE[ownerOf(h)].name)}</span>
@@ -741,13 +861,37 @@ function appsByDay(days) {
 }
 // Pending offer approvals: strong reads that turned into a drafted offer, waiting on the CTO.
 const OFFERS = BULK.filter((a) => a.state === "judgment" && a.read && a.read.verdict === "Yes").slice(0, 3).map((a, i) => ({ a, by: "daniel", since: NOW - [26, 9, 52][i] * HR }));
-// The company's interview process, as set in Settings. Stage timing reads in these words.
-const PROCESS_KEY = "tats.process.v2";
+// The company's interview process, as drawn in Onboarding: candidates' stages take the flowchart's step names, in order.
+// Steps side by side (one per team after a split) are one stage; Offer is the end step. Unreached stages keep these defaults.
 const PROCESS_DEFAULT = [["review", "Application review"], ["tb", "Testbench"], ["r1", "Team interview"], ["r2", "Cross-team interview"], ["r3", "Final with the CTO"], ["offer", "Offer"]];
-try { state.process = JSON.parse(localStorage.getItem(PROCESS_KEY) || "null"); } catch {}
-if (!Array.isArray(state.process) || state.process.length !== PROCESS_DEFAULT.length) state.process = PROCESS_DEFAULT.map((x) => x[1]);
-const procName = (k) => state.process[PROCESS_DEFAULT.findIndex((x) => x[0] === k)];
-const saveProcess = () => { try { localStorage.setItem(PROCESS_KEY, JSON.stringify(state.process)); } catch {} };
+const PROCESS_ABBR = ["Rev", "TB", "R1", "R2", "Fin", "Off"];
+function processNames() {
+  const f = state.flow, dflt = PROCESS_DEFAULT.map((x) => x[1]);
+  const start = f && f.nodes.find((n) => n.kind === "start");
+  if (!start) return dflt;
+  // how many steps a candidate has passed on reaching each node, by the longest way there
+  const depth = new Map([[start.id, 0]]);
+  for (let pass = 0, moved = true; moved && pass < f.nodes.length; pass++) {
+    moved = false;
+    for (const e of f.edges) {
+      const b = f.nodes.find((n) => n.id === e.to);
+      if (!depth.has(e.from) || !b || b.kind === "note") continue;
+      const d = depth.get(e.from) + (b.kind === "stage" ? 1 : 0);
+      if (!(depth.get(b.id) >= d)) { depth.set(b.id, d); moved = true; }
+    }
+  }
+  const levels = [];
+  for (const n of f.nodes) if (n.kind === "stage" && depth.has(n.id)) {
+    const xs = (levels[depth.get(n.id) - 1] ||= []), label = n.label.trim();
+    if (label && !xs.includes(label)) xs.push(label);
+  }
+  const stages = levels.filter((xs) => xs && xs.length).map((xs) => xs.join(" / "));
+  const end = f.nodes.find((n) => n.kind === "end" && depth.has(n.id));
+  return dflt.map((d, i) => (i === dflt.length - 1 ? (end && end.label.trim()) || d : stages[i] || d));
+}
+const procName = (k) => processNames()[PROCESS_DEFAULT.findIndex((x) => x[0] === k)];
+// The short label under a chart bar: ours for a default name, else the name's first word.
+const procAbbr = (k) => { const i = PROCESS_DEFAULT.findIndex((x) => x[0] === k), n = procName(k); return n === PROCESS_DEFAULT[i][1] ? PROCESS_ABBR[i] : n.split(/[\s/]+/)[0].slice(0, 5); };
 // Which round a candidate is in: hand-written ones from their earlier rounds, generated ones spread 60/30/10.
 const roundOf = (a) => (a.bulk ? (((+a.id.slice(4) * 7) % 10) < 6 ? 1 : ((+a.id.slice(4) * 7) % 10) < 9 ? 2 : 3) : Math.min(3, (PRIOR[a.id] || []).length + 1));
 const isOfferOut = (a) => OFFERS.some((o) => o.a === a);
@@ -770,12 +914,12 @@ function homeMetrics() {
   const apps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= from).length;
   const prevApps = everyone().filter((a) => homeScope(a) && appliedAt(a) >= prevFrom && appliedAt(a) < from).length + HISTORY.filter((h) => homeScope(h) && h.applied >= prevFrom && h.applied < from).length;
   return [
-    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in Applicant Tickets"] },
+    { k: "apps", label: "New applications", def: "Applications that came in during the period", v: apps, prev: prevApps, unit: "n", go: ["#triage", "Review in New Applicants"] },
     { k: "active", label: "Candidates in process", def: "Everyone with an open application, by stage of your interview process", v: act.length, unit: "active", act, go: ["#crm~active", "Open in CRM"] },
-    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in Applicant Tickets"] },
-    { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interviews"] },
-    { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Calendar"] },
+    { k: "review", label: "Time to review applications", def: "From an application coming in to someone answering it", v: median(review), unit: "h", open: review, noun: "application", go: ["#triage", "Resolve in New Applicants"] },
+    { k: "sched", label: "Time to schedule", def: "From a candidate being ready to the interview being on both calendars", v: median(sched), unit: "h", open: act.filter((a) => ["asked", "scheduling"].includes(a.state)).map((a) => hrs(Date.now() - a.when)), noun: "candidate", go: ["#triage", "Resolve in New Applicants"] },
+    { k: "cards", label: "Time to submit interviewer feedback", def: "From the interview ending to the interviewer's feedback coming in", v: median(cards), unit: "h", open: act.filter((a) => a.state === "debrief").map((a) => hrs(Date.now() - a.when)), noun: "piece", nounOf: "feedback", go: ["#interviews", "Open Interview Judgement"] },
+    { k: "load", label: "Interview workload", def: "Team hours in interviews this period: booked, plus held and waiting on feedback", unit: "load", act, go: ["#calendar", "Open Interview Calendar"] },
   ];
 }
 // Interview hours by team: booked interviews in the window ahead, plus ones already held awaiting feedback.
@@ -786,68 +930,88 @@ function workload(act) {
   const r1 = ivs.filter((a) => roundOf(a) === 1).length;
   return { n: ivs.length, h: byTeam.reduce((n, t) => n + t.h, 0), byTeam, r1 };
 }
+// A line chart in the dashboards' style: the first series solid with a fade under it and a dot on today,
+// any second series (the period before) a lighter line behind. Scales to its box; strokes keep their width.
+let sparkN = 0;
+function spark(series, { h = 84, grid = 0 } = {}) {
+  const W = 300, n = series[0].length, max = Math.max(...series.flat(), 1) * 1.15;
+  const x = (i) => (n === 1 ? W : (i / (n - 1)) * W), y = (v) => h - 2 - (v / max) * (h - 8);
+  const line = (vs) => vs.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join("");
+  const id = `wgf${++sparkN}`, last = series[0][n - 1];
+  return `<div class="wg-chart" style="height:${h}px"><svg viewBox="0 0 ${W} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--chart);stop-opacity:.2"/><stop offset="1" style="stop-color:var(--chart);stop-opacity:0"/></linearGradient></defs>
+    ${grid ? Array.from({ length: grid + 1 }, (_, i) => `<path class="wg-gl" d="M${((i / grid) * W).toFixed(1)} 0V${h}"/>`).join("") : `<path class="wg-base" d="M0 ${h - 0.5}H${W}"/>`}
+    ${series.slice(1).map((vs) => `<path class="wg-l2" d="${line(vs)}"/>`).join("")}
+    <path d="${line(series[0])}L${W} ${h}L0 ${h}Z" fill="url(#${id})"/><path class="wg-l1" d="${line(series[0])}"/></svg>
+    <i class="wg-dot" style="top:${((y(last) / h) * 100).toFixed(1)}%"></i></div>`;
+}
+const dayLabel = (ms) => { const d = new Date(ms); return `${d.getDate()} ${MO[d.getMonth()]}`; };
+const axis = (days) => `<div class="wg-axis"><span>${dayLabel(NOW - (days - 1) * DAY)}</span><span>Today</span></div>`;
+const delta = (v, prev, good = 1) => { if (!prev) return ""; const d = (v - prev) / prev, up = d >= 0; return `<b class="wg-delta ${up === good > 0 ? "good" : "bad"}">${up ? "▲" : "▼"} ${Math.abs(Math.round(d * 100))}%</b>`; };
+// A share, split: one bar in shades of the chart colour, then a legend with each part's count and share.
+function shares(parts) {
+  const tot = parts.reduce((s, p) => s + p.n, 0) || 1, k = parts.length;
+  const shade = (i) => `color-mix(in oklch, var(--chart) ${Math.round(100 - (i / Math.max(1, k - 1)) * 72)}%, var(--paper))`;
+  return `<div class="wg-seg">${parts.filter((p) => p.n).map((p) => `<i style="flex:${p.n};background:${shade(parts.indexOf(p))}" title="${esc(p.l)}: ${p.n}"></i>`).join("")}</div>
+    <div class="wg-leg">${parts.map((p, i) => `<div><i style="background:${shade(i)}"></i><span>${esc(p.l)}</span><b>${p.n.toLocaleString()}</b><em>${Math.round((p.n / tot) * 100)}%</em></div>`).join("")}</div>`;
+}
 function metricCard(m) {
   const t = state.thr[m.k];
-  let value, sub, chart, over = false;
+  let value, side = "", chart, over = false;
   if (m.unit === "n") {
     over = t != null && m.v < t;
-    const days = appsByDay(homeDays()), max = Math.max(...days.map((d) => d.n), 1), d = m.prev ? (m.v - m.prev) / m.prev : 0;
+    const days = appsByDay(homeDays());
     value = m.v.toLocaleString();
-    sub = `<span class="hm-d ${d >= 0 ? "good" : "bad"}">${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d * 100))}%</span><span class="hm-sub">vs the ${homeDays()} days before</span>`;
-    chart = `<div class="hm-hist">${days.map((x) => `<span title="${x.n} on ${esc(x.full)}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${esc(x.l)}</em></span>`).join("")}</div>`;
+    side = `${delta(m.v, m.prev)}<span>vs the ${homeDays()} days before</span>`;
+    chart = spark([days.map((d) => d.n)]) + axis(homeDays());
   } else if (m.unit === "active") {
     // Where the active candidates are, in the company's own stage names.
-    const st = PROCESS_DEFAULT.map(([k]) => ({ k, n: m.act.filter((a) => stageOf(a) === k).length })), max = Math.max(...st.map((x) => x.n), 1);
     value = m.v.toLocaleString();
-    sub = `<span class="hm-sub">across ${st.filter((x) => x.n).length} stages</span>`;
-    chart = `<div class="hm-hist">${st.map((x, i) => `<span title="${x.n} in ${esc(procName(x.k))}"><i style="height:${x.n ? Math.max(6, (x.n / max) * 100) : 0}%"></i><em>${["Rev", "TB", "R1", "R2", "Fin", "Off"][i]}</em></span>`).join("")}</div>`;
+    side = `<b>${PROCESS_DEFAULT.length}</b><span>stages</span>`;
+    chart = shares(PROCESS_DEFAULT.map(([k]) => ({ l: procName(k), n: m.act.filter((a) => stageOf(a) === k).length })));
   } else if (m.unit === "load") {
     // Actual hours are solid; the Testbench saving is an estimate and looks like one.
     const w = workload(m.act), max = Math.max(...w.byTeam.map((x) => x.h), 1);
     value = `${Math.round(w.h)}h`;
     over = t != null && w.h > t;
-    sub = `<span class="hm-sub">${w.n} interviews booked or awaiting feedback</span>`;
-    chart = `<div class="hm-load">${w.byTeam.map((x) => `<div><span>${esc(TEAMS[x.k].name)}</span><i style="width:${(x.h / max) * 100}%"></i><b>${Math.round(x.h)}h</b></div>`).join("")}</div>
+    side = `<b>${w.n}</b><span>interviews</span>`;
+    chart = `<div class="hm-load">${w.byTeam.map((x) => `<div><span>${esc(TEAMS[x.k].name)}</span><span class="wg-meter"><i style="width:${(x.h / max) * 100}%"></i></span><b>${Math.round(x.h)}h</b></div>`).join("")}</div>
       <div class="hm-est" title="An estimate, not booked time: moving each first-round live technical to the Testbench saves 30 to 60 minutes of interviewer time."><span class="tag">Estimate</span>Testbench as round 1 could free <b>${Math.round(w.r1 * 0.5)}–${w.r1}h</b></div>`;
   } else {
     // How long the open ones have waited. Past your target, the bars turn red.
     over = t != null && m.v > t;
     const bs = ageBuckets(m.open), max = Math.max(...bs.map((b) => b.n), 1), oldest = Math.max(0, ...m.open), nn = m.open.length;
-    const noun = m.nounOf ? `${m.noun}${nn === 1 ? "" : "s"} of ${m.nounOf}` : `${m.noun}${nn === 1 ? "" : "s"}`;
     value = fmtHrs(m.v);
-    sub = nn ? `<span class="hm-sub">${nn} ${noun} waiting · oldest ${fmtHrs(oldest)}</span>` : `<span class="hm-sub">Nothing waiting</span>`;
+    side = nn ? `<b class="${over ? "bad" : ""}">${nn} waiting</b><span>oldest ${fmtHrs(oldest)}</span>` : `<b>0 waiting</b><span>all clear</span>`;
     chart = `<div class="hm-hist">${bs.map((b) => `<span title="${b.n} waiting ${b.l.replace("<", "under ").replace("+", " or more")}"><i style="height:${b.n ? Math.max(6, (b.n / max) * 100) : 0}%" class="${t != null && b.lo >= t ? "over" : ""}"></i><em>${b.l}</em></span>`).join("")}</div>`;
   }
   const thrLabel = m.unit === "n" ? "Alert below" : m.unit === "load" ? "Cap" : "Target";
   const thrVal = t == null ? "" : m.unit === "n" ? t : m.unit === "load" ? `${t}h` : fmtHrs(t);
   return `<section class="hm-card ${over ? "over" : ""} ${m.k === "active" ? "link" : ""}" ${m.k === "active" ? `data-act="goCrmActive"` : ""}>
-    <div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div>
-    <div class="hm-v"><b>${value}</b>${m.unit === "h" ? `<span class="hm-sub">typical</span>` : ""}</div>
-    <div class="hm-ctx">${sub}</div>
+    <div class="wg-top"><div><div class="hm-v"><b>${value}</b>${m.unit === "h" ? `<span class="hm-sub">typical</span>` : ""}</div><div class="hm-l" title="${esc(m.def)}">${esc(m.label)}</div></div><div class="wg-side">${side}</div></div>
     ${chart}
     <div class="hm-f">${m.unit === "active" ? `<span></span>` : `<button class="hm-t ${t != null ? "set" : ""}" data-act="setThr" data-k="${m.k}">${t != null ? `${over ? `<i class="dot"></i>` : ""}${thrLabel} ${thrVal}` : "Set a target"}</button>`}
       <a class="hm-go" href="${m.go[0]}">${esc(m.go[1])}${ico("arrowR")}</a></div>
   </section>`;
 }
-function homePage() {
+// Everything the Overview's widgets read, worked out once per render.
+function homeCtx() {
   const ms = homeMetrics(), act = everyone().filter((a) => isOpen(a) && homeScope(a));
   const wait = (a) => Date.now() - a.when;
-  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
   // Bottlenecks: real waits, oldest first, each with the page that clears it.
   const q = queue().filter(homeScope), sch = act.filter((a) => ["asked", "scheduling"].includes(a.state)), deb = act.filter((a) => a.state === "debrief"), yc = act.filter((a) => a.state === "judgment" && !isOfferOut(a));
   const unsent = inboxRows().filter((x) => x.inInbox && x.iss.k === "invite" && homeScope(x.a));
   const oldest = (xs) => xs.reduce((m, a) => Math.max(m, wait(a)), 0);
   const bn = [
-    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in Applicant Tickets"] },
-    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in Applicant Tickets"] },
-    deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interviews"] },
+    q.length && { k: "review", ico: "ticket", what: `${q.length} application${q.length === 1 ? "" : "s"} waiting for review`, why: `Oldest ${dur(oldest(q))}`, w: oldest(q), go: ["#triage", "Resolve in New Applicants"] },
+    sch.length && { k: "sched", ico: "cal", what: `${sch.length} candidate${sch.length === 1 ? "" : "s"} waiting to be scheduled`, why: `Oldest ${dur(oldest(sch))}${unsent.length ? ` · ${unsent.length} invite drafted, not sent` : ""}`, w: oldest(sch), go: ["#triage", "Resolve in New Applicants"] },
+    deb.length && { k: "cards", ico: "quote", what: `${deb.length} interview${deb.length === 1 ? "" : "s"} waiting on feedback`, why: `Oldest ${dur(oldest(deb))}`, w: oldest(deb), go: ["#interviews", "Open Interview Judgement"] },
     yc.length && { k: "decide", ico: "flag", what: `${yc.length} candidate${yc.length === 1 ? "" : "s"} waiting on your call`, why: `Oldest ${dur(oldest(yc))}`, w: oldest(yc), go: ["#inbox", "Decide in Inbox"] },
   ].filter(Boolean).map((b) => ({ ...b, over: state.thr[b.k] != null && hrs(b.w) > state.thr[b.k] })).sort((x, y) => (y.over - x.over) || (y.w - x.w));
   // Stage timing, in the company's process: how many, how long they've waited, and who's waited longest.
   const SEG = [[0, 24, "Under a day"], [24, 72, "1 to 3 days"], [72, Infinity, "Over 3 days"]];
   const segs = (xs) => SEG.map(([lo, hi, l], i) => ({ i, l, n: xs.filter((a) => hrs(wait(a)) >= lo && hrs(wait(a)) < hi).length }));
   const stages = PROCESS_DEFAULT.map(([k]) => { const xs = act.filter((a) => stageOf(a) === k).sort((x, y) => wait(y) - wait(x)); return { k, n: procName(k), xs, med: xs.length ? median(xs.map(wait)) : 0, max: xs.length ? wait(xs[0]) : 0 }; });
-  const maxN = Math.max(...stages.map((x) => x.xs.length), 1), open = state.homeStage;
   // Interviewer follow-through.
   const outFb = deb.map((a) => ({ a, iv: a.iv, w: wait(a) })).sort((x, y) => y.w - x.w);
   const ivs = Object.keys(PEOPLE).filter((id) => PEOPLE[id].team && (!state.homeTeam || PEOPLE[id].team === state.homeTeam)).map((id) => {
@@ -855,48 +1019,282 @@ function homePage() {
     const h = [...id].reduce((n, c) => n + c.charCodeAt(0), 0);
     return { id, med: mine.length ? median(mine.concat([(h % 30) + 4])) : (h % 30) + 4, out: outFb.filter((o) => o.iv === id).length };
   }).sort((x, y) => y.med - x.med);
-  const maxIv = Math.max(...ivs.map((x) => x.med), 1);
   // Interview efficiency, from closed applications: how many get through each round, and what a hire costs in interviews.
   const H = HISTORY.filter((h) => homeScope(h) && h.closed >= NOW - 365 * DAY);
   const rank = { Applied: 0, Testbench: 0, "Round 1": 1, "Round 2": 2, Offer: 3 };
   const reached = (n) => H.filter((h) => rank[h.reached] >= n).length;
-  const hires = H.filter((h) => h.outcome === "Hired").length || 1;
-  const ivCount = H.reduce((n, h) => n + rank[h.reached], 0);
-  const eff = [
-    ["Round 1 to round 2", reached(2) / (reached(1) || 1)],
-    ["Round 2 to the final", reached(3) / (reached(2) || 1)],
-  ];
-  const perHire = ivCount / hires;
-  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
-    ${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
-    <a class="btn sm ghost" href="#compare" title="The same layout in both styles, side by side">Compare styles</a></div>
-  <div class="hm-nav"><a class="on" href="#home">Overview</a><a href="#triage">Applicant Tickets</a><a href="#interviews">Interviews</a><a href="#referrals">Referrals</a></div>
-  <div class="scroll" id="scroller"><div class="hm">
-    <div class="hm-grid6">${ms.map(metricCard).join("")}</div>
-    <h2 class="hm-sec">Where are candidates getting stuck?</h2>
-    <div class="hm-row stuck">
-      <section class="hm-box"><div class="hm-h"><b>Bottlenecks</b><span>${bn.length}</span></div>
-        ${bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`}</section>
-      <section class="hm-box" id="hm-stages"><div class="hm-h"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from Settings.">Time in stage</b><span>${act.length} active</span><a class="hm-go" href="#settings" title="Rename stages in Settings">Edit stages${ico("arrowR")}</a></div>
-        <div class="hm-st-key">${SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
-        <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
-        ${stages.map((x) => `<button class="hm-st ${open === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(open === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
-            <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / maxN) * 100}%">${segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
-          ${open === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(wait(a))}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#crm~active">All ${x.xs.length} in CRM${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}</section>
-    </div>
-    <div class="hm-row three">
-      <section class="hm-box"><div class="hm-h"><b title="Typical time from interview to feedback, slowest first">Time to submit, by interviewer</b></div>
-        ${ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")}</section>
-      <section class="hm-box"><div class="hm-h"><b title="From applications closed in the last 12 months">Interview efficiency</b></div>
-        ${eff.map(([l, r]) => `<div class="hm-eff"><div><span>${l}</span><b>${Math.round(r * 100)}%</b></div><i><i style="width:${r * 100}%"></i></i></div>`).join("")}
-        <div class="hm-eff-n"><div><b>${perHire.toFixed(1)}</b><span>interviews per hire</span></div><div><b>${(perHire * 0.95).toFixed(1)}h</b><span>interviewer time per hire</span></div></div></section>
-      <section class="hm-box"><div class="hm-h"><b title="Interviews whose feedback hasn't come in">Outstanding feedback</b><span>${outFb.length}</span></div>
-        ${outFb.slice(0, 5).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">All feedback is in.</p>`}
-        ${outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${outFb.length} in Interviews${ico("arrowR")}</a>` : ""}</section>
-    </div>
+  const eff = [["Round 1 to round 2", reached(2) / (reached(1) || 1)], ["Round 2 to the final", reached(3) / (reached(2) || 1)]];
+  const perHire = H.reduce((n, h) => n + rank[h.reached], 0) / (H.filter((h) => h.outcome === "Hired").length || 1);
+  return { ms, act, bn, SEG, segs, stages, maxN: Math.max(...stages.map((x) => x.xs.length), 1), outFb, ivs, maxIv: Math.max(...ivs.map((x) => x.med), 1), eff, perHire };
+}
+const box = (head, body, cls = "") => `<section class="hm-box ${cls}">${head}${body}</section>`;
+/* ---------------- Home widgets: pick the blocks you care about, iOS-style ----------------
+   "Edit widgets" puts the Overview in edit mode: drag a widget to move it, − removes it, its size
+   button cycles Small / Wide / Full, and "Add widget" opens a gallery of every block with a live preview.
+   The layout is yours and stays in this browser. */
+const SIZE_N = ["", "Small", "Wide", "Full"];
+const metricW = (k) => (c) => metricCard(c.ms.find((m) => m.k === k));
+const WIDGETS = {
+  apps: { name: "New applications", desc: "Applications per day, against the period before", sizes: [1, 2], r: metricW("apps") },
+  active: { name: "Candidates in process", desc: "Everyone open, split by stage", sizes: [1, 2], r: metricW("active") },
+  review: { name: "Time to review", desc: "How long applications wait for an answer", sizes: [1, 2], r: metricW("review") },
+  sched: { name: "Time to schedule", desc: "Ready to booked on both calendars", sizes: [1, 2], r: metricW("sched") },
+  cards: { name: "Time to feedback", desc: "Interview ending to the interviewer's read", sizes: [1, 2], r: metricW("cards") },
+  load: { name: "Interview workload", desc: "Team hours booked or awaiting feedback", sizes: [1, 2], r: metricW("load") },
+  trend: { name: "Applications over time", desc: "This period against the last, day by day", sizes: [2, 3], r: () => {
+    const d = homeDays(), xs = appsByDay(d * 2).map((x) => x.n), n = xs.length / 2, cur = xs.slice(n), prev = xs.slice(0, n), sc = cur.reduce((a, b) => a + b, 0), sp = prev.reduce((a, b) => a + b, 0);
+    return box(`<div class="wg-top"><div><div class="hm-l">Applications over time</div><div class="hm-v big"><b>${sc.toLocaleString()}</b>${delta(sc, sp)}<span class="hm-sub">vs last period</span></div></div></div>`,
+      `${spark([cur, prev], { h: 170, grid: Math.min(cur.length - 1, 14) })}${axis(d)}<div class="wg-pp"><span>Last period <b class="l2">${sp.toLocaleString()}</b></span><span>This period <b>${sc.toLocaleString()}</b></span></div>`); } },
+  hires: { name: "Hires", desc: "Offers accepted, week by week, last 12 weeks", sizes: [1, 2], r: () => {
+    const wk = (i) => HISTORY.filter((h) => homeScope(h) && h.outcome === "Hired" && h.closed >= NOW - (i + 1) * 7 * DAY && h.closed < NOW - i * 7 * DAY).length;
+    const cur = Array.from({ length: 12 }, (_, i) => wk(11 - i)), prev = Array.from({ length: 12 }, (_, i) => wk(23 - i)), sc = cur.reduce((a, b) => a + b, 0), sp = prev.reduce((a, b) => a + b, 0);
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${sc}</b></div><div class="hm-l">Hires</div></div><div class="wg-side">${delta(sc, sp)}<span>vs the 12 weeks before</span></div></div>`, `${spark([cur])}${axis(84)}`); } },
+  sources: { name: "Where applicants come from", desc: "Careers page, Tacit-sourced and referrals", sizes: [1, 2], r: () => {
+    const from = NOW - homeDays() * DAY, srcs = everyone().filter((a) => homeScope(a) && (((TRACE[a.id] || [])[0] || {}).at || 0) >= from).map((a) => a.src).concat(HISTORY.filter((h) => homeScope(h) && h.applied >= from).map((h) => h.src));
+    const n = (f) => srcs.filter(f).length;
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${srcs.length.toLocaleString()}</b></div><div class="hm-l">Where applicants come from</div></div><div class="wg-side"><b>${homeDays()} days</b><span>this period</span></div></div>`,
+      shares([{ l: "Careers page", n: n((s) => s === "Applied") }, { l: "Sourced by Tacit", n: n((s) => s === "Tacit") }, { l: "Referrals", n: n((s) => /^Referral/.test(s || "")) }])); } },
+  bots: { name: "Grokbots connected", desc: "Interviewers with a working Grokbot", sizes: [1, 2], r: () => {
+    const ids = staff(), on = ids.filter((id) => PEOPLE[id].bot === "on").length, inv = ids.filter((id) => PEOPLE[id].bot === "invited").length;
+    return box(`<div class="wg-top"><div><div class="hm-v"><b>${on}</b><span class="hm-sub">of ${ids.length}</span></div><div class="hm-l">Grokbots connected</div></div><div class="wg-side"><b>${inv}</b><span>invited</span></div></div>`,
+      `<span class="wg-meter big"><i style="width:${(on / (ids.length || 1)) * 100}%"></i><i class="inv" style="width:${(inv / (ids.length || 1)) * 100}%"></i></span>
+       <div class="hm-f"><span class="hm-sub">${ids.length - on - inv} without one</span><a class="hm-go" href="#setup~people">Team & Grokbots${ico("arrowR")}</a></div>`); } },
+  offers: { name: "Offers awaiting approval", desc: "Drafted offers waiting on a sign-off", sizes: [1, 2], r: () => box(`<div class="hm-h"><b>Offers awaiting approval</b><span>${OFFERS.length}</span></div>`,
+    OFFERS.map((o) => `<a class="hm-li" href="#t~${o.a.id}">${personAv(o.by)}<span><b>${esc(o.a.name)}</b><span>${esc(ROLES[o.a.role].title)} · with ${esc(first(o.by))}</span></span><em>${dur(Date.now() - o.since)}</em><span></span></a>`).join("") || `<p class="hm-none">No offers waiting.</p>`) },
+  bottlenecks: { name: "Bottlenecks", desc: "What's waiting longest, and where to clear it", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b>Bottlenecks</b><span>${c.bn.length}</span></div>`,
+    c.bn.map((b) => `<a class="hm-bn ${b.over ? "over" : ""} k-${b.k}" href="${b.go[0]}"><span class="hm-ic">${ico(b.ico)}</span><span class="hm-bn-m"><b>${esc(b.what)}</b><span>${b.over ? `<i class="dot"></i>Over target · ` : ""}${esc(b.why)}</span></span><span class="hm-go">${esc(b.go[1])}${ico("arrowR")}</span></a>`).join("") || `<p class="hm-none">Nothing is waiting.</p>`) },
+  stages: { name: "Time in stage", desc: "Each stage of your process: how many, how long", sizes: [2, 3], r: (c) => box(`<div class="hm-h" id="hm-stages"><b title="Candidates in each stage of your interview process, how long they've waited, and the longest wait. Stage names come from your interview process.">Time in stage</b><span>${c.act.length} active</span><a class="hm-go" href="#setup~process" title="Stages are the steps of your interview process">Edit stages${ico("arrowR")}</a></div>`,
+    `<div class="hm-st-key">${c.SEG.map(([, , l], i) => `<span><i class="s${i}"></i>${l}</span>`).join("")}</div>
+     <div class="hm-st-head"><span>Stage</span><span>Candidates</span><span>Waiting</span><span>Longest</span></div>
+     ${c.stages.map((x) => `<button class="hm-st ${state.homeStage === x.k ? "on" : ""}" data-act="homeStage" data-k="${x.k}" ${x.xs.length ? "" : "disabled"}><span>${ico(state.homeStage === x.k ? "chevD" : "chevR")}${esc(x.n)}</span><b>${x.xs.length}</b>
+         <span class="hm-st-w"><span class="hm-st-bar" style="width:${(x.xs.length / c.maxN) * 100}%">${c.segs(x.xs).filter((g) => g.n).map((g) => `<i class="s${g.i}" style="flex:${g.n}" title="${g.n} waiting ${g.l.toLowerCase()}"></i>`).join("")}</span><em>${x.xs.length ? `typical ${dur(x.med)}` : "None"}</em></span><span class="hm-st-max">${x.xs.length ? dur(x.max) : ""}</span></button>
+       ${state.homeStage === x.k ? `<div class="hm-st-list">${x.xs.slice(0, 8).map((a) => `<a href="#t~${a.id}">${candAv(a)}<b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span><em>${dur(Date.now() - a.when)}</em></a>`).join("")}${x.xs.length > 8 ? `<a class="hm-more" href="#crm~active">All ${x.xs.length} in CRM${ico("arrowR")}</a>` : ""}</div>` : ""}`).join("")}`) },
+  byiv: { name: "Time to submit, by interviewer", desc: "Typical time from interview to feedback", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="Typical time from interview to feedback, slowest first">Time to submit, by interviewer</b></div>`,
+    c.ivs.slice(0, 7).map((x) => `<div class="hm-iv">${personAv(x.id)}<span class="hm-iv-n">${esc(first(x.id))}</span><span class="hm-iv-b"><i style="width:${(x.med / c.maxIv) * 100}%"></i></span><em>${fmtHrs(x.med)}</em>${x.out ? `<span class="hm-iv-o">${x.out} out</span>` : `<span class="hm-iv-o"></span>`}</div>`).join("")) },
+  eff: { name: "Interview efficiency", desc: "Pass-through by round, and interviews per hire", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="From applications closed in the last 12 months">Interview efficiency</b></div>`,
+    `${c.eff.map(([l, r]) => `<div class="hm-eff"><div><span>${l}</span><b>${Math.round(r * 100)}%</b></div><i><i style="width:${r * 100}%"></i></i></div>`).join("")}
+     <div class="hm-eff-n"><div><b>${c.perHire.toFixed(1)}</b><span>interviews per hire</span></div><div><b>${(c.perHire * 0.95).toFixed(1)}h</b><span>interviewer time per hire</span></div></div>`) },
+  outfb: { name: "Outstanding feedback", desc: "Interviews whose read hasn't come in", sizes: [1, 2], r: (c) => box(`<div class="hm-h"><b title="Interviews whose feedback hasn't come in">Outstanding feedback</b><span>${c.outFb.length}</span></div>`,
+    `${c.outFb.slice(0, 5).map((o) => `<div class="hm-li">${personAv(o.iv)}<span><b>${esc(PEOPLE[o.iv].name)}</b><span>${esc(o.a.name)} · ${esc(ROLES[o.a.role].title)}</span></span><em>${dur(o.w)}</em><button class="btn sm" data-act="askGrok" data-id="${o.a.id}">Nudge</button></div>`).join("") || `<p class="hm-none">All feedback is in.</p>`}
+     ${c.outFb.length > 5 ? `<a class="hm-more" href="#interviews">All ${c.outFb.length} in Interview Judgement${ico("arrowR")}</a>` : ""}`) },
+};
+// The default fills one screen, three by three, so the Overview can be put on a projector as it is.
+const WG_KEY = "tats.widgets.v2";
+const WG_DEFAULT = [["apps", 1], ["active", 1], ["review", 1], ["sched", 1], ["cards", 1], ["load", 1], ["trend", 2], ["hires", 1]];
+const wgDefault = () => WG_DEFAULT.map(([k, w]) => ({ k, w }));
+try { state.widgets = (JSON.parse(localStorage.getItem(WG_KEY)) || wgDefault()).filter((x) => WIDGETS[x.k]); } catch { state.widgets = wgDefault(); }
+const saveWidgets = () => { try { localStorage.setItem(WG_KEY, JSON.stringify(state.widgets)); } catch {} };
+function widget(x, c, i) {
+  const W = WIDGETS[x.k], ed = state.hmEdit;
+  return `<div class="wg w${x.w}" data-tid="wg-${x.k}" data-wk="${x.k}"><div class="wg-j">
+    ${W.r(c, x.w)}
+    ${ed ? `<button class="wg-ctl wg-x" data-act="wgRemove" data-k="${x.k}" aria-label="Remove ${esc(W.name)}">${ico("minus")}</button>
+      ${W.sizes.length > 1 ? `<button class="wg-ctl wg-sz" data-act="wgSize" data-k="${x.k}" title="Change size">${SIZE_N[x.w]}</button>` : ""}` : ""}
   </div></div>`;
 }
+function homeOverview() {
+  const c = homeCtx(), ed = state.hmEdit;
+  const chip = (k, label, val) => `<button class="chip ${val ? "on" : ""}" data-act="homeFilter" data-k="${k}">${esc(val || label)}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>`;
+  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<b>Recruiting Overview</b></div><span class="spacer"></span>
+    ${ed ? `<span class="wg-hint">Drag to move · − to remove</span><button class="btn sm" data-act="wgGallery">${ico("plus")}Add widget</button><button class="btn sm wg-done" data-act="wgDone">Done</button>`
+      : `${chip("range", "Last 7 days", H_RANGES.find((r) => r[0] === String(homeDays()))[1])}${chip("team", "All teams", state.homeTeam && TEAMS[state.homeTeam].name)}${chip("role", "All roles", state.homeRole && ROLES[state.homeRole].title)}
+    <button class="btn sm ghost" data-act="wgEdit" title="Choose, move and resize the blocks on this page">${ico("grid")}Edit widgets</button>
+    <button class="btn sm ghost" data-act="hmPresent" title="Full screen, for a projector or a TV (Esc to leave)">${ico("expand")}Present</button>`}</div>
+  ${homeNav("overview")}
+  <div class="scroll" id="scroller"><div class="hm fit">
+    <div class="wg-grid ${ed ? "editing" : ""}">${state.widgets.map((x, i) => widget(x, c, i)).join("")}
+      ${ed ? `<button class="wg-add" data-act="wgGallery">${ico("plus")}<span>Add widget</span></button>` : ""}</div>
+    ${!state.widgets.length && !ed ? `<div class="wg-empty"><p>No widgets on your Overview.</p><button class="btn sm" data-act="wgEdit">${ico("grid")}Edit widgets</button></div>` : ""}
+  </div></div>`;
+}
+// The gallery: every widget with a live preview, the ones already placed marked.
+function openWidgetGallery() {
+  const c = homeCtx(), on = new Set(state.widgets.map((x) => x.k));
+  openForm({ title: "Add a widget", sub: "Pick the numbers you care about. Each one keeps its own size and place.", wide: true,
+    body: `<div class="wg-gal">${Object.entries(WIDGETS).sort(([x], [y]) => on.has(x) - on.has(y)).map(([k, W]) => `<div class="wg-tile ${on.has(k) ? "off" : ""}" data-wadd="${k}" role="button" tabindex="${on.has(k) ? -1 : 0}" aria-disabled="${on.has(k)}">
+      <span class="wg-prev"><span class="wg-prev-in w${W.sizes[0]}">${W.r(c, W.sizes[0]).replace(/\sid="[^"]*"/g, "")}</span></span>
+      <span class="wg-tile-t"><b>${esc(W.name)}</b><span>${esc(W.desc)}</span></span><span class="wg-tile-a">${on.has(k) ? `${ico("check")}On your Overview` : `${ico("plus")}Add`}</span></div>`).join("")}</div>
+      <div class="wg-gal-f"><button type="button" class="btn sm ghost" data-wreset>Reset to the default layout</button></div>` });
+  const el = $("#layer .overlay");
+  $(".modal", el).classList.add("wg-galm");
+  el.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.matches(".wg-tile")) { e.preventDefault(); e.target.click(); } });
+  el.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-wadd]");
+    if (t && !t.classList.contains("off")) { const W = WIDGETS[t.dataset.wadd]; state.widgets.push({ k: t.dataset.wadd, w: W.sizes[0] }); saveWidgets(); closeLayer(); render(); wgArrive(t.dataset.wadd); toast(`Added ${W.name}`); }
+    if (e.target.closest("[data-wreset]")) { state.widgets = wgDefault(); saveWidgets(); closeLayer(); render(); toast("Back to the default layout"); }
+  });
+}
+function wgArrive(k) {
+  const el = $(`.wg[data-wk="${k}"]`); if (!el) return;
+  el.scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" });
+  motion((g) => g.from(el, { scale: 0.95, opacity: 0, duration: 0.2, ease: "power4.out", clearProps: "transform,opacity" }));
+}
+// Rearranging: the widgets move as one set (Flip), so a removed or resized one closes its gap smoothly.
+function wgFlip(change) {
+  const els = $$(".wg-grid .wg"), st = FL && !calm() ? FL.getState(els) : null;
+  change(); render();
+  if (st) FL.from(st, { targets: $$(".wg-grid .wg"), duration: 0.24, ease: "power3.inOut", absolute: false, nested: true, prune: true });
+}
+const wgActs = {
+  wgEdit: () => { state.hmEdit = true; if (state.route.name !== "home") go("home"); else render(); },
+  wgDone: () => { state.hmEdit = false; render(); },
+  // Present: the Overview alone, full screen; the sidebar and tabs step aside until Esc.
+  hmPresent: () => { document.body.classList.add("present"); const r = document.documentElement.requestFullscreen; if (r) document.documentElement.requestFullscreen().catch(() => {}); },
+  wgGallery: () => openWidgetGallery(),
+  wgRemove: (el) => {
+    const k = el.dataset.k, w = el.closest(".wg"), drop = () => wgFlip(() => { state.widgets = state.widgets.filter((x) => x.k !== k); saveWidgets(); });
+    if (G && !calm()) { G.to(w, { scale: 0.95, opacity: 0, duration: 0.15, ease: "power4.out" }); setTimeout(drop, 150); } else drop();
+  },
+  wgSize: (el) => wgFlip(() => { const x = state.widgets.find((y) => y.k === el.dataset.k), s = WIDGETS[x.k].sizes; x.w = s[(s.indexOf(x.w) + 1) % s.length]; saveWidgets(); }),
+};
+// Dragging a widget: it lifts and follows the pointer; the others slide out of its way as it passes over them.
+{
+  let d = null;
+  const slot = (el) => ({ L: el.offsetLeft, T: el.offsetTop });
+  document.addEventListener("pointerdown", (e) => {
+    const el = e.target.closest(".wg-grid.editing .wg");
+    if (!el || e.button || e.target.closest(".wg-ctl")) return;
+    e.preventDefault();
+    const sc = $("#scroller");
+    d = { el, sc, x0: e.clientX, y0: e.clientY, s0: slot(el), sc0: sc ? sc.scrollTop : 0, moved: false, x: e.clientX, y: e.clientY };
+  });
+  const place = () => {
+    const { el, sc, x0, y0, s0, sc0, x, y } = d, s = slot(el);
+    el.style.transform = `translate(${x - x0 + s0.L - s.L}px, ${y - y0 + (sc ? sc.scrollTop - sc0 : 0) + s0.T - s.T}px) scale(1.03)`;
+  };
+  document.addEventListener("pointermove", (e) => {
+    if (!d) return;
+    d.x = e.clientX; d.y = e.clientY;
+    if (!d.moved) { if (Math.hypot(d.x - d.x0, d.y - d.y0) < 4) return; d.moved = true; d.el.classList.add("lift"); document.body.classList.add("wg-dragging"); }
+    place();
+    // Over another widget: take its place. Moving forward lands after it, moving back lands before it;
+    // a short pause after each move lets the others finish sliding so it doesn't swap straight back.
+    const over = Date.now() > (d.lock || 0) && document.elementsFromPoint(d.x, d.y).map((n) => n.closest && n.closest(".wg")).find((n) => n && n !== d.el);
+    if (over) {
+      const all = $$(".wg-grid .wg"), fwd = all.indexOf(d.el) < all.indexOf(over), others = all.filter((n) => n !== d.el), st = FL && !calm() ? FL.getState(others) : null;
+      over.parentNode.insertBefore(d.el, fwd ? over.nextElementSibling : over);
+      d.lock = Date.now() + 300;
+      place();
+      if (st) FL.from(st, { targets: others, duration: 0.24, ease: "power3.inOut" });
+    }
+    // Near the top or bottom of the page, scroll it.
+    if (d.sc) { const r = d.sc.getBoundingClientRect(), v = d.y < r.top + 60 ? -12 : d.y > r.bottom - 60 ? 12 : 0; if (v) { d.sc.scrollTop += v; place(); } }
+  });
+  const end = () => {
+    if (!d) return;
+    const { el, moved } = d; d = null;
+    document.body.classList.remove("wg-dragging");
+    if (!moved) return;
+    const order = $$(".wg-grid .wg").map((n) => n.dataset.wk);
+    state.widgets.sort((a, b) => order.indexOf(a.k) - order.indexOf(b.k)); saveWidgets();
+    el.classList.remove("lift"); el.classList.add("settle"); el.style.transform = "";
+    setTimeout(() => el.classList.remove("settle"), 260);
+  };
+  document.addEventListener("pointerup", end);
+  document.addEventListener("pointercancel", end);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || $("#layer").children.length) return;
+    if (document.body.classList.contains("present")) document.body.classList.remove("present");
+    else if (state.hmEdit) { state.hmEdit = false; render(); }
+  });
+  document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) document.body.classList.remove("present"); });
+}
+// Home's slider switches tabs inside Home: the slider stays put, so Overview is always one click back.
+const HOME_TABS = [["overview", "Overview"], ["tickets", "New Applicants"], ["interviews", "Interview Judgement"], ["referrals", "Referrals"]];
+const homeNav = (on) => `<div class="hm-nav"><div class="pills" role="tablist">${HOME_TABS.map(([k, n]) => `<a class="${on === k ? "on" : ""}" href="${k === "overview" ? "#home" : `#home~${k}`}" role="tab" aria-selected="${on === k}">${n}</a>`).join("")}</div></div>`;
+function homePage(tab, key) {
+  if (!HOME_TABS.some((t) => t[0] === tab) || tab === "overview") return homeOverview();
+  const inner = tab === "tickets" ? triagePage()
+    : tab === "interviews" ? interviewsPage(key).replace(/href="#interviews~/g, 'href="#home~interviews~').replace(/href="#interviews"/g, 'href="#home~interviews"')
+    : referralsPage();
+  return `<div class="bar hm-bar"><div class="crumbs">${ico("home")}<a href="#home">Recruiting Overview</a></div><span class="spacer"></span></div>
+  ${homeNav(tab)}<div class="hm-sub hm-sub-${tab}">${inner}</div>`;
+}
 // Two treatments of the same layout, side by side, so the styling can be judged on its own.
+/* ---------------- Banner: a status message, after Fluid Functionalism's ----------------
+   Five statuses, each with its colour and glyph; low contrast is a neutral fill with a coloured icon, high a light wash
+   of the colour. Inline sits in the page; fixed is a full-bleed bar stuck to the top of its scroller. Up to three actions,
+   laid out primary, secondary, then ghost. A dismissed banner collapses its height and stays dismissed. */
+const BN_ICO = {
+  default: "M8 2.5A3.5 3.5 0 0 0 4.5 6v2.5L3 10.5h10l-1.5-2V6A3.5 3.5 0 0 0 8 2.5ZM6.5 12.5a1.5 1.5 0 0 0 3 0",
+  info: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM8 7.5V11M8 5h.01",
+  success: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM5.5 8l1.8 1.8L10.5 6.5",
+  warning: "M8 2.5 14 13H2L8 2.5ZM8 6.5v3M8 11.2h.01",
+  error: "M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12ZM6 6l4 4M10 6l-4 4",
+};
+const BN_STATUS = ["default", "info", "success", "warning", "error"];
+let bnHidden = new Set();
+try { bnHidden = new Set(JSON.parse(localStorage.getItem("tats.banners") || "[]")); } catch {}
+function banner({ id, status = "default", contrast = "low", variant = "inline", size = "default", title, desc = "", actions = [], dismissible = false, icon }) {
+  if (id && bnHidden.has(id)) return "";
+  const order = { primary: 0, secondary: 1, ghost: 2 };
+  const acts = actions.slice(0, 3).sort((x, y) => order[x.variant || "secondary"] - order[y.variant || "secondary"]).map((a) => {
+    const cls = `btn sm bn-a ${a.variant === "primary" ? "primary" : a.variant === "ghost" ? "ghost" : ""}`;
+    const attrs = Object.entries(a.data || {}).map(([k, v]) => ` data-${k}="${esc(String(v))}"`).join("");
+    return a.href ? `<a class="${cls}" href="${a.href}"${a.external ? ` target="_blank" rel="noopener"` : ""}${attrs}>${esc(a.label)}${a.external ? ico("arrowUR") : ""}</a>`
+      : `<button class="${cls}" ${a.act ? `data-act="${a.act}"` : ""}${attrs}>${esc(a.label)}</button>`;
+  }).join("");
+  return `<div class="bn s-${status} ${contrast === "high" ? "high" : ""} ${variant === "fixed" ? "fixed" : ""} ${size === "compact" ? "compact" : ""}" role="${status === "error" || status === "warning" ? "alert" : "status"}" ${id ? `data-bn="${esc(id)}" data-tid="bn-${esc(id)}"` : ""}>
+    <div class="bn-in"><div class="bn-box">
+      <span class="bn-ico"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="${icon || BN_ICO[status]}"/></svg></span>
+      <div class="bn-txt"><b class="bn-t">${esc(title)}</b>${desc ? `<span class="bn-d">${esc(desc)}</span>` : ""}</div>
+      ${dismissible ? `<button class="bn-x" data-act="bnDismiss" aria-label="Dismiss" title="Dismiss">${ico("x")}</button>` : ""}
+      ${acts ? `<div class="bn-acts">${acts}</div>` : ""}
+    </div></div></div>`;
+}
+// Dismiss: the banner folds away (its height collapses), then it's gone, for good if it has an id.
+function bnDismiss(el) {
+  const b = el.closest(".bn"), id = b && b.dataset.bn;
+  if (!b) return;
+  b.classList.add("out");
+  setTimeout(() => {
+    if (id) { bnHidden.add(id); if (!id.startsWith("pg-")) try { localStorage.setItem("tats.banners", JSON.stringify([...bnHidden].filter((x) => !x.startsWith("pg-")))); } catch {} }
+    render();
+  }, calm() ? 0 : 240);
+}
+
+/* ---------------- Banner playground (#banners): every status, contrast, variant and size, with live controls ---------------- */
+const BN_PG_DEFAULT = { status: "warning", contrast: "high", variant: "inline", size: "default", dismissible: true, n: 3,
+  title: "Marcus's Grokbot can't reach Slack", desc: "Its Slack access expired, so the read for Inez Iyer didn't go out. Reconnect, or send it by email instead." };
+const BN_PG_ACTS = [{ label: "Reconnect Slack", variant: "primary", act: "bnDemo" }, { label: "Send by email", act: "bnDemo" }, { label: "Ignore", variant: "ghost", act: "bnDismiss" }];
+const BN_COPY = {
+  default: ["Testbench results come in overnight", "Scores land in New Applicants by 8 AM your time."],
+  info: ["Wei is heads-down until the 14th", "New interviews go to the rest of Engineering until then."],
+  success: ["Slack reconnected", "Marcus's Grokbot is back and has re-sent the read for Inez."],
+  warning: ["3 tickets are stuck past their target", "The oldest has waited 22 hours over. Nudge or reassign them."],
+  error: ["Marcus's Grokbot can't reach Slack", "Its access expired. The read for Inez Iyer didn't go out."],
+};
+function bannerPage() {
+  const g = (state.bnPg ||= { ...BN_PG_DEFAULT });
+  const seg = (k, opts) => `<div class="pills" role="tablist">${opts.map(([v, l]) => `<button class="${String(g[k]) === String(v) ? "on" : ""}" data-act="bnSet" data-k="${k}" data-v="${v}" role="tab" aria-selected="${String(g[k]) === String(v)}">${l}</button>`).join("")}</div>`;
+  const row = (l, c) => `<div class="bnp-row"><span class="bnp-l">${l}</span>${c}</div>`;
+  const live = banner({ id: "pg-live", status: g.status, contrast: g.contrast, variant: g.variant, size: g.size, title: g.title, desc: g.desc, actions: BN_PG_ACTS.slice(0, g.n), dismissible: g.dismissible });
+  const mock = `<div class="bnp-frame ${g.variant}"><div class="bnp-scroll">${g.variant === "fixed" ? live : ""}
+      <div class="bnp-page"><div class="bnp-h"><b>Applicant Tickets</b><span>281</span></div>${g.variant === "inline" ? live : ""}
+        ${Array.from({ length: 9 }, (_, i) => `<div class="bnp-line"><i></i><span style="width:${38 + ((i * 23) % 40)}%"></span><em></em></div>`).join("")}</div></div>
+      ${bnHidden.has("pg-live") ? `<button class="btn sm bnp-again" data-act="bnAgain">Show it again</button>` : ""}</div>`;
+  const grid = BN_STATUS.map((st) => `<div class="bnp-st"><span class="bnp-l">${st[0].toUpperCase() + st.slice(1)}</span>${["low", "high"].map((c) => banner({ status: st, contrast: c, size: "compact", title: BN_COPY[st][0], desc: BN_COPY[st][1] })).join("")}</div>`).join("");
+  return `<div class="bar"><div class="crumbs"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="${BN_ICO.default}"/></svg><b>Banner playground</b></div><span class="spacer"></span><button class="btn sm ghost" data-act="bnReset">Reset</button></div>
+  <div class="scroll" id="scroller"><div class="bnp">
+    <section class="bnp-ctl">
+      ${row("Status", seg("status", BN_STATUS.map((x) => [x, x[0].toUpperCase() + x.slice(1)])))}
+      ${row("Contrast", seg("contrast", [["low", "Low"], ["high", "High"]]))}
+      ${row("Variant", seg("variant", [["inline", "Inline"], ["fixed", "Fixed"]]))}
+      ${row("Size", seg("size", [["default", "Default"], ["compact", "Compact"]]))}
+      ${row("Actions", seg("n", [[0, "None"], [1, "1"], [2, "2"], [3, "3"]]))}
+      ${row("Dismissible", seg("dismissible", [["true", "Yes"], ["false", "No"]]))}
+      ${row("Title", `<input class="bnp-in" id="bnp-title" data-bnk="title" value="${esc(g.title)}" autocomplete="off">`)}
+      ${row("Description", `<textarea class="bnp-in" id="bnp-desc" data-bnk="desc" rows="2">${esc(g.desc)}</textarea>`)}
+      <div class="bnp-copy">${BN_STATUS.map((st) => `<button class="chip" data-act="bnCopy" data-v="${st}">${esc(st[0].toUpperCase() + st.slice(1))} example</button>`).join("")}</div>
+    </section>
+    <section class="bnp-prev"><div class="bnp-cap">Preview</div>${mock}</section>
+    <section class="bnp-all"><div class="bnp-cap">Every status, low and high contrast</div><div class="bnp-cols"><span></span><span class="bnp-l">Low</span><span class="bnp-l">High</span></div>${grid}</section>
+    <section class="bnp-all"><div class="bnp-cap">In tATS</div><div class="bnp-uses">
+      <div><b>Interview Calendar</b><span>An info banner for interviewers who are away, so nobody books them.</span></div></div></section>
+  </div></div>`;
+}
+document.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.bnk; if (k && state.bnPg) { state.bnPg[k] = e.target.value; render(); } });
+
 function comparePage() {
   const html = homePage().replace(/id="[^"]*"/g, "");
   return `<div class="bar"><div class="crumbs">${ico("home")}<a href="#home">Recruiting Overview</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>Compare styles</b></div><span class="spacer"></span><a class="btn sm" href="#home">Back</a></div>
@@ -905,6 +1303,560 @@ function comparePage() {
 // Styling treatments: "cur" is the current calm grey; "prev" is the earlier palette with refined shading.
 function setPal(v) { document.documentElement.classList.toggle("pal-prev", v === "prev"); try { localStorage.setItem("tats.pal", v); } catch {} }
 try { const qp = new URLSearchParams(location.search).get("pal"); setPal(qp || localStorage.getItem("tats.pal") || "cur"); } catch {}
+/* ---------------- Team setup: add people and their Grokbots, put them on teams, say what they interview for ---------------- */
+// One portal for first-run onboarding and for every change after. The Grokbots route interviews from it.
+const SETUP_STEPS = [["people", "People"], ["teams", "Teams"], ["skills", "Interview skills"], ["process", "Interview process"], ["review", "Review"]];
+const staff = () => Object.keys(PEOPLE).filter((id) => PEOPLE[id].team);
+const setupDone = () => ({ people: staff().length > 0 && staff().every((id) => PEOPLE[id].bot === "on" || PEOPLE[id].bot === "invited"), teams: staff().every((id) => teamsOf(id).length), skills: staff().every((id) => Object.keys(PEOPLE[id].runs || {}).length), process: state.flow.nodes.some((n) => n.type === "interview") && state.flowSeen, review: !!state.setupSaved });
+const ivCoverage = () => IV_TYPES.map((t) => ({ t, who: staff().filter((id) => t in (PEOPLE[id].runs || {})), lead: staff().filter((id) => (PEOPLE[id].runs || {})[t] === 1) }));
+function setupPage(step) {
+  step = SETUP_STEPS.some((x) => x[0] === step) ? step : "people";
+  const idx = SETUP_STEPS.findIndex((x) => x[0] === step), done = setupDone(), ndone = Object.values(done).filter(Boolean).length;
+  const ids = staff();
+  const tagChip = (id, t) => `<span class="su-tag">${esc(t)}<button data-act="suTagDel" data-id="${id}" data-v="${esc(t)}" aria-label="Remove ${esc(t)}">${ico("x")}</button></span>`;
+  let body = "";
+  if (step === "people") body = `<div class="su-card"><div class="su-ch"><div><h3>Add your interviewers</h3><p>Everyone who interviews gets a Grokbot. It messages them in Slack or iMessage for asks, scheduling and feedback.</p></div>
+      <button class="btn sm" data-act="suImport">${CH.slack}Import from Slack</button></div>
+    <div class="su-list">${ids.map((id) => { const p = PEOPLE[id]; return `<div class="su-row" data-tid="sup-${id}">${personAv(id)}<span class="su-who"><b>${esc(p.name)}</b><span>${esc(p.role)}${teamsOf(id).length > 1 ? ` · <em class="su-multi">Multidisciplinary</em>` : ""}</span></span>
+        <span class="su-bot ${p.bot}">${p.bot === "on" ? `${botAv(id)}Grokbot on ${p.ch === "slack" ? "Slack" : "iMessage"}` : p.bot === "invited" ? `${ico("clock")}Invite sent in Slack` : "No Grokbot"}</span>
+        <button class="su-tog ${p.bot === "on" ? "on" : ""}" data-act="suBot" data-id="${id}" role="switch" aria-checked="${p.bot === "on"}" aria-label="Grokbot for ${esc(p.name)}"><i></i></button></div>`; }).join("")}</div>
+    <form class="su-add" id="suAddForm"><input name="name" placeholder="Full name" autocomplete="off"><input name="email" placeholder="name@meridian.com" autocomplete="off"><input name="role" placeholder="Role, e.g. Staff engineer" autocomplete="off"><button class="btn sm" type="submit">${ico("plus")}Add person</button></form></div>`;
+  if (step === "teams") body = `<div class="su-card"><div class="su-ch"><div><h3>Put people on teams</h3><p>A Grokbot asks people on the team that owns a role first. Put someone on more than one team when they can interview across both.</p></div>
+      <button class="btn sm" data-act="suTeamNew">${ico("plus")}New team</button></div>
+    <div class="su-mx" style="--cols:${Object.keys(TEAMS).length}">
+      <div class="su-mx-h"><span></span>${Object.keys(TEAMS).map((k) => `<span>${teamKey(k)}${esc(TEAMS[k].name)}<em>${TEAMS[k].members.length}</em></span>`).join("")}</div>
+      ${ids.map((id) => `<div class="su-mx-r" data-tid="sut-${id}"><span class="su-who">${personAv(id)}<b>${esc(PEOPLE[id].name)}</b>${teamsOf(id).length > 1 ? `<em class="su-multi">Multidisciplinary</em>` : ""}</span>
+        ${Object.keys(TEAMS).map((k) => { const on = TEAMS[k].members.includes(id), lead = TEAMS[k].members[0] === id; return `<span class="su-cell"><button class="ck ${on ? "on" : ""}" data-act="suTeam" data-id="${id}" data-v="${k}" aria-label="${esc(PEOPLE[id].name)} on ${esc(TEAMS[k].name)}" aria-pressed="${on}"></button>${on ? `<button class="su-lead ${lead ? "on" : ""}" data-act="suLead" data-id="${id}" data-v="${k}" title="${lead ? "Team lead" : "Make team lead"}">Lead</button>` : ""}</span>`; }).join("")}</div>`).join("")}
+    </div></div>`;
+  if (step === "skills") body = `<div class="su-card"><div class="su-ch"><div><h3>Say what each person interviews for</h3><p>Skills help the Grokbot match a candidate to the right interviewer. Star an interview type to send it to them first.</p></div></div>
+    <div class="su-list">${ids.map((id) => { const p = PEOPLE[id], runs = p.runs || {}; return `<div class="su-sk" data-tid="sus-${id}"><div class="su-sk-h">${personAv(id)}<span class="su-who"><b>${esc(p.name)}</b><span>${teamsOf(id).map((k) => TEAMS[k].name).join(" · ")}</span></span></div>
+        <div class="su-sk-b"><div class="su-sk-l">Skills</div><div class="su-tags">${(p.focus || []).map((t) => tagChip(id, t)).join("")}<button class="su-tag add" data-act="suTagAdd" data-id="${id}">${ico("plus")}Skill</button></div>
+          <div class="su-sk-l">Interviews</div><div class="su-tags">${IV_TYPES.map((t) => { const st = t in runs ? (runs[t] ? "prio" : "on") : ""; return `<button class="su-iv ${st}" data-act="suRun" data-id="${id}" data-v="${esc(t)}" title="${st === "prio" ? "Prioritized: they get this interview first" : st ? "Runs this. Click again to prioritize" : "Click if they run this"}">${st === "prio" ? "★ " : ""}${esc(t)}</button>`; }).join("")}</div></div></div>`; }).join("")}</div></div>`;
+  if (step === "process") { state.flowSeen = true; body = `<div class="su-card su-flow"><div class="su-ch"><div><h3>Design your interview process</h3><p>Draw the steps from applying to an offer. You can also ask your Grokbot in Slack or the CLI to change it, like “add a references check before the offer”. The Grokbots use this to know who interviews next.</p></div></div>${flowCanvas()}</div>`; }
+  if (step === "review") { const cov = ivCoverage(), gaps = cov.filter((c) => !c.who.length); body = `<div class="su-card"><div class="su-ch"><div><h3>Ready for tATS</h3><p>Here's who the Grokbots will ask for each kind of interview.</p></div></div>
+    <div class="su-sum"><div><b>${ids.length}</b><span>interviewers</span></div><div><b>${ids.filter((id) => PEOPLE[id].bot === "on").length}</b><span>Grokbots on</span></div><div><b>${Object.keys(TEAMS).length}</b><span>teams</span></div><div><b>${ids.filter((id) => teamsOf(id).length > 1).length}</b><span>multidisciplinary</span></div></div>
+    <div class="su-cov">${cov.map((c) => `<div class="su-cov-r ${c.who.length ? "" : "gap"}"><span class="su-cov-t">${esc(c.t)}</span><span class="su-cov-p">${c.who.length ? c.who.sort((x, y) => (PEOPLE[y].runs[c.t] || 0) - (PEOPLE[x].runs[c.t] || 0)).map((id) => `<span class="su-cov-a ${PEOPLE[id].runs[c.t] ? "prio" : ""}" title="${esc(PEOPLE[id].name)}${PEOPLE[id].runs[c.t] ? ", prioritized" : ""}">${personAv(id)}${PEOPLE[id].runs[c.t] ? "<i>★</i>" : ""}</span>`).join("") : `<span class="su-gap">No one runs this yet</span>`}</span></div>`).join("")}</div>
+    ${gaps.length ? `<p class="su-note">${ico("alert")}${gaps.length} interview type${gaps.length === 1 ? " has" : "s have"} no interviewer. Candidates who need ${gaps.length === 1 ? "it" : "them"} wait in Inbox until someone's added.</p>` : ""}</div>`; }
+  return `<div class="scroll su-page ${step === "process" ? "su-wide" : ""}" id="scroller"><div class="su">
+    <div class="su-main">
+      <div class="su-step">${state.setupSaved ? "People & teams" : `Step ${idx + 1} of ${SETUP_STEPS.length}`}</div>
+      <h1>${state.setupSaved ? "Your hiring team" : `Set up ${esc(ORG.name)}'s hiring team`}</h1>
+      <p class="su-sub">${state.setupSaved ? "Add people, move them between teams, and change what they interview for. Grokbots pick it up right away." : "Add who interviews, connect their Grokbots, and say what they're best at."} Or ask your Grokbot in <a class="su-surf" href="?surface=slack" target="_blank" rel="noopener">${CH.slack}Slack</a> or <a class="su-surf" href="?surface=cli" target="_blank" rel="noopener">${ico("code")}the CLI</a> and watch it happen here.</p>
+      <nav class="su-steps">${SETUP_STEPS.map(([k, n], i) => `${i ? `<i></i>` : ""}<a href="#setup~${k}" class="${k === step ? "on" : ""} ${done[k] && k !== step ? "done" : ""}"><span>${done[k] && k !== step ? ico("check") : i + 1}</span>${n}</a>`).join("")}</nav>
+      <div class="su-frame">${body}
+        <div class="su-foot"><a class="su-skip" href="#home">${state.setupSaved ? "Back to tATS" : "Skip for now"}</a><span class="grow"></span>
+          ${idx ? `<a class="btn" href="#setup~${SETUP_STEPS[idx - 1][0]}">${ico("chevL")}Back</a>` : ""}
+          ${idx < SETUP_STEPS.length - 1 ? `<a class="btn primary dark" href="#setup~${SETUP_STEPS[idx + 1][0]}">Continue${ico("chevR")}</a>` : `<button class="btn primary dark" data-act="suFinish">${state.setupSaved ? "Save" : "Open tATS"}${ico("chevR")}</button>`}</div></div>
+    </div>
+    <aside class="su-side">
+      <section class="su-check"><div class="su-check-h"><b>Setup checklist</b><span>${ndone}/${SETUP_STEPS.length}</span></div><i class="su-prog"><i style="width:${(ndone / SETUP_STEPS.length) * 100}%"></i></i>
+        ${SETUP_STEPS.map(([k, n]) => `<a class="su-ci ${k === step ? "on" : ""}" href="#setup~${k}"><span class="su-ck ${done[k] ? "done" : ""}">${done[k] ? ico("check") : ""}</span><span><b>${n}</b><span>${k === "process" ? `${fcSummary().steps} steps, ${fcSummary().ivs} interviews` : k === "people" ? `${ids.length} people · ${ids.filter((id) => PEOPLE[id].bot === "on").length} Grokbots on` : k === "teams" ? `${Object.keys(TEAMS).length} teams` : k === "skills" ? `${ivCoverage().filter((c) => c.who.length).length} of ${IV_TYPES.length} interview types covered` : done.review ? "Saved" : "About a minute"}</span></span></a>`).join("")}</section>
+
+    </aside>
+  </div></div>`;
+}
+/* ---------------- Interview process: a flowchart you draw, or your Grokbot draws for you ---------------- */
+// The process the Grokbots route by. Steps (stage), a split by team (route), Applied (start), the Offer (end), and sticky notes.
+// Drag to move, drag from a step's dot to connect, double-click to add, Delete removes, ⌘Z undoes. Saved in this browser.
+const FLOW_KEY = "tats.flow.v2";
+const FN = { stage: [176, 76], route: [144, 48], start: [124, 44], end: [124, 44], note: [176, 92] };
+function flowDefault() {
+  const n = (id, kind, x, y, label, o = {}) => ({ id, kind, x, y, label, ...o });
+  const cy = (k) => 150 - FN[k][1] / 2;
+  return {
+    nodes: [
+      n("applied", "start", 0, cy("start"), "Applied"),
+      n("review", "stage", 164, cy("stage"), "Application review", { type: "review", team: "you" }),
+      n("tb", "stage", 380, cy("stage"), "Testbench", { type: "testbench", mins: 180 }),
+      n("route", "route", 596, cy("route"), "Split by team"),
+      n("t-infra", "stage", 800, cy("stage") - 112, "Team interview", { type: "interview", team: "infra", mins: 60 }),
+      n("t-research", "stage", 800, cy("stage"), "Team interview", { type: "interview", team: "research", mins: 60 }),
+      n("t-product", "stage", 800, cy("stage") + 112, "Team interview", { type: "interview", team: "product", mins: 60 }),
+      n("cross", "stage", 1016, cy("stage"), "Cross-team interview", { type: "interview", team: "partner", mins: 60 }),
+      n("final", "stage", 1232, cy("stage"), "Final with the CTO", { type: "interview", who: ["daniel"], mins: 45 }),
+      n("offer", "end", 1448, cy("end"), "Offer"),
+      n("note1", "note", 380, 250, "Skip the Testbench for referrals from the team?"),
+    ],
+    edges: [["applied", "review"], ["review", "tb"], ["tb", "route"], ["route", "t-infra", "Engineering"], ["route", "t-research", "Research"], ["route", "t-product", "Product"],
+      ["t-infra", "cross"], ["t-research", "cross"], ["t-product", "cross"], ["cross", "final"], ["final", "offer"]]
+      .map(([from, to, label = ""], i) => ({ id: `e${i}`, from, to, label })),
+  };
+}
+try { state.flow = JSON.parse(localStorage.getItem(FLOW_KEY) || "null"); } catch {}
+if (!state.flow || !Array.isArray(state.flow.nodes) || !Array.isArray(state.flow.edges)) state.flow = flowDefault();
+state.fcView ||= { x: 40, y: 80, z: 1 };
+const fN = (id) => state.flow.nodes.find((n) => n.id === id);
+const fSize = (n) => FN[n.kind] || FN.stage;
+const fcUid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+const fcHist = [], fcFut = [];
+function fcSave() { try { localStorage.setItem(FLOW_KEY, JSON.stringify(state.flow)); } catch {} state.fcDirty = true; }
+function fcCommit(fn) { fcHist.push(JSON.stringify(state.flow)); if (fcHist.length > 80) fcHist.shift(); fcFut.length = 0; fn(); fcSave(); fcPaint(); }
+function fcUndo() { if (!fcHist.length) return; fcFut.push(JSON.stringify(state.flow)); state.flow = JSON.parse(fcHist.pop()); state.fcSel = null; fcSave(); fcPaint(); }
+function fcRedo() { if (!fcFut.length) return; fcHist.push(JSON.stringify(state.flow)); state.flow = JSON.parse(fcFut.pop()); state.fcSel = null; fcSave(); fcPaint(); }
+const fcSelObj = () => { const s = state.fcSel; return !s ? null : s.t === "e" ? state.flow.edges.find((e) => e.id === s.id) : fN(s.id); };
+const fmtMins = (m) => (!m ? "" : m >= 60 ? `${m % 60 ? (m / 60).toFixed(1) : m / 60}h` : `${m}m`);
+// Who runs a step, said the way a person would.
+function stageWho(n, own) {
+  if (n.type === "testbench") return { tag: "The candidate", avs: "" };
+  if (n.team === "you") return { tag: "You", avs: personAv(ME) };
+  if (n.who && n.who.length) return { tag: n.who.map((id) => first(id)).join(", "), avs: n.who.slice(0, 3).map((id) => personAv(id)).join("") };
+  const tk = n.team === "own" ? own : n.team === "partner" && own ? PARTNER[own] : n.team;
+  if (TEAMS[tk]) return { tag: TEAMS[tk].name, dot: TEAMS[tk].color, avs: TEAMS[tk].members.slice(0, 3).map((id) => personAv(id)).join("") };
+  return { tag: n.team === "partner" ? "Another team" : n.team === "own" ? "Their team" : "Anyone", avs: "" };
+}
+const fcPort = `<i class="fc-port" title="Drag to connect"></i>`;
+function fcNode(n, st = {}) {
+  const [w, h] = fSize(n), sel = state.fcSel && state.fcSel.id === n.id;
+  const at = `class="fc-n ${n.kind} ${sel ? "sel" : ""} ${st.k || ""}" data-fn="${n.id}" style="left:${n.x}px;top:${n.y}px;width:${w}px;height:${h}px"`;
+  if (n.kind === "note") return `<div ${at}><p>${esc(n.label)}</p></div>`;
+  if (n.kind === "start" || n.kind === "end") return `<div ${at}>${ico(n.kind === "start" ? "inbox" : "flag")}<b class="trunc">${esc(n.label)}</b>${n.kind === "start" ? fcPort : ""}</div>`;
+  if (n.kind === "route") return `<div ${at}>${ico("route")}<b class="trunc">${esc(n.label)}</b>${fcPort}</div>`;
+  const w2 = stageWho(n);
+  return `<div ${at}><div class="fc-nh"><b class="trunc">${esc(n.label)}</b>${n.mins ? `<span>${fmtMins(n.mins)}</span>` : ""}</div>
+    <div class="fc-nf">${w2.dot ? `<i class="fc-dot" style="background:${w2.dot}"></i>` : ""}<span class="trunc">${esc(w2.tag)}</span><span class="fc-avs">${w2.avs}</span></div>${fcPort}</div>`;
+}
+function fcCurve(sx, sy, tx, ty) { const dx = Math.max(36, Math.abs(tx - sx) / 2); return `M${sx} ${sy}C${sx + dx} ${sy} ${tx - dx} ${ty} ${tx} ${ty}`; }
+const fcArrow = (tx, ty) => `<path class="ar" d="M${tx - 7} ${ty - 4}L${tx} ${ty}L${tx - 7} ${ty + 4}Z"/>`;
+function fcEdges() {
+  return `<svg class="fc-edges" width="1" height="1" aria-hidden="true">${state.flow.edges.map((e) => {
+    const a = fN(e.from), b = fN(e.to);
+    if (!a || !b) return "";
+    const [aw, ah] = fSize(a), [, bh] = fSize(b), sx = a.x + aw, sy = a.y + ah / 2, tx = b.x, ty = b.y + bh / 2, d = fcCurve(sx, sy, tx, ty);
+    const sel = state.fcSel && state.fcSel.id === e.id;
+    return `<g class="fc-e ${sel ? "sel" : ""}" data-fe="${e.id}"><path class="hit" d="${d}"/><path class="ln" d="${d}"/>${fcArrow(tx, ty)}${e.label ? `<text x="${(sx + tx) / 2}" y="${(sy + ty) / 2 - 6}">${esc(e.label)}</text>` : ""}</g>`;
+  }).join("")}${state.fcLink ? (() => { const a = fN(state.fcLink.from), [aw, ah] = fSize(a); return `<path class="fc-tmp" d="${fcCurve(a.x + aw, a.y + ah / 2, state.fcLink.x, state.fcLink.y)}"/>`; })() : ""}</svg>`;
+}
+const fcWorldHtml = () => `${fcEdges()}${state.flow.nodes.map((n) => fcNode(n)).join("")}`;
+const fcVp = (v) => `background-position:${v.x}px ${v.y}px;background-size:${20 * v.z}px ${20 * v.z}px`;
+const fcTr = (v) => `transform:translate(${v.x}px,${v.y}px) scale(${v.z})`;
+function fcSummary() {
+  const st = state.flow.nodes.filter((n) => n.kind === "stage"), iv = st.filter((n) => n.type === "interview");
+  return { steps: st.length, ivs: iv.length, mins: iv.reduce((m, n) => m + (n.mins || 60), 0) };
+}
+function fcInspector() {
+  const s = state.fcSel, o = fcSelObj();
+  const pills = (k, opts, cur) => `<div class="pills fc-pills">${opts.map(([v, l]) => `<button class="${String(cur) === String(v) ? "on" : ""}" data-act="fcSet" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div>`;
+  if (!o) {
+    const sm = fcSummary();
+    return `<div class="fc-pill" title="Double-click the canvas to add a step. Drag from the dot on a step to connect it. Click a step to say who runs it. Delete removes, ⌘Z undoes. Scroll to pan, ⌘ + scroll to zoom.">${sm.steps} steps · ${sm.ivs} interview${sm.ivs === 1 ? "" : "s"} · about ${fmtMins(sm.mins)} per candidate<span class="fc-q">?</span></div>`;
+  }
+  if (s.t === "e") return `<aside class="fc-insp"><b class="fc-ih">Connection</b><span class="fc-sub">${esc(fN(o.from)?.label || "")} → ${esc(fN(o.to)?.label || "")}</span>
+    <label class="fc-f"><span>Label</span><input data-fcf="label" value="${esc(o.label)}" placeholder="Pass, Yes, Engineering…" autocomplete="off"></label>
+    <button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove connection</button></aside>`;
+  if (o.kind === "note") return `<aside class="fc-insp"><b class="fc-ih">Note</b><label class="fc-f"><textarea data-fcf="label" rows="4">${esc(o.label)}</textarea></label><button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove note</button></aside>`;
+  const outs = state.flow.edges.filter((e) => e.from === o.id);
+  return `<aside class="fc-insp"><b class="fc-ih">${o.kind === "route" ? "Split" : o.kind === "start" ? "Start" : o.kind === "end" ? "End" : "Step"}</b>
+    <label class="fc-f"><span>Name</span><input data-fcf="label" value="${esc(o.label)}" autocomplete="off"></label>
+    ${o.kind === "stage" ? `<div class="fc-f"><span>Kind</span>${pills("type", [["review", "Review"], ["testbench", "Testbench"], ["interview", "Interview"]], o.type || "interview")}</div>
+    ${o.type === "testbench" ? "" : `<div class="fc-f"><span>Who runs it</span>${pills("team", [["you", "You"], ["own", "Their team"], ["partner", "Another team"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])], o.who && o.who.length ? "" : o.team || "own")}
+      <div class="fc-people">${staff().map((id) => `<button class="fc-pp ${(o.who || []).includes(id) ? "on" : ""}" data-act="fcWho" data-id="${id}" title="${esc(PEOPLE[id].name)}">${personAv(id)}<span>${esc(first(id))}</span></button>`).join("")}</div>
+      <span class="fc-hint">${o.who && o.who.length ? "Only these people run it." : "The Grokbot picks someone from the team with room this week. Pick people to pin it to them."}</span></div>`}
+    <div class="fc-f"><span>Length</span>${pills("mins", [[30, "30m"], [45, "45m"], [60, "1h"], [90, "1.5h"], [180, "3h"]], o.mins || "")}</div>` : ""}
+    ${o.kind === "route" ? `<p class="fc-hint">Candidates go down the branch for the team that owns their role. Name each branch below.</p>` : ""}
+    ${outs.length ? `<div class="fc-f"><span>Then</span>${outs.map((e) => `<label class="fc-out">${ico("arrowR")}<span class="trunc">${esc(fN(e.to)?.label || "")}</span><input data-fcf="edge:${e.id}" value="${esc(e.label)}" placeholder="Label" autocomplete="off"></label>`).join("")}</div>` : ""}
+    ${o.kind === "start" || o.kind === "end" ? "" : `<button class="btn sm fc-del" data-act="fcDel">${ico("x")}Remove ${o.kind === "route" ? "split" : "step"}</button>`}</aside>`;
+}
+function flowInner() {
+  const v = state.fcView;
+  return `<div class="fc-vp" style="${fcVp(v)}"><div class="fc-world" style="${fcTr(v)}">${fcWorldHtml()}</div></div>
+    ${fcInspector()}
+    <div class="fc-tools">
+      <button class="fc-tb" data-act="fcAdd" data-k="stage" title="Add a step">${ico("plus")}Step</button>
+      <button class="fc-tb" data-act="fcAdd" data-k="route" title="Add a split">${ico("route")}Split</button>
+      <button class="fc-tb" data-act="fcAdd" data-k="note" title="Add a note">${ico("compose")}Note</button><i class="fc-sep"></i>
+      <button class="fc-tb ic" data-act="fcZoom" data-v="-1" aria-label="Zoom out">${ico("minus")}</button><span class="fc-z">${Math.round(v.z * 100)}%</span><button class="fc-tb ic" data-act="fcZoom" data-v="1" aria-label="Zoom in">${ico("plus")}</button>
+      <button class="fc-tb" data-act="fcFit" title="Fit to screen">Fit</button><i class="fc-sep"></i>
+      <button class="fc-tb ic" data-act="fcUndo" aria-label="Undo (⌘Z)" title="Undo (⌘Z)" ${fcHist.length ? "" : "disabled"}><svg class="ico" viewBox="0 0 16 16"><path d="M5.5 4 2.5 7l3 3M2.5 7h7a4 4 0 0 1 0 8H8"/></svg></button>
+      <button class="fc-tb ic" data-act="fcRedo" aria-label="Redo (⇧⌘Z)" title="Redo (⇧⌘Z)" ${fcFut.length ? "" : "disabled"}><svg class="ico" viewBox="0 0 16 16"><path d="M10.5 4l3 3-3 3M13.5 7h-7a4 4 0 0 0 0 8H8"/></svg></button>
+      <button class="fc-tb" data-act="fcReset" title="Start over from the default process">Reset</button>
+    </div>`;
+}
+const flowCanvas = () => `<div class="fc" data-mode="edit">${flowInner()}</div>`;
+// Repaint every open editor without a full render, so typing and dragging stay smooth.
+function fcPaint() { $$('.fc[data-mode="edit"]').forEach((el) => patch(el, flowInner())); }
+function fcPaintWorld() {
+  const v = state.fcView;
+  $$('.fc[data-mode="edit"]').forEach((el) => { const vp = $(".fc-vp", el), w = $(".fc-world", el); vp.style.cssText = fcVp(v); w.style.cssText = fcTr(v); w.innerHTML = fcWorldHtml(); const z = $(".fc-z", el); if (z) z.textContent = `${Math.round(v.z * 100)}%`; });
+}
+function fcFit() {
+  const vp = $('#layer .fc[data-mode="edit"] .fc-vp') || $('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  const ns = state.flow.nodes, r = vp.getBoundingClientRect();
+  if (!ns.length || !r.width) return;
+  const x0 = Math.min(...ns.map((n) => n.x)), y0 = Math.min(...ns.map((n) => n.y)), x1 = Math.max(...ns.map((n) => n.x + fSize(n)[0])), y1 = Math.max(...ns.map((n) => n.y + fSize(n)[1]));
+  const room = r.width - 48;
+  const z = Math.max(0.42, Math.min(1.1, room / (x1 - x0), (r.height - 140) / (y1 - y0)));
+  state.fcView = { x: 24 + (room - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - 64 - (y1 - y0) * z) / 2 - y0 * z, z };
+  fcPaintWorld();
+}
+function fcAddNode(kind, at) {
+  const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp ? vp.getBoundingClientRect() : { width: 800, height: 500 };
+  const c = at || { x: (r.width / 2 - v.x) / v.z, y: (r.height / 2 - v.y) / v.z }, [w, h] = FN[kind];
+  const n = { id: fcUid("n"), kind, x: Math.round(c.x - w / 2), y: Math.round(c.y - h / 2), label: kind === "note" ? "A note for the team" : kind === "route" ? "Split by team" : "New interview" };
+  if (kind === "stage") Object.assign(n, { type: "interview", team: "own", mins: 60 });
+  fcCommit(() => { state.flow.nodes.push(n); state.fcSel = { t: "n", id: n.id }; });
+  setTimeout(() => { const i = $('.fc-insp [data-fcf="label"]'); if (i) { i.focus(); i.select(); } });
+}
+// Take a step out and join what came before it to what came after, so the process stays connected.
+function fcRemoveNode(id, join) {
+  const ins = state.flow.edges.filter((e) => e.to === id), outs = state.flow.edges.filter((e) => e.from === id);
+  state.flow.edges = state.flow.edges.filter((e) => e.from !== id && e.to !== id);
+  state.flow.nodes = state.flow.nodes.filter((n) => n.id !== id);
+  if (join) ins.forEach((i) => outs.forEach((o) => { if (!state.flow.edges.some((e) => e.from === i.from && e.to === o.to)) state.flow.edges.push({ id: fcUid("e"), from: i.from, to: o.to, label: o.label || i.label }); }));
+}
+function fcDelete() {
+  const s = state.fcSel, o = fcSelObj();
+  if (!o || o.kind === "start" || o.kind === "end") return;
+  fcCommit(() => { if (s.t === "e") state.flow.edges = state.flow.edges.filter((e) => e.id !== s.id); else fcRemoveNode(s.id, false); state.fcSel = null; });
+}
+// Pointer: drag a step, drag from its dot to connect, drag the canvas to pan. Scroll pans, ⌘/Ctrl + scroll zooms.
+let fcDrag = null;
+document.addEventListener("pointerdown", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp || e.button > 1) return;
+  const v = state.fcView, r = vp.getBoundingClientRect(), W = (ev) => ({ x: (ev.clientX - r.left - v.x) / v.z, y: (ev.clientY - r.top - v.y) / v.z });
+  const port = e.target.closest(".fc-port"), nodeEl = e.target.closest("[data-fn]"), edgeEl = e.target.closest("[data-fe]");
+  e.preventDefault();
+  if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) document.activeElement.blur();
+  if (port) { fcDrag = { k: "link", W }; state.fcLink = { from: port.closest("[data-fn]").dataset.fn, ...W(e) }; }
+  else if (nodeEl) { const n = fN(nodeEl.dataset.fn), p = W(e); state.fcSel = { t: "n", id: n.id }; fcDrag = { k: "move", n, dx: p.x - n.x, dy: p.y - n.y, W, snap: JSON.stringify(state.flow) }; fcPaint(); }
+  else if (edgeEl) { state.fcSel = { t: "e", id: edgeEl.dataset.fe }; fcPaint(); return; }
+  else fcDrag = { k: "pan", sx: e.clientX, sy: e.clientY, vx: v.x, vy: v.y };
+  fcDrag.moved = false;
+});
+document.addEventListener("pointermove", (e) => {
+  if (!fcDrag) return;
+  const d = fcDrag, v = state.fcView;
+  if (d.k === "move") { const p = d.W(e); d.n.x = Math.round((p.x - d.dx) / 4) * 4; d.n.y = Math.round((p.y - d.dy) / 4) * 4; }
+  else if (d.k === "link") Object.assign(state.fcLink, d.W(e));
+  else { v.x = d.vx + e.clientX - d.sx; v.y = d.vy + e.clientY - d.sy; }
+  d.moved = true;
+  fcPaintWorld();
+});
+document.addEventListener("pointerup", (e) => {
+  const d = fcDrag;
+  if (!d) return;
+  fcDrag = null;
+  if (d.k === "move" && d.moved) { fcHist.push(d.snap); fcFut.length = 0; fcSave(); fcPaint(); }
+  if (d.k === "link") {
+    const from = state.fcLink.from, t = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-fn]"), to = t && fN(t.dataset.fn), a = fN(from);
+    state.fcLink = null;
+    if (to && to.id !== from && !["start", "note"].includes(to.kind) && !state.flow.edges.some((x) => x.from === from && x.to === to.id))
+      fcCommit(() => { const label = a.kind === "route" && TEAMS[to.team] ? TEAMS[to.team].name : ""; const id = fcUid("e"); state.flow.edges.push({ id, from, to: to.id, label }); state.fcSel = { t: "e", id }; });
+    else fcPaint();
+  }
+  if (d.k === "pan" && !d.moved) { state.fcSel = null; fcPaint(); }
+});
+document.addEventListener("dblclick", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  const nodeEl = e.target.closest("[data-fn]");
+  if (nodeEl) { const i = $('.fc-insp [data-fcf="label"]'); if (i) { i.focus(); i.select(); } return; }
+  const v = state.fcView, r = vp.getBoundingClientRect();
+  fcAddNode("stage", { x: (e.clientX - r.left - v.x) / v.z, y: (e.clientY - r.top - v.y) / v.z });
+});
+document.addEventListener("wheel", (e) => {
+  const vp = e.target.closest && e.target.closest('.fc[data-mode="edit"] .fc-vp');
+  if (!vp) return;
+  e.preventDefault();
+  const v = state.fcView;
+  if (e.ctrlKey || e.metaKey) { const r = vp.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, z = Math.max(0.3, Math.min(2, v.z * Math.exp(-e.deltaY * 0.01))); v.x = px - ((px - v.x) * z) / v.z; v.y = py - ((py - v.y) * z) / v.z; v.z = z; }
+  else { v.x -= e.deltaX; v.y -= e.deltaY; }
+  fcPaintWorld();
+}, { passive: false });
+document.addEventListener("keydown", (e) => {
+  if (tour || !$('.fc[data-mode="edit"]')) return;
+  if (e.target.closest && e.target.closest("input, textarea, [contenteditable='true']")) return;
+  const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
+  const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+  if (mod && k === "z") { stop(); return e.shiftKey ? fcRedo() : fcUndo(); }
+  if ((e.key === "Delete" || e.key === "Backspace") && state.fcSel) { stop(); return fcDelete(); }
+  if (e.key === "Escape" && state.fcSel) { stop(); state.fcSel = null; fcPaint(); }
+}, true);
+document.addEventListener("focusin", (e) => { if (e.target.dataset && e.target.dataset.fcf) { fcHist.push(JSON.stringify(state.flow)); fcFut.length = 0; } });
+document.addEventListener("input", (e) => {
+  const f = e.target.dataset && e.target.dataset.fcf;
+  if (!f) return;
+  if (f.startsWith("edge:")) { const ed = state.flow.edges.find((x) => x.id === f.slice(5)); if (ed) ed.label = e.target.value; }
+  else { const o = fcSelObj(); if (o) o.label = e.target.value; }
+  fcSave(); fcPaintWorld();
+});
+// The Grokbot (in Slack, the CLI, or the chat here) reads a description and draws it: steps in the order you said them, a split by team when you mention one, the offer at the end.
+// "Add X before Y", "Add X after Y" and "Remove X" change the process you already have.
+const FC_KW = [
+  [/recruiter|phone screen|intro call|screening call/, { label: "Recruiter screen", type: "review", team: "you", mins: 30 }],
+  [/application review|review (?:the )?application|resume review/, { label: "Application review", type: "review", team: "you" }],
+  [/testbench|take[- ]?home|work sample|assessment/, { label: "Testbench", type: "testbench", mins: 180 }],
+  [/by team|split|route|team interview|technical interview/, { route: true }],
+  [/pair(?:ing)?|coding interview/, { label: "Pairing interview", type: "interview", team: "own", mins: 60 }],
+  [/system design/, { label: "System design", type: "interview", team: "own", mins: 60 }],
+  [/cross[- ]team|another team/, { label: "Cross-team interview", type: "interview", team: "partner", mins: 60 }],
+  [/onsite|on-site/, { label: "Onsite", type: "interview", team: "own", mins: 180 }],
+  [/values|culture/, { label: "Values interview", type: "interview", team: "partner", mins: 45 }],
+  [/cto|founder|final/, { label: "Final with the CTO", type: "interview", who: ["daniel"], mins: 45 }],
+  [/reference/, { label: "References", type: "review", team: "you" }],
+];
+const capFirst = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function flowFromText(raw) {
+  const t = raw.toLowerCase().trim().replace(/[.!]+$/, "");
+  const find = (q) => { q = q.replace(/^(the|a|an)\s+/, "").replace(/\s+(step|round)$/, ""); return state.flow.nodes.find((n) => n.kind !== "note" && n.label.toLowerCase().includes(q)) || state.flow.nodes.find((n) => n.kind !== "note" && q.split(" ").some((w) => w.length > 3 && n.label.toLowerCase().includes(w))); };
+  let m = t.match(/^(?:remove|drop|delete|skip|cut|take out)\s+(.+)$/);
+  if (m) { const n = find(m[1]); if (!n || n.kind === "start" || n.kind === "end") return { say: `I couldn't find “${esc(m[1])}” in the process.` }; return { edit: () => fcRemoveNode(n.id, true), say: `Took out <b>${esc(n.label)}</b> and joined up the steps around it.` }; }
+  m = t.match(/^add\s+(?:a |an )?(.+?)(?:\s+(before|after)\s+(.+))?$/);
+  if (m) {
+    const spec = (FC_KW.find(([re]) => re.test(m[1])) || [])[1], label = spec && spec.label ? spec.label : capFirst(m[1].replace(/\s+(step|round)$/, "").replace(/ check$/, " check"));
+    const anchor = m[3] ? find(m[3]) : state.flow.nodes.find((n) => n.kind === "end");
+    if (!anchor) return { say: `I couldn't find “${esc(m[3])}” to put it next to.` };
+    const before = m[2] !== "after";
+    return { say: `Added <b>${esc(label)}</b> ${before ? "before" : "after"} ${esc(anchor.label)}.`, edit: () => {
+      const n = { id: fcUid("n"), kind: "stage", type: "interview", team: "own", mins: 60, ...(spec && !spec.route ? spec : {}), label };
+      const [aw, ah] = fSize(anchor), shift = FN.stage[0] + 40, ax = before ? anchor.x : anchor.x + aw;
+      state.flow.nodes.forEach((x) => { if (x.kind !== "note" && x.x >= ax) x.x += shift; });
+      n.x = before ? ax : ax + 40; n.y = anchor.y + ah / 2 - FN.stage[1] / 2;
+      state.flow.nodes.push(n);
+      const es = state.flow.edges.filter((e) => (before ? e.to === anchor.id : e.from === anchor.id));
+      es.forEach((e) => { if (before) e.to = n.id; else e.from = n.id; });
+      state.flow.edges.push(before ? { id: fcUid("e"), from: n.id, to: anchor.id, label: "" } : { id: fcUid("e"), from: anchor.id, to: n.id, label: "" });
+    } };
+  }
+  // A whole process, in the order things are mentioned.
+  const hits = FC_KW.map(([re, spec]) => { const x = t.search(re); return x < 0 ? null : { x, spec }; }).filter(Boolean).sort((p, q) => p.x - q.x).map((h) => h.spec);
+  if (!hits.length) return { say: "Tell me the steps in order, like “recruiter screen, Testbench, team interview by team, final with the CTO”." };
+  const two = /(two|2)\s+(team|technical)\s+interviews/.test(t);
+  const nodes = [], edges = [], cy = 150, colW = 216, at = (k) => cy - FN[k][1] / 2;
+  const E = (from, to, label = "") => edges.push({ id: fcUid("e"), from, to, label });
+  let x = 0, prev = ["applied"];
+  nodes.push({ id: "applied", kind: "start", x, y: at("start"), label: "Applied" });
+  x += 164;
+  const link = (id, label) => { prev.forEach((p) => E(p, id, p === "applied" ? "" : label)); prev = [id]; };
+  hits.forEach((s) => {
+    if (s.route) {
+      const rid = fcUid("r");
+      nodes.push({ id: rid, kind: "route", x, y: at("route"), label: "Split by team" }); link(rid, ""); x += 204;
+      const ks = Object.keys(TEAMS), outs = [];
+      ks.forEach((k, i) => {
+        let last = null;
+        for (let r = 0; r < (two ? 2 : 1); r++) {
+          const id = fcUid("t"), y = at("stage") + (i - (ks.length - 1) / 2) * 112;
+          nodes.push({ id, kind: "stage", x: x + r * colW, y, label: two ? `Team interview ${r + 1}` : "Team interview", type: "interview", team: k, mins: 60 });
+          if (last) E(last, id); else E(rid, id, TEAMS[k].name);
+          last = id;
+        }
+        outs.push(last);
+      });
+      prev = outs; x += colW * (two ? 2 : 1);
+      return;
+    }
+    const id = fcUid("n");
+    nodes.push({ id, kind: "stage", x, y: at("stage"), ...s });
+    link(id, ""); x += colW;
+  });
+  nodes.push({ id: "offer", kind: "end", x, y: at("end"), label: "Offer" });
+  prev.forEach((p) => E(p, "offer"));
+  const names = hits.map((s) => (s.route ? "a team interview, split by team" : s.label));
+  return { flow: { nodes, edges }, say: `Drew it: ${names.map((n) => `<b>${esc(n)}</b>`).join(" → ")} → <b>Offer</b>. Drag anything to change it, or tell me what to change.` };
+}
+function flowAsk(text) {
+  const r = flowFromText(text);
+  if (r.flow) { fcHist.push(JSON.stringify(state.flow)); state.flow = r.flow; fcSave(); }
+  else if (r.edit) { fcHist.push(JSON.stringify(state.flow)); r.edit(); fcSave(); }
+  return r;
+}
+// The editor over the page, from the Interviews graph.
+function openFlow() {
+  closeLayer();
+  state.fcSel = null;
+  const el = document.createElement("div");
+  el.className = "overlay fs";
+  el.innerHTML = `<div class="fs-sheet fl-sheet" role="dialog" aria-label="Interview process">
+    <header class="fs-h"><div class="fs-t"><b>Interview process</b><span>How candidates move from applying to an offer. The Grokbots route by this.</span></div><span class="grow"></span>
+      <a class="btn sm ghost" href="#setup~process" data-close>Open in Onboarding</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
+    ${flowCanvas()}</div>`;
+  $("#layer").appendChild(el);
+  modal = { send: () => {} };
+  el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeLayer(); });
+  setTimeout(fcFit);
+}
+// The candidate's way through the process: at a split, the branch for their team.
+function flowPath(a) {
+  const own = a.team || ROLES[a.role].team, out = [], seen = new Set();
+  let cur = state.flow.nodes.find((n) => n.kind === "start");
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id); out.push(cur);
+    if (cur.kind === "end") break;
+    const outs = state.flow.edges.filter((e) => e.from === cur.id).map((e) => fN(e.to)).filter((n) => n && n.kind !== "note");
+    cur = outs.find((n) => n.team === own) || outs.find((n) => !TEAMS[n.team]) || outs[0];
+  }
+  return out;
+}
+// The loop on Interviews, drawn from the process: where they've been, the branch for their team (the others faded),
+// who's up next and what's left before the offer. Click it to edit the process.
+// Scale the routing graph to the reader's width (never up, never below 75%; past that it scrolls).
+function ftFit() { $$(".ft").forEach((ft) => { const inn = $(".ft-in", ft), w = +inn.style.width.replace("px", ""), h = +inn.style.height.replace("px", ""), z = Math.max(0.75, Math.min(1, (ft.clientWidth - 8) / w)); inn.style.transform = `scale(${z})`; inn.style.transformOrigin = "0 0"; inn.style.marginBottom = `${h * z - h}px`; inn.style.marginRight = `${w * z - w}px`; }); }
+function processTree(x) {
+  const a = x.a, rs = loopOf(a), own = a.team || ROLES[a.role].team, met = rs.filter((r) => r.st === "done" && r.iv);
+  const view = rs.find((r) => r.key === x.key), rounds = rs.filter((r) => r.team !== "offer"), offer = rs.at(-1);
+  const names = [...new Set(met.map((r) => first(r.iv)))];
+  const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
+  const path = flowPath(a), ivs = path.filter((n) => n.kind === "stage" && n.type === "interview");
+  const p0 = Math.max(1, path.findIndex((n) => n.kind === "route" || n === ivs[0]));
+  const st = {};
+  let up = false;
+  ivs.forEach((n, i) => { const r = rounds[i]; st[n.id] = r && r.st === "done" ? { k: r === view ? "view" : "done", r } : !up && isOpen(a) ? ((up = true), { k: "up", r }) : { k: "todo", r }; });
+  path.forEach((n) => { if (!st[n.id]) st[n.id] = n.kind === "end" ? { k: offer.st === "done" ? "done" : offer.st === "closed" ? "closed" : !up && isOpen(a) ? "up" : "todo" } : { k: "done" }; });
+  const left = ivs.filter((n) => ["up", "todo"].includes(st[n.id].k)).length;
+  const tag = a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : left ? `${left} round${left === 1 ? "" : "s"} left before the offer` : "Next: the offer";
+  const teamOf = (n) => (n.team === "own" ? own : n.team === "partner" ? PARTNER[own] : n.team);
+  const whoNext = (n, r) => (r && r.iv) || (n.who && n.who[0]) || (TEAMS[teamOf(n)] ? pickInterviewer(teamOf(n), a.role).best : null);
+  // Columns: what came before the interviews as one step, then the rest of the path; at a split, every branch stacked.
+  const pre = path.slice(1, p0), cols = [[{ id: "pre", kind: "pre", label: "Applied", sub: pre.map((n) => (n.type === "testbench" && a.tb && a.tb.state === "done" ? `Testbench ${tbScore(a)}` : n.label)).join(" · ") }]];
+  path.slice(p0).forEach((n, i, arr) => {
+    const prevN = arr[i - 1];
+    if (prevN && prevN.kind === "route") cols.push(state.flow.edges.filter((e) => e.from === prevN.id).map((e) => fN(e.to)).filter((t) => t && t.kind !== "note").sort((p, q) => p.y - q.y));
+    else cols.push([n]);
+  });
+  const onPath = new Set(path.map((n) => n.id).concat("pre"));
+  const SZ = { pre: [100, 34], stage: [160, 60], route: [96, 32], end: [84, 34], start: [84, 34] }, GAP = 30, VG = 10;
+  const H = Math.max(...cols.map((c) => c.reduce((h, n) => h + SZ[n.kind][1], 0) + (c.length - 1) * VG)), pos = {};
+  let cx = 0;
+  cols.forEach((c) => {
+    const w = Math.max(...c.map((n) => SZ[n.kind][0])), tot = c.reduce((h, n) => h + SZ[n.kind][1], 0) + (c.length - 1) * VG;
+    let y = (H - tot) / 2;
+    c.forEach((n) => { const [nw, nh] = SZ[n.kind]; pos[n.id] = { x: cx + (w - nw) / 2, y, w: nw, h: nh }; y += nh + VG; });
+    cx += w + GAP;
+  });
+  const W = cx - GAP, kOf = (n) => (onPath.has(n.id) ? (n.id === "pre" ? "done" : st[n.id].k) : "off");
+  const links = [];
+  cols.forEach((c, i) => { if (!i) return; cols[i - 1].forEach((p) => c.forEach((n) => { if (p.id === "pre" || state.flow.edges.some((e) => e.from === p.id && e.to === n.id)) links.push([p, n]); })); });
+  const edge = ([p, n]) => { const P = pos[p.id], N = pos[n.id], sx = P.x + P.w, sy = P.y + P.h / 2, tx = N.x, ty = N.y + N.h / 2, k = kOf(n), cls = k === "off" || kOf(p) === "off" ? "off" : k === "up" ? "up" : ["done", "view"].includes(k) ? "done" : "todo";
+    return [cls, `<g class="${cls}"><path d="${fcCurve(sx, sy, tx, ty)}"/>${fcArrow(tx, ty)}</g>`]; };
+  const node = (n) => {
+    const P = pos[n.id], k = kOf(n), s = st[n.id] || {}, box = `class="ft-n ${n.kind} ${k}" style="left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${P.h}px"`;
+    if (n.kind === "pre") return `<div ${box} title="${esc(n.sub || "Application review")}">${ico("check")}<b>Applied</b></div>`;
+    if (n.kind === "route") return `<div ${box}>${ico("route")}<span class="trunc">${esc(n.label.replace(/^Split /, "").replace(/^by /, "By "))}</span></div>`;
+    if (n.kind === "end") return `<div ${box}>${ico(k === "done" ? "check" : k === "closed" ? "x" : "flag")}<b>${esc(n.label)}</b>${k === "up" ? `<em class="ft-flag">Up next</em>` : ""}</div>`;
+    const r = s.r, tk = teamOf(n), who = k === "up" ? whoNext(n, r) : null;
+    const foot = ["done", "view"].includes(k) && r ? `${personAv(r.iv)}<span class="trunc">${esc(first(r.iv))}</span><span class="pt-v ${r.v}">${VERDICT_NAME[r.v]}</span>`
+      : k === "up" ? `${who ? `${personAv(who)}<span class="trunc">${esc(first(who))} next</span>` : `<span>Grokbot is asking</span>`}`
+      : `${TEAMS[tk] ? `<i class="fc-dot" style="background:${TEAMS[tk].color}"></i><span>${esc(TEAMS[tk].name)}</span>` : n.who && n.who.length ? `<span>${esc(n.who.map((id) => first(id)).join(", "))}</span>` : ""}`;
+    return `<div ${box}>${k === "view" ? `<em class="ft-flag">This interview</em>` : k === "up" ? `<em class="ft-flag">Up next</em>` : ""}<b class="trunc">${esc(n.label === "Team interview" && TEAMS[tk] ? `${TEAMS[tk].name} interview` : n.label)}</b><span class="ft-s">${foot}</span></div>`;
+  };
+  const es = links.map(edge).sort((p, q) => ["off", "todo", "done", "up"].indexOf(p[0]) - ["off", "todo", "done", "up"].indexOf(q[0])).map((e) => e[1]).join("");
+  return `<section class="pth ft-wrap"><div class="pth-c"><p>${esc(line)}</p><span class="pt-tag">${tag}</span><span class="grow"></span><button class="btn sm ghost" data-act="flowEdit">${ico("compose")}Edit the process</button></div>
+    <div class="ft" data-act="flowEdit" role="button" tabindex="0" title="Open the interview process to edit it"><div class="ft-in" style="width:${W}px;height:${H}px"><svg class="ft-e" width="${W}" height="${H}" aria-hidden="true">${es}</svg>${cols.flat().map(node).join("")}</div></div></section>`;
+}
+
+/* ---------------- The Grokbot, live on Onboarding ---------------- */
+// Ask your Grokbot in Slack or the CLI ("put Daniel on Engineering, Product and Research") and its cursor comes onto this page,
+// goes to each box and makes the change, so you watch it happen. setupOps reads the request; grokDo moves the cursor.
+const IV_KW = { "Technical screen": /tech(nical)? screen/, "Systems design": /systems? design/, "GPU performance deep dive": /gpu/, "Research deep dive": /research deep dive/, "FDE customer scenario": /\bfde\b|customer scenario/, "Product and design": /product (and|&) design/, "Final with the CTO": /\bfinal\b/ };
+const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0] || "");
+function setupOps(raw) {
+  const t = raw.toLowerCase(), ops = [];
+  const who = staff().filter((id) => t.includes(PEOPLE[id].name.toLowerCase()) || new RegExp(`\\b${first(id).toLowerCase()}\\b`).test(t));
+  const names = andList(who.map((id) => first(id)));
+  const off = /\b(remove|take|drop|pull)\b[^.]*\b(off|from|out of)\b/.test(t);
+  if (/process|flow ?chart|interview loop/.test(t)) {
+    const q = raw.replace(/\s+(?:in|to|from|of)\s+(?:the|our|my)\s+(?:interview\s+)?(?:process|loop|flow ?chart)\b/i, "").replace(/^(?:hey\s+)?(?:please\s+)?(?:change|set|make|update)\s+(?:the|our|my)\s+(?:interview\s+)?process(?:\s+to)?[:,]?\s*/i, "");
+    let said = "";
+    ops.push({ step: "process", sel: ".fc .fc-vp", label: "Updating the interview process", apply: () => { said = flowAsk(q).say; fcPaint(); } });
+    return { ops, say: () => said };
+  }
+  const teams = Object.keys(TEAMS).filter((k) => new RegExp(`\\b${TEAMS[k].name.toLowerCase()}\\b`).test(t));
+  if (who.length && teams.length && !/interview|skill|tag|star/.test(t.replace(/\b(infra|research|product)\b/g, ""))) {
+    who.forEach((id) => teams.forEach((k) => {
+      if (TEAMS[k].members.includes(id) === !off) return;
+      ops.push({ step: "teams", sel: `.su-cell .ck[data-id="${id}"][data-v="${k}"]`, label: `${off ? "Taking" : "Putting"} ${first(id)} ${off ? "off" : "on"} ${TEAMS[k].name}`, apply: () => ACT.suTeam({ dataset: { id, v: k } }) });
+    }));
+    return { ops, say: ops.length ? `${names} ${off ? "is off" : "is on"} ${andList(teams.map((k) => TEAMS[k].name))}.` : `${names} ${off ? "isn't on" : "is already on"} ${andList(teams.map((k) => TEAMS[k].name))}.` };
+  }
+  if (who.length && /grokbot|\bbot\b/.test(t) && /\b(turn|switch)\b|connect|pause/.test(t)) {
+    const on = !/\boff\b|disconnect|pause/.test(t);
+    who.forEach((id) => { if ((PEOPLE[id].bot === "on") === on) return; ops.push({ step: "people", sel: `.su-tog[data-id="${id}"]`, label: `Turning ${on ? "on" : "off"} ${possessive(first(id))} Grokbot`, apply: () => ACT.suBot({ dataset: { id } }) }); });
+    return { ops, say: `${possessive(names)} Grokbot${who.length > 1 ? "s are" : " is"} ${on ? "on" : "off"}.` };
+  }
+  const types = IV_TYPES.filter((ty) => IV_KW[ty].test(t));
+  if (who.length && types.length) {
+    const want = /\b(stop|remove|no longer|not)\b/.test(t) ? 0 : /star|prioriti|first|lead/.test(t) ? 2 : 1;
+    who.forEach((id) => types.forEach((ty) => {
+      const r = PEOPLE[id].runs || {}, cur = !(ty in r) ? 0 : r[ty] ? 2 : 1;
+      if (cur === want || (want === 1 && cur === 2)) return;
+      const n = (want - cur + 3) % 3;
+      ops.push({ step: "skills", sel: `.su-iv[data-id="${id}"][data-v="${ty}"]`, label: `${want === 2 ? "Starring" : want ? "Adding" : "Removing"} ${ty} for ${first(id)}`, apply: () => { for (let i = 0; i < n; i++) ACT.suRun({ dataset: { id, v: ty } }); } });
+    }));
+    return { ops, say: `${names}: ${andList(types)} ${want === 2 ? "starred" : want ? "added" : "removed"}.` };
+  }
+  const tg = raw.match(/(?:tag|skills?)\b[^:]*?(?:with|:|as)\s+(.+)$/i);
+  if (who.length && tg) {
+    const tags = tg[1].split(/\s*(?:,|&|\band\b)\s*/).map((x) => x.trim().replace(/\.$/, "")).filter(Boolean);
+    who.forEach((id) => tags.forEach((g) => { if ((PEOPLE[id].focus || []).some((x) => x.toLowerCase() === g.toLowerCase())) return; ops.push({ step: "skills", sel: `[data-act="suTagAdd"][data-id="${id}"]`, label: `Tagging ${first(id)}: ${g}`, apply: () => { (PEOPLE[id].focus ||= []).push(g); render(); } }); }));
+    return { ops, say: `Tagged ${names} with ${andList(tags)}.` };
+  }
+  const add = raw.match(/\badd\s+([A-Z][a-z'-]+(?:\s+[A-Z][a-z'-]+)+)(?:\s*(?:as|,|-|–)\s*(?:an?\s+|our\s+)?(.+?))?\.?$/);
+  if (add) {
+    ops.push({ step: "people", sel: "#suAddForm input[name=name]", label: `Adding ${add[1]}`, apply: () => { if (addPerson(add[1], "", add[2] ? capFirst(add[2]) : "")) render(); } });
+    return { ops, say: `Added ${add[1]}. Their Grokbot invite went out in Slack.` };
+  }
+  return { ops, say: "I can put people on teams, turn Grokbots on or off, set what someone interviews for, tag skills, add people, or change the interview process." };
+}
+let gbQ = Promise.resolve();
+const grokDo = (ops) => (gbQ = gbQ.then(() => grokRun(ops)));
+async function grokRun(ops) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms)), still = !G || calm();
+  const cur = document.createElement("div");
+  cur.className = "gb-cur";
+  cur.innerHTML = `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 2.5 16.5 10l-6 1.4-2.8 5.6Z"/></svg><span class="gb-tag"><span class="gb-who">${botAv(ME)}${esc(first(ME))}'s Grokbot</span><span class="gb-what"></span></span>`;
+  document.body.appendChild(cur);
+  const what = $(".gb-what", cur), put = (x, y) => (G ? G.set(cur, { x, y }) : (cur.style.transform = `translate(${x}px,${y}px)`));
+  put(innerWidth - 120, innerHeight - 40);
+  if (G && !still) G.fromTo(cur, { opacity: 0 }, { opacity: 1, duration: 0.15 });
+  // A timer backs up each glide, so the change still lands if tATS is in a background window.
+  const glide = (x, y) => new Promise((res) => {
+    if (still) { put(x, y); return res(); }
+    let done = false;
+    const fin = () => { if (done) return; done = true; G.killTweensOf(cur, "x,y"); put(x, y); res(); };
+    G.to(cur, { x, y, duration: 0.55, ease: "power2.inOut", onComplete: fin });
+    setTimeout(fin, 800);
+  });
+  for (const op of ops) {
+    if (state.route.name !== "setup" || state.route.id !== op.step) { what.textContent = `Opening ${SETUP_STEPS.find((s) => s[0] === op.step)[1]}`; go(`setup~${op.step}`); await sleep(260); }
+    let el = $(op.sel);
+    what.textContent = op.label;
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+      const r = el.getBoundingClientRect();
+      await glide(r.left + Math.min(r.width / 2, 40) - 3, r.top + r.height / 2 - 3);
+      if (!still) G.to(cur, { scale: 0.86, duration: 0.07, yoyo: true, repeat: 1, transformOrigin: "0 0" });
+      await sleep(140);
+    }
+    op.apply();
+    el = $(op.sel);
+    if (el) { el.classList.remove("gb-hit"); void el.offsetWidth; el.classList.add("gb-hit"); }
+    await sleep(320);
+  }
+  what.textContent = "Done";
+  await sleep(900);
+  if (G && !still) G.to(cur, { opacity: 0, duration: 0.2, onComplete: () => cur.remove() });
+  setTimeout(() => cur.remove(), 400);
+}
+// The same request from Slack or the CLI: the cursor does it here, then the Grokbot answers there.
+function setupAsk(text) {
+  const r = setupOps(text), sayOf = () => (typeof r.say === "function" ? r.say() : r.say);
+  if (!r.ops.length) return Promise.resolve({ ok: false, say: sayOf() });
+  return grokDo(r.ops).then(() => ({ ok: true, say: sayOf() }));
+}
+function addPerson(name, email, role) {
+  name = (name || "").trim().replace(/\s+/g, " ");
+  if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
+  let id = name.split(" ")[0].toLowerCase().replace(/[^a-z]/g, "");
+  while (PEOPLE[id]) id += "2";
+  PEOPLE[id] = { name, role: (role || "").trim() || "Engineer", team: null, color: "#7d8088", likes: "fine", cap: 2, load: 0, focus: [], ch: "slack", said: "New", runs: {}, bot: "invited", email };
+  const k = Object.keys(TEAMS)[0];
+  PEOPLE[id].team = k; TEAMS[k].members.push(id);
+  toast(`${name} added. Their Grokbot invite went out in Slack.`);
+  setTimeout(() => { if (PEOPLE[id] && PEOPLE[id].bot === "invited") { PEOPLE[id].bot = "on"; render(); } }, 6000);
+  return true;
+}
 /* ---------------- Referrals: who referred whom, where they are now, and adding one ---------------- */
 const refBy = (src) => { const n = (src.split("· ")[1] || "").trim(); return Object.keys(PEOPLE).find((id) => first(id) === n) || null; };
 const REF_TABS = [["all", "All"], ["open", "In process"], ["hired", "Hired"], ["closed", "Closed"]];
@@ -922,14 +1874,14 @@ function referralsPage() {
   const maxN = Math.max(...people.map((p) => p.n), 1);
   return `<div class="bar"><div class="crumbs">${ico("users")}<b>Referrals</b><span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
     <button class="btn sm ghost" data-act="refGrok">${botAv(ME)}Add with Grokbot</button><button class="btn sm primary" data-act="refAdd">${ico("plus")}Add referral</button></div>
-  <div class="crm-tabs">${REF_TABS.map(([k, n]) => `<button class="crm-tab ${tab === k ? "on" : ""}" data-act="refTab" data-v="${k}">${n}<span>${all.filter({ all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[k]).length.toLocaleString()}</span></button>`).join("")}
+  <div class="crm-tabs"><div class="pills">${REF_TABS.map(([k, n]) => `<button class="crm-tab ${tab === k ? "on" : ""}" data-act="refTab" data-v="${k}">${n}<span>${all.filter({ all: () => true, open: (r) => r.open, hired: (r) => r.hired, closed: (r) => !r.open && !r.hired }[k]).length.toLocaleString()}</span></button>`).join("")}</div>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Search by name" value="${esc(state.q || "")}" autocomplete="off"></label></div>
   <div class="ref-wrap">
     <div class="crm ref-t">
       <div class="scroll" id="scroller"><div class="crm-t" role="table">
         <div class="crm-r rf-r crm-h" role="row"><span class="crm-hc">${ico("people")}Candidate</span><span class="crm-hc">${ico("users")}Referred by</span><span class="crm-hc">${ico("brief")}Role</span><span class="crm-hc">${ico("flag")}Where they are</span><span class="crm-hc">${ico("cal")}Referred</span></div>
         ${rows.map((r) => `<div class="crm-r rf-r" role="row" data-tid="rf-${r.id}" ${r.a ? `data-act="openRow" data-id="${r.a.id}"` : `data-act="openHist" data-id="${r.id}"`}>
-          <span class="crm-name"><span class="av cand">${initials(r.name)}</span><b>${esc(r.name)}</b></span>
+          <span class="crm-name"><b>${esc(r.name)}</b></span>
           <span class="crm-own">${r.by ? `${personAv(r.by)}${esc(PEOPLE[r.by].name)}` : `<span class="faint">Unknown</span>`}</span>
           <span><span class="crm-tag">${esc(ROLES[r.role].title)}</span></span>
           <span><span class="h-out ${r.hired ? "ok" : r.open ? "live" : ""}">${esc(r.status)}</span></span>
@@ -939,7 +1891,7 @@ function referralsPage() {
         <button class="icon-btn" data-act="refPage" data-d="-1" ${pg ? "" : "disabled"} aria-label="Previous page">${ico("chevL")}</button><button class="icon-btn" data-act="refPage" data-d="1" ${pg < pages - 1 ? "" : "disabled"} aria-label="Next page">${ico("chevR")}</button></div>
     </div>
     <section class="hm-box ref-side"><div class="hm-h"><b>Top referrers</b></div>
-      <div class="ref-lb-h"><span></span><span>Referred</span><span>In process</span><span>Hired</span></div>
+      <div class="ref-lb-h"><span></span><span>Referrer</span><span>Referred</span><span>In process</span><span>Hired</span></div>
       ${people.map((p) => `<div class="ref-lb">${personAv(p.id)}<span class="ref-lb-n"><b>${esc(PEOPLE[p.id].name)}</b><i style="width:${(p.n / maxN) * 100}%"></i></span><em>${p.n}</em><em>${p.open}</em><em class="${p.hired ? "hired" : ""}">${p.hired}</em></div>`).join("")}</section>
   </div>`;
 }
@@ -957,7 +1909,7 @@ function openRefForm(pre = {}) {
       if (name.split(" ").length < 2) { toast("Add their full name"); return false; }
       const a = { id: `APP-${140 + APPLICANTS.length}`, pri: 3, labels: [], name, hl: v.link ? v.link.replace(/^https?:\/\/(www\.)?/, "") : `Referred by ${first(v.by)}`, role: v.role, src: `Referral · ${first(v.by)}`, loc: "", yrs: 0, links: v.link ? [v.link.replace(/^https?:\/\/(www\.)?/, "")] : [], state: "new", when: Date.now(), sum: v.note ? [v.note] : [], exp: [], tb: null, note: v.note ? `${v.note}\n\n${first(v.by)}` : "" };
       APPLICANTS.push(a); A[a.id] = a; seed(a); touch(a);
-      toast(`${name} is in Applicant Tickets, referred by ${first(v.by)}`);
+      toast(`${name} is in New Applicants, referred by ${first(v.by)}`);
     } });
 }
 // Add with Grokbot: paste what you have (a Slack message, an email, a link) and it fills the form.
@@ -991,9 +1943,14 @@ function grokOwes() {
   const deb = everyone().filter((a) => a.state === "debrief").sort((x, y) => x.when - y.when).slice(0, 4);
   return `${deb.length ? `Oldest first: ${deb.map((a) => `<b>${esc(first(a.iv))}</b> for ${esc(a.name)} (${dur(Date.now() - a.when)})`).join(", ")}. Say "nudge" and a name and I'll remind them.` : "Every scorecard is in."}`;
 }
-// What the Grokbot can do from a sentence. Anything else it takes on and reports back in Grokbot Activity.
+// What the Grokbot can do from a sentence. Anything else it takes on and reports back in Slack; anything it gets stuck on comes to the Inbox.
 function grokReply(text) {
   const t = text.toLowerCase();
+  { const so = setupOps(text); if (so.ops.length && !/process|flow ?chart|interview loop/.test(t)) { so.ops.forEach((o) => o.apply()); return { html: esc(typeof so.say === "function" ? so.say() : so.say), btns: [["Open Onboarding", "goSetup", so.ops[0].step]] }; } }
+  if (/process|flow ?chart|interview loop/.test(t)) {
+    const r = flowAsk(text.replace(/\s+(?:in|to|from|of)\s+(?:the|our|my)\s+(?:interview\s+)?(?:process|loop|flow ?chart)\b/i, "").replace(/^(?:change|set|make|update)\s+(?:the|our|my)\s+(?:interview\s+)?process(?:\s+to)?[:,]?\s*/i, ""));
+    return { html: r.say, btns: r.flow || r.edit ? [["Open the process", "goProcess", ""]] : [] };
+  }
   if (/refer/.test(t)) { const r = parseReferral(text); return { html: r.name ? `Got it: <b>${esc(r.name)}</b> for ${esc(ROLES[r.role].title)}, referred by ${esc(PEOPLE[r.by].name)}. Want me to add them?` : "Who's the referral? Send their name, the role, and a link if you have one.", btns: r.name ? [["Add referral", "chatRef", encodeURIComponent(text)]] : [] }; }
   const nudge = t.match(/nudge (\w+)/);
   if (nudge) { const id = Object.keys(PEOPLE).find((k) => first(k).toLowerCase() === nudge[1]); const r = id && RUNS.find((x) => x.on === id && runState(x) === "stuck"); if (r) { nudgeRun(r); return { html: `Nudged <b>${esc(first(id))}</b> in Slack about ${esc(A[r.a].name)}.` }; } return { html: id ? `${esc(first(id))} doesn't owe anything overdue right now.` : "Who should I nudge?" }; }
@@ -1006,7 +1963,7 @@ function grokReply(text) {
     return { html: `${xs.length.toLocaleString()} ${CRM_VIEWS.find((v) => v[0] === view)[1].toLowerCase()}${team ? ` on ${TEAMS[team].name}` : ""}, best Testbench first:`, list: xs.slice(0, 5).map((h) => `<b>${esc(h.name)}</b> · ${esc(ROLES[h.role].title)}${h.score ? ` · ${h.score}/100` : ""}`), btns: [["Post to #hiring", "chatPost", String(xs.length)], ["Open CRM", "goCrm", ""]] };
   }
   if (/stuck|need|today|status|morning|what/.test(t)) { const iss = inboxRows().filter((x) => x.inInbox); return { html: iss.length ? `${iss.length} open:` : "Nothing needs you right now.", list: iss.slice(0, 5).map((x) => `<b>${esc(x.iss.what)}</b> · ${esc(x.a.name)}`), btns: iss.length ? [["Open Inbox", "goInbox", ""]] : [] }; }
-  return { html: "On it. I'll post here when it's done, and it'll show in Grokbot Activity." };
+  return { html: "On it. I'll post here when it's done." };
 }
 function chatPage() {
   const msgs = chatSeed();
@@ -1041,15 +1998,14 @@ const TOUR = [
   ["home", '.sb-item[href="#home"]', "Home", "Start here. Recruiting Overview shows where hiring is slow, and links each delay to the page that clears it."],
   ["home", ".hm-grid6", "The numbers that matter", "Applications coming in, who's in process, how long each step takes, and how much interviewing the team is doing. Set your own targets."],
   ["home", ".hm-row.stuck", "Where candidates are stuck", "Bottlenecks beside time in each stage of your interview process, so you see what's slow and where to fix it."],
-  ["inbox", ".ib-col", "Inbox", "Only what's broken or waiting on you: bot failures, unsent invites, overdue replies and decisions."],
-  ["inbox", ".kb-bar", "One key per action", "F runs the fix, E dismisses, / asks your Grokbot. J and K move between issues."],
+  ["inbox", ".ibx", "Inbox", "What's worth your time from everything that happened: what needs you, what was decided, what got booked."],
+  ["inbox", ".ibx-g.need", "Needs you", "Click a problem and it opens with the fix already drafted. Read it, edit it, send it."],
   ["crm", ".crm", "CRM", "Everyone the funnel has closed, hired or not. Ask your Grokbot for a list and it posts it to Slack."],
-  ["triage", ".act-glow", "Applicant Tickets", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
-  ["all", ".board", "Pipeline", "Every open candidate, by stage."],
-  ["interviews", ".pt", "Interviews", "Where a candidate is in their loop, who has met them, and how each round went."],
+  ["triage", ".act-glow", "New Applicants", "New applicants, read like email. Pick Interview, Testbench or Decline, then send."],
+  ["all", ".pl-fun", "Applicant Tickets", "Opens on who's stuck: past their stage's target. The stage bar filters, Everyone shows the whole pipeline, and picking one role turns on the board."],
+  ["interviews", ".pt", "Interview Judgement", "Where a candidate is in their loop, who has met them, and how each round went."],
   ["referrals", '[data-act="refAdd"]', "Referrals", "Who referred whom and where they are now. Add one here, or send it to your Grokbot."],
-  ["activity", ".af-todo", "Grokbot Activity", "What the Grokbots did, and the few things they couldn't finish without you."],
-  ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Ask, delegate and assign here or there; this dashboard is for checking in."],
+  ["chat", ".chat-compose", "Chat with your Grokbot", "The same conversation as in Slack. Open it from ⌘K. Ask, delegate and assign here or there; this dashboard is for checking in."],
 ];
 let tour = null;
 function startTour() { tour = { i: 0 }; tourShow(); }
@@ -1057,8 +2013,10 @@ function tourEnd() { tour = null; $("#tour")?.remove(); }
 function tourShow() {
   const [hash] = TOUR[tour.i];
   const cur = location.hash.slice(1) || "home";
-  if (cur.split("~")[0] !== hash) go(hash);
-  setTimeout(tourPlace, cur.split("~")[0] === hash ? 60 : 520);
+  if (cur.split("~")[0] !== hash) { location.hash = hash; state.route = parseHash(); render(); }
+  // render() is synchronous, so the target exists now: place the spotlight in the same click, then once more after layout settles.
+  tourPlace();
+  requestAnimationFrame(tourPlace);
 }
 function tourPlace() {
   if (!tour) return;
@@ -1095,10 +2053,67 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); if (tour.i === TOUR.length - 1) return tourEnd(); tour.i++; tourShow(); }
   if (e.key === "ArrowLeft" && tour.i) { e.preventDefault(); e.stopImmediatePropagation(); tour.i--; tourShow(); }
 }, true);
+// Pipeline at scale: open on who's stuck, not on everyone. A stage bar on top filters; one line per person.
+// Each stage has a target; "stuck" is past it. In stage counts from the last move (a.when).
+const PL_STAGES = [
+  { k: "new", name: "New", target: 24, f: COLS[0].f },
+  { k: "testbench", name: "Testbench", target: 72, f: COLS[1].f },
+  { k: "bots", name: "With Grokbots", target: 72, f: COLS[2].f },
+  { k: "iv", name: "Interview booked", target: 192, f: COLS[3].f },
+  { k: "judgment", name: "Your call", target: 48, f: COLS[4].f },
+];
+const plStage = (a) => PL_STAGES.find((x) => x.f(a)) || PL_STAGES[0];
+// A booked interview that's still ahead isn't stuck: it's waiting on the calendar.
+const plLate = (a) => (a.state === "scheduled" && a.at > Date.now() ? 0 : (Date.now() - a.when) / HR / plStage(a).target);
+const plDur = (h) => (h < 1 ? "<1h" : h < 48 ? `${Math.round(h)}h` : `${Math.round(h / 24)}d`);
+function plFunnel(all, on) {
+  return `<div class="pl-fun" role="tablist" aria-label="Filter by stage">${PL_STAGES.map((x) => {
+    const xs = all.filter(x.f), late = xs.filter((a) => plLate(a) > 1).length;
+    return `<button class="pl-seg ${on === x.k ? "on" : ""}" style="flex-grow:${Math.max(xs.length, 1)}" data-act="plStage" data-v="${x.k}" role="tab" aria-selected="${on === x.k}" title="${esc(x.name)}: ${xs.length} in this stage, ${late} past the ${plDur(x.target)} target">
+      <span class="pl-sn">${esc(x.name)}</span><span class="pl-sc"><b>${xs.length}</b>${late ? `<em>${late} stuck</em>` : ""}</span>
+      <i class="pl-sbar"><i style="width:${xs.length ? Math.round((late / xs.length) * 100) : 0}%"></i></i></button>`; }).join("")}</div>`;
+}
+// Each row reads like an email: who, their team, the one thing that's happening in bold, the facts that matter in grey,
+// the next move as a tag, and how long they've been in this stage (red once it's past the target).
+function plMsg(a) {
+  const iv = a.iv && first(a.iv), when = a.at ? `${WD[new Date(a.at).getDay()].slice(0, 3)} ${fmtTime(a.at)}` : "";
+  return {
+    new: [a.tb && a.tb.state === "done" ? `Testbench back, ${tbScore(a)}` : "New application", "Review it"],
+    testbench: [a.tb && a.tb.state === "running" ? "Working on the Testbench" : "Hasn't started the Testbench", "Send a reminder"],
+    routing: ["No interviewer yet", "Pick an interviewer"],
+    asked: [`Waiting on ${iv} to say yes`, `Nudge ${iv}`],
+    scheduling: [`Invite drafted in ${possessive(iv)} Gmail, not sent`, "Send the invite"],
+    scheduled: [`Interview ${when ? `${when} ` : ""}with ${iv}`, "Send the brief"],
+    debrief: [`Waiting on ${possessive(iv)} read`, `Nudge ${iv}`],
+    judgment: [a.read ? `${first(a.read.by)} read them as ${a.read.verdict.toLowerCase()}` : "Your call", "Decide"],
+  }[a.state] || [doing(a), ""];
+}
+function plFacts(a) {
+  const f = [ROLES[a.role].title];
+  if (!["new", "testbench"].includes(a.state)) f.push(`Round ${roundOf(a)}`);
+  if (a.tb && a.tb.state === "done" && a.state !== "new") f.push(`Testbench ${tbScore(a)}`);
+  f.push(srcLong(a));
+  return f.filter(Boolean).join(" · ");
+}
+function plRow(a) {
+  const x = plStage(a), h = (Date.now() - a.when) / HR, late = plLate(a) > 1, [subj, next] = plMsg(a), t = TEAMS[a.team || ROLES[a.role].team];
+  return `<div class="pl-r ${late ? "late" : ""} ${state.focus === a.id ? "focus" : ""} ${picked.has(a.id) ? "picked" : ""}" data-tid="${a.id}" data-ctx="${a.id}" data-act="plOpen" data-id="${a.id}" tabindex="-1" aria-label="${esc(a.name)}: ${esc(subj)}">
+    <i class="pl-dot" title="${late ? `Past the ${plDur(x.target)} target for ${esc(x.name)}` : ""}"></i>
+    <b class="pl-nm trunc" data-hc="a:${a.id}">${esc(a.name)}</b>
+    <span class="pl-tag"><i style="background:${t.color}"></i>${esc(t.name)}</span>
+    <span class="pl-msg trunc"><b>${esc(subj)}</b><span>${esc(plFacts(a))}</span></span>
+    ${next ? `<span class="pl-next"><i></i>${esc(next)}</span>` : "<span></span>"}
+    <span class="pl-t2" title="${plDur(h)} in ${esc(x.name)}; the target is ${plDur(x.target)}">${plDur(h)}</span>
+  </div>`;
+}
 function applicantsPage() {
   const tk = state.team;
-  const list = scoped();
-  const view = state.view || "board", by = state.groupBy || "court";
+  const role = state.plRole && ROLES[state.plRole] ? state.plRole : null;
+  const all = scoped().filter((a) => !role || a.role === role);
+  // A board only reads when it's one role; across every role it's a list.
+  const view = role && state.view === "board" ? "board" : "list";
+  const mode = state.plMode || "stuck", stg = state.plStage && PL_STAGES.some((x) => x.k === state.plStage) ? state.plStage : null;
+  const list = view === "board" ? all : all.filter((a) => (mode !== "stuck" || plLate(a) > 1) && (!stg || plStage(a).k === stg)).sort((x, y) => plLate(y) - plLate(x));
   const team = TEAMS[tk];
   let body;
   if (view === "board") {
@@ -1106,20 +2121,21 @@ function applicantsPage() {
     const more = (state.colAll ||= new Set());
     body = `<div class="scroll" id="scroller"><div class="board">${COLS.filter((c) => c.k !== "closed").map((col) => { const items = list.filter(col.f), cap = more.has(col.k) ? items.length : 12; return `<div class="col" data-drop="${col.k}"><div class="col-head">${col.name}<span class="n">${items.length}</span></div>${items.slice(0, cap).map(card).join("")}${items.length > cap ? `<button class="col-more" data-act="colAll" data-k="${col.k}">Show all ${items.length}</button>` : ""}</div>`; }).join("")}</div></div>`;
   } else {
-    const groups = GROUPINGS[by].filter((g) => !g.closed).map((g) => ({ ...g, items: list.filter(g.f) })).filter((g) => g.items.length);
-    const more = (state.grpAll ||= new Set());
-    const open = (g) => (g.closed ? state.closedOpen : !(state.shut || new Set()).has(`${by}:${g.k}`));
-    state.lastList = groups.filter(open).flatMap((g) => g.items.map((a) => a.id));
-    body = `<div class="scroll" id="scroller"><div class="list">${groups.map((g) => `
-      <div class="group-head ${open(g) ? "" : "collapsed"}"><button class="toggle" data-act="toggleGroup" data-k="${by}:${g.k}" data-closed="${g.closed ? 1 : ""}"${g.desc ? ` title="${esc(g.desc)}"` : ""}><svg class="tri" viewBox="0 0 8 8"><path d="M1 2.2h6L4 6Z"/></svg>${g.icon || ""}${esc(g.name)}<span class="n">${g.items.length}</span></button></div>
-      ${open(g) ? g.items.slice(0, more.has(g.k) ? g.items.length : 25).map(arow).join("") + (g.items.length > 25 && !more.has(g.k) ? `<button class="grp-more" data-act="grpAll" data-k="${g.k}">Show ${g.items.length - 25} more</button>` : "") : ""}`).join("") || `<div class="empty">No applicants match</div>`}</div></div>`;
+    // Stuck shows everyone who's stuck; Everyone shows 12 per stage, each with its own "Show all".
+    const more = (state.plAll ||= new Set()), cap = (k) => (mode === "stuck" || more.has(k) ? Infinity : 12);
+    const groups = PL_STAGES.map((x) => ({ x, xs: list.filter(x.f) })).filter((g) => g.xs.length);
+    state.lastList = groups.flatMap((g) => g.xs.slice(0, cap(g.x.k))).map((a) => a.id);
+    body = `<div class="scroll" id="scroller">${plFunnel(all, stg)}<div class="pl-t">
+      ${groups.map(({ x, xs }) => `<div class="pl-gh">${esc(x.name)}<span>${xs.length}</span></div>${xs.slice(0, cap(x.k)).map(plRow).join("")}${xs.length > cap(x.k) ? `<button class="pl-more" data-act="plMore" data-k="${x.k}">Show all ${xs.length} in ${esc(x.name)}</button>` : ""}`).join("") || `<div class="pl-zero">${ico("check")}<b>${mode === "stuck" ? "Nobody's stuck" : "No one here"}</b><span>${mode === "stuck" ? "Everyone is inside their stage's target. The Grokbots have it." : "Nothing matches these filters."}</span></div>`}</div></div>`;
   }
   const sv = state.savedView && viewById(state.savedView);
-  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Pipeline</b>`}<span class="faint">${list.length.toLocaleString()}</span></div><span class="spacer"></span>
-    <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" title="Board (B)">${ico("board")}</button></div>
-    <a class="btn ghost sm" href="#views">${ico("layers")}Views</a><button class="btn ghost sm" data-act="display">${ico("sliders")}Display</button></div>
+  return `<div class="bar"><div class="crumbs">${sv ? `<a href="#views">Views</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span>${viewIcon(sv)}<b>${esc(sv.name)}</b>` : `${ico("people")}<b>Applicant Tickets</b>`}<span class="faint">${all.length.toLocaleString()}</span></div><span class="spacer"></span>
+    ${view === "board" ? "" : `<div class="pills pl-mode" role="tablist">${[["stuck", "Stuck", all.filter((a) => plLate(a) > 1).length], ["all", "Everyone", all.length]].map(([k, l, n]) => `<button class="${mode === k ? "on" : ""}" data-act="plMode" data-v="${k}" role="tab" aria-selected="${mode === k}">${l}<span>${n.toLocaleString()}</span></button>`).join("")}</div>`}
+    <div class="seg"><button class="${view === "list" ? "on" : ""}" data-act="setView" data-v="list" title="List">${ico("list")}</button><button class="${view === "board" ? "on" : ""}" data-act="setView" data-v="board" ${role ? `title="Board (B)"` : `disabled title="Pick one role to see it as a board"`}>${ico("board")}</button></div>
+    <a class="btn ghost sm" href="#views">${ico("layers")}Views</a></div>
   ${team ? `<div class="members">${team.members.map((m) => { const p = PEOPLE[m]; return `<div class="mem">${botAv(m, "lg")}<span class="grow"><b>${esc(p.name)}</b><span>${esc(p.role)}</span></span><span class="mem-load" title="Interviews booked this week, of their weekly limit">${p.quiet ? "Away" : `${p.load} of ${p.cap} this week`}</span></div>`; }).join("")}</div>` : ""}
   <div class="subbar"><div class="tabs">${[["all", "All"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])].map(([k, n]) => `<a class="tab ${tk === k ? "on" : ""}" href="${k === "all" ? "#all" : `#team~${k}`}">${n}</a>`).join("")}</div>
+    <button class="chip pl-role ${role ? "on" : ""}" data-act="plRole">${role ? esc(ROLES[role].title) : "All roles"}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
     <span class="grow"></span><label class="searchbox sm">${ico("search")}<input id="filter" placeholder="Filter" value="${esc(state.q || "")}" autocomplete="off"><span class="kbd">F</span></label></div>
   ${state.q && state.q.trim() ? (() => { const n = hscoped().length; return n ? `<a class="also" href="#crm">${ico("db")}${n.toLocaleString()} past candidate${n === 1 ? "" : "s"} in CRM also match “${esc(state.q.trim())}”</a>` : ""; })() : ""}
   ${body}
@@ -1139,7 +2155,18 @@ function priMenu(anchor, ids) {
   const cur = ids.length === 1 ? A[ids[0]].pri || 0 : -1;
   openMenu(anchor, [1, 2, 3, 4, 0].map((p) => ({ id: p, label: PRIORITIES[p].name, icon: priIcon(p), checked: cur === p, hint: String(p) })), (o) => ids.forEach((id) => setPri(A[id], o.id)), { title: "Priority" });
 }
-function teamPick(anchor, ids) { openAssign(ids); }
+// Team: a quick pick. Choosing who interviews is its own step ("Pick an interviewer…").
+function teamPick(anchor, ids) {
+  const xs = ids.map((id) => A[id]).filter(Boolean), cur = xs.length === 1 ? xs[0].team || null : -1;
+  const items = [{ sec: "Team" }, ...Object.entries(TEAMS).map(([k, t]) => ({ id: k, label: t.name, icon: teamKey(k), checked: cur === k, hint: `${t.members.length} interviewers` }))];
+  if (xs.some(isOpen)) items.push({ sec: "Interviewer" }, { id: "__assign", label: "Pick an interviewer…", icon: ico("users") });
+  openMenu(anchor, items, (o) => {
+    if (o.id === "__assign") return openAssign(ids);
+    // A new team isn't a new stage, so the clock on the stage keeps running.
+    xs.forEach((a) => { if (a.team === o.id) return; const w = a.when; a.team = o.id; now(a, "me", `Moved to the ${esc(TEAMS[o.id].name)} team`); touch(a); a.when = w; });
+    render(); toast(xs.length === 1 ? `${xs[0].name} is on ${TEAMS[o.id].name}` : `${xs.length} moved to ${TEAMS[o.id].name}`);
+  });
+}
 function labelMenu(anchor, a) {
   const auto = labelsOf(a).filter((l) => !(a.labels || []).includes(l));
   openMenu(anchor, Object.keys(LABELS).filter((l) => !auto.includes(l)).map((l) => ({ id: l, label: l, icon: `<i class="ldot" style="background:${LABELS[l]}"></i>`, checked: (a.labels || []).includes(l) })), (o) => {
@@ -1288,16 +2315,64 @@ function nowPanel(a) {
   }
   if (s === "judgment") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>Back with you</b><span>${esc(stripTags(lastEv(a).html))}</span></div></div>
     <div class="cc-acts"><button class="btn primary" data-act="advance" data-id="${a.id}" title="Send to a team (A)">${ico("arrowR")}Send to a team</button><button class="btn" data-act="reject" data-id="${a.id}" title="Reject (R)">Reject</button></div></section>`;
-  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from Applicant Tickets. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in Applicant Tickets</a></div></section>`;
-  const c = court(a);
-  if (["routing", "asked", "scheduling", "debrief"].includes(s)) {
-    const r = RUNS.find((x) => x.a === a.id && !x.end);
-    return `<section class="now-card"><span class="now-av">${c.av}</span><div class="grow"><b>With ${esc(c.label)}</b><span>${esc(doing(a))}</span></div>${r ? `<a class="btn sm" href="#run~${r.id}">${runPill(r)}</a>` : `<span class="working-dots"><i></i><i></i><i></i></span>`}</section>`;
-  }
-  if (s === "scheduled") return `<section class="now-card">${personAv(a.iv, "lg")}<div class="grow"><b>Interview booked</b><span>${esc(a.at ? fmtWhen(a.at) : "")} with ${esc(PEOPLE[a.iv].name)}. Feedback is collected afterwards.</span></div>
-</section>`;
-  if (s === "testbench") return `<section class="now-card">${candAv(a, "lg")}<div class="grow"><b>With ${esc(first2(a))}</b><span>${a.tb.state === "running" ? "Working on the Testbench" : "Testbench sent, not started yet"}. It comes back to Applicant Tickets with a score.</span></div></section>`;
+  if (s === "new") return `<section class="call-card"><div class="cc-head"><span class="orch">${SPARK}</span><div class="grow"><b>New applicant</b><span>Reply from New Applicants. A draft is ready.</span></div><a class="btn primary" href="#triage" data-act="triOpen" data-id="${a.id}">Open in New Applicants</a></div></section>`;
+  if (["testbench", "routing", "asked", "scheduling", "scheduled", "debrief"].includes(s)) return situation(a);
   return `<section class="now-card closed">${stIcon(s)}<div class="grow"><b>${STATES[s].name}</b><span>${esc(stripTags(lastEv(a).html))}</span></div></section>`;
+}
+// Where a ticket stands: who has it, what they're doing, how long it's sat against the stage's target,
+// and the one thing that moves it on. Past the target it says so, in red, and the fix is the primary button.
+function situation(a) {
+  const s = a.state, c = court(a), iv = a.iv && first(a.iv), cand = first2(a);
+  const r = RUNS.find((x) => x.a === a.id && !x.end), failed = r && runState(r) === "failed";
+  const st = plStage(a), age = Date.now() - a.when, late = plLate(a) > 1;
+  const btn = (label, act, primary, extra = "") => `<button class="btn sm ${primary ? "primary" : ""}" data-act="${act}" data-id="${a.id}"${extra}>${label}</button>`;
+  const runBtn = r ? `<a class="btn sm ghost" href="#run~${r.id}">Open the Grokbot's run${ico("arrowR")}</a>` : "";
+  const nudged = a.ivNudged && Date.now() - a.ivNudged < DAY;
+  const nudge = (primary) => nudged ? `<span class="sit-done">${ico("check")}Nudged ${dur(Date.now() - a.ivNudged)} ago</span>`
+    : r ? `<button class="btn sm ${primary ? "primary" : ""}" data-act="nudgeRun" data-id="${r.id}">Nudge ${esc(iv)}</button>` : btn(`Nudge ${esc(iv)}`, "nudgeIv", primary);
+  let what, why, fix, acts;
+  if (failed) {
+    what = `${possessive(iv || "The")} Grokbot got stuck`; why = `It couldn't ${r.kind.toLowerCase()}: ${stripTags(r.why || "the channel didn't answer")}.`;
+    fix = "Retry it, or pick another way to reach them.";
+    acts = `<button class="btn sm primary" data-act="retryRun" data-id="${r.id}">Retry</button>${runBtn}`;
+  } else if (s === "testbench") {
+    const run = a.tb.state === "running";
+    what = run ? `${cand} is working on the Testbench` : `Waiting on ${cand} to start the Testbench`;
+    why = run ? "It comes back with a score when they submit. Nothing for you to do." : `Sent ${dur(age)} ago, not started yet.`;
+    fix = run ? "" : late || age > DAY ? `Remind ${cand}. A short email usually gets it started.` : "Give it a day; most people start within 24 hours.";
+    acts = run ? "" : btn(`Remind ${cand}`, "nudgeCand", late || age > DAY);
+  } else if (s === "routing") {
+    what = `Finding an interviewer on ${TEAMS[a.team].name}`; why = "The team's Grokbots are checking who has room this week.";
+    fix = late ? "No one has taken it. Pick the interviewer yourself." : "Wait for a yes, or pick the interviewer yourself.";
+    acts = `${btn("Pick the interviewer", "advance", late)}${runBtn}`;
+  } else if (s === "asked") {
+    what = `Waiting on ${iv} to say yes`; why = `${possessive(iv)} Grokbot asked if they can take ${cand}. No answer yet.`;
+    fix = late ? `${iv} hasn't answered. Nudge them, or give it to someone else.` : `Nudge ${iv}, or give it to someone else.`;
+    acts = `${nudge(late)}${btn("Pick someone else", "advance", false)}`;
+  } else if (s === "scheduling") {
+    const draft = r && r.kind === "Schedule the interview" && r.status === "waiting" && !r.sent;
+    what = draft ? `Invite drafted in ${possessive(iv)} Gmail, not sent` : `Waiting on ${cand} to pick a time`;
+    why = draft ? `Offers ${(a.slots || []).join(" or ") || "two times"}. It needs your OK to go out.` : `Offered ${(a.slots || []).join(" or ") || "two times"}.`;
+    fix = draft ? "Send it. It goes from their account and lands on both calendars once picked." : `Remind ${cand} if it's been a while.`;
+    acts = draft ? btn("Send the invite", "sendInvite", true) : `${btn(`Remind ${cand}`, "nudgeCand", late)}${runBtn}`;
+  } else if (s === "scheduled") {
+    const ahead = a.at && a.at > Date.now();
+    what = ahead ? `Interview ${fmtWhen(a.at)} with ${PEOPLE[a.iv].name}` : `Interviewed by ${PEOPLE[a.iv].name}`;
+    why = ahead ? "Nothing to do until then. The read is collected right after." : "The read hasn't been asked for yet.";
+    fix = ahead ? "" : `Ask ${iv} for the read.`;
+    acts = ahead ? `<a class="btn sm ghost" href="#calendar">Open in Interview Calendar${ico("arrowR")}</a>` : btn(`Ask ${esc(iv)} for the read`, "askGrok", true);
+  } else {
+    const asked = r ? Date.now() - r.start : age;
+    what = `Waiting on ${possessive(iv)} read`; why = `${possessive(iv)} Grokbot asked ${dur(asked)} ago in ${CH_NAME[(r && r.ch) || "slack"]}. No reply yet.`;
+    fix = late ? `Nudge ${iv}. It goes from their Grokbot and copies their lead.` : `Usually back within a day. Nudge ${iv} if you need it sooner.`;
+    acts = `${nudge(late)}${btn(`Ask ${esc(possessive(iv))} Grokbot`, "askGrok", false)}${runBtn}`;
+  }
+  const left = st.target * HR - age;
+  return `<section class="sit ${late || failed ? "late" : ""}">
+    <div class="sit-top"><span class="sit-av">${c.av}</span><div class="grow"><span class="sit-k">With ${esc(c.label)}</span><b>${esc(what)}</b><span class="sit-why">${esc(why)}</span></div>
+      <span class="sit-age" title="Time in ${esc(st.name)}, against its ${plDur(st.target)} target"><span>${late ? `<i class="dot"></i>Stuck · ${plDur((age - st.target * HR) / HR)} over` : `${plDur(age / HR)} in ${esc(st.name)}`}</span><em>${late ? `target ${plDur(st.target)}` : left > 0 ? `${plDur(left / HR)} left of ${plDur(st.target)}` : ""}</em></span></div>
+    ${fix || acts ? `<div class="sit-next">${fix ? `<span class="sit-k">To move it on</span><span class="sit-fix">${esc(fix)}</span>` : ""}${acts ? `<div class="sit-acts">${acts}</div>` : ""}</div>` : ""}
+  </section>`;
 }
 const prop = (k, v) => `<div class="prop"><span class="k">${k}</span><span class="v">${v}</span></div>`;
 const bprop = (k, v, act, id) => `<button class="prop" data-act="${act}" data-id="${id}"><span class="k">${k}</span><span class="v">${v}</span></button>`;
@@ -1306,7 +2381,7 @@ function ticketPage(id) {
   const c = court(a);
   const team = a.team && TEAMS[a.team];
   const back = state.backTo && !state.backTo.startsWith("t~") && !state.backTo.startsWith("run~") ? state.backTo : "all";
-  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Calendar" : back === "jobs" ? "Job Postings" : back === "triage" ? "Applicant Tickets" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Analytics" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Pipeline";
+  const backName = back.startsWith("inbox") ? "Inbox" : back.startsWith("view") ? "Views" : back === "calendar" ? "Interview Calendar" : back === "jobs" ? "Job Postings" : back === "triage" ? "New Applicants" : back.startsWith("bots") || back.startsWith("activity") ? "Grokbot Activity" : back.startsWith("analytics") ? "Analytics" : back.startsWith("team~") ? TEAMS[back.slice(5)].name : "Applicant Tickets";
   const pos = state.lastList.indexOf(id);
   return `<div class="bar"><div class="crumbs"><a href="#${back}">${esc(backName)}</a><span class="sep"><svg viewBox="0 0 16 16"><path d="${P.chevR}"/></svg></span><b>${esc(a.name)}</b></div><span class="spacer"></span>
     ${pos >= 0 ? `<span class="faint pos">${pos + 1} / ${state.lastList.length}</span>` : ""}
@@ -1326,6 +2401,7 @@ function ticketPage(id) {
       ${pastOf(a).length ? `<div class="block"><div class="block-head">Past applications<span class="n">${pastOf(a).length}</span></div><div class="plan">${pastOf(a).map((h) => `<button class="past-row" data-act="openHist" data-id="${h.id}"><span class="what"><b>${esc(ROLES[h.role].title)}</b><span>${fmtDate(h.applied)} to ${fmtDate(h.closed)} · got to ${esc(h.reached)}</span></span><span class="h-out ${outcomeTone(h.outcome)}">${esc(h.outcome)}</span></button>`).join("")}</div></div>` : ""}
       <div class="block">${tbPanel(a)}</div>
       <div class="block"><div class="block-head">Profile</div>${profile(a)}</div>
+      ${appBlock(a)}
       <div class="block"><div class="block-head">Activity<button class="aside linkish" data-act="rawLog">${state.rawLog ? "Show summary" : "Show all steps"}</button></div>${state.rawLog ? traceView(a) : storyView(a)}
         <div class="composer"><textarea id="cmt" data-compose="${a.id}" placeholder="Add a comment…" rows="2"></textarea>
           <div class="tools"><span class="grow"></span><button class="btn sm" data-act="comment" data-id="${a.id}" title="Comment (⌘↵)">Comment</button></div></div>
@@ -1501,12 +2577,13 @@ function calendarPage() {
   };
   const note = (e) => e.kind === "iv" ? `Invite sent from ${first(e.iv)}'s Gmail.` : e.kind === "hold" ? `Waiting on ${first2(e.a)} to pick ${e.a.slots.join(" or ")}` : e.a.read && e.status === e.a.read.verdict ? `“${e.a.read.quote}”` : e.status === "Offer" ? "Moved to offer. Draft ready in Gmail." : e.status === "Rejected" ? `Rejected. ${first(e.iv)}'s Grokbot sent the note.` : e.status === "Read in" ? "Read is in" : `${first(e.iv)}'s Grokbot is collecting the read`;
   const teamName = state.calTeam && state.calTeam !== "all" ? TEAMS[state.calTeam].name : "Everyone";
-  return `<div class="bar cx-bar"><h1 class="cx-title">Calendar</h1><span class="spacer"></span>
+  return `<div class="bar cx-bar"><h1 class="cx-title">Interview Calendar</h1><span class="spacer"></span>
     <label class="cx-search hide-sm">${ico("search")}<input id="calq" placeholder="Search interviews…" value="${esc(state.calQ || "")}" autocomplete="off"></label>
     <button class="cx-ibtn" data-act="help" aria-label="Keyboard Shortcuts" title="Keyboard Shortcuts (?)">?</button>
     <button class="cx-primary" data-act="findTime" title="Suggests an interviewer and a time">${ico("cal")}<span>Find a time</span></button></div>
   <div class="scroll ${mode === "list" ? "" : "fitv"}" id="scroller"><div class="calpage ${mode === "list" ? "" : "fit"}">
     <div class="cal-main">
+      ${(() => { const away = Object.entries(PEOPLE).filter(([, p]) => p.quiet); return away.length ? banner({ id: "cal-away", status: "info", size: "compact", title: away.map(([id, p]) => `${first(id)}: ${p.quiet[0].toLowerCase()}${p.quiet.slice(1)}`).join(" · "), desc: "They show as away when you pick an interviewer. Their Grokbots still answer.", actions: [{ label: "See interviewers", href: "#bots~people" }], dismissible: true }) : ""; })()}
       <div class="cal-top">
         ${mode === "list" ? `<h2>All interviews</h2>` : `<button class="cx-btn" data-act="calToday">Today</button>
         <div class="cx-pair"><button class="cx-btn" data-act="calNav" data-d="-1" aria-label="Previous">${ico("arrowL")}</button><button class="cx-btn" data-act="calNav" data-d="1" aria-label="Next">${ico("arrowR")}</button></div>
@@ -1985,7 +3062,7 @@ const EX_MEASURES = {
 };
 const EX_SLICES = {
   stage: { name: "Stage", groups: () => [
-    ["new", "Applicant Tickets", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
+    ["new", "New Applicants", (a) => a.state === "new"], ["testbench", "Testbench", (a) => a.state === "testbench"],
     ["routing", "With Grokbots", (a) => ["routing", "asked", "scheduling"].includes(a.state)], ["scheduled", "Interview booked", (a) => a.state === "scheduled"],
     ["debrief", "Getting the read", (a) => a.state === "debrief"], ["judgment", "Your call", (a) => a.state === "judgment"],
     ["offer", "Offer", (a) => a.state === "offer"], ["rejected", "Closed", (a) => a.state === "passed" || a.state === "rejected"],
@@ -2058,6 +3135,9 @@ const G = window.gsap, FL = window.Flip;
 if (G && FL) G.registerPlugin(FL);
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const motion = (fn) => { if (G && !calm()) { try { fn(G); } catch {} } };
+// One feel everywhere: 0.2s with a slight spring, like Motion's { duration: 0.2, bounce: 0.2 }.
+const DUR = 0.2, SPRING = "power4.out", MOVE = "power3.inOut"; // motion after raphaelsalaja/skills: ease-out in and out, in-out to move, no overshoot
+if (G) G.defaults({ duration: DUR, ease: SPRING });
 const LIVE_ROWS = ".ib, .ivr, .trow, .af-r, .ck-r, .mrow, .vw-r, .card, .jp-row, .iv-r, .runrow";
 const nodeKey = (n) => (n.id ? n.id : n.dataset && n.dataset.tid ? `t:${n.dataset.tid}` : undefined);
 function patch(el, html) {
@@ -2080,26 +3160,26 @@ function patch(el, html) {
     onNodeAdded: (n) => { if (n.nodeType === 1 && (n.matches(LIVE_ROWS) || n.matches(".drawer, .toast, .af-new, .blk"))) added.push(n); return n; },
   });
   motion((g) => {
-    if (flip) FL.from(flip, { duration: 0.35, ease: "power3.out", targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
+    if (flip) FL.from(flip, { duration: DUR, ease: MOVE, targets: el.querySelectorAll(LIVE_ROWS), simple: true, prune: true });
     const fresh = added.filter((n) => n.isConnected).slice(0, 24);
-    if (fresh.length) g.fromTo(fresh, { opacity: 0, y: (i, n) => (n.matches(".drawer") ? 0 : -4), x: (i, n) => (n.matches(".drawer") ? 24 : 0) }, { opacity: 1, y: 0, x: 0, duration: 0.32, ease: "power3.out", stagger: 0.025, clearProps: "opacity,transform" });
-    if (bumped.length) g.fromTo(bumped, { scale: 1.3 }, { scale: 1, duration: 0.35, ease: "back.out(3)", clearProps: "transform" });
+    if (fresh.length) g.fromTo(fresh, { opacity: 0, y: (i, n) => (n.matches(".drawer") ? 0 : -4), x: (i, n) => (n.matches(".drawer") ? 24 : 0) }, { opacity: 1, y: 0, x: 0, duration: DUR, ease: SPRING, stagger: 0.01, clearProps: "opacity,transform" });
+    if (bumped.length) g.fromTo(bumped, { scale: 1.04 }, { scale: 1, duration: DUR, ease: SPRING, clearProps: "transform" });
   });
 }
 // A new page eases in; the same page with a new selection only eases the reader.
 // Every entrance states both ends, so elements with their own CSS fade never get stuck at 0.
 const IN = (from, to) => [{ opacity: 0, ...from }, { opacity: 1, x: 0, y: 0, scale: 1, clearProps: "opacity,transform", ...to }];
-function enterPage(el) { motion((g) => g.fromTo(el.children, ...IN({ y: 6 }, { duration: 0.3, ease: "power2.out", stagger: 0.03 }))); }
-function enterReader(sel) { motion((g) => { const r = $(sel); if (r) g.fromTo(r.children, ...IN({ x: 10 }, { duration: 0.26, ease: "power2.out", stagger: 0.03 })); }); }
+// Pages arrive whole: one quick fade, nothing staggered, nothing sliding, so nothing twitches.
+function enterPage(el) { if (tour) return; motion((g) => g.fromTo(el, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power4.out", clearProps: "opacity" })); }
+function enterReader(sel) { if (tour) return; motion((g) => { const r = $(sel); if (r) g.fromTo(r, { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "power4.out", clearProps: "opacity" }); }); }
 // Menus, dialogs and the command menu open with a short scale and fade; toasts rise.
 // Overlays, menus and toasts enter with CSS keyframes (style.css, v45), so they never wait on a tween to become visible.
 
 /* ---------------- Views: everything you don't need every day, one click away ---------------- */
 // Pages you visit now and then. Pin the ones you use to the sidebar.
 const PAGE_VIEWS = [
-  { id: "calendar", name: "Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
+  { id: "calendar", name: "Interview Calendar", icon: "cal", href: "#calendar", desc: "Interviews and holds by week. Drag to book." },
   { id: "interviewers", name: "Interviewers", icon: "users", href: "#bots~people", desc: "Who interviews, their load, and their Grokbot" },
-  { id: "activity", name: "Grokbot Activity", icon: "route", href: "#activity", desc: "Anything that needs you, then a log of what the Grokbots did" },
 ];
 // Saved Pipeline filters.
 const SAVED_VIEWS = [
@@ -2140,7 +3220,7 @@ function viewsPage() {
 function openNewView() {
   const opt = (name, pairs) => `<select name="${name}">${pairs.map(([v, n]) => `<option value="${v}">${n}</option>`).join("")}</select>`;
   openForm({
-    title: "New view", sub: "A saved filter on the Pipeline.", submit: "Create view",
+    title: "New view", sub: "A saved filter on Applicant Tickets.", submit: "Create view",
     body: `<label class="fm-f"><span>Name</span><input name="name" placeholder="Strong infra referrals" required></label>
       <div class="fm-row"><label class="fm-f"><span>Team</span>${opt("team", [["", "Any team"], ...Object.entries(TEAMS).map(([k, t]) => [k, t.name])])}</label>
       <label class="fm-f"><span>Stage</span>${opt("stage", [["", "Any stage"], ["you", "With you"], ["bots", "With Grokbots"], ["booked", "Interview booked"], ["closed", "Closed"]])}</label></div>
@@ -2186,32 +3266,34 @@ function renderSide() {
     <nav class="sb-group" aria-label="Inbox">
       ${item("#home", ico("home"), "Home", r.name === "home")}
       ${item("#inbox", ico("inbox"), "Inbox", r.name === "inbox", sbNew("inbox"), "", "New in your Inbox")}
-      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
     </nav>
     <nav class="sb-group ${shut("top")}" aria-label="Top of Funnel">${sec("top", "Top of Funnel")}
       ${item("#jobs", ico("brief"), "Job Postings", r.name === "jobs")}
-      ${item("#triage", ico("ticket"), "Applicant Tickets", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
+      ${item("#triage", ico("ticket"), "New Applicants", r.name === "triage", sbNew("triage"), "", "New applicants since you last looked")}
       ${item("#analytics", ico("chart"), "Analytics", r.name === "analytics")}
     </nav>
     <nav class="sb-group ${shut("rt")}" aria-label="Routing and Tracking">${sec("rt", "Routing &amp; Tracking")}
-      ${item("#all", ico("people"), "Pipeline", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
+      ${item("#all", ico("people"), "Applicant Tickets", (r.name === "all" && !state.savedView) || r.name === "t" || r.name === "views")}
       ${[...state.pins].map(viewById).filter((v) => v && !v.href).map((v) => `<a class="sb-item sub ${on(r.name === "all" && state.savedView === v.id)}" href="${viewHref(v)}"><span class="sb-ico">${viewIcon(v)}</span><span class="trunc">${esc(v.name)}</span></a>`).join("")}
-      ${item("#interviews", ico("mic"), "Interviews", r.name === "interviews")}
-      ${item("#calendar", ico("cal"), "Calendar", r.name === "calendar")}
-      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#interviews", ico("mic"), "Interview Judgement", r.name === "interviews")}
+      ${item("#calendar", ico("cal"), "Interview Calendar", r.name === "calendar")}
       ${item("#referrals", ico("users"), "Referrals", r.name === "referrals")}
-      ${item("#activity", ico("route"), "Grokbot Activity", r.name === "bots" && (r.id === "runs" || r.id === "checks"), sbNew("activity"), "", "A Grokbot task got stuck or failed")}
     </nav>
-    <div class="sb-me">${botAv(ME, "lg")}<span class="grow"><b class="trunc">${PEOPLE[ME].name}</b><span>${PEOPLE[ME].role}</span></span></div>
-    <button class="sb-chat ${on(r.name === "chat")}" data-act="goChat">${botAv(ME)}<span class="trunc">Chat with your Grokbot</span></button>
-    <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><span class="grow"></span><a class="sb-help ${on(r.name === "settings")}" href="#settings" aria-label="Settings" title="Settings">${ico("gear")}</a></div>
+    <nav class="sb-group ${shut("ob")}" aria-label="Onboarding">${sec("ob", "Onboarding")}
+      ${item("#setup~people", ico("users"), "Team & Grokbots", r.name === "setup" && r.id !== "process")}
+      ${item("#bots~people", ico("users"), "Interviewers", r.name === "bots" && r.id === "people")}
+      ${item("#setup~process", ico("route"), "Interview process", r.name === "setup" && r.id === "process")}
+      ${item("#crm", ico("db"), "CRM", r.name === "crm")}
+    </nav>
+    <button class="sb-acct" data-act="acct" aria-haspopup="menu" title="Account, theme and sign out"><span class="trunc">${PEOPLE[ME].name}</span><svg class="chev" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
+    <div class="sb-foot"><button class="sb-tour" data-act="tour">${ico("help")}Tutorial</button><a class="sb-tour ${on(r.name === "settings")}" href="#settings">${ico("gear")}Settings</a></div>
   </div>`);
 }
 
 /* ---------------- moves: what you can do with an applicant, as buttons or a menu ---------------- */
 function statusMoves(a) {
   const m = [];
-  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to Applicant Tickets", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); toast(`${a.name} is back in Applicant Tickets`); } });
+  if (a.state !== "new" && isOpen(a)) m.push({ k: "triage", label: "Back to New Applicants", icon: stIcon("new"), run: () => { cancel(a); RUNS.filter((r) => r.a === a.id && !r.end).forEach((r) => endRun(r, Date.now())); a.state = "new"; a.iv = null; a.at = null; now(a, "me", "Moved back to New Applicants"); touch(a); toast(`${a.name} is back in New Applicants`); } });
   if (!a.tb && isOpen(a)) m.push({ k: "testbench", label: "Send Testbench", icon: stIcon("testbench"), run: () => { const undo = sendTB(a); render(); toast(`Testbench sent to ${a.name}`, { undo }); } });
   if (isOpen(a)) m.push({ k: "team", label: a.state === "judgment" ? "Next round…" : "Send to a team…", icon: stIcon("routing"), primary: a.state === "judgment", run: (el) => teamPick(el, [a.id]) });
   if (a.state === "judgment") m.push({ k: "offer", label: "Move to offer…", icon: stIcon("offer"), run: () => openOffer(a) });
@@ -2225,7 +3307,7 @@ const moveButtons = (a, only) => statusMoves(a).filter((m) => !only || only.incl
 /* ---------------- Inbox: one row per applicant, newest first, read like email ---------------- */
 const seen = new Map(), archived = new Map();
 const attnRun = (a) => RUNS.find((r) => r.a === a.id && needsAttention(r));
-// Only a decision or a stuck Grokbot needs you. New applicants have their own page, Applicant Tickets.
+// Only a decision or a stuck Grokbot needs you. New applicants have their own page, New Applicants.
 const needsYou = (a) => a.state === "judgment" || !!attnRun(a);
 // The Inbox is a queue of operational issues, not of applicants. An applicant has at most one open
 // issue: a Grokbot that broke, an invite drafted but not sent, someone who hasn't answered, or a
@@ -2388,25 +3470,148 @@ function ibReader(a) {
       <div class="block ib-story"><div class="block-head">Activity<a class="aside" href="#t~${a.id}">Open ticket</a></div>${storyView(a)}</div>
     </div></div>`;
 }
+/* ---------------- Inbox as a digest: what's worth your time from everything that happened ---------------- */
+// One card. Problems that need you come first and open a pop-up with the fix already drafted;
+// below them, what was decided, what got booked, and what's worth knowing.
+const IB_RANGES = [[1, "1 day"], [3, "3 days"], [7, "1 week"]];
+const hhmm = (t) => new Date(t).toTimeString().slice(0, 5);
+const ibWhen = (t) => (dayStart(t) === dayStart(Date.now()) ? hhmm(t) : `${WD[new Date(t).getDay()].slice(0, 3)} ${hhmm(t)}`);
+const ISSUE_SRC = { bot: "slack", invite: "gmail", late: "slack", decide: "slack" };
+function ibDigest() {
+  const days = state.ibRange || 1, from = Date.now() - days * DAY, read = (state.ibRead ||= new Set());
+  const needs = inboxRows().filter((x) => x.inInbox).sort((x, y) => ISSUE_RANK[x.iss.k] - ISSUE_RANK[y.iss.k] || y.iss.at - x.iss.at).map((x) => {
+    const i = x.iss, a = x.a;
+    const what = ({ bot: () => `${possessive(first(i.run.bot))} Grokbot couldn't send ${possessive(a.name)} interview brief.`, invite: () => `${possessive(a.name)} interview invite is drafted in ${possessive(first(a.iv))} Gmail but not sent.`,
+      late: () => i.run ? `${first(i.run.on)} still owes feedback on ${a.name}, ${dur(i.late)} after the interview.` : `${a.name} hasn't started the Testbench, ${dur(i.late)} after it went out.`,
+      decide: () => `${a.read ? first(a.read.by) : "The interviewer"} read ${a.name} as ${a.read ? a.read.verdict.toLowerCase() : "in"}; the next step is your call.` })[i.k]();
+    const who = i.k === "late" && !i.run ? [candAv(a)] : i.k === "decide" && a.read ? [personAv(a.read.by), candAv(a)] : [i.k === "bot" ? personAv(i.run.bot) : personAv(a.iv || ME), candAv(a)];
+    const names = i.k === "late" && !i.run ? a.name : `${i.k === "bot" ? PEOPLE[i.run.bot].name : PEOPLE[a.iv || ME].name}`;
+    return { key: `n-${a.id}`, kind: "need", a, iss: i, src: i.k === "late" && !i.run ? "testbench" : ISSUE_SRC[i.k], what, who, meta: `${names} · ${esc(ROLES[a.role].title)} · ${ibWhen(i.at)}` };
+  });
+  const evs = [];
+  everyone().forEach((a) => (TRACE[a.id] || []).forEach((e) => { if (e.at >= from) evs.push({ a, e }); }));
+  const total = evs.length + needs.length;
+  const decided = [], booked = [], fyi = [];
+  evs.forEach(({ a, e }) => {
+    const t = plain(e.html), key = `${a.id}-${e.at}`;
+    if (read.has(key) || a.bulk) return;
+    let m;
+    if (e.actor === "me" && /^Assigned to/.test(t)) decided.push({ key, a, src: "grok", what: `${a.name} goes to ${TEAMS[a.team] ? TEAMS[a.team].name : "a team"} for an interview.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "orch" && (m = t.match(/^Picked (\w+)/))) decided.push({ key, a, src: "grok", what: `${m[1]} will interview ${a.name}: ${t.split(": ")[1] || "best fit this week"}.`, who: [personAv(a.iv), candAv(a)], meta: `${TEAMS[a.team] ? TEAMS[a.team].name : ""} Grokbots · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "me" && /^(Rejected|Moved to offer|Passed)/.test(t)) decided.push({ key, a, src: "grok", what: /offer/.test(t) ? `${a.name} moves to an offer.` : `${a.name} is a no. The note went out from the interviewer.`, who: [personAv(ME), candAv(a)], meta: `${PEOPLE[ME].name} · ${ibWhen(e.at)}`, at: e.at });
+    else if (/picked .*On both calendars/.test(t)) booked.push({ key, a, src: "cal", what: `${a.name} is booked with ${first(a.iv)}${a.at ? ` for ${fmtWhen(a.at)}` : ""}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} · Calendar · ${ibWhen(e.at)}`, at: e.at });
+    else if (e.actor === "tb" && /Scored/.test(t)) fyi.push({ key, a, src: "testbench", what: `${a.name} finished the Testbench: ${a.tb.score}/100, better than ${a.tb.pct}% of applicants.`, who: [candAv(a)], meta: `${a.name} · ${esc(ROLES[a.role].title)} · ${ibWhen(e.at)}`, at: e.at });
+    else if (/^Read:/.test(t)) fyi.push({ key, a, src: "slack", what: `${first(a.iv)} sent a read on ${a.name}: ${(a.read || {}).verdict || "in"}.`, who: [personAv(a.iv), candAv(a)], meta: `${PEOPLE[a.iv].name} · Slack · ${ibWhen(e.at)}`, at: e.at });
+  });
+  const byTime = (x, y) => y.at - x.at;
+  const groups = [["need", "Needs you", "alert", needs], ["decided", "Decisions made", "flag", decided.sort(byTime).slice(0, 6)], ["booked", "Booked", "cal", booked.sort(byTime).slice(0, 6)], ["fyi", "FYI", "help", fyi.sort(byTime).slice(0, 6)]].filter((g) => g[3].length);
+  return { groups, total, shown: groups.reduce((n, g) => n + g[3].length, 0), infoKeys: decided.concat(booked, fyi).map((r) => r.key) };
+}
+const SRC_ICO = (k) => (k === "grok" ? `<span class="ibx-grok">${botAv(ME)}</span>` : CH[k] || CH.slack);
 function inboxPage() {
-  const f = state.ibFilter === "done" ? "done" : "all";
-  const xs = inboxItems(f);
-  const sel = state.ibSel && A[state.ibSel];
-  const left = inboxLeft();
-  const tabs = `<div class="cx-seg ib-tabs"><button class="${f === "all" ? "on" : ""}" data-act="ibTab" data-v="all">Open${left ? `<span>${left}</span>` : ""}</button><button class="${f === "done" ? "on" : ""}" data-act="ibTab" data-v="done">Done</button></div>`;
-  if (!state.kbHint && f === "all" && xs.length) { state.kbHint = true; setTimeout(() => toast("F fixes the issue, E dismisses it, J and K move between issues."), 600); }
-  const head = `<div class="bar cx-bar ib-bar"><h1 class="cx-title">Inbox</h1>${tabs}<span class="spacer"></span>${f === "all" && left ? `<button class="icon-btn" data-act="ibMore" aria-label="More" title="More">${ico("dots")}</button>` : ""}</div>`;
-  if (!xs.length && f === "all") return `${head}<div class="scroll"><div class="ib-zero big"><span class="ib-zero-mark">${ico("check")}</span><h2>You're all caught up</h2><p>Broken Grokbots, unsent invites, overdue replies and decisions show up here.</p>
-    <div class="ib-zero-acts"><button class="btn sm" data-act="ibTab" data-v="done">See Done</button><a class="btn sm" href="#all">Open Pipeline</a></div></div></div>`;
-  return `${head}<div class="ib-wrap ${sel ? "has-sel" : ""}">
-    <div class="ib-col">
-      ${f === "done" ? `` : ""}
-      <div class="ib-list" id="mlist">${f === "done" ? xs.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")
-        : Object.keys(ISSUE_KINDS).map((k) => { const g = xs.filter((x) => x.iss.k === k); return g.length ? `<div class="ib-gh ${k}" data-tid="gh-${k}">${ISSUE_KINDS[k]}<span>${g.length}</span></div>${g.map((x) => ibRow(x, sel && x.a.id === sel.id)).join("")}` : ""; }).join("")}
-        ${xs.length ? "" : `<p class="ib-none">Nothing here yet.</p>`}</div>
-    </div>
-    <div class="ib-reader">${sel ? ibReader(sel) : ""}</div>
-  </div>`;
+  const d = ibDigest(), days = state.ibRange || 1;
+  const row = (r) => `<div class="ibx-r ${r.kind === "need" ? "need" : ""}" role="button" tabindex="0" data-act="${r.kind === "need" ? "ibOpen" : "ibGo"}" data-id="${r.a.id}" data-tid="${r.key}">
+      <span class="ibx-src">${SRC_ICO(r.src)}</span>
+      <span class="ibx-m"><span class="ibx-what">${esc(r.what)}</span><span class="ibx-meta"><span class="ibx-avs">${r.who.join("")}</span>${r.meta}</span></span>
+      <span class="ibx-acts"><a class="icon-btn" href="#t~${r.a.id}" title="Open the ticket" aria-label="Open the ticket">${ico("arrowUR")}</a><button class="icon-btn" data-act="ibCheck" data-id="${r.a.id}" data-k="${r.key}" data-need="${r.kind === "need" ? 1 : ""}" title="${r.kind === "need" ? "Dismiss" : "Mark read"}" aria-label="${r.kind === "need" ? "Dismiss" : "Mark read"}">${ico("check")}</button></span></div>`;
+  return `<div class="scroll ibx-page" id="scroller"><section class="ibx">
+    <header class="ibx-h"><div><h1>Welcome back</h1><p>${d.shown} worth your time, from ${d.total.toLocaleString()} update${d.total === 1 ? "" : "s"}</p></div>
+      <div class="ibx-seg" role="tablist">${IB_RANGES.map(([n, l]) => `<button class="${days === n ? "on" : ""}" data-act="ibRange" data-v="${n}" role="tab" aria-selected="${days === n}">${l}</button>`).join("")}</div></header>
+    ${d.groups.map(([k, l, ic, rows]) => `<div class="ibx-g ${k}"><div class="ibx-gh">${ico(ic)}<b>${l}</b><span>${rows.length}</span></div>${rows.map(row).join("")}</div>`).join("") || `<div class="ibx-zero">${ico("check")}<b>You're all caught up</b><span>Nothing new in the last ${IB_RANGES.find((r) => r[0] === days)[1]}.</span></div>`}
+    <footer class="ibx-f"><span class="ibx-by">${botAv(ME)}Summarized by your Grokbot</span><button class="ibx-all" data-act="ibAllRead">Mark all as read</button></footer>
+  </section></div>`;
+}
+// Opening the Inbox: the Grokbot reads each source and ticks it off, then lays out what it found, one row at a time.
+// About a second and a half. Stop (or a click anywhere on the card) skips to the end. Not during the tour or with reduced motion.
+let ibAnim = null;
+function ibThinkEnd() {
+  const a = ibAnim;
+  if (!a) return;
+  ibAnim = null;
+  a.tl.kill();
+  a.think.remove(); a.stop.remove();
+  a.box.classList.remove("is-thinking");
+  a.p.textContent = a.done;
+  G.set(a.rows, { clearProps: "opacity,transform" });
+}
+function ibThink() {
+  ibThinkEnd();
+  const box = $(".ibx");
+  if (!box || tour || !G || calm()) return;
+  const t = ibDigest().total, n = [0.52, 0.21, 0.11].map((x) => Math.round(t * x));
+  n.push(Math.max(0, t - n[0] - n[1] - n[2]));
+  const SRCS = [["slack", "Slack", `${n[0]} messages`], ["gmail", "Gmail", `${n[1]} threads`], ["cal", "Calendar", `${n[2]} events`], ["grok", "Grokbots", `${n[3]} tasks`]];
+  const p = $(".ibx-h p", box), done = p.textContent;
+  p.textContent = `Reading ${t.toLocaleString()} updates…`;
+  const think = document.createElement("div");
+  think.className = "ibx-think";
+  think.innerHTML = SRCS.map(([k, l, c]) => `<div class="ibx-s"><span class="ibx-src">${SRC_ICO(k)}</span><span class="ibx-sm"><b>${l}</b><span>${c}</span></span><i class="ibx-st"><span class="spin"></span>${ico("check")}</i></div>`).join("");
+  $(".ibx-h", box).after(think);
+  const stop = document.createElement("button");
+  stop.className = "btn ibx-stop"; stop.textContent = "Stop";
+  $(".ibx-f", box).appendChild(stop);
+  box.classList.add("is-thinking");
+  const src = $$(".ibx-s", think), rows = $$(".ibx-gh, .ibx-r, .ibx-zero", box).slice(0, 24);
+  const tl = G.timeline({ defaults: { ease: "power2.out" }, onComplete: ibThinkEnd });
+  tl.fromTo(src, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.07 });
+  src.forEach((el, i) => tl.call(() => el.classList.add("ok"), null, 0.3 + i * 0.2));
+  tl.to(src, { opacity: 0.3, duration: 0.15 }, 1.15)
+    .to(think, { height: 0, marginBottom: 0, opacity: 0, duration: 0.18, ease: "power2.inOut" }, 1.3)
+    .call(() => { box.classList.remove("is-thinking"); p.textContent = done; stop.remove(); }, null, 1.48)
+    .fromTo(rows, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.035, ease: SPRING }, 1.48);
+  ibAnim = { tl, box, think, stop, rows, p, done };
+  box.addEventListener("click", () => { if (ibAnim) ibThinkEnd(); }, { once: true, capture: true });
+}
+const fullBody = (id) => { const rec = recordings().filter((x) => x.a.id === id).sort((x, y) => y.round - x.round)[0]; return `${rec ? processTree(rec) : ""}${ticketPage(id)}`; };
+// A full-page pop-up with everything about one candidate, so a decision can be made right there.
+// It closes back to where you were (✕, Esc or a click outside); "Open as a page" is there if you want the ticket itself.
+function openFull(id) {
+  const a = A[id];
+  if (!a) return;
+  closeLayer();
+  const el = document.createElement("div");
+  el.className = "overlay fs";
+  el.innerHTML = `<div class="fs-sheet" role="dialog" aria-label="${esc(a.name)}">
+    <header class="fs-h"><div class="fs-t"><b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)} · ${esc(STATES[a.state].name)}</span></div><span class="grow"></span>
+      <a class="btn sm ghost" href="#t~${id}" data-close>${ico("arrowUR")}Open as a page</a><button class="icon-btn fs-x" data-close aria-label="Close" title="Close (Esc)">${ico("x")}</button></header>
+    <div class="fs-body" data-id="${id}">${fullBody(id)}</div></div>`;
+  $("#layer").appendChild(el);
+  ftFit();
+  modal = { send: () => {}, fs: true };
+  el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeLayer(); });
+}
+addEventListener("hashchange", () => { if ($("#layer .overlay.fs")) closeLayer(); });
+// The pop-up: the problem, what we know, and the fix already drafted. Send does it.
+function ibDraft(a, i) {
+  const iv = a.iv && PEOPLE[a.iv];
+  if (i.k === "bot") return { ch: "gmail", to: `${PEOPLE[i.run.bot].name} <${first(i.run.bot).toLowerCase()}@meridian.com>`, subject: `Interview brief: ${a.name}, ${ROLES[a.role].title}`,
+    body: `Hi ${first(i.run.bot)},\n\nYou're meeting ${a.name} ${a.at ? fmtWhen(a.at) : "this week"}. ${a.hl}.\n\n${(a.sum || []).map((x) => `· ${x}`).join("\n")}${a.tb && a.tb.state === "done" ? `\n· Testbench ${a.tb.score}/100, better than ${a.tb.pct}% of applicants` : ""}\n\nWorth probing: how they'd own this end to end.\n\nThanks,\n${first(ME)}`,
+    why: `Slack access for ${possessive(first(i.run.bot))} Grokbot expired, so the brief didn't go out. This sends it by email instead.`, send: "Send by email", act: () => retryRun(i.run) };
+  if (i.k === "invite") return { ch: "gmail", to: `${a.name} <${emailOf(a)}>`, from: `${iv.name}`, subject: `Interview with Meridian: ${ROLES[a.role].title}`,
+    body: `Hi ${first2(a)},\n\nWould either of these work for a first conversation? ${(a.slots || []).join(" or ")}. Pick one and it goes on both calendars.\n\n${first(a.iv)}`,
+    why: `Drafted in ${possessive(first(a.iv))} Gmail ${dur(i.late)} ago and not sent. This sends it from ${possessive(first(a.iv))} account.`, send: "Send invite", act: () => sendInvite(a) };
+  if (i.k === "late" && i.run) return { ch: "slack", to: `${PEOPLE[i.run.on].name} (DM)`, body: `Hey ${first(i.run.on)}, how did ${a.name} go? A yes or no and a line on why is enough. I'll take it from there.`,
+    why: `The interview ended ${dur(i.late)} ago and no feedback has come in.`, send: `Send to ${first(i.run.on)}`, act: () => nudgeRun(i.run) };
+  if (i.k === "late") return { ch: "gmail", to: `${a.name} <${emailOf(a)}>`, subject: "Your Meridian Testbench", body: `Hi ${first2(a)},\n\nJust checking the Testbench link reached you. It takes about ${ROLES[a.role].tbLen || "three hours"}, any time this week. Reply here if anything's in the way.\n\n${first(ME)}`,
+    why: `The Testbench went out ${dur(i.late)} ago and hasn't been started.`, send: "Send reminder", act: () => nudgeCand(a) };
+  return null;
+}
+function ibOpen(id) {
+  const a = A[id], i = issueOf(a);
+  if (!i) return go(`t~${id}`);
+  if (i.k === "decide") return openFull(id);
+  if (false) {
+    const r = a.read || {};
+    return openForm({ title: a.name, sub: `${esc(ROLES[a.role].title)} · ${esc(r.by ? PEOPLE[r.by].name : "")}'s read: ${esc(r.verdict || "")}`, wide: true,
+      body: `<blockquote class="ibp-q">“${esc(r.quote || "")}”</blockquote>${(r.notes || []).length ? `<ul class="ibp-notes">${r.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
+        <div class="ibp-dec"><button class="btn primary" data-act="advance" data-id="${a.id}" data-close>${ico("arrowR")}Next round</button><button class="btn" data-act="offer" data-id="${a.id}" data-close>Move to offer</button><button class="btn" data-act="reject" data-id="${a.id}" data-close>Reject</button><span class="grow"></span><a class="linkish" href="#t~${a.id}" data-close>Open ticket</a></div>` });
+  }
+  const d = ibDraft(a, i);
+  openForm({ title: ({ bot: "Send the interview brief", invite: "Send the interview invite", late: i.run ? "Ask for feedback" : "Remind the candidate" })[i.k], sub: esc(d.why), wide: true, submit: d.send,
+    body: `<div class="ibp-mail"><div class="ibp-hd"><span class="ibp-ch">${CH[d.ch]}${d.ch === "slack" ? "Slack" : "Gmail"}</span>${d.from ? `<span><em>From</em>${esc(d.from)}</span>` : ""}<span><em>To</em>${esc(d.to)}</span>${d.subject ? `<span><em>Subject</em>${esc(d.subject)}</span>` : ""}</div>
+      <textarea name="body" rows="${d.body.split("\n").length + 1}" spellcheck="false">${esc(d.body)}</textarea></div>
+      <p class="ibp-draft">${botAv(ME)}Drafted by your Grokbot. Edit anything before it goes.</p>`,
+    onSubmit: () => { d.act(); toast(`${d.send.replace(/^Send( by)?/, "Sent$1").replace(/^Sent invite/, "Invite sent").replace(/^Send reminder/, "Reminder sent")}: ${a.name}`); } });
 }
 function ibMove(d) {
   const xs = inboxItems();
@@ -2444,10 +3649,10 @@ function ibDone(id) {
   archived.set(id, Date.now());
   if (state.ibSel === id) { const nx = xs[i + 1] || xs[i - 1]; state.ibSel = nx ? nx.a.id : null; }
   render();
-  toast(`${A[id].name} moved to Done`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
+  toast(`Dismissed: ${A[id].name}`, { undo: () => { prev ? archived.set(id, prev) : archived.delete(id); cleared.delete(id); state.ibSel = wasSel; } });
 }
 
-/* ---------------- Applicant Tickets: one email each, a reply ready ---------------- */
+/* ---------------- New Applicants: one email each, a reply ready ---------------- */
 const MODES = [["interview", "Interview", "I"], ["testbench", "Testbench", "T"], ["decline", "Decline", "D"]];
 function suggestMode(a) {
   if (!a.tb) return "testbench";
@@ -2547,7 +3752,7 @@ function triagePage() {
   const q = queue();
   const t = triState(q);
   const a = A[t.sel];
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Applicant Tickets</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">New Applicants</h1><span class="faint tk-count">${q.length}</span><span class="spacer"></span></div>`;
   if (!a) return `${head}<div class="scroll"><div class="tri-done">${ico("check", "ico big")}<h2>No new applicants</h2><p>Every applicant ticket has been answered.</p><a class="btn" href="#inbox">Back to Inbox</a></div></div>`;
   const draft = t.draft ?? draftFor(a, t.mode, t.team);
   const sendLabel = t.mode === "interview" ? `Send and assign to ${TEAMS[t.team].name}` : t.mode === "testbench" ? "Send Testbench" : "Send decline";
@@ -2556,13 +3761,17 @@ function triagePage() {
       return xs.length ? `<div class="m-team">${teamKey(tk)}<b>${esc(TEAMS[tk].name)}</b><span>${xs.length}</span></div>${xs.map((x) => mrow(x, x.id === a.id)).join("")}` : ""; }).join("")}</div>
     <div class="reader" id="reader">
       ${docViewer(a)}
-      <div class="composer2 ${t.mode} ${state.triEdit ? "open" : ""}">
-        ${state.triEdit ? `<textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea>` : ""}
-        <div class="c-row"><div class="cx-seg sm act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
-          ${t.mode === "interview" ? `<button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>` : ""}
-          ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}
-          <button class="c-msg" data-act="triEdit" title="${state.triEdit ? "Hide the message" : "Read or edit the message"}">${state.triEdit ? "Hide message" : `<span class="trunc">${esc(draft.split("\n").filter(Boolean)[1] || draft)}</span><b>Edit</b>`}</button>
-          <button class="cx-primary" data-act="triSend" title="${sendLabel} (⌘↵)">${sendLabel}</button></div>
+      <div class="composer2 cp ${t.mode} ${state.triEdit ? "open" : ""}">
+        <div class="cp-top">
+          <div class="cp-f"><span class="cp-l">Next step</span><div class="cx-seg act-glow" title="Pick what happens next">${MODES.map(([k, n, key]) => `<button class="${t.mode === k ? "on" : ""}" data-act="triMode" data-v="${k}" title="${n} (${key})">${n}</button>`).join("")}</div>
+            ${t.mode === suggestMode(a) ? `<span class="sugg" title="Recommended for this applicant">Recommended</span>` : ""}</div>
+          ${t.mode === "interview" ? `<div class="cp-f"><span class="cp-l">Team</span><button class="chip" data-act="triTeam">${teamKey(t.team)}${TEAMS[t.team].name}<svg class="chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button></div>` : ""}
+        </div>
+        <div class="cp-main">
+          ${state.triEdit ? `<div class="cp-msg editing"><div class="cp-msg-h"><span>To ${esc(a.name)} · from ${esc(first(ME).toLowerCase())}@meridian.com</span><button class="linkish" data-act="triEdit">Done</button></div><textarea id="tri-draft" data-draft spellcheck="false" aria-label="Reply to ${esc(a.name)}">${esc(draft)}</textarea></div>`
+            : `<button class="cp-msg" data-act="triEdit" title="Read or edit the message"><span class="cp-msg-h"><span>To ${esc(a.name)} · from ${esc(first(ME).toLowerCase())}@meridian.com</span><b>Edit</b></span><span class="cp-msg-b">${esc(draft)}</span></button>`}
+          <div class="cp-send"><button class="cx-primary" data-act="triSend" title="${sendLabel} (⌘↵)">${sendLabel}</button><span class="cp-hint">⌘ ↵ to send</span></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -2740,7 +3949,7 @@ function jobDraft(k) {
   return (state.job = {
     k, tab: "overview", preview: false, title: r ? r.title : "", team, status: (r && r.status) || "live",
     loc: (r && r.loc) || "San Francisco", type: (r && r.type) || "Full time", where: (r && r.where) || "On-site", comp: (r && r.comp) || "$180K – $240K", equity: r && r.equity != null ? r.equity : "Offers equity",
-    intro: (r && r.intro) || c.intro, does: [...((r && r.does) || c.does)], fit: [...((r && r.fit) || c.fit)], steps: [...((r && r.steps) || state.process.slice(1, -1))],
+    intro: (r && r.intro) || c.intro, does: [...((r && r.does) || c.does)], fit: [...((r && r.fit) || c.fit)], steps: [...((r && r.steps) || processNames().slice(1, -1))],
     qs: ((r && r.qs) || JOB_QS).map((q) => ({ ...q })), tb: (r && r.tb) || "", tbLen: (r && r.tbLen) || "3 hours",
   });
 }
@@ -2964,7 +4173,7 @@ function interviewsPage(selKey) {
   const xs = ivList();
   const phone = innerWidth < 900;
   const sel = (selKey && xs.find((x) => x.key === selKey)) || (!phone && xs[0]);
-  const head = `<div class="bar cx-bar"><h1 class="cx-title">Interviews</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
+  const head = `<div class="bar cx-bar"><h1 class="cx-title">Interview Judgement</h1><span class="faint tk-count">${(() => { const n = xs.filter((x) => !(state.ivReviewed || new Set()).has(x.key)).length; return n ? `${n} to review` : "All reviewed"; })()}</span><span class="spacer"></span></div>`;
   return `${head}
   <div class="ivw ${sel ? "has-sel" : ""}" id="ivw">
     <div class="ivw-list" id="mlist">${sentBar(xs)}${xs.map((x, i) => { const rv = (state.ivReviewed ||= new Set()).has(x.key); return `${!i || xs[i - 1].v !== x.v ? `<div class="iv-gh" data-tid="ivgh-${x.v}"><i class="${x.v}"></i>${VERDICT_NAME[x.v]}<span>${xs.filter((y) => y.v === x.v).length}</span></div>` : ""}<div class="ivr ${sel && x.key === sel.key ? "sel" : ""} ${rv ? "rv" : ""}" role="link" tabindex="0" data-act="openRec" data-k="${x.key}" id="ivr-${x.key}">
@@ -2987,9 +4196,9 @@ function animateIvOpen() {
   state.ivAnim = false;
   if (matchMedia("(prefers-reduced-motion: reduce)").matches || innerWidth < 760) return;
   const list = $(".ivw-list", w), read = $(".ivw-read", w), W = w.clientWidth;
-  list.animate([{ flexBasis: `${W}px` }, { flexBasis: "360px" }], { duration: 380, easing: "cubic-bezier(0.32, 0.72, 0, 1)" });
-  read.animate([{ opacity: 0, transform: "translateX(32px)" }, { opacity: 1, transform: "none" }], { duration: 380, delay: 60, easing: "cubic-bezier(0.32, 0.72, 0, 1)", fill: "backwards" });
-  $$(".ivr", list).forEach((r, i) => r.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 120 + i * 18, fill: "backwards" }));
+  list.animate([{ flexBasis: `${W}px` }, { flexBasis: "360px" }], { duration: 200, easing: "cubic-bezier(0.3, 1.25, 0.6, 1)" });
+  read.animate([{ opacity: 0, transform: "translateX(32px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: "cubic-bezier(0.3, 1.25, 0.6, 1)", fill: "backwards" });
+  
 }
 function nextSteps(x) {
   const a = x.a, iv = x.iv, d = (n) => x.start + n * DAY;
@@ -3012,25 +4221,28 @@ function readThread(x) {
   const played = (state.gcPlayed ||= new Map());
   if (!played.has(x.key)) played.set(x.key, Date.now());
   const play = Date.now() - played.get(x.key) < 4000;
+  // Laid out like a chat transcript: the Grokbot is the assistant, plain text on the left; the interviewer
+  // is the user, a soft bubble on the right with their name, the time and Copy in a row under it
+  // (shown on hover, its height always kept so nothing shifts).
   let i = 0;
-  const out = (txt, cls = "") => `<div class="gc-row out" style="--i:${i++}"><div class="gc-bubble ${cls}">${txt}</div></div>`;
-  const inn = (txt, first) => `<div class="gc-row in" style="--i:${i++}">${first ? `<span class="gc-av">${personAv(x.iv)}</span>` : `<span class="gc-av"></span>`}<div class="gc-col">${first ? `<span class="gc-name">${esc(PEOPLE[x.iv].name)}</span>` : ""}<div class="gc-bubble in">${txt}</div></div></div>`;
-  const meta = (txt) => `<span class="gc-meta" style="--i:${i++}">${txt}</span>`;
-  let body = meta(`${esc(possessive(first(x.iv)))} Grokbot · ${ch} · ${when(ask)}`);
-  body += out(`How did it go with ${esc(first2(a))}? A yes or no and a line on why is enough.`);
+  const iv = PEOPLE[x.iv].name;
+  const bot = (txt) => `<div class="cm assistant" style="--i:${i++}"><div class="cm-body">${txt}</div></div>`;
+  const you = (txt, at, last) => `<div class="cm user ${last ? "last" : ""}" style="--i:${i++}"><div class="cm-bubble">${esc(txt)}</div>
+    <div class="cm-meta"><span>${esc(iv)}${at ? ` · ${fmtTime(at)}` : ""}</span><button class="cm-act" data-act="cmCopy" data-copy="${esc(txt)}" aria-label="Copy" title="Copy">${GICO.copy}</button></div></div>`;
+  let body = `<div class="cm-day" style="--i:${i++}">${esc(possessive(first(x.iv)))} Grokbot · ${ch} · ${when(ask)}</div>`;
+  body += bot(`How did it go with ${esc(first2(a))}? A yes or no and a line on why is enough.`);
   if (r) {
-    body += meta(`Read ${reply ? fmtTime(reply.at) : ""}`);
-    body += inn(esc(r.quote), true);
-    if (r.notes.length > 1) {
-      body += out("Anything the next interviewer should dig into?");
-      body += inn(`${esc(r.notes[r.notes.length - 1])}.`, true);
+    const more = r.notes.length > 1;
+    body += you(r.quote, reply && reply.at, !more);
+    if (more) {
+      body += bot("Anything the next interviewer should dig into?");
+      body += you(`${r.notes[r.notes.length - 1]}.`, reply && reply.at, true);
     }
   } else {
-    if (nudge) { body += meta(when(nudge)); body += out(`<span class="gc-alert">Following up on ${esc(first2(a))}. Even one line helps.</span>`, "last"); }
-    body += meta("Read");
-    body += `<div class="gc-foot" style="--i:${i++}">No reply yet</div>`;
+    if (nudge) body += bot(`<span class="gc-alert">Following up on ${esc(first2(a))}. Even one line helps.</span>`);
+    body += `<div class="cm-wait" style="--i:${i++}">No reply from ${esc(first(x.iv))} yet</div>`;
   }
-  return `<div class="gc" ${play ? "data-play" : ""}>${body}</div>`;
+  return `<div class="cm-thread" ${play ? "data-play" : ""}>${body}</div>`;
 }
 /* ---------------- the interview loop: where a candidate is, who met them, and how it went ---------------- */
 // Rounds before the one on file: [team, interviewer, verdict, days ago].
@@ -3047,20 +4259,6 @@ function loopOf(a) {
   return out;
 }
 const loopName = (t) => (t === "final" ? "Final" : t === "offer" ? "Offer" : TEAMS[t].name);
-function processTree(x) {
-  const a = x.a, rs = loopOf(a), met = rs.filter((r) => r.st === "done" && r.iv);
-  const cur = rs.find((r) => r.key === x.key);
-  const names = [...new Set(met.map((r) => first(r.iv)))];
-  const line = `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)} have` : `${names[0]} has`} interviewed ${first2(a)}. ${x.v === "pending" ? `Waiting on ${possessive(first(x.iv))} read.` : `${possessive(first(x.iv))} read: ${VERDICT_NAME[x.v]}.`}`;
-  const cls = (r) => `${r.st}${r === cur ? " cur" : ""}`;
-  const node = (r) => `<${r.key && r !== cur ? `a href="#interviews~${r.key}"` : "div"} class="pt-n round ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">
-      ${r.team === "offer" ? `<span class="pt-num">${ico(r.st === "closed" ? "x" : "check")}</span>` : `<span class="pt-num">${r.n}</span>`}<b>${loopName(r.team)}</b>${r === cur ? `<em>Now</em>` : r.st === "closed" ? `<em class="off">Closed</em>` : ""}</${r.key && r !== cur ? "a" : "div"}>
-    ${r.team === "offer" ? "" : `<div class="pt-n iv ${cls(r)}" data-n="${r.n}" style="grid-row:${r.n}">${r.iv ? `${personAv(r.iv)}<span class="pt-who"><b>${esc(PEOPLE[r.iv].name)}</b>${r.st === "done" ? `<span class="pt-v ${r.v}">${VERDICT_NAME[r.v]}</span>` : `<span>Not booked</span>`}</span>${r.st === "done" ? `<span class="pt-d">${MO[new Date(r.at).getMonth()]} ${new Date(r.at).getDate()}</span>` : ""}` : `<span class="pt-who"><span>Not booked</span></span>`}</div>`}`;
-  return `<section class="pt" style="--rows:${rs.length}"><svg class="pt-lines" aria-hidden="true"></svg>
-    <div class="pt-left" style="grid-row:1 / span ${rs.length}"><span class="pt-tag">${a.state === "offer" ? "Offer made" : !isOpen(a) ? "Closed" : `Round ${cur ? cur.n : x.round} of ${Math.max(LOOP, cur ? cur.n : 0)}`}</span>
-      <div class="pt-card">${candAv(a, "lg")}<div><b>${esc(a.name)}</b><span>${esc(ROLES[a.role].title)}</span></div><p>${esc(line)}</p></div></div>
-    ${rs.map(node).join("")}</section>`;
-}
 // Elbow lines from the candidate to each round, and from each round to who ran it. The current path is drawn last, in the accent.
 function drawTrees() {
   $$(".pt").forEach((pt) => {
@@ -3086,7 +4284,7 @@ function recReader(x) {
   const steps = nextSteps(x), done = (state.nsDone ||= new Set());
   const nDone = steps.filter((s, i) => s[3] || done.has(`${key}:${i}`)).length;
   return `<article class="rc">
-      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interviews">${ico("chevL")}</a>
+      <header class="rc-head"><a class="icon-btn rc-back" href="#interviews" aria-label="Back to Interview Judgement">${ico("chevL")}</a>
         <div class="grow"><h1>${esc(a.name)} · Round ${x.round}</h1><p>${esc(ROLES[a.role].title)}<i>·</i>${esc(`${MO[new Date(x.start).getMonth()]} ${new Date(x.start).getDate()}, ${new Date(x.start).getFullYear()}`)}</p></div>
         ${vPill(x.v)}<span class="stackav">${candAv(a)}${personAv(x.iv)}</span>
         <a class="icon-btn" href="#t~${a.id}" title="Open ticket" aria-label="Open ticket">${ico("arrowR")}</a>
@@ -3324,17 +4522,17 @@ function botsPage(tab = "runs") {
       ${POLICY.map((p) => `<div class="lrow pol"><span class="grow"><b>${p.name}</b><span>${p.d}</span></span><button class="switch ${p.off ? "" : "on"}" data-act="policy" data-k="${p.k}" role="switch" aria-checked="${!p.off}" aria-label="${p.name}"><i></i></button></div>`).join("")}
       </section>
       <section class="cardbox"><div class="cardbox-head">Escalation</div>
-        <div class="lrow pol"><span class="grow"><b>No reply in 24 hours</b><span>One automatic reminder, then flagged in Grokbot Activity</span></span></div>
-        <div class="lrow pol"><span class="grow"><b>A tool fails</b><span>Gmail, Slack or Calendar access lost. The run stops and can be retried</span></span></div>
+        <div class="lrow pol"><span class="grow"><b>No reply in 24 hours</b><span>One automatic reminder, then it comes to your Inbox</span></span></div>
+        <div class="lrow pol"><span class="grow"><b>A tool fails</b><span>Gmail, Slack or Calendar access lost. The run stops and comes to your Inbox with the fix</span></span></div>
         <div class="lrow pol"><span class="grow"><b>Nobody on the team can take it</b><span>Returned to your Inbox</span></span></div>
       </section>`;
   }
   const title = tab === "people" ? "Interviewers" : tab === "rules" ? "Settings" : "Grokbot Activity";
   if (tab === "checks") tab = "runs";
-  if (tab === "rules") body = `<div class="set-h"><h2>Interview Process</h2></div>
-    <section class="cardbox set-proc">${PROCESS_DEFAULT.map(([k], i) => `<label class="proc-r"><span class="proc-n">${i + 1}</span><input class="proc-in" data-i="${i}" value="${esc(state.process[i])}" aria-label="Stage ${i + 1}"></label>`).join("")}</section>
+  if (tab === "rules") body = `<a class="set-link" href="#setup~people">${ico("users")}<span><b>People &amp; teams</b><span>Add interviewers and their Grokbots, move people between teams, and set what each person interviews for</span></span>${ico("arrowR")}</a>
+    <a class="set-link" href="#setup~process">${ico("route")}<span><b>Interview process</b><span>Draw the steps from applying to an offer, who runs each one and how long it takes. The Grokbots route by it</span></span>${ico("arrowR")}</a>
     <div class="set-h"><h2>Routing Rules</h2></div>${body}`;
-  return `<div class="bar cx-bar"><h1 class="cx-title">${title}</h1><span class="spacer"></span>${tab === "people" ? `<button class="cx-btn" data-act="addBot">${ico("plus")}Add a Grokbot</button>` : ""}
+  return `<div class="bar cx-bar"><h1 class="cx-title">${title}</h1><span class="spacer"></span>${tab === "people" ? `<a class="cx-btn" href="#setup~teams">${ico("users")}Manage people &amp; teams</a><a class="cx-btn" href="#setup~people">${ico("plus")}Add people</a>` : ""}
     </div>
   <div class="scroll" id="scroller"><div class="page obs obs-${tab}">
     ${body}
@@ -3345,7 +4543,11 @@ function botsPage(tab = "runs") {
 /* ---------------- routing, render ---------------- */
 function parseHash() {
   const [name, a] = decodeURIComponent(location.hash.slice(1) || "home").split("~");
-  if (name === "home") { if (a) setTimeout(() => $(`#hm-${a}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80); return { name: "home" }; }
+  if (name === "home") {
+    if (HOME_TABS.some((t) => t[0] === a)) return { name: "home", id: a, key: decodeURIComponent(location.hash.slice(1)).split("~")[2] };
+    if (a) setTimeout(() => $(`#hm-${a}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    return { name: "home" };
+  }
   if (name === "t" && A[a]) return { name: "t", id: a };
   if (name === "inbox") { if (A[a]) state.ibSel = a; return { name }; }
   if (name === "team" && TEAMS[a]) { state.team = a; state.savedView = null; return { name: "all" }; }
@@ -3356,19 +4558,24 @@ function parseHash() {
   if (name === "history") { location.replace("#crm"); return { name: "crm" }; }
   if (name === "crm") { if (a && CRM_VIEWS.some((v) => v[0] === a)) { state.crmView = a; state.crmPg = 0; } return { name }; }
   if (name === "compare") return { name };
+  if (name === "banners") return { name };
   if (name === "chat") return { name };
+  if (name === "setup") return { name, id: a || "people" };
   if (name === "bots" && a === "rules") return { name: "settings" };
-  if (name === "bots") return { name, id: a === "people" ? a : "runs" };
-  if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks"))) return { name: "bots", id: a === "checks" ? "checks" : "runs" };
+  if (name === "bots" && a === "people") return { name, id: a };
+  if (name === "activity" || (name === "interviews" && (a === "activity" || a === "checks")) || name === "bots") { location.replace("#inbox"); return { name: "inbox" }; }
   if (name === "interviews") { if (a && recByKey(a)) return { name, id: a }; return { name }; }
   if (name === "settings") return { name };
-  if (name === "run" && RUNS.some((r) => r.id === a)) { state.runSel = a; return { name: "bots", id: "runs" }; }
+  // a Grokbot run opens over its candidate's ticket
+  if (name === "run" && RUNS.some((r) => r.id === a)) { state.runSel = a; return { name: "t", id: RUNS.find((r) => r.id === a).a, run: a }; }
   if (name === "analytics") return { name, id: a === "pipeline" || a === "interviews" ? "pipeline" : "posts" };
   if (name === "jobs") return { name, id: a === "new" || ROLES[a] ? a : undefined };
   if (["triage", "calendar"].includes(name)) return { name };
   return { name: "inbox" };
 }
 function render() {
+  if (SURFACE) return;
+  ibThinkEnd();
   const act = document.activeElement;
   const keep = act && act.id && $("#panel").contains(act) ? { id: act.id, s: act.selectionStart, e: act.selectionEnd } : null;
   const scroll = $("#scroller") ? $("#scroller").scrollTop : 0;
@@ -3377,7 +4584,6 @@ function render() {
   if (draft && state.tri && draft.dataset.dirty) state.tri.draft = draft.value;
   const r = state.route;
   if (r.name === "inbox") {
-    if (!state.ibSel && innerWidth >= 768) { const first = inboxItems()[0]; if (first) state.ibSel = first.a.id; }
     if (state.ibNeed && state.ibNeed === state.ibSel && !issueOf(A[state.ibNeed])) autoClear(state.ibNeed);
     state.ibIss = state.ibSel && state.ibFilter !== "done" ? issueOf(A[state.ibSel]) : null;
     state.ibNeed = state.ibIss ? state.ibSel : null;
@@ -3389,13 +4595,18 @@ function render() {
   const pageKey = `${r.name}|${["inbox", "interviews"].includes(r.name) ? "" : r.id || ""}|${state.savedView || ""}|${r.name === "inbox" ? state.ibFilter || "" : ""}`;
   const newPage = pageKey !== state.pageKey, newSel = r.name === "inbox" ? state.ibSel !== state.lastSel : r.name === "interviews" ? r.id !== state.lastSel : false;
   state.pageKey = pageKey; state.lastSel = r.name === "inbox" ? state.ibSel : r.id;
-  const html = r.name === "t" ? ticketPage(r.id) : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "chat" ? chatPage() : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage() : inboxPage();
+  const html = r.name === "t" ? ticketPage(r.id) + (r.run ? runDrawer(RUNS.find((x) => x.id === r.run)) : "") : r.name === "all" ? applicantsPage() : r.name === "triage" ? triagePage() : r.name === "bots" ? botsPage(r.id) : r.name === "calendar" ? calendarPage() : r.name === "jobs" ? jobsPage() : r.name === "analytics" ? analyticsPage(r.id) : r.name === "interviews" ? interviewsPage(r.id) : r.name === "settings" ? botsPage("rules") : r.name === "views" ? viewsPage() : r.name === "crm" ? crmPage() : r.name === "compare" ? comparePage() : r.name === "banners" ? bannerPage() : r.name === "chat" ? chatPage() : r.name === "setup" ? setupPage(r.id) : r.name === "referrals" ? referralsPage() : r.name === "home" ? homePage(r.id, r.key) : inboxPage();
   if (newPage) { $("#panel").innerHTML = html; enterPage($("#panel")); } else { patch($("#panel"), html); if (newSel) enterReader(r.name === "inbox" ? ".ib-reader" : ".ivw-read"); }
+  // The candidate pop-up keeps up too: a nudge or a page turn inside it shows there.
+  const fsb = $("#layer .overlay.fs .fs-body");
+  if (fsb && A[fsb.dataset.id]) patch(fsb, fullBody(fsb.dataset.id));
   fitCalendar();
-  drawTrees(); setTimeout(drawTrees, 420);
+  drawTrees(); setTimeout(drawTrees, 420); ftFit();
   $$(".cmp-inner").forEach((el) => { el.style.zoom = (el.parentElement.clientWidth - 2) / 1180; });
   if (r.name === "interviews" && r.id) $(".ivr.sel")?.scrollIntoView({ block: "nearest" });
   animateIvOpen();
+  if (r.name === "setup" && r.id === "process" && (newPage || newSel || state.fcNeedFit)) { state.fcNeedFit = false; setTimeout(fcFit); }
+  if (r.name === "inbox" && (newPage || state.ibThink)) { state.ibThink = false; ibThink(); }
   if (state.keepScroll) { if ($("#scroller")) $("#scroller").scrollTop = scroll; if ($("#mlist")) $("#mlist").scrollTop = ml; }
   state.keepScroll = true;
   if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus(); try { el.setSelectionRange(keep.s, keep.e); } catch {} } }
@@ -3433,6 +4644,12 @@ window.addEventListener("hashchange", () => {
 
 /* ---------------- layer: menus, command menu, modals, toasts ---------------- */
 let menu = null, palette = null, modal = null;
+// A pop-up scales from its trigger: the edge it hangs off and the side it lines up with.
+function originFrom(el, r) {
+  const x = parseFloat(el.style.left), top = parseFloat(el.style.top) >= r.top;
+  const left = Math.abs(x - r.left) <= Math.abs(x + el.offsetWidth - r.right);
+  el.style.setProperty("--origin", `${top ? "top" : "bottom"} ${left ? "left" : "right"}`);
+}
 function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   closeLayer();
   const rect = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : anchor;
@@ -3444,13 +4661,73 @@ function openMenu(anchor, items, onPick, { title, restore, above } = {}) {
   el.style.left = Math.max(12, Math.min(rect.left, innerWidth - el.offsetWidth - 12)) + "px";
   el.style.top = rect.bottom + 6 + "px";
   if (above || rect.bottom + el.offsetHeight > innerHeight - 12) el.style.top = Math.max(12, rect.top - el.offsetHeight - 6) + "px";
+  originFrom(el, rect);
   const opts = $$(".opt", el);
   menu = { el, opts, hi: Math.max(0, opts.findIndex((b) => items[+b.dataset.i].checked)), restore };
   menu.hl = () => opts.forEach((b, k) => b.classList.toggle("hi", k === menu.hi));
   menu.hl();
   el.addEventListener("click", (e) => { const b = e.target.closest(".opt"); if (!b) return; menu.restore = null; closeLayer(); onPick(items[+b.dataset.i]); });
 }
+// Liquid glass: one grey glass pill per option group slides under whatever you point at and springs into place.
+const PILL_TRACKS = ".pills, .seg, .ibx-seg, .cx-seg, .fm-seg, .tabs";
+document.addEventListener("pointerover", (e) => {
+  const item = e.target.closest && e.target.closest(`:is(${PILL_TRACKS}) > :not(.pill-glass)`);
+  if (!item || item.disabled) return;
+  const track = item.parentElement;
+  let g = track.querySelector(":scope > .pill-glass");
+  if (!g) { g = document.createElement("i"); g.className = "pill-glass"; g.setAttribute("aria-hidden", "true"); track.prepend(g); }
+  const place = () => { g.style.width = item.offsetWidth + "px"; g.style.height = item.offsetHeight + "px"; g.style.transform = `translate(${item.offsetLeft}px, ${item.offsetTop}px)`; };
+  if (!g.classList.contains("show")) { g.style.transition = "none"; place(); void g.offsetWidth; g.style.transition = ""; } else place();
+  g.classList.add("show");
+});
+document.addEventListener("pointerout", (e) => {
+  const track = e.target.closest && e.target.closest(PILL_TRACKS);
+  if (track && !track.contains(e.relatedTarget)) track.querySelector(":scope > .pill-glass")?.classList.remove("show");
+});
+// The account menu: who you are, Team setup, Settings, Tutorial, theme, sign out.
+const THEMES = [["light", "sun", "Light"], ["dark", "moon", "Dark"], ["system", "monitor", "Match the system"]];
+const themeNow = () => document.documentElement.dataset.theme || "system";
+function setTheme(t) {
+  const root = document.documentElement;
+  root.classList.add("theme-switching");
+  requestAnimationFrame(() => requestAnimationFrame(() => root.classList.toggle("theme-switching", false)));
+  if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { t === "system" ? localStorage.removeItem("tats-theme") : localStorage.setItem("tats-theme", t); } catch {}
+}
+function openAcct(anchor) {
+  closeLayer();
+  const me = PEOPLE[ME], kb = (k) => `<span class="acct-kb">${k}</span>`;
+  const items = [["setup", "sliders", "Onboarding", ""], ["settings", "gear", "Settings", kb("⌘ ,")], ["tour", "help", "Tutorial", ""]];
+  const el = document.createElement("div");
+  el.className = "menu acct";
+  el.setAttribute("role", "menu");
+  el.innerHTML = `<div class="acct-h"><b>${esc(me.name)}</b><span class="acct-role">${esc(me.role)}</span><span class="acct-mail">${esc(first(ME).toLowerCase())}@meridian.com</span></div>
+    <div class="acct-g">${items.map(([k, ic, l, h]) => `<button class="opt" role="menuitem" data-k="${k}">${ico(ic)}<span class="grow">${l}</span>${h}</button>`).join("")}</div>
+    <div class="acct-g acct-th"><span class="acct-tl">${ico("moon")}Theme</span><div class="pills acct-pills" role="radiogroup" aria-label="Theme">${THEMES.map(([k, ic, l]) => `<button class="${themeNow() === k ? "on" : ""}" data-theme="${k}" role="radio" aria-checked="${themeNow() === k}" title="${l}" aria-label="${l}">${ico(ic)}</button>`).join("")}</div></div>
+    <div class="acct-g acct-th acct-wb"><span class="acct-tl" title="Cancels Night Shift and True Tone on this display${wbNight() ? " at night" : " by day"}; remembered per screen">${ico("monitor")}Warmth fix</span><div class="pills acct-pills" role="radiogroup" aria-label="Warmth correction for this display">${["Off", "1", "2", "3", "4"].map((l, k) => `<button class="${WB.lv === k ? "on" : ""}" data-wb="${k}" role="radio" aria-checked="${WB.lv === k}" title="${k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "No correction"}">${l}</button>`).join("")}</div></div>
+    <div class="acct-g"><button class="opt" role="menuitem" data-k="out">${ico("logout")}<span class="grow">Sign out</span>${kb("⇧ ⌘ Q")}</button></div>`;
+  $("#layer").appendChild(el);
+  const r = anchor.getBoundingClientRect();
+  el.style.left = Math.max(8, r.left) + "px";
+  el.style.top = Math.max(12, r.top - el.offsetHeight - 6) + "px";
+  originFrom(el, r);
+  const opts = $$(".opt", el);
+  menu = { el, opts, hi: 0 };
+  menu.hl = () => opts.forEach((b, k) => b.classList.toggle("hi", k === menu.hi));
+  el.addEventListener("click", (e) => {
+    const th = e.target.closest("[data-theme]");
+    if (th) { setTheme(th.dataset.theme); $$("[data-theme]", el).forEach((b) => { b.classList.toggle("on", b === th); b.setAttribute("aria-checked", b === th); }); return; }
+    const wb = e.target.closest("[data-wb]");
+    if (wb) { setWarmth(+wb.dataset.wb); $$("[data-wb]", el).forEach((b) => { b.classList.toggle("on", b === wb); b.setAttribute("aria-checked", b === wb); }); return; }
+    const b = e.target.closest(".opt");
+    if (!b) return;
+    closeLayer();
+    const k = b.dataset.k;
+    if (k === "setup") go("setup~people"); else if (k === "settings") go("settings"); else if (k === "tour") startTour(); else toast("Signed out (in the real app)");
+  });
+}
 function closeLayer() {
+  if (state.fcDirty && $("#layer .fc")) { state.fcDirty = false; setTimeout(render); }
   const r = menu && menu.restore;
   if (pop && pop.ghost) pop.ghost.remove();
   menu = null; palette = null; modal = null; pop = null;
@@ -3460,7 +4737,7 @@ function closeLayer() {
     ghost.className = "layer-ghost";
     [...layer.children].forEach((k) => ghost.appendChild(k));
     document.body.appendChild(ghost);
-    G.to(ghost, { opacity: 0, duration: 0.14, ease: "power1.in", onComplete: () => ghost.remove() });
+    G.to(ghost, { opacity: 0, duration: 0.12, ease: "power4.out", onComplete: () => ghost.remove() });
     setTimeout(() => ghost.remove(), 400);
   }
   layer.innerHTML = "";
@@ -3483,7 +4760,7 @@ function toast(msg, { undo, open } = {}) {
   const fn = undo && (() => { undo(); el.remove(); toast.undo = null; render(); });
   if (fn) toast.undo = fn;
   el.addEventListener("click", (e) => { if (e.target.closest("[data-undo]") && fn) fn(); if (e.target.closest("[data-open]")) { el.remove(); go(`t~${open}`); } });
-  setTimeout(() => { if (toast.undo === fn) toast.undo = null; if (G && !calm() && el.isConnected) { G.to(el, { opacity: 0, y: 8, duration: 0.22, ease: "power2.in", onComplete: () => el.remove() }); setTimeout(() => el.remove(), 500); } else el.remove(); }, 6000);
+  setTimeout(() => { if (toast.undo === fn) toast.undo = null; if (G && !calm() && el.isConnected) { G.to(el, { opacity: 0, y: 8, duration: 0.15, ease: "power4.out", onComplete: () => el.remove() }); setTimeout(() => el.remove(), 500); } else el.remove(); }, 6000);
 }
 // ⌘K: jump anywhere, find anyone, and act on the ticket you're on.
 function openPalette(ctx) {
@@ -3499,17 +4776,19 @@ function openPalette(ctx) {
   const all = [
     ...grok,
     ...acts,
+    { sec: "Go to", label: "Chat with your Grokbot", icon: botAv(ME), run: () => go("chat") },
     { sec: "Go to", label: "Inbox", sub: `${unreadCount()} unread`, icon: ico("inbox"), hint: "G I", run: () => go("inbox") },
-    { sec: "Go to", label: "Applicant Tickets", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
-    { sec: "Go to", label: "Pipeline", icon: ico("people"), hint: "G A", run: () => go("all") },
+    { sec: "Go to", label: "New Applicants", sub: `${queue().length} new`, icon: ico("ticket"), hint: "G T", run: () => go("triage") },
+    { sec: "Go to", label: "Applicant Tickets", icon: ico("people"), hint: "G A", run: () => go("all") },
     { sec: "Go to", label: "Job Postings", icon: ico("brief"), hint: "G J", run: () => go("jobs") },
     { sec: "Do", label: "New Job Posting", icon: ico("plus"), run: () => newJob() },
     { sec: "Do", label: "Add a Grokbot", icon: ico("plus"), run: () => openAddBot() },
+    { sec: "Do", label: "Set up people and teams", icon: ico("users"), run: () => go("setup~people") },
     { sec: "Go to", label: "Applicants board", icon: ico("board"), run: () => { state.view = "board"; go("all"); } },
-    { sec: "Go to", label: "Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
+    { sec: "Go to", label: "Interview Calendar", icon: ico("cal"), hint: "G L", run: () => go("calendar") },
+    { sec: "Go to", label: "Banner playground", icon: `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="${BN_ICO.default}"/></svg>`, run: () => go("banners") },
     { sec: "Go to", label: "Analytics", icon: ico("chart"), run: () => go("analytics") },
-    { sec: "Go to", label: "Grokbot Activity", icon: ico("route"), hint: "G B", run: () => go("activity") },
-    { sec: "Go to", label: "Interviews", icon: ico("mic"), run: () => go("interviews") },
+    { sec: "Go to", label: "Interview Judgement", icon: ico("mic"), run: () => go("interviews") },
     { sec: "Go to", label: "Settings", icon: ico("gear"), run: () => go("settings") },
     { sec: "Go to", label: "Views", icon: ico("layers"), hint: "G V", run: () => go("views") },
     { sec: "Do", label: "New view", icon: ico("plus"), run: () => openNewView() },
@@ -3540,11 +4819,11 @@ function openPalette(ctx) {
 function openHelp() {
   closeLayer();
   const rows = [
-    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, Applicant Tickets, Views"], ["G then A / B / J", "Pipeline, Grokbot Activity, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
+    ["Anywhere", [["⌘K", "Command menu"], ["G then I / T / V", "Inbox, New Applicants, Views"], ["G then A / J", "Applicant Tickets, Job Postings"], ["[", "Collapse or expand the sidebar"], ["?", "This list"], ["Z", "Undo"]]],
     ["Inbox", [["J / K", "Next, previous"], ["E", "Done: clear it from your Inbox"], ["U", "Mark unread"], ["↵", "Open the ticket"], ["Esc", "Close the reader"]]],
-    ["Applicant Tickets", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
+    ["New Applicants", [["J / K", "Next, previous"], ["I", "Interview reply"], ["T", "Testbench reply"], ["D", "Decline reply"], ["⌘↵", "Send"], ["↵", "Open the ticket"]]],
     ["Applicants", [["J / K", "Move"], ["X", "Select"], ["↵", "Open"], ["A", "Send to a team"], ["P", "Priority"], ["S", "Status"], ["L", "Labels"], ["F", "Filter"], ["B", "List or board"]]],
-    ["Calendar", [["← / →", "Previous, next"], ["D / W / M", "Day, week, month"], ["Drag", "Add an interview, or move one"], [".", "Today"]]],
+    ["Interview Calendar", [["← / →", "Previous, next"], ["D / W / M", "Day, week, month"], ["Drag", "Add an interview, or move one"], [".", "Today"]]],
     ["An applicant", [["A", "Send to a team, or next round"], ["O", "Move to offer"], ["R", "Reject"], ["C", "Comment"], ["Esc", "Back"]]],
   ];
   const el = document.createElement("div");
@@ -3592,6 +4871,23 @@ const ACT = {
   triOpen: (el) => { state.tri = { sel: el.dataset.id }; go("triage"); },
   toggleGroup: (el) => { if (el.dataset.closed) state.closedOpen = !state.closedOpen; else { const s = (state.shut ||= new Set()); s.has(el.dataset.k) ? s.delete(el.dataset.k) : s.add(el.dataset.k); } render(); },
   setView: (el) => { state.view = el.dataset.v; render(); },
+  flowEdit: () => openFlow(),
+  goProcess: () => go("setup~process"),
+  goSetup: (el) => go(`setup~${el.dataset.id || "people"}`),
+  fcAdd: (el) => fcAddNode(el.dataset.k),
+  fcZoom: (el) => { const v = state.fcView, vp = $('.fc[data-mode="edit"] .fc-vp'), r = vp.getBoundingClientRect(), z = Math.max(0.3, Math.min(2, v.z * (+el.dataset.v > 0 ? 1.2 : 1 / 1.2))); v.x = r.width / 2 - ((r.width / 2 - v.x) * z) / v.z; v.y = r.height / 2 - ((r.height / 2 - v.y) * z) / v.z; v.z = z; fcPaintWorld(); },
+  fcFit: () => fcFit(),
+  fcUndo: () => fcUndo(),
+  fcRedo: () => fcRedo(),
+  fcReset: () => { fcCommit(() => { state.flow = flowDefault(); state.fcSel = null; }); fcFit(); },
+  fcSet: (el) => { const o = fcSelObj(), k = el.dataset.k, v = el.dataset.v; if (!o) return; fcCommit(() => { if (k === "mins") o.mins = +v; else if (k === "team") { o.team = v; o.who = []; } else o[k] = v; }); },
+  fcWho: (el) => { const o = fcSelObj(); if (!o) return; fcCommit(() => { const w = new Set(o.who || []); w.has(el.dataset.id) ? w.delete(el.dataset.id) : w.add(el.dataset.id); o.who = [...w]; }); },
+  fcDel: () => fcDelete(),
+  plMode: (el) => { state.plMode = el.dataset.v; render(); },
+  plStage: (el) => { state.plStage = state.plStage === el.dataset.v ? null : el.dataset.v; render(); },
+  plMore: (el) => { state.plAll.add(el.dataset.k); render(); },
+  plOpen: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; openFull(el.dataset.id); },
+  plRole: (el) => openMenu(el, [{ id: "", label: "All roles", checked: !state.plRole }, ...Object.entries(ROLES).map(([k, r]) => ({ id: k, label: r.title, checked: state.plRole === k }))], (o) => { state.plRole = o.id || null; if (!o.id && state.view === "board") state.view = "list"; render(); }, { title: "Role" }),
   display: (el) => openMenu(el, [{ sec: "Layout" }, { id: "v:list", label: "List", icon: ico("list"), checked: (state.view || "board") === "list" }, { id: "v:board", label: "Board", icon: ico("board"), checked: (state.view || "board") === "board" }, { sec: "Group the list by" }, ...[["court", "Court"], ["team", "Team"], ["priority", "Priority"], ["role", "Role"]].map(([k, n]) => ({ id: `g:${k}`, label: n, checked: (state.groupBy || "court") === k }))], (o) => { const [t, v] = o.id.split(":"); if (t === "v") state.view = v; else { state.groupBy = v; state.view = "list"; } render(); }),
   pick: (el) => { const id = el.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); render(); },
   clearPick: () => { picked.clear(); render(); },
@@ -3622,7 +4918,7 @@ const ACT = {
   comment: (el) => comment(el.dataset.id),
   step: (el) => stepTicket(+el.dataset.d),
   openRun: (el) => { state.runSel = state.runSel === el.dataset.id ? null : el.dataset.id; render(); },
-  closeRun: () => { state.runSel = null; render(); },
+  closeRun: () => { state.runSel = null; if (state.route.run) go(`t~${state.route.id}`); else render(); },
   runFilter: (el) => { state.runFilter = el.dataset.v; render(); },
   runBotMenu: (el) => openMenu(el, [{ id: "all", label: "All Grokbots" }, ...Object.keys(PEOPLE).filter((k) => PEOPLE[k].team || k === ME).map((k) => ({ id: k, label: k === ME ? "Your Grokbot" : `${first(k)}'s Grokbot`, icon: botAv(k), checked: state.runBot === k }))], (o) => { state.runBot = o.id; render(); }),
   retryRun: (el) => retryRun(RUNS.find((r) => r.id === el.dataset.id)),
@@ -3663,23 +4959,48 @@ const ACT = {
   transcript: (el) => openTranscript(el.dataset.k),
   qaMore: (el) => { state.qaOpen = state.qaOpen === el.dataset.k ? null : el.dataset.k; render(); },
   ivReview: (el) => { const s2 = (state.ivReviewed ||= new Set()), k = el.dataset.k; s2.has(k) ? s2.delete(k) : s2.add(k); render(); },
-  openRec: (el) => go(`interviews~${el.dataset.k}`),
+  openRec: (el) => go(`${state.route.name === "home" ? "home~" : ""}interviews~${el.dataset.k}`),
   openRow: (el) => { if (getSelection().toString()) return; state.focus = el.dataset.id; go(`t~${el.dataset.id}`); },
   ibSel: (el) => { state.ibSel = el.dataset.id; render(); },
   colAll: (el) => { state.colAll.add(el.dataset.k); render(); },
   goChat: () => go("chat"),
+  ibOpen: (el) => ibOpen(el.dataset.id),
+  ibGo: (el) => openFull(el.dataset.id),
+  ibRange: (el) => { state.ibRange = +el.dataset.v; state.ibThink = true; render(); },
+  ibCheck: (el) => { if (el.dataset.need) return ibDone(el.dataset.id); (state.ibRead ||= new Set()).add(el.dataset.k); render(); },
+  ibAllRead: () => { const d = ibDigest(); d.infoKeys.forEach((k) => (state.ibRead ||= new Set()).add(k)); render(); toast(d.groups.some((g) => g[0] === "need") ? "Marked read. Needs you stays until it's handled." : "All caught up"); },
+  suBot: (el) => { const p = PEOPLE[el.dataset.id]; p.bot = p.bot === "on" ? "off" : "on"; render(); },
+  suImport: () => { [["Ravi Menon", "ML infra engineer"], ["Elif Demir", "Forward deployed engineer"], ["Kenji Ito", "Research engineer"]].forEach(([n, r]) => { if (!Object.values(PEOPLE).some((p) => p.name === n)) addPerson(n, "", r); }); render(); },
+  suTeam: (el) => { const id = el.dataset.id, k = el.dataset.v, m = TEAMS[k].members, i = m.indexOf(id); if (i >= 0) { if (teamsOf(id).length === 1) return toast("Everyone needs at least one team"); m.splice(i, 1); } else m.push(id); PEOPLE[id].team = teamsOf(id)[0]; render(); },
+  suLead: (el) => { const m = TEAMS[el.dataset.v].members, i = m.indexOf(el.dataset.id); m.splice(i, 1); m.unshift(el.dataset.id); render(); },
+  suTeamNew: () => openForm({ title: "New team", submit: "Create team", body: `<label class="fm-f"><span>Name</span><input name="n" placeholder="e.g. Applied AI" autocomplete="off"></label>`, onSubmit: (v) => { const n = (v.n || "").trim(); if (!n) return false; const k = n.toLowerCase().replace(/[^a-z0-9]+/g, "-"); TEAMS[k] = { name: n, color: "#7d8088", members: [] }; toast(`${n} created. Tick who's on it.`); } }),
+  suTagDel: (el) => { const p = PEOPLE[el.dataset.id]; p.focus = (p.focus || []).filter((t) => t !== el.dataset.v); render(); },
+  suTagAdd: (el) => { const p = PEOPLE[el.dataset.id]; openMenu(el, [...SKILL_SUGGEST.filter((t) => !(p.focus || []).includes(t)).map((t) => ({ id: t, label: t })), { id: "__new", label: "Something else…", icon: ico("plus") }], (o) => { if (o.id === "__new") return openForm({ title: `Add a skill for ${first(el.dataset.id)}`, submit: "Add", body: `<label class="fm-f"><span>Skill</span><input name="t" autocomplete="off"></label>`, onSubmit: (v) => { if (!v.t.trim()) return false; (p.focus ||= []).push(v.t.trim()); } }); (p.focus ||= []).push(o.id); render(); }); },
+  suRun: (el) => { const r = (PEOPLE[el.dataset.id].runs ||= {}), t = el.dataset.v; if (!(t in r)) r[t] = 0; else if (!r[t]) r[t] = 1; else delete r[t]; render(); },
+  suFinish: () => { state.setupSaved = true; toast("Saved. The Grokbots will route interviews with this from now on."); go("home"); },
   goInbox: () => go("inbox"),
   goCrm: () => go("crm"),
   goCrmActive: (el, e) => { if (e && e.target.closest("a, button") && e.target.closest("a, button") !== el) return; go("crm~active"); },
   usePal: (el) => { setPal(el.dataset.v); toast(el.dataset.v === "prev" ? "Using the previous palette with refined shading" : "Using the current styling"); go("home"); },
   procName: () => {},
   tour: () => startTour(),
+  acct: (el) => (menu && menu.el.classList.contains("acct") ? closeLayer() : openAcct(el)),
   chatRef: (el) => openRefForm(parseReferral(decodeURIComponent(el.dataset.id))),
   chatPost: (el) => toast(`Posted ${(+el.dataset.id).toLocaleString()} candidates to #hiring`),
   refTab: (el) => { state.refTab = el.dataset.v; state.refPg = 0; render(); },
   refPage: (el) => { state.refPg = (state.refPg || 0) + +el.dataset.d; render(); $("#scroller") && ($("#scroller").scrollTop = 0); },
   refAdd: () => openRefForm(),
   refGrok: () => openRefGrok(),
+  ...wgActs,
+  bnDismiss: (el) => bnDismiss(el),
+  bnSet: (el) => { const g = state.bnPg, k = el.dataset.k, v = el.dataset.v; g[k] = k === "n" ? +v : k === "dismissible" ? v === "true" : v; bnHidden.delete("pg-live"); render(); },
+  bnCopy: (el) => { const [t, d] = BN_COPY[el.dataset.v]; Object.assign(state.bnPg, { status: el.dataset.v, title: t, desc: d }); bnHidden.delete("pg-live"); render(); },
+  bnAgain: () => { bnHidden.delete("pg-live"); render(); },
+  bnReset: () => { state.bnPg = { ...BN_PG_DEFAULT }; bnHidden.delete("pg-live"); render(); },
+  bnDemo: (el) => toast(`${el.textContent.trim()}: just a demo here`),
+  nudgeIv: (el) => { const a = A[el.dataset.id], lead = TEAMS[PEOPLE[a.iv].team].members[0]; a.ivNudged = Date.now(); now(a, `bot:${a.iv}`, `Nudged ${nm(a.iv)}${a.state === "asked" ? " to say yes or no" : " for the read"}${lead !== a.iv ? ` and copied ${nm(lead)}` : ""}`, { ch: PEOPLE[a.iv].ch || "slack" }); const w = a.when; touch(a); a.when = w; render(); toast(`Nudged ${first(a.iv)}`); },
+  tkPage: (el) => { (state.tkPage ||= {})[el.dataset.id] = +el.dataset.i; render(); },
+  cmCopy: (el) => { const t = el.dataset.copy; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Copied"), () => toast("Couldn't copy")); },
   homeStage: (el) => { state.homeStage = state.homeStage === el.dataset.k ? null : el.dataset.k; render(); },
   homeFilter: (el) => {
     const k = el.dataset.k;
@@ -3705,7 +5026,7 @@ const ACT = {
   openHist: (el) => openHist(el.dataset.id),
 
   sendInvite: (el) => sendInvite(A[el.dataset.id]),
-  nudgeCand: (el) => nudgeCand(A[el.dataset.id]),
+  nudgeCand: (el) => { const a = A[el.dataset.id], w = a.when; nudgeCand(a); a.when = w; render(); },
   remindIv: (el) => { const a = A[el.dataset.id]; ev(a, Date.now(), `bot:${a.iv}`, `Reminded ${nm(a.iv)} to send the invite`, { ch: chOf(a.iv) }); touch(a); toast(`Reminded ${first(a.iv)} to send the invite`); },
   ibBack: () => { state.ibSel = null; render(); },
   ibDone: (el) => ibDone(el.dataset.id),
@@ -3735,7 +5056,7 @@ const ACT = {
   jeSave: () => jeSave(),
   addBot: () => openAddBot(),
   openTicketPop: (el) => go(`t~${el.dataset.id}`),
-  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); renderSide(); },
+  sbSec: (el) => { const k = el.dataset.k, c = (state.sbShut ||= new Set()); c.has(k) ? c.delete(k) : c.add(k); sbAnimate(); renderSide(); },
   policy: (el) => { const p = POLICY.find((x) => x.k === el.dataset.k); p.off = !p.off; render(); },
 };
 document.addEventListener("click", (e) => {
@@ -3746,6 +5067,7 @@ document.addEventListener("click", (e) => {
   ACT[el.dataset.act](el, e);
 });
 document.addEventListener("submit", (e) => {
+  if (e.target.id === "suAddForm") { e.preventDefault(); const f = new FormData(e.target); if (addPerson(f.get("name"), f.get("email"), f.get("role"))) render(); return; }
   if (e.target.id === "chatForm") { e.preventDefault(); const t = $("#chatIn"); chatSend(t.value); return; }
   if (e.target.id !== "crmAskForm") return;
   e.preventDefault();
@@ -3753,7 +5075,6 @@ document.addEventListener("submit", (e) => {
 });
 document.addEventListener("input", (e) => {
   if (e.target.id === "filter") { state.q = e.target.value; state.hpage = 0; state.crmPg = 0; render(); }
-  if (e.target.classList && e.target.classList.contains("proc-in")) { state.process[+e.target.dataset.i] = e.target.value; saveProcess(); return; }
   if (e.target.id === "actq") { state.actQ = e.target.value; render(); }
   if (e.target.id === "calq") { state.calQ = e.target.value; render(); }
   if (e.target.id === "tri-draft") { e.target.dataset.dirty = 1; state.tri.draft = e.target.value; }
@@ -3792,7 +5113,7 @@ document.addEventListener("drop", (e) => {
   const a = A[dragged]; dragged = null;
   const at = { left: e.clientX, top: e.clientY, bottom: e.clientY, width: 0 };
   const k = col.dataset.drop;
-  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to Applicant Tickets"); touch(a); }
+  if (k === "new") { cancel(a); a.state = "new"; a.iv = null; now(a, "me", "Moved back to New Applicants"); touch(a); }
   else if (k === "testbench") { if (!a.tb) { sendTB(a); touch(a); } else toast(`${a.name} already took the Testbench`); }
   else if (k === "bots") teamPick(at, [a.id]);
   else if (k === "closed") openMenu(at, [{ id: "pass", label: "Pass", icon: stIcon("passed") }, { id: "reject", label: "Reject…", icon: stIcon("rejected") }], (o) => (o.id === "pass" ? openPass(a) : openReject(a)), { title: "Close as" });
@@ -3814,7 +5135,8 @@ document.addEventListener("keydown", (e) => {
   if (e.target.id === "chatIn" && e.key === "Enter" && !e.shiftKey) { e.preventDefault(); chatSend(e.target.value); return; }
   const k = e.key, lk = k.toLowerCase();
   const mod = e.metaKey || e.ctrlKey;
-  if (mod && lk === "k") { e.preventDefault(); palette ? closeLayer() : openPalette(); return; }
+  if (mod && lk === "k") { e.preventDefault(); if (palette) closeLayer(); else { openPalette(); $("#layer").lastElementChild?.classList.add("kbd"); } return; }
+  if (mod && k === ",") { e.preventDefault(); closeLayer(); go("settings"); return; }
   if (menu) {
     if (k === "Escape") { e.preventDefault(); const r = closeLayer(); if (r) r(); return; }
     if (k === "ArrowDown" || k === "ArrowUp" || (!mod && (lk === "j" || lk === "k"))) { e.preventDefault(); const dn = k === "ArrowDown" || lk === "j"; menu.hi = (menu.hi + (dn ? 1 : -1) + menu.opts.length) % menu.opts.length; menu.hl(); return; }
@@ -3830,6 +5152,8 @@ document.addEventListener("keydown", (e) => {
   }
   if (modal) {
     if (k === "Escape") { e.preventDefault(); closeLayer(); }
+    const dec = modal.fs && !mod && !e.target.closest("input, textarea, [contenteditable='true']") && { a: "advance", o: "offer", r: "reject" }[lk];
+    if (dec && $(`#layer [data-act="${dec}"]`)) { e.preventDefault(); $(`#layer [data-act="${dec}"]`).click(); return; }
     if (mod && k === "Enter") { e.preventDefault(); modal.send(); }
     return;
   }
@@ -3846,7 +5170,7 @@ document.addEventListener("keydown", (e) => {
   if (mod) return;
   if (gPending && Date.now() - gPending < 900) {
     gPending = 0;
-    const to = { i: "inbox", v: "views", t: "triage", a: "all", l: "calendar", b: "activity", j: "jobs" }[lk];
+    const to = { i: "inbox", v: "views", t: "triage", a: "all", l: "calendar", j: "jobs" }[lk];
     if (to) { e.preventDefault(); go(to); return; }
   }
   if (lk === "g") { gPending = Date.now(); return; }
@@ -3866,7 +5190,7 @@ document.addEventListener("keydown", (e) => {
     if (lk === "e") { e.preventDefault(); ibDone(id); return; }
     const iss = issueOf(A[id]);
     if (lk === "f" && iss && iss.k !== "decide") { e.preventDefault(); ACT[iss.act.a]({ dataset: { id: iss.act.id } }); return; }
-    if (k === "/") { e.preventDefault(); openPalette(id); return; }
+    if (k === "/") { e.preventDefault(); openPalette(id); $("#layer").lastElementChild?.classList.add("kbd"); return; }
     if (iss && iss.k === "decide" && ["a", "o", "r"].includes(lk)) { e.preventDefault(); ACT[{ a: "advance", o: "offer", r: "reject" }[lk]]({ dataset: { id } }); return; }
     if (k === "Enter") { e.preventDefault(); go(`t~${id}`); return; }
     return;
@@ -3884,7 +5208,7 @@ document.addEventListener("keydown", (e) => {
     if (lk === "j" || k === "ArrowDown") { e.preventDefault(); stepTicket(1); return; }
     if (lk === "k" || k === "ArrowUp") { e.preventDefault(); stepTicket(-1); return; }
     if (lk === "f" || k === "/") { e.preventDefault(); $("#filter")?.focus(); return; }
-    if (lk === "b") { e.preventDefault(); state.view = (state.view || "board") === "board" ? "list" : "board"; render(); return; }
+    if (lk === "b") { e.preventDefault(); if (!state.plRole) return toast("Pick one role to see it as a board"); state.view = state.view === "board" ? "list" : "board"; render(); return; }
     if (k === "Escape" && picked.size) { picked.clear(); render(); return; }
     const a = A[state.focus];
     if (!a) return;
@@ -3991,29 +5315,41 @@ function applySidebar() {
   app.classList.toggle("sb-collapsed", !!state.sbCollapsed);
   if (state.sbWidth) app.style.setProperty("--sbw", `${state.sbWidth}px`); else app.style.removeProperty("--sbw");
 }
-function setSidebar(collapsed) { state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
+// .sb-anim lets the CSS play the change (allow-discrete out, @starting-style in), then steps aside.
+let sbAnimT;
+function sbAnimate() { const app = $("#app"); app.classList.add("sb-anim"); clearTimeout(sbAnimT); sbAnimT = setTimeout(() => app.classList.remove("sb-anim"), 400); }
+function setSidebar(collapsed) { sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); saveSidebar(); renderSide(); fitCalendar(); }
 try { const sv = JSON.parse(localStorage.getItem(SB_KEY) || "null"); if (sv) { state.sbWidth = sv.w || null; state.sbCollapsed = !!sv.c; } } catch {}
 {
   const h = $("#sbResize");
   let drag = null;
   const clampW = (w) => Math.max(200, Math.min(380, Math.round(w)));
+  // One drag goes both ways: out of the rail past SNAP opens it, back under SNAP folds it. Each snap animates
+  // (sb-dragging comes off for the length of the transition), then the edge follows the pointer again.
+  const SNAP = 140;
+  const snap = (collapsed) => {
+    document.body.classList.remove("sb-dragging");
+    drag.snapUntil = performance.now() + 300;
+    sbAnimate(); state.sbCollapsed = collapsed; applySidebar(); renderSide();
+  };
   h.addEventListener("pointerdown", (e) => {
-    if (state.sbCollapsed) return;
-    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width };
+    drag = { x: e.clientX, w: $("#side").getBoundingClientRect().width, snapUntil: 0 };
     document.body.classList.add("sb-dragging");
     try { h.setPointerCapture(e.pointerId); } catch {}
   });
   h.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const w = drag.w + e.clientX - drag.x;
-    if (w < 140) { drag = null; document.body.classList.remove("sb-dragging"); return setSidebar(true); }
+    if (state.sbCollapsed) { if (w >= SNAP) { state.sbWidth = clampW(w); snap(false); } return; }
+    if (w < SNAP) return snap(true);
+    if (performance.now() > drag.snapUntil) document.body.classList.add("sb-dragging");
     state.sbWidth = clampW(w);
     applySidebar();
   });
   const end = () => { if (!drag) return; drag = null; document.body.classList.remove("sb-dragging"); saveSidebar(); fitCalendar(); };
   h.addEventListener("pointerup", end);
   h.addEventListener("pointercancel", end);
-  h.addEventListener("dblclick", () => { state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
+  h.addEventListener("dblclick", () => { if (state.sbCollapsed) return setSidebar(false); state.sbWidth = null; applySidebar(); saveSidebar(); fitCalendar(); });
   h.addEventListener("keydown", (e) => {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
@@ -4047,4 +5383,53 @@ setTimeout(() => {
   waitOn(sch, a.iv);
   touch(a);
 }, 14000);
-setInterval(() => { if (!menu && !palette && !modal && state.route.name !== "triage" && !document.activeElement.closest("input, textarea, [contenteditable='true']")) render(); }, 30000);
+setInterval(() => { if (!menu && !palette && !modal && !ibAnim && state.route.name !== "triage" && !document.activeElement.closest("input, textarea, [contenteditable='true']")) render(); }, 30000);
+
+/* ---------------- The Grokbot outside tATS: a Slack DM and the CLI ---------------- */
+// tATS listens: a request from Slack or the CLI runs here with the Grokbot's cursor, and the answer goes back.
+if (GROK_CH && !SURFACE) GROK_CH.onmessage = async ({ data }) => {
+  if (!data || data.type !== "ask") return;
+  GROK_CH.postMessage({ type: "ack", id: data.id });
+  const r = await setupAsk(data.text);
+  let say = r.say;
+  if (!r.ok) { const g = grokReply(data.text); if (g && g.html) say = [plain(g.html), ...(g.list || []).map((x) => `• ${plain(x)}`)].join("\n"); render(); }
+  GROK_CH.postMessage({ type: "done", id: data.id, say: String(say || "").split("\n").map(plain).join("\n") });
+};
+function mountSurface(kind) {
+  const cli = kind === "cli", ex = ["put Daniel Okafor on Engineering, Product and Research", "star Sam for Systems design", "turn off Wei's Grokbot", "add a references check before the offer in the process"];
+  document.title = cli ? "grokbot — Meridian" : "Grokbot · Slack";
+  [...document.body.children].forEach((c) => { if (!/^(STYLE|LINK|SCRIPT)$/.test(c.tagName)) c.remove(); });
+  document.body.className = `surface ${kind}`;
+  const t = () => fmtTime(Date.now());
+  const wrap = document.createElement("div");
+  wrap.innerHTML = cli
+    ? `<div class="cli"><div class="cli-bar"><i></i><i></i><i></i><span>grokbot — meridian</span></div><div class="cli-out" id="sOut"><div class="cli-l dim">Grokbot · signed in as ${esc(first(ME).toLowerCase())}@meridian.com · connected to tATS</div><div class="cli-l dim">Keep tATS open in another window to watch the changes happen.</div><div class="cli-l dim">Try: ${ex.map((x) => `<span class="cli-ex">${esc(x)}</span>`).join("")}</div></div><form class="cli-in" id="sForm"><span>›</span><input id="sIn" autocomplete="off" spellcheck="false" aria-label="Message your Grokbot"></form></div>`
+    : `<div class="slk"><aside class="slk-side"><b>${esc(ORG.name)}</b><span># hiring</span><span># interviews</span><span class="on">${botAv(ME)}Grokbot</span></aside><main class="slk-main"><header>${botAv(ME)}<b>Grokbot</b><em>APP</em></header>
+      <div class="slk-out" id="sOut"><div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p>Hi ${esc(first(ME))}. Tell me what to change in tATS and I'll do it while you watch there. For example: ${ex.map((x) => `<span class="slk-ex">${esc(x)}</span>`).join(" ")}</p></div></div></div>
+      <form class="slk-in" id="sForm"><input id="sIn" placeholder="Message Grokbot" autocomplete="off" aria-label="Message Grokbot"></form></main></div>`;
+  document.body.appendChild(wrap.firstElementChild);
+  const out = $("#sOut"), add = (html) => { out.insertAdjacentHTML("beforeend", html); out.scrollTop = out.scrollHeight; return out.lastElementChild; };
+  const mine = (x) => (cli ? `<div class="cli-l me">› ${esc(x)}</div>` : `<div class="slk-m">${personAv(ME)}<div><b>${esc(PEOPLE[ME].name)}</b><span class="slk-t">${t()}</span><p>${esc(x)}</p></div></div>`);
+  const bot = (x, cls = "") => (cli ? `<div class="cli-l ${cls || "ok"}">${cls === "dim" ? "…" : "✓"} ${esc(x)}</div>` : `<div class="slk-m">${botAv(ME)}<div><b>Grokbot</b><span class="slk-t">${t()}</span><p class="${cls}">${esc(x)}</p></div></div>`);
+  out.addEventListener("click", (e) => { const x = e.target.closest(".cli-ex, .slk-ex"); if (x) { $("#sIn").value = x.textContent; $("#sIn").focus(); } });
+  $("#sForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const i = $("#sIn"), q = i.value.trim();
+    if (!q) return;
+    i.value = "";
+    add(mine(q));
+    const wait = add(bot("Working in tATS…", "dim")), id = `${Date.now()}${Math.random()}`;
+    let acked = false;
+    const on = ({ data }) => {
+      if (!data || data.id !== id) return;
+      if (data.type === "ack") acked = true;
+      if (data.type === "done") { wait.outerHTML = bot(data.say || "Done."); out.scrollTop = out.scrollHeight; GROK_CH.removeEventListener("message", on); }
+    };
+    if (!GROK_CH) { wait.outerHTML = bot("This browser can't reach tATS from here.", "dim"); return; }
+    GROK_CH.addEventListener("message", on);
+    GROK_CH.postMessage({ type: "ask", id, text: q });
+    setTimeout(() => { if (!acked) { wait.outerHTML = bot("Open tATS in another window and I'll make the change there while you watch.", "dim"); GROK_CH.removeEventListener("message", on); } }, 1500);
+  });
+  setTimeout(() => $("#sIn").focus(), 50);
+}
+if (SURFACE) mountSurface(SURFACE === "cli" ? "cli" : "slack");
