@@ -9,3 +9,6 @@ dist/
 .DS_Store
 .vercel/
 .claude/worktrees/
+
+# A local Supabase signing key (supabase gen signing-key), never committed
+supabase/signing_keys.json

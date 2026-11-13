@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { pickCompanyAction, requestResetAction, setPasswordAction, signInAction, signOutAction, type AuthAnswer } from "@/lib/client/auth-ops";
+import { consentAction, pickCompanyAction, requestResetAction, setPasswordAction, signInAction, signOutAction, type AuthAnswer } from "@/lib/client/auth-ops";
 import { sameOrigin } from "@/lib/client/schedule-requests";
 
 // The sign-in screens' calls (lib/client/auth-ops.ts). A route, not server
@@ -13,6 +13,7 @@ const OPS: Record<string, (body: Record<string, unknown>) => Promise<AuthAnswer>
   "set-password": (b) => setPasswordAction({ password: b.password }),
   "pick-company": (b) => pickCompanyAction({ orgId: b.orgId }),
   "sign-out": () => signOutAction(),
+  consent: (b) => consentAction({ authorizationId: b.authorizationId, orgId: b.orgId, approve: b.approve, approved: b.approved }),
 };
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ op: string }> }): Promise<Response> {
