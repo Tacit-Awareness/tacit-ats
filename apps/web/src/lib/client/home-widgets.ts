@@ -40,15 +40,20 @@ export const WIDGET_KEYS = Object.keys(WIDGETS) as WidgetKey[];
 const isKey = (k: string): k is WidgetKey => Object.hasOwn(WIDGETS, k);
 const sizesOf = (k: WidgetKey): readonly WidgetSize[] => WIDGETS[k].sizes;
 
-/** The default fills one screen, three by three, so the Overview can go on a projector as it is. */
+/**
+ * The Overview a member starts with (no cookie), and goes back to with Reset: it
+ * fills one screen, so it can go on a projector as it is, and says each thing
+ * once, in the funnel's order. Applications over time has the whole top row and
+ * carries New applications' target; New applications, which showed the same
+ * number and change, waits in the gallery.
+ */
 export const defaultWidgets = (): Placed[] => [
-  { k: "apps", w: 1 },
+  { k: "trend", w: 3 },
   { k: "active", w: 1 },
   { k: "review", w: 1 },
   { k: "sched", w: 1 },
   { k: "cards", w: 1 },
   { k: "load", w: 1 },
-  { k: "trend", w: 2 },
   { k: "hires", w: 1 },
 ];
 

@@ -222,3 +222,32 @@ describe("outstanding feedback", () => {
     expect(p.bottlenecks.find((b) => b.key === "feedback")).toMatchObject({ label: "Open Interview Judgement", href: "/client/interviews" });
   });
 });
+
+describe("the filters", () => {
+  const departments = [{ id: "d1", name: "Infra", path: "Infra", depth: 0 }, { id: "d2", name: "Product", path: "Product", depth: 0 }];
+  const jobs = [{ id: "j1", title: "Staff Engineer" }, { id: "j2", title: "Founding Engineer" }];
+
+  test("each is a segmented control of links, every option kept, the picked one marked", () => {
+    const f = props({ departments, departmentId: "d1", jobs, jobId: "j2" }).filters;
+    expect(f.period.options.map((o) => [o.label, o.title, o.active])).toEqual([["7 days", "Last 7 days", true], ["30 days", "Last 30 days", false], ["90 days", "Last 90 days", false]]);
+    expect(f.period.options[1].href).toBe("/client?days=30&department=d1&job=j2");
+    // "All", short beside the period, says it in full on hover; picking a department lets go of the job.
+    expect(f.department?.options.map((o) => [o.label, o.title, o.href, o.active])).toEqual([
+      ["All", "All departments", "/client", false],
+      ["Infra", undefined, "/client?department=d1", true],
+      ["Product", undefined, "/client?department=d2", false],
+    ]);
+    expect(f.job?.options.map((o) => [o.label, o.href, o.active])).toEqual([
+      ["All jobs", "/client?department=d1", false],
+      ["Staff Engineer", "/client?department=d1&job=j1", false],
+      ["Founding Engineer", "/client?department=d1&job=j2", true],
+    ]);
+  });
+
+  test("no departments, no department control; no open job, no job control", () => {
+    const f = props({}).filters;
+    expect(f.department).toBeNull();
+    expect(f.job).toBeNull();
+    expect(f.period.options).toHaveLength(3);
+  });
+});

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Row, Rows, Section } from "@/components/page";
-import { cn } from "@/lib/utils";
+import { Pill, Section } from "@/components/page";
+import { SetBand, SetRow } from "./rows";
 
 // design/tats's Routing Rules: how a Grokbot picks an interviewer, and when a
 // run comes back to you. Front end only: there is no backend yet, so nothing
-// picks by these, the switches are not saved, and the page says so.
+// picks by these, the switches are not saved, and the Preview tag says so.
+// One card, the two groups as bands inside it.
 
 const SELECTION = [
   { key: "want", name: "Wants to interview", detail: "Based on their past replies to interview requests" },
@@ -21,23 +22,11 @@ const ESCALATION = [
   { name: "Nobody on the team can take it", detail: "Returned to your Inbox" },
 ];
 
-/** design/tats's `.switch`: 30 by 18, the accent when on. */
+const PREVIEW = "A preview: these don't change who gets asked yet, and the switches aren't saved.";
+
+/** Testbench's `.toggle` (settings.css): 32 by 18, ink when on. */
 function Switch({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onToggle}
-      className={cn(
-        "relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--accent)]",
-        on ? "bg-[color:var(--accent)]" : "bg-[color:var(--soft-strong)]",
-      )}
-    >
-      <i className={cn("absolute top-0.5 left-0.5 size-3.5 rounded-full bg-[color:var(--n0)] shadow-[var(--shadow)] transition-transform", on && "translate-x-3")} />
-    </button>
-  );
+  return <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onToggle} className="set-toggle" />;
 }
 
 export function RoutingRules() {
@@ -45,30 +34,31 @@ export function RoutingRules() {
   const toggle = (key: string) => setOff((keys) => (keys.includes(key) ? keys.filter((k) => k !== key) : [...keys, key]));
 
   return (
-    <>
-      <div className="mt-2 grid gap-0.5">
-        <h2 className="m-0 text-[17px] font-semibold">Routing Rules</h2>
-        <p className="m-0 text-[13px] text-muted-foreground">A preview: these don&apos;t change who gets asked yet, and the switches aren&apos;t saved.</p>
-      </div>
-      <Section flush title="Interviewer selection">
-        <Rows ruled>
-          {SELECTION.map((rule) => (
-            <Row
-              key={rule.key}
-              title={rule.name}
-              sub={rule.detail}
-              meta={<Switch on={!off.includes(rule.key)} label={rule.name} onToggle={() => toggle(rule.key)} />}
-            />
-          ))}
-        </Rows>
-      </Section>
-      <Section flush title="Escalation">
-        <Rows ruled>
-          {ESCALATION.map((rule) => (
-            <Row key={rule.name} title={rule.name} sub={rule.detail} />
-          ))}
-        </Rows>
-      </Section>
-    </>
+    <Section
+      flush
+      aria-label="Routing rules"
+      title={
+        <>
+          Routing rules
+          <Pill title={PREVIEW}>
+            Preview<span className="sr-only">. {PREVIEW}</span>
+          </Pill>
+        </>
+      }
+    >
+      <SetBand>Interviewer selection</SetBand>
+      {SELECTION.map((rule) => (
+        <SetRow
+          key={rule.key}
+          name={rule.name}
+          detail={rule.detail}
+          action={<Switch on={!off.includes(rule.key)} label={rule.name} onToggle={() => toggle(rule.key)} />}
+        />
+      ))}
+      <SetBand>Escalation</SetBand>
+      {ESCALATION.map((rule) => (
+        <SetRow key={rule.name} name={rule.name} detail={rule.detail} />
+      ))}
+    </Section>
   );
 }

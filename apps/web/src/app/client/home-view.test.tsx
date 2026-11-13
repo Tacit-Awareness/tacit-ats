@@ -49,7 +49,8 @@ describe("Interview efficiency", () => {
     expect(html).toContain("Round 1 to round 2");
     expect(html).toContain("75%");
     expect(html).toContain("interviews per hire");
-    expect(html).toContain("3.5h");
+    // The figure is drawn in parts (its point and unit in their own spans, stat-number.tsx): read its text.
+    expect(html.replace(/<[^>]+>/g, "")).toContain("3.5h");
     expect(html).not.toContain("Not enough closed yet");
     expect(html).not.toMatch(/could free|Testbench|Estimate/);
   });
@@ -63,9 +64,12 @@ describe("the layout", () => {
     expect(html).toContain("wg w2");
   });
 
-  test("with none saved, the default", () => {
+  test("with none saved, the Overview's default, which says each thing once", () => {
     const html = renderToStaticMarkup(<HomeView {...overviewProps(read, 7, NOW, false)} />);
     expect(placed(html)).toEqual(defaultWidgets().map((x) => x.k));
+    // Applications over time has the top row; New applications, the same number, waits in the gallery.
+    expect(placed(html)).toContain("trend");
+    expect(placed(html)).not.toContain("apps");
   });
 
   test("someone who manages no job has no feedback widgets, even if their layout names them", () => {

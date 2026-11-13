@@ -82,7 +82,8 @@ describe("the panel", () => {
 
   test("no match lists what was nearby to pick from, or says there was nothing", () => {
     const html = render({ status: "no_match", nearby: [{ noteId: NOTE, excerpt: `<meeting id="${NOTE}" title="Lunch" date="Oct 15">` }] });
-    expect(html).toContain("Lunch · Oct 15");
+    // The meeting's name and date as separate facts, never joined by a dot.
+    expect(html).toMatch(/>Lunch<\/div><div[^>]*>Oct 15</);
     expect(html).toContain(`href="/client/interviews?i=${ID}&amp;note=${NOTE}"`);
     expect(render({ status: "no_match", nearby: [] })).toContain("no Granola meetings from around this interview");
   });

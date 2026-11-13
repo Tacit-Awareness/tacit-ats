@@ -1,4 +1,5 @@
 import { IN_PROCESS_STAGES } from "@tacit/core";
+import { STAGE_LABELS } from "./stage-labels";
 
 // The CRM table (design/tats's #crm): one row per candidate the member can
 // see, with the jobs they are in, where they stand, the owner and the last
@@ -32,16 +33,9 @@ export const DEFAULT_DIR: Record<CrmSort, SortDir> = { name: "asc", job: "asc", 
 
 export const CRM_PAGE_SIZE = 50;
 
-export const STAGE_LABELS: Record<string, string> = {
-  sourced: "Sourced",
-  contacted: "Contacted",
-  screening: "Screening",
-  interviewing: "Interviewing",
-  offer: "Offer",
-  hired: "Hired",
-  rejected: "Rejected",
-  withdrawn: "Withdrew",
-};
+// The labels live in stage-labels.ts, which imports nothing, so a client
+// component (the hover card's stage glyph) can read them without @tacit/core.
+export { STAGE_LABELS };
 
 export const stageLabel = (stage: string | null) => (stage === null ? "Prospect" : (STAGE_LABELS[stage] ?? stage.replace(/_/g, " ")));
 

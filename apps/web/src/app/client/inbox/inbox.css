@@ -1,0 +1,152 @@
+/* The Inbox's opening (opening-card.tsx sets the beats as --start, --step,
+   --fold-at, --reveal and --stagger on the card). The card pops in; each source
+   waits faint, turns while it is read, then ticks off with what it found; the
+   panel folds away and the card grows as the sections arrive, entry after
+   entry. Nothing here exists under reduced motion, so the card is simply
+   there, read, its counts in place.
+   These are the Inbox's own names: globals.css's `.inbox-opening` rules are the
+   old card's and no longer match anything. */
+
+.ibx-reading {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ibx-opening {
+    animation: ibx-pop 0.28s var(--ease-out) both;
+  }
+
+  /* The read: two columns of sources, as Testbench's `.wb-sources`. */
+  .ibx-opening .ibx-reading {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px 24px;
+    overflow: hidden;
+    padding: 4px 24px 22px;
+    animation: ibx-fold 0.15s ease-in var(--fold-at) both;
+  }
+  .ibx-src {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    opacity: 0.4;
+    animation:
+      ibx-src-in 0.2s var(--ease-out) calc(60ms + var(--n) * 25ms) backwards,
+      ibx-src-on 0.12s ease-out calc(var(--start) + var(--n) * var(--step)) forwards;
+  }
+  .ibx-src-glyph {
+    display: grid;
+  }
+  .ibx-src-glyph > span {
+    grid-area: 1 / 1;
+    display: grid;
+  }
+  /* Waiting: a faint square, until its turn. */
+  .ibx-g-wait {
+    animation: ibx-gone 1ms linear calc(var(--start) + var(--n) * var(--step)) both;
+  }
+  /* Its turn: the turning corner, for one beat. */
+  .ibx-g-run {
+    opacity: 0;
+    animation: ibx-shown var(--step) linear calc(var(--start) + var(--n) * var(--step));
+  }
+  /* Read: the green tick, and what it found. */
+  .ibx-g-done,
+  .ibx-src-n {
+    opacity: 0;
+    animation: ibx-tick 0.16s var(--ease-out) calc(var(--start) + (var(--n) + 1) * var(--step)) forwards;
+  }
+
+  /* The card is only the read until the read is done, then grows to hold the
+     sections and the foot, which arrive one entry after another as it opens:
+     compiled, not uncovered. The grow is a grid row from nothing to its size,
+     so the card never jumps. */
+  .ibx-opening .ibx-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    animation: ibx-grow 0.3s var(--ease-out) var(--reveal) both;
+  }
+  .ibx-opening .ibx-body > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .ibx-opening .ibx-entry,
+  .ibx-opening .ibx-foot {
+    animation: ibx-rise 0.26s var(--ease-out) calc(var(--reveal) + min(var(--r, 8), 8) * var(--stagger)) both;
+  }
+  .ibx-opening .ibx-foot {
+    --r: 8;
+  }
+
+  /* A filter's counts arrive once the read is done. */
+  .ibx-opening .ibx-count {
+    animation: ibx-fade 0.2s var(--ease-out) var(--reveal) both;
+  }
+}
+
+@keyframes ibx-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+@keyframes ibx-src-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes ibx-src-on {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes ibx-gone {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ibx-shown {
+  0%,
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes ibx-tick {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ibx-fold {
+  from {
+    max-height: 260px;
+  }
+  to {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+  }
+}
+@keyframes ibx-grow {
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+@keyframes ibx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes ibx-fade {
+  from {
+    opacity: 0;
+  }
+}

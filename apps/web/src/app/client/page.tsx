@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { Avatar, Empty, Glyph, Page, PageHeader, Row, Rows, Section, Split, StatStrip, textLink, type Stat } from "@/components/page";
+import { Empty, Page, PageBar, Row, Rows, Section, Split, StatStrip, textLink, type Stat } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { readHome } from "@/lib/client/home";
@@ -23,7 +23,8 @@ import { Refusal } from "./refusal";
 // (?department=, none for an org without departments) and the job (?job=)
 // in the URL. `?sub=` draws a tab's page under Home's bar (lib/client/home-tabs.ts). An admin sets each card's target from the card; the hiring team
 // sees them. An interviewer keeps the page they had: the people they
-// interview, the jobs, the team. Every number is read with the member's own
+// interview, the jobs, the team, in the same dress as the Overview (the title
+// row on the surface, the numbers in one stats card, white cards under it). Every number is read with the member's own
 // token, so it counts only what their access allows and nothing is filtered
 // here.
 
@@ -54,6 +55,7 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
     ),
     cookies(),
   ]);
+  // No layout saved yet is the default (lib/client/home-widgets.ts), the one Reset goes back to.
   return <HomeView {...overviewProps(read, days, now.getTime(), ctx.accessLevel === "admin")} layout={parseWidgets(jar.get(WIDGETS_COOKIE)?.value)} />;
 }
 
@@ -79,17 +81,24 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
   ];
 
   return (
-    <Page>
-      <PageHeader
-        title={first ? `Hi, ${first}` : "Home"}
-        subtitle={`${org.name} · ${LEVELS[accessLevel]}`}
-        actions={
+    <Page
+      bar={
+        <PageBar
+          title={
+            <span title={`${org.name}, ${LEVELS[accessLevel]}`}>
+              {first ? `Hi, ${first}` : "Home"}
+              <span className="sr-only">
+                , {org.name}, {LEVELS[accessLevel]}
+              </span>
+            </span>
+          }
+        >
           <Link href="/client/jobs" className={buttonVariants()}>
             Open jobs
           </Link>
-        }
-      />
-
+        </PageBar>
+      }
+    >
       <StatStrip stats={stats} />
 
       <Split
@@ -116,7 +125,7 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
               count={roles.data.length}
               aside={
                 <Link href="/client/jobs" className={textLink}>
-                  All jobs →
+                  All jobs
                 </Link>
               }
             >
@@ -128,7 +137,6 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
                     <Row
                       key={role.id}
                       href={`/client/jobs/${role.id}`}
-                      icon={<Glyph name={role.title} size="md" />}
                       title={role.title}
                       sub={role.location ?? undefined}
                       meta={<StatusBadge status={role.status} />}
@@ -148,7 +156,6 @@ async function InterviewerHome({ ctx }: { ctx: ClientContext }) {
               {team.data.map((member) => (
                 <Row
                   key={member.id}
-                  icon={<Avatar name={member.display_name} />}
                   title={member.display_name}
                   meta={<span className="text-faint">{levelName(member.access_level)}</span>}
                 />

@@ -50,37 +50,49 @@ export function DocsSearch({ basePath, pages }: { basePath: string; pages: Searc
 
   return (
     <div className="relative">
-      <input
-        ref={input}
-        type="search"
-        aria-label="Search the docs"
-        placeholder="Search docs  ⌘K"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            setQuery("");
-            e.currentTarget.blur();
-          }
-        }}
-        className="h-[30px] w-full border border-input bg-frame px-2.5 text-[13px] outline-none placeholder:text-faint focus-visible:border-[color:var(--accent)] focus-visible:ring-3 focus-visible:ring-[color:color-mix(in_srgb,var(--accent)_18%,transparent)]"
-      />
+      {/* Testbench's search field, its ⌘K inside it */}
+      <label className="flex h-[34px] items-center gap-2 rounded-[7px] bg-[color:var(--paper)] pr-1.5 pl-3 text-faint shadow-[var(--shadow-sm)] transition-shadow focus-within:shadow-[inset_0_0_0_1.5px_var(--ink),0_0_0_3px_rgba(34,35,38,0.1)]">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" className="size-[14px] shrink-0" aria-hidden>
+          <path d="M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3" />
+        </svg>
+        <input
+          ref={input}
+          type="search"
+          aria-label="Search the docs"
+          aria-keyshortcuts="Meta+K Control+K"
+          placeholder="Search docs"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setQuery("");
+              e.currentTarget.blur();
+            }
+          }}
+          className="h-full min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint focus-visible:outline-none [&::-webkit-search-cancel-button]:hidden"
+        />
+        <kbd aria-hidden className="inline-grid h-5 min-w-5 flex-none place-items-center rounded-[4px] px-1 font-mono text-[11px] leading-none shadow-[inset_0_0_0_1px_currentColor] opacity-70">
+          ⌘K
+        </kbd>
+      </label>
       {query.trim() ? (
-        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-9 z-20 rounded-[10px] border border-[color:var(--line)] bg-raised p-1 shadow-[var(--pop-shadow)]">
+        // Testbench's menu: white, 12px corners, the pop shadow, 34px items; what each page covers is on its hover.
+        <div role="region" aria-label="Search results" className="absolute inset-x-0 top-10 z-20 grid gap-px rounded-[12px] bg-[color:var(--raised)] p-1.5 shadow-[var(--pop-shadow)]">
           {results.length ? (
             results.map((p) => (
               <Link
                 key={p.slug}
                 href={`${basePath}/${p.slug}`}
+                title={p.description}
                 onClick={() => setQuery("")}
-                className="block px-2 py-1.5 hover:bg-accent"
+                className="flex min-h-[34px] items-center rounded-[7px] px-2.5 py-1.5 text-[13px] leading-[18px] text-foreground transition-colors hover:bg-[color:var(--hover)] focus-visible:bg-[color:var(--hover)]"
               >
-                <span className="block text-[13px] font-medium">{p.title}</span>
-                <span className="block text-xs leading-snug text-muted-foreground">{p.description}</span>
+                {p.title}
+                <span className="sr-only">. {p.description}</span>
               </Link>
             ))
           ) : (
-            <p className="px-2 py-1.5 text-[13px] text-muted-foreground">No matching pages.</p>
+            <p className="m-0 flex min-h-[34px] items-center px-2.5 text-[13px] text-faint">No matching pages.</p>
           )}
         </div>
       ) : null}

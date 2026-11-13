@@ -1,15 +1,17 @@
-/* The Banner (components/banner.tsx), design/tats's `.bn`: status icon, title,
-   a line under it, up to three actions, a ✕. Low contrast: the card's own fill,
-   the icon in the status colour. High: a light wash of the colour. Fixed:
-   full-bleed and stuck to the top of its scroller. Dismissing folds the height
-   to nothing (`.out`, FOLD_MS in the component). */
+/* The Banner (components/banner.tsx), design/tats's `.bn` in Testbench's dress,
+   as page.tsx's Notice: status icon, title, a line under it, up to three
+   actions, a ✕. Low contrast: a small raised white card (10px, the small
+   shadow's own ring, no border), the icon in the status colour. High: a light
+   wash of the colour with a ring of it. Fixed: full-bleed and stuck to the top
+   of its scroller, over a hairline. Dismissing folds the height to nothing
+   (`.out`, FOLD_MS in the component). */
 .bn {
   --bn-c: var(--faint);
   display: grid;
   grid-template-rows: 1fr;
   opacity: 1;
   transition:
-    grid-template-rows 0.22s cubic-bezier(0.3, 0, 0.2, 1),
+    grid-template-rows 0.22s var(--ease),
     opacity 0.18s,
     margin 0.22s;
 }
@@ -25,20 +27,20 @@
   column-gap: 12px;
   align-items: start;
   padding: 12px 16px;
-  border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--raised);
+  box-shadow: var(--shadow-sm);
 }
 .bn.high .bn-box {
-  background: color-mix(in oklab, var(--bn-c) 9%, var(--raised));
-  border-color: color-mix(in oklab, var(--bn-c) 30%, var(--line-strong));
+  background: color-mix(in oklab, var(--bn-c) 8%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--bn-c) 24%, transparent);
 }
 .bn-ico { display: grid; place-items: center; height: 20px; }
 .bn-ico svg { width: 16px; height: 16px; fill: none; stroke: var(--bn-c); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .bn-txt { display: grid; gap: 2px; min-width: 0; line-height: 20px; }
-.bn-t { font-size: 14px; font-weight: 600; color: var(--ink); }
-.bn-d { color: var(--muted-text); font-size: 13.5px; line-height: 1.45; }
-.bn-x { display: grid; place-items: center; width: 24px; height: 24px; margin: -2px -6px 0 0; border-radius: 6px; color: var(--faint); }
+.bn-t { font-size: 13px; font-weight: 500; color: var(--ink); }
+.bn-d { color: var(--muted-text); font-size: 13px; line-height: 20px; }
+.bn-x { display: grid; place-items: center; width: 24px; height: 24px; margin: -2px -6px 0 0; border-radius: 6px; color: var(--faint); transition: background-color 0.1s, color 0.1s; }
 .bn-x:hover { background: var(--hover); color: var(--ink); }
 .bn-x svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .bn-acts { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
@@ -48,8 +50,7 @@
 /* compact: one line, actions on the right; on a phone the actions wrap under it */
 .bn.compact .bn-box { grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; padding: 8px 12px 8px 16px; }
 .bn.compact .bn-txt { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bn.compact .bn-t { font-size: 13.5px; }
-.bn.compact .bn-d { margin-left: 8px; font-size: 13px; }
+.bn.compact .bn-d { margin-left: 10px; }
 .bn.compact .bn-acts { grid-column: 3; grid-row: 1; margin: 0; flex-wrap: nowrap; }
 .bn.compact .bn-acts .bn-a.ghost { margin-left: 0; }
 .bn.compact .bn-x { grid-column: 4; margin: 0; }
@@ -62,10 +63,11 @@
 
 /* fixed: full-bleed bar at the top of the scroller, pushing the content down */
 .bn.fixed { position: sticky; top: 0; z-index: 6; }
-.bn.fixed .bn-box { border-width: 0 0 1px; border-radius: 0; }
+.bn.fixed .bn-box { border-radius: 0; box-shadow: inset 0 -1px 0 var(--line); }
+.bn.fixed.high .bn-box { box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--bn-c) 24%, transparent); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .bn-box { animation: bn-in 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+  .bn-box { animation: bn-in 0.28s var(--ease-out); }
 }
 @media (prefers-reduced-motion: reduce) {
   .bn { transition: none; }

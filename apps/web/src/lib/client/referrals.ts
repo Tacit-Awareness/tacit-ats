@@ -1,17 +1,17 @@
 import type { Db } from "@tacit/db";
-import { logTouch } from "@tacit/core";
-import { clientTools } from "@tacit-ats/core";
+import type { clientTools } from "@tacit-ats/core";
 import { RESUME_ACCEPT as SHARED_ACCEPT, checkResume } from "../resume-file";
+import { addToJob, type IntakeFile, type IntakeOutcome } from "./intake";
 import { cleanReferrer, type Referral } from "./referral-table";
 
 // Referrals' read and its one write, on the member's OWN client (never a
 // privileged one). The read is `applications` with source `referral`, the
 // person and the job: the policies decide which come back (an admin's whole
 // org, a hiring-team member's own jobs, an external recruiter's own adds),
-// nothing here filters by org or level. The add is the audited
-// clientTools.addCandidate, with audit source `dashboard`, the application's
-// source `referral` and the referrer in `source_detail`, which stays out of
-// the audit row.
+// nothing here filters by org or level. The add is lib/client/intake.ts's
+// addToJob, the audited clientTools.addCandidate with audit source
+// `dashboard`, here with the application's source `referral` and the referrer
+// in `source_detail`, which stays out of the audit row.
 
 /** Rows per request: PostgREST's own maximum. */
 const PAGE = 1000;
@@ -61,11 +61,11 @@ export async function readReferrals(db: Db): Promise<{ referrals: Referral[]; tr
 export type ReferralJob = { jobId: string; title: string };
 
 /**
- * What the add form needs: the open jobs the member may add people to
- * (`can_on_role(job, 'can_edit_pipeline')`), empty when they may not add
- * people at all (`can_add_people()`), and the team's names to suggest as the
- * referrer. Hiding the form is presentation; the action and the policies
- * check again.
+ * What the intake composer needs, for a referral or an applicant: the open
+ * jobs the member may add people to (`can_on_role(job, 'can_edit_pipeline')`),
+ * empty when they may not add people at all (`can_add_people()`), and the
+ * team's names to suggest as the referrer. Hiding the composer is
+ * presentation; the action and the policies check again.
  */
 export async function readAddForm(db: Db): Promise<{ jobs: ReferralJob[]; teammates: string[] }> {
   const [canAdd, roles, members] = await Promise.all([
@@ -100,13 +100,13 @@ export type ReferralInput = {
 };
 
 /** A referral's resume, checked and ready for core's addFile. */
-export type ReferralFile = { filename: string; contentType: string; contentBase64: string };
+export type ReferralFile = IntakeFile;
 
-/** What the form's file input takes. */
+/** What the composer's file input takes. */
 export const RESUME_ACCEPT = SHARED_ACCEPT;
 
 /**
- * The form's file: null when none was picked, "invalid" when core would refuse
+ * The posted file: null when none was picked, "invalid" when core would refuse
  * it, so nobody is added first. An empty file input can reach the server with a
  * name ("blob", "undefined", by browser and runtime), so any zero-byte upload
  * counts as none picked.
@@ -118,20 +118,15 @@ export async function referralFile(value: FormDataEntryValue | null): Promise<Re
   return { filename: checked.filename, contentType: checked.contentType, contentBase64: Buffer.from(checked.bytes).toString("base64") };
 }
 
-export type AddReferralOutcome =
-  | { ok: true; status: "added" | "added_existing" | "added_no_note" | "added_no_file" | "added_no_extras" | "exists"; applicationId: string; personId: string }
-  | { ok: false; error: "forbidden" | "rate_limited" | "invalid_name" | "invalid_email" | "invalid_linkedin" | "invalid_referrer" };
-
-const INVALID_FIELD = { name: "invalid_name", email: "invalid_email", linkedin: "invalid_linkedin" } as const;
-const isInvalidField = (f: string | undefined): f is keyof typeof INVALID_FIELD => f !== undefined && Object.hasOwn(INVALID_FIELD, f);
+export type AddReferralOutcome = IntakeOutcome | { ok: false; error: "invalid_referrer" };
 
 /**
  * A referral into a job: the person (found by an email the member can see, or
  * made), their application with source `referral` and `source_detail` the
- * referrer as typed, and the note as the application's first note (core's
- * logTouch), and the file as their resume (core's addFile). Someone already in
- * the job keeps the application and source they had: nothing changes, and
- * neither the note nor the file is added.
+ * referrer as typed, the note as the application's first note and the file as
+ * their resume (lib/client/intake.ts). Someone already in the job keeps the
+ * application and source they had: nothing changes, and neither the note nor
+ * the file is added.
  */
 export async function addReferral(
   db: Db,
@@ -141,51 +136,5 @@ export async function addReferral(
 ): Promise<AddReferralOutcome> {
   const referredBy = cleanReferrer(input.referredBy);
   if (!referredBy) return { ok: false, error: "invalid_referrer" };
-
-  // addCandidate checks can_add_people() and can_edit_pipeline first, so a
-  // refused add leaves no person row behind; the policies check again on the inserts.
-  let added: clientTools.AddCandidateResult;
-  try {
-    added = await clientTools.addCandidate(db, ctx, {
-      jobId: input.jobId,
-      name: input.name,
-      email: input.email,
-      linkedinUrl: input.linkedinUrl,
-      source: "referral",
-      sourceDetail: referredBy,
-    });
-  } catch (err) {
-    if (err instanceof clientTools.ClientToolError) {
-      if (err.code === "forbidden" || err.code === "rate_limited") return { ok: false, error: err.code };
-      if (err.code === "invalid" && isInvalidField(err.field)) return { ok: false, error: INVALID_FIELD[err.field] };
-    }
-    throw err;
-  }
-  const { applicationId, candidateId: personId } = added;
-  if (added.outcome === "already_in_pipeline") return { ok: true, status: "exists", applicationId, personId };
-
-  // They're in by now, so a note or a file that fails can't say nobody was added.
-  let noteSaved = true;
-  const note = input.note?.replaceAll("\0", "");
-  if (note) {
-    try {
-      await logTouch(db, { applicationId, actorId: ctx.actorId, note });
-    } catch (err) {
-      console.error("[client-referrals] the note failed:", err instanceof Error ? err.message : err);
-      noteSaved = false;
-    }
-  }
-  let fileSaved = true;
-  if (input.file) {
-    try {
-      await clientTools.addFile(db, ctx, store, { candidateId: personId, kind: "resume", ...input.file });
-    } catch (err) {
-      console.error("[client-referrals] the file failed:", err instanceof Error ? err.message : err);
-      fileSaved = false;
-    }
-  }
-  if (!noteSaved || !fileSaved) {
-    return { ok: true, status: !fileSaved ? (noteSaved ? "added_no_file" : "added_no_extras") : "added_no_note", applicationId, personId };
-  }
-  return { ok: true, status: added.newCandidate ? "added" : "added_existing", applicationId, personId };
+  return addToJob(db, ctx, input, { source: "referral", sourceDetail: referredBy, log: "client-referrals" }, store);
 }

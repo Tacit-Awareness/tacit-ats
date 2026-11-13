@@ -1,38 +1,10 @@
-import { clientTools } from "@tacit-ats/core";
-import Link from "next/link";
-import { Page, PageBar, Section, textLink } from "@/components/page";
-import { RESUME_ACCEPT, readAddForm } from "@/lib/client/referrals";
-import { resolveClient } from "@/lib/client/session";
-import { Refusal } from "../../refusal";
-import { addReferralAction } from "../actions";
-import { AddReferralView } from "./view";
+import { ReferralsContent } from "../referrals-page";
 
-// "Add referral" (design/tats's referral form): the open jobs the member may
-// add people to and the team's names, read on their own token
-// (lib/client/referrals.ts's readAddForm). The action checks again, and the
-// policies after it.
+// "Add referral" as a link of its own: the Referrals list with the intake
+// composer open on it (applicants/intake-composer.tsx), as the list's own "Add
+// referral" opens it. Closing it leaves the list at /client/referrals; adding
+// someone goes there too, saying so. An interviewer gets the list's own answer.
 
 export default async function ClientAddReferral() {
-  const gate = await resolveClient();
-  if (gate.status !== "ok") return <Refusal reason={gate.reason} />;
-  const { db, accessLevel } = gate.ctx;
-
-  if (accessLevel === "limited") {
-    return (
-      <Page bar={<PageBar crumbs={[{ href: "/client/referrals", label: "Referrals" }]} title="Add referral" />}>
-        <Section>
-          <p className="m-0 text-[13px] text-muted-foreground">
-            You&apos;re an interviewer here. The people you interview are on your{" "}
-            <Link href="/client" className={textLink}>
-              home page
-            </Link>
-            .
-          </p>
-        </Section>
-      </Page>
-    );
-  }
-
-  const { jobs, teammates } = await readAddForm(db);
-  return <AddReferralView action={addReferralAction} jobs={jobs} teammates={teammates} resumeMaxBytes={clientTools.FILE_MAX_BYTES} resumeAccept={RESUME_ACCEPT} />;
+  return <ReferralsContent sp={{}} compose />;
 }

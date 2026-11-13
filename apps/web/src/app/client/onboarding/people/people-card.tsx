@@ -1,11 +1,10 @@
 import type { listPendingInvites } from "@tacit-ats/core";
-import { Avatar, Pill } from "@/components/page";
+import { Pill } from "@/components/page";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonVariants } from "@/components/ui/button";
-import { selectClass } from "@/components/ui/input";
+import { Input, selectClass } from "@/components/ui/input";
 import { levelName } from "@/lib/client/levels";
 import { soleAdmin } from "@/lib/client/member-access";
-import { cn } from "@/lib/utils";
 import { AccessForm } from "../../interviewers/access-form";
 import type { TeamMember } from "../../interviewers/team";
 import { inviteAction, withdrawAction } from "../actions";
@@ -13,10 +12,11 @@ import { StepCard } from "../step-card";
 import { TitleForm } from "./title-form";
 
 // Onboarding's People step as design/tats-ui-update's `#setup~people`: one card,
-// "Add your interviewers", a row per person (`.su-row`: the avatar, their name
-// over their title and email, then what an admin can change), the invited in the
-// same list with the prototype's "Invite sent" in amber and Re-send / Withdraw,
-// and the add row under them (`.su-add`), which sends the invitation. Props only
+// "Add your interviewers", a row per person (`.su-row`: their name over their
+// title and email, then what an admin can change), the invited in the same list
+// with an amber "Invite sent" tag and Re-send / Withdraw, and the add row under
+// them (`.su-add`), which sends the invitation. Who sees what at each access
+// level is the access picker's hover title, not a caption under it. Props only
 // (page.tsx does the reads). The prototype's Grokbot toggles and Import from
 // Slack are left out: nothing backs them. Hiding the forms from others, and the
 // picker from the only admin, is presentation, not the control: the definer
@@ -25,45 +25,55 @@ import { TitleForm } from "./title-form";
 
 type Pending = Awaited<ReturnType<typeof listPendingInvites>>;
 
-const ROW = "grid min-w-0 grid-cols-[36px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-t border-[color:var(--line)] py-3 first:border-t-0 md:grid-cols-[36px_minmax(0,1fr)_auto]";
+const ROW = "grid min-w-0 items-center gap-x-4 gap-y-2 border-t border-[color:var(--line)] py-3 first:border-t-0 md:min-h-16 md:grid-cols-[minmax(0,1fr)_auto]";
 const CLOCK = "M8 4.5V8l2.3 1.5M14 8A6 6 0 1 1 2 8a6 6 0 0 1 12 0Z";
+const ACCESS_HINT = "An interviewer sees only the people they interview, the hiring team the jobs they are added to, and an admin every job (not confidential ones) and the team.";
+const EMAIL_HINT = "They get an email to choose a password and sign in with this address.";
 
-function Who({ name, sub, you = false }: { name: string; sub: string | null; you?: boolean }) {
+/** The name over its facts (title, email, access), each its own span, spaced rather than dotted. */
+function Who({ name, facts, you = false }: { name: string; facts: (string | null)[]; you?: boolean }) {
+  const shown = facts.filter((f): f is string => !!f);
   return (
-    <span className="grid min-w-0">
-      <b className="text-[14.5px] font-medium [overflow-wrap:anywhere]">
+    <span className="grid min-w-0 gap-0.5">
+      <b className="flex min-w-0 flex-wrap items-center gap-2 text-[13px] font-medium [overflow-wrap:anywhere]">
         {name}
-        {you ? <Pill className="ml-2 align-[1px]">you</Pill> : null}
+        {you ? <Pill>You</Pill> : null}
       </b>
-      {sub ? <span className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">{sub}</span> : null}
+      {shown.length ? (
+        <span className="flex min-w-0 flex-wrap gap-x-3 text-[12px] text-faint [overflow-wrap:anywhere]">
+          {shown.map((f, i) => (
+            <span key={i}>{f}</span>
+          ))}
+        </span>
+      ) : null}
     </span>
   );
 }
 
 function Controls({ children }: { children: React.ReactNode }) {
-  return <span className="col-start-2 flex min-w-0 flex-wrap items-center gap-2 md:col-start-3 md:justify-end">{children}</span>;
+  return <span className="flex min-w-0 flex-wrap items-center gap-2 md:justify-end">{children}</span>;
 }
 
 function AddRow() {
   return (
-    <form action={inviteAction} className="grid min-w-0 gap-2 border-t border-[color:var(--line)] pt-4">
+    <form action={inviteAction} aria-describedby="invite-hint" className="grid min-w-0 gap-2 border-t border-[color:var(--line)] pt-5">
       <div className="grid min-w-0 gap-2 md:grid-cols-[1.2fr_1.2fr_1fr_auto]">
-        <input name="displayName" required maxLength={120} autoComplete="off" placeholder="Full name" aria-label="Full name" className={cn(selectClass, "h-9 rounded-[8px]")} />
-        <input name="email" type="email" required maxLength={254} autoComplete="off" placeholder="Work email" aria-label="Work email" className={cn(selectClass, "h-9 rounded-[8px]")} />
-        <select name="accessLevel" defaultValue="limited" aria-label="Access" className={cn(selectClass, "h-9 rounded-[8px]")}>
+        <Input name="displayName" required maxLength={120} autoComplete="off" placeholder="Full name" aria-label="Full name" />
+        <Input name="email" type="email" required maxLength={254} autoComplete="off" placeholder="Work email" aria-label="Work email" title={EMAIL_HINT} />
+        <select name="accessLevel" defaultValue="limited" aria-label="Access" title={ACCESS_HINT} className={selectClass}>
           <option value="limited">Interviewer</option>
           <option value="elevated">Hiring team</option>
           <option value="admin">Admin</option>
         </select>
-        <SubmitButton size="sm" pendingLabel="Sending…" className="h-9 justify-self-start">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" className="size-3" aria-hidden>
+        <SubmitButton pendingLabel="Sending…" title={EMAIL_HINT} className="justify-self-start">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden>
             <path d="M8 3v10M3 8h10" />
           </svg>
           Add person
         </SubmitButton>
       </div>
-      <p className="m-0 text-xs text-faint">
-        An interviewer sees only the people they interview, the hiring team the jobs they are added to, and an admin every job (not confidential ones) and the team. They get an email to choose a password and sign in with this address.
+      <p id="invite-hint" className="sr-only">
+        {ACCESS_HINT} {EMAIL_HINT}
       </p>
     </form>
   );
@@ -109,16 +119,15 @@ export function PeopleCard({
           const title = titles[m.id] ?? null;
           return (
             <div key={m.id} className={ROW}>
-              <Avatar name={m.display_name} size="ticket" />
-              <Who name={m.display_name} you={m.id === actorId} sub={(editsTitle ? [m.email] : [title, m.email]).filter(Boolean).join(" · ") || null} />
+              <Who name={m.display_name} you={m.id === actorId} facts={editsTitle ? [m.email] : [title, m.email]} />
               <Controls>
                 {editsTitle ? <TitleForm key={`${m.id}:${title ?? ""}`} actorId={m.id} name={m.display_name} title={title} /> : null}
                 {isAdmin && m.id !== onlyAdmin ? (
                   <AccessForm key={`${m.id}:${rendered}`} actorId={m.id} name={m.display_name} level={m.access_level} isSelf={m.id === actorId} />
                 ) : (
-                  <span className="text-[13px] text-muted-foreground" title={isAdmin ? "Your company needs an admin. Make someone else an admin to change this." : undefined}>
+                  <span className="inline-flex items-center gap-2 text-[13px] text-muted-foreground" title={isAdmin ? "Your company needs an admin. Make someone else an admin to change this." : undefined}>
                     {levelName(m.access_level)}
-                    {isAdmin ? " · only admin" : ""}
+                    {isAdmin ? <Pill>Only admin</Pill> : null}
                   </span>
                 )}
               </Controls>
@@ -128,15 +137,14 @@ export function PeopleCard({
         {isAdmin
           ? pending.map((p) => (
               <div key={p.actorId} className={ROW}>
-                <Avatar name={p.displayName} size="ticket" />
-                <Who name={p.displayName} sub={`${p.email} · ${levelName(p.accessLevel)}`} />
+                <Who name={p.displayName} facts={[p.email, levelName(p.accessLevel)]} />
                 <Controls>
-                  <span className="inline-flex items-center gap-1.5 text-[13px] whitespace-nowrap text-[color:var(--amber)]">
+                  <Pill tone="amber">
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="size-[13px]" aria-hidden>
                       <path d={CLOCK} />
                     </svg>
                     Invite sent
-                  </span>
+                  </Pill>
                   <form action={inviteAction}>
                     <input type="hidden" name="email" value={p.email} />
                     <input type="hidden" name="displayName" value={p.displayName} />
@@ -156,7 +164,7 @@ export function PeopleCard({
             ))
           : null}
       </div>
-      {membersTruncated ? <p className="m-0 text-xs text-muted-foreground">Showing the first {members.length.toLocaleString("en-US")}; there are more.</p> : null}
+      {membersTruncated ? <p className="m-0 text-xs text-faint">Showing the first {members.length.toLocaleString("en-US")}; there are more.</p> : null}
       {isAdmin ? <AddRow /> : null}
     </StepCard>
   );

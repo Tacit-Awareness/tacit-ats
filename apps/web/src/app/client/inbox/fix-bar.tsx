@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd } from "@/components/page";
 import type { IssueFix, IssueInstance } from "@/lib/client/inbox-issues";
 import { isShown, onePress } from "@/lib/keys";
 import { cn } from "@/lib/utils";
@@ -13,12 +14,13 @@ import { DismissButton } from "./set-aside";
 
 // The reader's buttons (design/tats's `.kb-bar`, a label then its key): the
 // one thing that deals with this issue, on F (the same link or the same form
-// post), Dismiss on E (set-aside.tsx), and the candidate's page. A decision has
+// post), with how it deals with it as its hover (`hint`), Dismiss on E
+// (set-aside.tsx), and the candidate's page. A decision has
 // its own bar (decision-bar.tsx: A, O, R, as design/tats, which has no F there).
 // design/tats's "Ask Grokbot" needs the bot.
 
 const Key = () => (
-  <Kbd decorative className="border-transparent bg-current/20 text-current">
+  <Kbd>
     F
   </Kbd>
 );
@@ -31,29 +33,29 @@ function FixKey({ press, label }: { press: () => void; label: string }) {
   return null;
 }
 
-function Submit({ label, refFn }: { label: string; refFn: (b: HTMLButtonElement | null) => void }) {
+function Submit({ label, hint, refFn }: { label: string; hint?: string; refFn: (b: HTMLButtonElement | null) => void }) {
   const { pending } = useFormStatus();
   return (
-    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="F" className={cn(button, primary)}>
+    <button ref={refFn} type="submit" disabled={pending} aria-keyshortcuts="F" title={hint} className={cn(button, primary)}>
       {label}
       <Key />
     </button>
   );
 }
 
-function LinkFix({ fix }: { fix: Extract<IssueFix, { type: "link" }> }) {
+function LinkFix({ fix, hint }: { fix: Extract<IssueFix, { type: "link" }>; hint?: string }) {
   const link = useRef<HTMLAnchorElement>(null);
   useKeys({ f: () => void (isShown(link.current) && link.current?.click()) });
   useKeyHelp("Inbox", [{ keys: "F", label: fix.label }]);
   return (
-    <Link ref={link} href={fix.href} aria-keyshortcuts="F" className={cn(button, primary)}>
+    <Link ref={link} href={fix.href} aria-keyshortcuts="F" title={hint} className={cn(button, primary)}>
       {fix.label}
       <Key />
     </Link>
   );
 }
 
-function WriteFix({ fix, instance, next, range }: { fix: Extract<IssueFix, { type: "write" }>; instance: IssueInstance; next: string | null; range: number }) {
+function WriteFix({ fix, instance, next, range, hint }: { fix: Extract<IssueFix, { type: "write" }>; instance: IssueInstance; next: string | null; range: number; hint?: string }) {
   const form = useRef<HTMLFormElement>(null);
   const submit = useRef<HTMLButtonElement | null>(null);
   return (
@@ -66,7 +68,7 @@ function WriteFix({ fix, instance, next, range }: { fix: Extract<IssueFix, { typ
       <input type="hidden" name="range" value={range} />
       {fix.nextAction !== null ? <input type="hidden" name="expected" value={fix.nextAction} /> : null}
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <Submit label={fix.label} refFn={(b) => void (submit.current = b)} />
+      <Submit label={fix.label} hint={hint} refFn={(b) => void (submit.current = b)} />
     </form>
   );
 }
@@ -77,16 +79,19 @@ export function FixBar({
   next,
   range,
   secondary,
+  hint,
 }: {
   fix: Extract<IssueFix, { type: "link" | "write" }>;
   instance: IssueInstance;
   next: string | null;
   range: number;
   secondary: { label: string; href: string } | null;
+  /** How the fix deals with the issue, for its hover. */
+  hint?: string;
 }) {
   return (
-    <div data-tour="inbox-keys" className="flex flex-wrap items-center gap-1.5">
-      {fix.type === "link" ? <LinkFix fix={fix} /> : <WriteFix fix={fix} instance={instance} next={next} range={range} />}
+    <div data-tour="inbox-keys" className="flex flex-wrap items-center gap-2">
+      {fix.type === "link" ? <LinkFix fix={fix} hint={hint} /> : <WriteFix fix={fix} instance={instance} next={next} range={range} hint={hint} />}
       <DismissButton instance={instance} next={next} range={range} />
       {secondary ? (
         <Link href={secondary.href} className={cn(button, plain)}>

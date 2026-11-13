@@ -49,12 +49,12 @@ describe("the control panel", () => {
     expect(html().match(/<button type="submit" value="[a-z]+"[^>]* name="route"/g)).toHaveLength(1);
   });
 
-  test("the picked pill wears the hover highlight", () => {
+  test("the picked pill is raised, as Testbench's segmented control picks", () => {
     const pills = html().match(/<button type="button" aria-pressed="(true|false)"[^>]*aria-keyshortcuts="[ISD]"[^>]*>/g)!;
     const picked = pills.find((p) => p.includes('aria-pressed="true"'))!;
-    expect(picked).toContain(" bg-foreground/[0.12]");
-    expect(picked).toContain("hover:bg-foreground/[0.12]");
-    expect(pills.find((p) => p.includes('aria-pressed="false"'))).not.toContain(" bg-foreground/[0.12]");
+    expect(picked).toContain("bg-[color:var(--pick)]");
+    expect(picked).toContain("shadow-[var(--pick-shadow)]");
+    expect(pills.find((p) => p.includes('aria-pressed="false"'))).not.toContain("bg-[color:var(--pick)]");
   });
 
   test("the reply opens on the picked move's starter", () => {
@@ -73,6 +73,13 @@ describe("the control panel", () => {
     expect(out).not.toContain('name="route"');
     expect(out).toContain(">Team<");
     expect(out).toContain("Review draft");
+  });
+
+  test("in the Inbox's pop-up the route and the reply post the Inbox's range, so they come back there; elsewhere neither does", () => {
+    const out = html({ routing: { ...routing, inbox: 3 }, reply: { ...reply, inbox: 3 } });
+    expect(out.match(/type="hidden" name="inbox" value="3"/g)).toHaveLength(2);
+    expect(out).not.toContain('name="home"');
+    expect(html()).not.toContain('name="inbox"');
   });
 
   test("a member who may not email them gets the next step alone", () => {

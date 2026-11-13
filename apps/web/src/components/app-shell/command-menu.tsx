@@ -4,20 +4,26 @@ import { useRouter } from "next/navigation";
 import { mayLeave } from "@/lib/leave-guard";
 import { useEffect, useId, useRef, useState } from "react";
 import { useCurrentCommandContext, type CommandContext } from "@/components/app-shell/command-context";
+import { Kbd } from "@/components/keys";
 import { cn } from "@/lib/utils";
+import "../overlays.css";
 
 // design/tats's ⌘K menu: every page and every open job, filtered as you type; the
 // candidates the member's own token can find (`/client/search`, debounced, so an
 // interviewer finds only the people they interview), and what can be done about
 // the candidate that's open (command-context.ts). An action only opens a control
 // the page already has, so nothing here writes. Candidate text is React text. The
-// prototype's "Ask Grokbot" commands have nothing behind them here.
+// prototype's "Ask Grokbot" commands have nothing behind them here. Drawn as
+// Testbench's `.dialog.cmdk` (overlays.css): the keys are the search row's hover
+// title and the kbd on the item you are on, not a row of their own.
 
 export type CommandItem = { group: string; label: string; href?: string; sub?: string | null; hint?: string; run?: () => void };
 
 export type CandidateHit = { candidateId: string; name: string; line: string | null };
 
 export const SEARCH_DEBOUNCE_MS = 200;
+/** Testbench's `.cmdk` keys: a sunken cap with a hairline, quieter than a button's. */
+const SUNKEN = "h-[22px] min-w-[22px] rounded-[5px] bg-[color:var(--soft)] px-1.5 text-faint opacity-100 shadow-[inset_0_0_0_1px_var(--line-strong)]";
 const SEARCH_MIN = 2;
 
 /** Case-insensitive substring match on the label, in the order given. */
@@ -88,6 +94,11 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
     return () => back.current?.focus();
   }, [open]);
 
+  // The row you are on stays in view as the arrows move it through a long list.
+  useEffect(() => {
+    if (open) document.getElementById(`${listId}-${at}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, at, listId]);
+
   if (!open) return null;
 
   const go = (item: CommandItem | undefined) => {
@@ -112,62 +123,60 @@ export function CommandMenu({ open, onClose, items }: { open: boolean; onClose: 
   };
 
   return (
-    <div className="pop-scrim fixed inset-0 z-[60] flex items-start justify-center bg-[color:var(--scrim)] px-4 pt-[12vh] pb-4" onMouseDown={onClose}>
+    <div className="pop-scrim ov-scrim fixed inset-0 z-[60] flex items-start justify-center px-4 pt-[16vh] pb-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command menu"
         onMouseDown={(e) => e.stopPropagation()}
-        className="pop-dialog w-full max-w-[640px] overflow-hidden rounded-[12px] border border-[color:var(--line-strong)] bg-raised shadow-[var(--pop-shadow)]"
+        className="pop-dialog ov-dialog flex max-h-[min(560px,80vh)] w-full max-w-[640px] flex-col overflow-hidden"
       >
-        {ctx ? (
-          <div className="flex px-3 pt-3">
-            <span className="inline-flex h-6 max-w-full items-center truncate rounded-full bg-[color:var(--soft)] px-[9px] text-[12.5px]">{ctx.name}</span>
-          </div>
-        ) : null}
-        <input
-          ref={input}
-          role="combobox"
-          aria-expanded="true"
-          aria-controls={listId}
-          aria-activedescendant={shown[at] ? `${listId}-${at}` : undefined}
-          aria-label="Search for a page, a job or a candidate"
-          placeholder="Search for a page, a job or a candidate"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setHi(0);
-          }}
-          onKeyDown={onKey}
-          className="h-[50px] w-full bg-transparent px-4 text-[15px] outline-none placeholder:text-faint"
-        />
-        <div id={listId} role="listbox" aria-label="Results" className="max-h-[52vh] overflow-y-auto border-t border-[color:var(--line)] p-1.5">
-          {shown.length === 0 && !searching && !failed ? <p className="m-0 px-2.5 py-2 text-[13px] text-muted-foreground">Nothing matches.</p> : null}
+        <div className="ov-cmdk-input" title="↑ ↓ to move, ↵ to open, esc to close">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" aria-hidden>
+            <path d="M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3" />
+          </svg>
+          {ctx ? <span className="inline-flex h-6 max-w-[40%] flex-none items-center truncate rounded-[6px] bg-[color:var(--soft-strong)] px-2 text-[12px] font-medium text-muted-foreground">{ctx.name}</span> : null}
+          <input
+            ref={input}
+            role="combobox"
+            aria-expanded="true"
+            aria-controls={listId}
+            aria-activedescendant={shown[at] ? `${listId}-${at}` : undefined}
+            aria-label="Search for a page, a job or a candidate"
+            placeholder="Search for a page, a job or a candidate"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setHi(0);
+            }}
+            onKeyDown={onKey}
+          />
+          <Kbd decorative className={cn(SUNKEN, "flex-none max-sm:hidden")}>
+            esc
+          </Kbd>
+        </div>
+        <div id={listId} role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto px-2 pt-1.5 pb-2.5">
+          {shown.length === 0 && !searching && !failed ? <p className="m-0 py-10 text-center font-sans text-[14px] text-faint">Nothing matches.</p> : null}
           {shown.map((item, i) => (
             <div key={`${item.group}:${item.href ?? item.label}`}>
-              {i === 0 || shown[i - 1]!.group !== item.group ? <div className="px-2.5 pt-2 pb-1 text-[11.5px] text-faint">{item.group}</div> : null}
-              <div
-                id={`${listId}-${i}`}
-                role="option"
-                aria-selected={i === at}
-                onMouseMove={() => setHi(i)}
-                onClick={() => go(item)}
-                className={cn("flex h-9 cursor-default items-center gap-2 px-2.5 text-[13.5px]", i === at && "bg-[color:var(--soft-strong)]")}
-              >
-                <span className="flex-none truncate max-sm:flex-initial">{item.label}</span>
-                {item.sub ? <span className="min-w-0 truncate text-[12.5px] text-faint">{item.sub}</span> : null}
-                {item.hint ? <span className="ml-auto flex-none text-[11.5px] text-faint">{item.hint}</span> : null}
+              {i === 0 || shown[i - 1]!.group !== item.group ? <div className="ov-cmdk-group">{item.group}</div> : null}
+              <div id={`${listId}-${i}`} role="option" aria-selected={i === at} onMouseMove={() => setHi(i)} onClick={() => go(item)} className="ov-cmdk-item">
+                <span className="ov-cmdk-label flex-none max-sm:flex-initial">{item.label}</span>
+                {item.sub ? <span className="ov-cmdk-sub">{item.sub}</span> : null}
+                <span className="ml-auto flex flex-none items-center gap-1.5">
+                  {item.hint ? <Kbd className={SUNKEN}>{item.hint}</Kbd> : null}
+                  {i === at ? (
+                    <Kbd decorative className={SUNKEN}>
+                      ↵
+                    </Kbd>
+                  ) : null}
+                </span>
               </div>
             </div>
           ))}
-          <p role="status" className={cn("m-0 text-[12.5px] text-faint", (searching || failed) && "px-2.5 py-1.5")}>
+          <p role="status" className={cn("m-0 text-[12.5px] text-faint", (searching || failed) && "px-2.5 py-2")}>
             {searching ? "Searching candidates…" : failed ? "Candidate search isn't working right now." : ""}
           </p>
-        </div>
-        <div className="flex items-center gap-3.5 border-t border-[color:var(--line)] px-3.5 py-2 text-xs text-faint">
-          <span>↑↓ to move</span>
-          <span>↵ to open</span>
-          <span>esc to close</span>
         </div>
       </div>
     </div>

@@ -1,0 +1,14 @@
+/* The intake composer's chips (intake-composer.tsx): each one that appears as
+   the text is understood settles in, quickly, rather than popping. Under
+   reduced motion globals.css takes the animation's time away. */
+@media (prefers-reduced-motion: no-preference) {
+  .intake-chip {
+    animation: intake-chip-in 0.16s var(--ease-out) both;
+  }
+}
+@keyframes intake-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.97);
+  }
+}

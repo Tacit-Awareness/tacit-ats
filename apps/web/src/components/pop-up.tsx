@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef } from "react";
-import { Kbd, useKeyHelp, useKeys } from "@/components/keys";
+import { useKeyHelp, useKeys } from "@/components/keys";
+import { Kbd } from "@/components/page";
 import { inertOutside, writeInFlight, type PopupNode } from "@/lib/client/inbox-popup";
+import "./overlays.css";
 
 // design/tats's full-page pop-up (`.overlay.fs`, `.fs-sheet`): one thing over the
 // list it came from, the Inbox's issues and the Pipeline's rows. The URL is its
@@ -17,6 +19,8 @@ import { inertOutside, writeInFlight, type PopupNode } from "@/lib/client/inbox-
 // again, this one's Esc included: useKeys is why Esc backs out of a confirmation
 // and leaves this open. It closes on ✕, Esc or a press on the scrim, not while a
 // write is under way. "Open as a page" is there for when you want the thing itself.
+// Drawn as Testbench's `.modal` (overlays.css): the box's grey surface under the
+// scrim's blur, so what it shows sits in its own white cards, as on the page.
 
 function CloseIcon() {
   return (
@@ -28,7 +32,7 @@ function CloseIcon() {
 
 function PageIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-3.5 flex-none">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-[15px]">
       <path d="M5 11l6-6M6 5h5v5" />
     </svg>
   );
@@ -48,7 +52,8 @@ export function PopUp({
   /** What is open. A new one starts at the top with focus in the body: the next lands here after a fix, or on J and K. */
   showing: string;
   title: string;
-  subject: string;
+  /** The line under the title: words, or facts as separate spans (they sit apart, no "·" between them). */
+  subject: React.ReactNode;
   /** Where closing lands. */
   home: string;
   /** "Open as a page": the thing itself. Null when there's no page this member can open. */
@@ -108,21 +113,21 @@ export function PopUp({
         // The sheet fills all but the scrim's edge, so only the scrim lands here.
         if (e.target === e.currentTarget) close();
       }}
-      className="pop-scrim fixed inset-0 z-50 flex items-stretch justify-center bg-[color:var(--scrim)] sm:p-5"
+      className="pop-scrim ov-scrim fixed inset-0 z-50 flex items-stretch justify-center sm:p-5"
     >
       <div
         ref={sheet}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="pop-dialog flex w-full max-w-[1280px] min-w-0 flex-col overflow-hidden sm:rounded-[12px] bg-[color:var(--paper)] shadow-[var(--pop-shadow)]"
+        className="pop-dialog ov-dialog flex w-full max-w-[1280px] min-w-0 flex-col overflow-hidden max-sm:rounded-none"
       >
-        <header className="flex min-h-14 flex-none items-center gap-3 border-b border-[color:var(--line-strong)] bg-[color:var(--surface)] py-2 pr-3 pl-4 md:pl-6">
+        <header className="flex min-h-16 flex-none items-center gap-3 border-b border-[color:var(--line)] py-3 pr-3 pl-5 md:pl-7">
           <div className="grid min-w-0 flex-1 gap-0.5">
-            <h2 id={titleId} className="m-0 text-[16px] leading-snug font-semibold tracking-[-0.01em] break-words">
+            <h2 id={titleId} className="m-0 font-sans text-[20px] leading-[26px] font-semibold tracking-[-0.015em] break-words">
               {title}
             </h2>
-            {subject ? <p className="m-0 text-[13px] break-words text-muted-foreground">{subject}</p> : null}
+            {subject ? <p className="m-0 flex min-w-0 flex-wrap gap-x-3 text-[13px] break-words text-muted-foreground">{subject}</p> : null}
           </div>
           {pageHref ? (
             <Link
@@ -132,7 +137,7 @@ export function PopUp({
               onClick={(e) => {
                 if (busy()) e.preventDefault();
               }}
-              className="inline-flex h-8 flex-none items-center gap-1.5 rounded-full px-2.5 text-[12.5px] whitespace-nowrap text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+              className="ov-icon-btn"
             >
               <PageIcon />
               <span className="max-sm:hidden">Open as a page</span>
@@ -145,11 +150,10 @@ export function PopUp({
             onClick={(e) => {
               if (busy()) e.preventDefault();
             }}
-            className="inline-flex h-8 flex-none items-center gap-2 rounded-full px-2 text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+            title="Close (esc)"
+            className="ov-icon-btn"
           >
-            <Kbd decorative className="max-sm:hidden">
-              esc
-            </Kbd>
+            <Kbd className="max-sm:hidden">esc</Kbd>
             <CloseIcon />
           </Link>
         </header>

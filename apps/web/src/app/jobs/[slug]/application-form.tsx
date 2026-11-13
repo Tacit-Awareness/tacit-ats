@@ -1,5 +1,6 @@
 import { Ico, ICON } from "@/components/careers/frame";
 import { Marked } from "@/components/marked";
+import { StatusGlyph } from "@/components/page";
 import { formSections, questionLabel } from "@/lib/public/application";
 import { VIA, type Channel } from "@/lib/public/channel";
 import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, RESUME_FIELD, type PublicQuestion } from "@/lib/public/jobs";
@@ -11,6 +12,8 @@ import { APPLY_FORM } from "./guide";
 // answer's field is a_<question id>. The resume is a file, posted with the
 // rest as multipart (the route checks and stores it). The prototype's resume
 // reading, note writer, consent box and undo have nothing behind them yet.
+// Drawn as Testbench's sign-in card: one white card, 44px fields with a hard
+// edge, Geist Mono labels, and the company's colour on the submit button.
 
 export const answerField = (q: PublicQuestion) => `${ANSWER_PREFIX}${q.id}`;
 
@@ -43,6 +46,18 @@ function ResumeDrop({ q }: { q: PublicQuestion }) {
   );
 }
 
+/** A native <select> with its chevron drawn in the text colour (not baked into an image), so it reads in both themes. */
+function Select({ children, ...props }: React.ComponentProps<"select">) {
+  return (
+    <span className="sel">
+      <select className="input" {...props}>
+        {children}
+      </select>
+      <Ico d={ICON.down} />
+    </span>
+  );
+}
+
 function Question({ q }: { q: PublicQuestion }) {
   const name = answerField(q);
   if (q.type === "resume") return <ResumeDrop q={q} />;
@@ -68,14 +83,14 @@ function Question({ q }: { q: PublicQuestion }) {
     input = <textarea className="input" name={name} required={q.required} maxLength={5000} rows={6} />;
   } else if (q.type === "select") {
     input = (
-      <select className="input" name={name} required={q.required} defaultValue="">
+      <Select name={name} required={q.required} defaultValue="">
         <option value="">Choose…</option>
         {(q.options ?? []).map((o) => (
           <option key={o} value={o}>
             {o}
           </option>
         ))}
-      </select>
+      </Select>
     );
   } else {
     const kind = {
@@ -100,15 +115,18 @@ function Question({ q }: { q: PublicQuestion }) {
 export function ApplicationForm({ slug, company, questions, notice, channel }: { slug: string; company: string; questions: PublicQuestion[]; notice: string | null; channel: Channel }) {
   const { resume, about, custom } = formSections(questions);
   return (
-    <form id={APPLY_FORM} className="form" method="post" encType="multipart/form-data" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
+    <form id={APPLY_FORM} className="form card" method="post" encType="multipart/form-data" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
       {notice ? (
         <p className="notice" role="alert">
+          <StatusGlyph kind="alert" />
           {notice}
         </p>
       ) : null}
       {resume.length > 0 ? (
         <div className="sec">
-          <h2 className="sec-title">Resume</h2>
+          {/* With one resume question its own label (and required mark) names the
+              section, so the heading stays for screen readers only. */}
+          <h2 className={resume.length === 1 ? "sr-only" : "sec-title"}>Resume</h2>
           <div className="stack">
             {resume.map((q) => (
               <Question key={q.id} q={q} />
@@ -138,8 +156,8 @@ export function ApplicationForm({ slug, company, questions, notice, channel }: {
       <div className="sec">
         <details className="eeo">
           <summary>
-            Voluntary self-identification <span className="req">Optional</span>
-            <Ico d={ICON.chev} />
+            Voluntary self-identification <span className="opt">Optional</span>
+            <Ico d={ICON.down} />
           </summary>
           <p className="sec-sub">
             {company} invites applicants to self-identify for equal employment opportunity reporting. Answering is optional and does not affect
@@ -150,13 +168,13 @@ export function ApplicationForm({ slug, company, questions, notice, channel }: {
             {EEOC_QUESTIONS.map((q) => (
               <label key={q.key} className="field">
                 <span className="lbl">{q.label}</span>
-                <select className="input" name={`${EEOC_PREFIX}${q.key}`} defaultValue={DECLINE}>
+                <Select name={`${EEOC_PREFIX}${q.key}`} defaultValue={DECLINE}>
                   {q.options.map(([value, text]) => (
                     <option key={value} value={value}>
                       {text}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             ))}
           </div>
@@ -170,7 +188,7 @@ export function ApplicationForm({ slug, company, questions, notice, channel }: {
         </label>
       </div>
       <div className="sec">
-        <button type="submit" className="btn dark">
+        <button type="submit" className="cta">
           Submit application
         </button>
       </div>

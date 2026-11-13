@@ -6,19 +6,22 @@ import { createPortal } from "react-dom";
 import { openKeys } from "@/components/app-shell/shell-keys";
 import { TourButton } from "@/components/app-shell/shell-tour";
 import { useWarmth } from "@/components/app-shell/warmth";
-import { Kbd } from "@/components/keys";
+import { Kbd, Pill } from "@/components/page";
 import { SIGN_OUT_KEYS, menuKey, stepIndex } from "@/lib/keys";
 import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { MAX_WARMTH, warmthHint } from "@/lib/warmth";
+import "../overlays.css";
 
-// design/tats's account menu: your name alone as a quiet button at the bottom
-// of the sidebar, opening who you are, Onboarding, Settings, Tutorial, Documentation,
-// the keyboard shortcuts, the theme and Sign out. On the
-// rail the name has no room, so a person glyph opens the same menu: the theme
-// and Sign out stay a click away. Under the theme, the warmth fix for this
-// display (Off, 1-4; app-shell/warmth.tsx). The menu is portalled to <body>: the sidebar
-// clips, and on a phone its transform would trap a fixed box.
+// design/tats's account menu, drawn as Testbench's `.menu`: your name alone as a
+// quiet button at the bottom of the sidebar, opening who you are, Onboarding,
+// Settings, Tutorial, Documentation, the keyboard shortcuts, the theme and Sign
+// out. On the rail the name has no room, so a person glyph opens the same menu:
+// the theme and Sign out stay a click away. Under the theme, the warmth fix for
+// this display (Off, 1-4; app-shell/warmth.tsx). The theme and the warmth are
+// Testbench's small segmented control. The menu is portalled to <body>: the
+// sidebar clips, and on a phone its transform would trap a fixed box. Its look
+// is overlays.css.
 
 const GLYPHS = {
   person: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
@@ -55,11 +58,6 @@ function applyTheme(choice: ThemeChoice) {
 }
 
 const WARMTH_STEPS = Array.from({ length: MAX_WARMTH + 1 }, (_, k) => k);
-
-const pillCls = "grid h-7 place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[color:var(--accent)]";
-const pillState = (on: boolean) => (on ? "bg-[color:var(--ink)] text-[color:var(--paper)]" : "text-muted-foreground hover:text-foreground");
-
-const optionCls = "flex h-9 w-full items-center gap-2.5 px-3 text-left text-[13.5px] outline-none hover:bg-[color:var(--hover)] focus:bg-[color:var(--hover)]";
 
 export function AccountMenu({ user, rail, pathname }: { user: { name: string; email: string; level: string }; rail: boolean; pathname: string }) {
   const [at, setAt] = useState<{ left: number; bottom: number } | null>(null);
@@ -142,56 +140,56 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
               role="menu"
               aria-label="Account"
               style={at}
-              className="fixed z-[60] max-h-[calc(100vh-16px)] w-[280px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised text-foreground shadow-[var(--pop-shadow)]"
+              className="ov-menu fixed z-[60] max-h-[calc(100vh-16px)] w-[288px] max-w-[calc(100vw-16px)] origin-bottom-left overflow-y-auto"
             >
-              <div className="grid gap-1 px-4 pt-4 pb-3">
+              <div className="ov-head">
                 <div className="flex min-w-0 items-center gap-2">
-                  <b className="truncate text-[14.5px] font-semibold">{name}</b>
-                  {user.level ? <span className="shrink-0 rounded-full border border-[color:var(--line)] bg-surface px-2 py-px text-[12px] text-muted-foreground">{user.level}</span> : null}
+                  <b className="truncate text-[13px] font-medium">{name}</b>
+                  {user.level ? <Pill className="h-5 flex-none rounded-[5px] px-1.5 text-[11.5px]">{user.level}</Pill> : null}
                 </div>
-                {user.name ? <span className="truncate text-[13px] text-muted-foreground">{user.email}</span> : null}
+                {user.name ? <span className="truncate text-[12px] text-faint">{user.email}</span> : null}
               </div>
-              <div className="border-t border-[color:var(--line)] p-1">
-                <Link href="/client/onboarding/people" role="menuitem" onClick={close} className={optionCls}>
-                  <Glyph name="sliders" className="text-muted-foreground" />
-                  Onboarding
-                </Link>
-                <Link href="/client/settings" role="menuitem" onClick={close} className={optionCls}>
-                  <Glyph name="gear" className="text-muted-foreground" />
-                  Settings
-                </Link>
-                <TourButton role="menuitem" onClick={close} className={optionCls}>
-                  <Glyph name="tour" className="text-muted-foreground" />
-                  Tutorial
-                </TourButton>
-              </div>
-              <div className="border-t border-[color:var(--line)] p-1">
-                <Link href="/client/docs" role="menuitem" onClick={close} className={optionCls}>
-                  <Glyph name="help" className="text-muted-foreground" />
-                  Documentation
-                </Link>
-                {/* No phone has the keys, so no phone gets the sheet. */}
-                <button
-                  type="button"
-                  role="menuitem"
-                  aria-keyshortcuts="?"
-                  onClick={() => {
-                    close();
-                    openKeys();
-                  }}
-                  className={cn(optionCls, "max-md:hidden")}
-                >
-                  <Glyph name="keys" className="text-muted-foreground" />
-                  <span className="flex-1">Keyboard shortcuts</span>
-                  <Kbd decorative>?</Kbd>
-                </button>
-              </div>
-              <div className="flex items-center justify-between gap-2 border-t border-[color:var(--line)] py-1.5 pr-2 pl-4 text-[13.5px]">
-                <span className="inline-flex items-center gap-2.5">
-                  <Glyph name="dark" className="text-muted-foreground" />
+              <Link href="/client/onboarding/people" role="menuitem" onClick={close} className="ov-item">
+                <Glyph name="sliders" />
+                Onboarding
+              </Link>
+              <Link href="/client/settings" role="menuitem" onClick={close} className="ov-item">
+                <Glyph name="gear" />
+                Settings
+              </Link>
+              <TourButton role="menuitem" onClick={close} className="ov-item">
+                <Glyph name="tour" />
+                Tutorial
+              </TourButton>
+              <div className="ov-sep" />
+              <Link href="/client/docs" role="menuitem" onClick={close} className="ov-item">
+                <Glyph name="help" />
+                Documentation
+              </Link>
+              {/* No phone has the keys, so no phone gets the sheet. */}
+              <button
+                type="button"
+                role="menuitem"
+                aria-keyshortcuts="?"
+                onClick={() => {
+                  close();
+                  openKeys();
+                }}
+                className="ov-item max-md:hidden"
+              >
+                <Glyph name="keys" />
+                Keyboard shortcuts
+                <span className="ov-end">
+                  <Kbd>?</Kbd>
+                </span>
+              </button>
+              <div className="ov-sep" />
+              <div className="ov-row">
+                <span>
+                  <Glyph name="dark" />
                   Theme
                 </span>
-                <div role="group" aria-label="Theme" className="pill-track inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
+                <div role="group" aria-label="Theme" className="ov-seg">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}
@@ -204,19 +202,18 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                         applyTheme(t.value);
                         setTheme(t.value);
                       }}
-                      className={cn(pillCls, "w-[34px]", pillState(theme === t.value))}
                     >
                       <Glyph name={t.value} />
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex items-center justify-between gap-2 border-t border-[color:var(--line)] py-1.5 pr-2 pl-4 text-[13.5px]">
-                <span className="inline-flex items-center gap-2.5" title={warmthHint(warmth.night)}>
-                  <Glyph name="system" className="text-muted-foreground" />
+              <div className="ov-row">
+                <span title={warmthHint(warmth.night)}>
+                  <Glyph name="system" />
                   Warmth fix
                 </span>
-                <div role="group" aria-label="Warmth correction for this display" className="pill-track inline-flex rounded-full bg-[color:var(--soft-strong)] p-[3px]">
+                <div role="group" aria-label="Warmth correction for this display" className="ov-seg">
                   {WARMTH_STEPS.map((k) => (
                     <button
                       key={k}
@@ -226,27 +223,25 @@ export function AccountMenu({ user, rail, pathname }: { user: { name: string; em
                       aria-label={k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "Off, no correction"}
                       title={k ? `Cool by ${k} step${k > 1 ? "s" : ""}` : "No correction"}
                       onClick={() => warmth.set(k)}
-                      className={cn(pillCls, "min-w-[26px] px-[7px] text-[12px] tabular-nums", pillState(warmth.level === k))}
                     >
                       {k ? k : "Off"}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="border-t border-[color:var(--line)] p-1">
-                {/* A plain form POST, so it can't be triggered by a GET. */}
-                <form action="/client/signout" method="post">
-                  <button type="submit" role="menuitem" aria-keyshortcuts="Shift+Meta+Q" className={optionCls}>
-                    <Glyph name="signout" className="text-muted-foreground" />
-                    <span className="flex-1">Sign out</span>
+              <div className="ov-sep" />
+              {/* A plain form POST, so it can't be triggered by a GET. */}
+              <form action="/client/signout" method="post">
+                <button type="submit" role="menuitem" aria-keyshortcuts="Shift+Meta+Q" className="ov-item">
+                  <Glyph name="signout" />
+                  Sign out
+                  <span className="ov-end">
                     {SIGN_OUT_KEYS.split(" ").map((k) => (
-                      <Kbd key={k} decorative>
-                        {k}
-                      </Kbd>
+                      <Kbd key={k}>{k}</Kbd>
                     ))}
-                  </button>
-                </form>
-              </div>
+                  </span>
+                </button>
+              </form>
             </div>,
             document.body,
           )

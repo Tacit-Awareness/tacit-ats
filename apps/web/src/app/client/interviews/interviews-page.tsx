@@ -17,7 +17,7 @@ import { GranolaLoading, GranolaNotes } from "./granola";
 import { feedbackCards, loopProps } from "./loop-props";
 import { InterviewsView, type ListGroup, type Reader } from "./view";
 
-// design/tats's Interviews: every interview the member can see, Upcoming and
+// The Interviews page (Interview Judgement): every interview the member can see, Upcoming and
 // then the past ones by how they went, and a reader with the candidate's loop
 // and this interview's feedback. Read with the signed-in member's own token
 // (lib/client/interviews.ts), so an interviewer sees their own interviews and
@@ -133,11 +133,14 @@ export async function InterviewsContent({ sp, home = false }: { sp: Record<strin
       interviewId: i.interviewId,
       href: href(i.interviewId),
       candidate: i.candidateName ?? "Candidate",
-      // design/tats's "Round · interviewer · date"; the date stays relative (no time zone on the server).
-      line: [i.step ?? "Interview", whoRan(i.interviewers), when(i, nowMs)].filter(Boolean).join(" · "),
+      // The round, who ran it, and when; the date stays relative (no time zone on the server).
+      line: [i.step ?? "Interview", i.interviewers.join(", "), when(i, nowMs)].filter(Boolean).join("\n"),
+      step: i.step ?? "Interview",
+      who: whoRan(i.interviewers),
       when: when(i, nowMs),
       whenTitle: utc(i.startsAt),
       verdict: g.key === "upcoming" ? null : (g.key as Verdict),
+      live: g.key === "upcoming" && Date.parse(i.startsAt) <= nowMs,
       selected: selected?.interviewId === i.interviewId,
     })),
   }));

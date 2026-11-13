@@ -16,18 +16,30 @@ import { CANDIDATE_ERRORS, type CandidateError } from "./messages";
 // back and says why, in place, so the pop-up stays open. L opens the menu; J / K
 // or the arrows, Enter or a digit, Esc, as the board's stage menu. The labels are
 // the company's own: this puts them on and takes them off, and makes none.
+// Drawn as Testbench's chips and `.menu`: the add button a dashed chip, the menu
+// white with 34px items, each label's digit as a key at its end.
 
 export type LabelOption = { tagId: string; name: string };
 
 type Flip = { name: string; on: boolean };
 const flipped = (labels: string[], { name, on }: Flip) => (on ? [...labels.filter((l) => l !== name), name] : labels.filter((l) => l !== name));
 
-const WIDTH = 220;
-const ITEM = "flex h-8 w-full flex-none items-center gap-2 px-2 text-left text-[13px] outline-none hover:bg-[color:var(--soft-strong)] focus-visible:bg-[color:var(--soft-strong)]";
+const WIDTH = 240;
+/** Testbench's `.menu-item`: 34px, 7px corners. */
+const ITEM =
+  "flex h-[34px] w-full flex-none items-center gap-2.5 rounded-[7px] px-2.5 text-left text-[13px] outline-none transition-colors hover:bg-[color:var(--hover)] focus-visible:bg-[color:var(--hover)]";
+/** A key inside the item, Testbench's `.kbd`. */
+const KEY = "ml-auto inline-grid h-5 min-w-5 place-items-center rounded-[4px] px-1 font-mono text-[11px] text-muted-foreground shadow-[inset_0_0_0_1px_currentColor] opacity-70";
 
 function Check({ on }: { on: boolean }) {
   return (
-    <span aria-hidden className={cn("grid size-[14px] flex-none place-items-center border border-[color:var(--line-strong)]", on && "bg-foreground text-background")}>
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-4 flex-none place-items-center rounded-[4px] bg-[color:var(--paper)] text-[color:var(--primary-ink)] shadow-[inset_0_0_0_1px_var(--field)]",
+        on && "bg-[color:var(--primary)] shadow-none",
+      )}
+    >
       {on ? (
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="size-[11px]">
           <path d="m3 8.5 3.2 3.2L13 4.8" />
@@ -93,9 +105,9 @@ function Menu({ anchor, options, carried, onFlip, onClose }: { anchor: DOMRect; 
       role="menu"
       aria-label="Labels"
       style={{ width: WIDTH }}
-      className="fixed z-[55] flex max-h-[280px] flex-col gap-px overflow-y-auto rounded-[10px] border border-[color:var(--line-strong)] bg-raised p-1 shadow-[var(--pop-shadow)]"
+      className="fixed z-[55] flex max-h-[300px] flex-col overflow-y-auto rounded-[12px] bg-raised p-1.5 shadow-[var(--pop-shadow)]"
     >
-      <p className="m-0 flex-none px-2 py-1 text-[12px] text-faint">Labels</p>
+      <p className="m-0 flex-none px-2.5 pt-1.5 pb-1 text-[11.5px] text-faint">Labels</p>
       {options.map((o, i) => {
         const on = carried.includes(o.name);
         return (
@@ -103,9 +115,9 @@ function Menu({ anchor, options, carried, onFlip, onClose }: { anchor: DOMRect; 
             <Check on={on} />
             <span className="min-w-0 flex-1 truncate">{o.name}</span>
             {i < 9 ? (
-              <span aria-hidden className="text-[11.5px] text-faint tabular-nums">
+              <kbd aria-hidden className={KEY}>
                 {i + 1}
-              </span>
+              </kbd>
             ) : null}
           </button>
         );
@@ -158,8 +170,11 @@ export function LabelMenu({ candidateId, labels, options }: { candidateId: strin
         aria-keyshortcuts="L"
         title="Edit labels (L)"
         onClick={() => (anchor ? close(false) : open())}
-        className="inline-flex h-6 items-center gap-1 rounded-full border border-dashed border-[color:var(--line-strong)] px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+        className="inline-flex h-[26px] items-center gap-1.5 rounded-[6px] border border-dashed border-[color:var(--line-strong)] px-[9px] font-mono text-[12.5px] text-muted-foreground transition-colors hover:border-[color:var(--faint)] hover:bg-[color:var(--hover)] hover:text-foreground aria-expanded:border-solid aria-expanded:bg-[color:var(--hover)] aria-expanded:text-foreground"
       >
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="size-3" aria-hidden>
+          <path d="M8 3.5v9M3.5 8h9" />
+        </svg>
         Labels
       </button>
       {anchor ? <Menu anchor={anchor} options={options} carried={shown} onFlip={toggle} onClose={close} /> : null}

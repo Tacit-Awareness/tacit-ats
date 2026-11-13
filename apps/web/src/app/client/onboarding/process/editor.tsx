@@ -21,6 +21,8 @@ import { SAVE_ERRORS, STALE_SAVE } from "./messages";
 
 type Said = { tone: "info" | "error"; text: string } | null;
 
+const LINK = "font-medium underline decoration-current/40 underline-offset-[3px] transition-[text-decoration-color] hover:decoration-current disabled:opacity-50";
+
 /** `onDirty` hears whether there is anything unsaved, for a sheet that has to ask before it closes. */
 export function ProcessEditor({ read, canEdit, onDirty }: { read: ProcessRead; canEdit: boolean; onDirty?: (dirty: boolean) => void }) {
   const [state, dispatch] = useReducer(editorReducer, read.graph, editorState);
@@ -97,7 +99,7 @@ export function ProcessEditor({ read, canEdit, onDirty }: { read: ProcessRead; c
         <span className="flex-1" />
         {canEdit ? (
           <>
-            <span className="text-xs text-faint" role="status">
+            <span className="text-[12px] text-faint" role="status">
               {dirty ? "Unsaved changes" : saved.drawn ? "Saved" : ""}
             </span>
             <Button size="sm" disabled={saving || (!dirty && saved.drawn)} onClick={() => save(saved.updatedAt)}>
@@ -113,10 +115,10 @@ export function ProcessEditor({ read, canEdit, onDirty }: { read: ProcessRead; c
       {conflict ? (
         <Notice tone="error">
           {STALE_SAVE}{" "}
-          <button type="button" className="underline" disabled={saving} onClick={() => save(conflict.latest)}>
+          <button type="button" className={LINK} disabled={saving} onClick={() => save(conflict.latest)}>
             Save mine over it
           </button>{" "}
-          <button type="button" className="underline" onClick={() => window.location.reload()}>
+          <button type="button" className={LINK} onClick={() => window.location.reload()}>
             Reload
           </button>
         </Notice>

@@ -97,8 +97,8 @@ describe("a member's card", () => {
     expect(card).toMatchObject({ kind: "member", name: "Ivy", line: "Engineer · Platform", state: null, link });
     expect(card.rows).toEqual([
       { label: "Interviews", value: "Likes it", faint: "2 of 3 this week" },
-      { label: "Knows", value: "Go, Systems" },
-      { label: "Reach", value: "Slack" },
+      { label: "Skills", value: "Go, Systems" },
+      { label: "Reach on", value: "Slack" },
     ]);
   });
 

@@ -45,8 +45,10 @@ describe("the list", () => {
   test("puts steps side by side in one level, with their branches", () => {
     expect(html).toContain("Depends on the team");
     expect(html).toContain("Systems");
-    expect(html).toContain("Engineering · Interview · 1h");
-    expect(html).toContain("Everyone else · Interview");
+    // A step's facts in order (its branch, its kind, its length), each a span of its own, never dotted.
+    expect(html).toMatch(/<span>Engineering<\/span><span>Interview<\/span><span>1h<\/span>/);
+    expect(html).toMatch(/<span>Everyone else<\/span><span>Interview<\/span>/);
+    expect(html).not.toContain("·");
   });
 
   test("gives each team its way through, and a job in none", () => {

@@ -2,21 +2,22 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { SkyPage } from "./refusal";
 
 // A read that fails with nothing to catch it, a dropped connection most often.
 // Nothing about the failure reaches the page. Try again reloads: the boundary's own
-// reset only redraws what failed, from the same server answer.
+// reset only redraws what failed, from the same server answer. Drawn as the other
+// pages outside the shell (SkyPage); under the sidebar, as its title and card only.
 export default function ClientError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
     console.error("[client] a page failed:", error.digest ?? error.message);
   }, [error]);
   return (
-    <div role="alert" className="mx-auto grid max-w-[420px] justify-items-start gap-3 p-8">
-      <h1 className="m-0 text-[17px] font-semibold">This page didn&apos;t load</h1>
-      <p className="m-0 text-[14px] text-muted-foreground">Nothing you saved is affected. Try again in a moment.</p>
-      <Button size="sm" onClick={() => window.location.reload()}>
+    <SkyPage role="alert" title="This page didn't load">
+      <p>Nothing you saved is affected. Try again in a moment.</p>
+      <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
         Try again
       </Button>
-    </div>
+    </SkyPage>
   );
 }

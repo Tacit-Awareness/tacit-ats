@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { KeyList, useKeyHelp, useKeys } from "@/components/keys";
-import { Avatar } from "@/components/page";
+import { StatusGlyph } from "@/components/page";
 import { dismissToast, showToast } from "@/components/toasts";
 import { NO_DROP, type ColumnKey } from "@/lib/client/pipeline-columns";
 import type { StageMove } from "@/lib/client/pipeline-moves";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { CANDIDATE_ERRORS, CANDIDATE_NOTICES } from "../candidates/[id]/messages";
 import { moveCardAction, type BoardMoveResult } from "./actions";
 import { DESKTOP_POINTER, menuSpot, moveForm, neighbourOf, shiftCard, takesRowMenu, type BoardCard, type BoardColumn } from "./board-state";
+import { columnGlyph } from "./column-glyph";
 import { MoveMenu, type MenuAt } from "./move-menu";
 
 // The board's columns and cards, and what moves one: a drag, the menu on the
@@ -38,7 +39,11 @@ function MoveIcon() {
   );
 }
 
-/** design/tats's `.card.calm`: 12px padding, 4px between lines, the footer 4px further down with a 20px owner. */
+/**
+ * design/tats's `.card.calm` as a Testbench card: white, 10px corners, a soft
+ * shadow, 12px in. The name in 500, the headline faint, one status line (red
+ * with the alert square when they have stalled) and the owner's name, no avatar.
+ */
 function Card({
   card,
   dragged,
@@ -71,28 +76,34 @@ function Card({
       onDragEnd={onDragEnd}
       onContextMenu={(e) => onContext(card, e)}
       className={cn(
-        "group relative rounded-[8px] border border-[color:var(--line)] bg-[color:var(--paper)] shadow-[var(--shadow)] transition-colors hover:border-[color:var(--line-strong)]",
+        "group relative rounded-[10px] bg-[color:var(--paper)] shadow-[var(--shadow-sm)] transition-[box-shadow,opacity] hover:shadow-[var(--shadow)] has-[a:focus-visible]:shadow-[inset_0_0_0_1.5px_var(--ink)]",
+        movable && !locked && "cursor-grab active:cursor-grabbing",
         dragged && "opacity-40",
       )}
     >
-      <Link href={card.href} draggable={false} data-key-item className="grid gap-1 p-3">
-        <span data-hc={hoverAttr("candidate", card.personId)} className={cn("truncate text-[14px] leading-[1.3] font-medium", movable && "pr-5")}>
+      <Link href={card.href} draggable={false} data-key-item className="grid gap-1 rounded-[10px] p-3 text-[12.5px] focus-visible:outline-none!">
+        {/* The name wraps rather than cut short; it keeps clear of the move button's corner. */}
+        <span data-hc={hoverAttr("candidate", card.personId)} className={cn("justify-self-start text-[13px] leading-5 font-medium [overflow-wrap:anywhere]", movable && "pr-6")}>
           {card.name}
         </span>
-        <span className="truncate text-[12.5px] text-muted-foreground">{card.line}</span>
-        <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px]">
-          <span
-            className={cn("min-w-0 truncate", card.stalled ? "text-negative" : "text-muted-foreground")}
-            title={card.stalled ? "Needs attention: overdue, or untouched for a while" : undefined}
-          >
-            {card.status}
+        {/* A new person's status is often the posting's title, which is their line too: it reads once. */}
+        {card.line && card.line !== card.status ? (
+          <span title={card.line} className="truncate text-faint">
+            {card.line}
           </span>
-          {card.ownerName ? (
-            <span title={card.ownerName} data-hc={card.ownerActorId ? hoverAttr("member", card.ownerActorId) : undefined} className="shrink-0">
-              <Avatar name={card.ownerName} size="xs" />
-            </span>
-          ) : null}
+        ) : null}
+        <span
+          className={cn("mt-1 flex min-w-0 items-start gap-1.5", card.stalled ? "text-negative" : "text-muted-foreground")}
+          title={card.stalled ? `${card.status}. Needs attention: overdue, or untouched for a while` : card.status}
+        >
+          {card.stalled ? <StatusGlyph kind="alert" className="mt-1 size-3" /> : null}
+          <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{card.status}</span>
         </span>
+        {card.ownerName ? (
+          <span title={`Owner: ${card.ownerName}`} className="min-w-0 truncate text-faint">
+            <span data-hc={card.ownerActorId ? hoverAttr("member", card.ownerActorId) : undefined}>{card.ownerName}</span>
+          </span>
+        ) : null}
       </Link>
       {movable ? (
         <button
@@ -105,8 +116,8 @@ function Card({
           disabled={locked}
           onClick={() => onMenu(card)}
           className={cn(
-            "absolute top-2 right-2 grid size-6 place-items-center rounded-full text-muted-foreground transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground [@media(hover:none)]:opacity-100",
-            menuOpen ? "opacity-100" : "opacity-0",
+            "absolute top-2 right-2 grid size-7 place-items-center rounded-[7px] text-muted-foreground transition-[opacity,background-color,color] group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-[color:var(--hover)] hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+            menuOpen ? "bg-[color:var(--hover)] text-foreground opacity-100" : "opacity-0",
           )}
         >
           <MoveIcon />
@@ -116,7 +127,16 @@ function Card({
   );
 }
 
-/** design/tats's `.col`: `flex: 1 1 0`, at least 184px wide and 300px high, so an empty one is a blank band. `.col.over` while a card is over it. */
+/**
+ * design/tats's `.col`, as a recessed well on the box's surface: `flex: 1 1 0`,
+ * at least 168px wide (all six fill a 1440px window; a narrower one scrolls
+ * sideways, as design/tats's did) and 300px high, so an empty one is a blank
+ * well; a column whose name needs more is as wide as its head, so no name is
+ * cut short (the board is Geist Mono, where a `ch` is every letter's width). The head
+ * is the column's square, its name and the count faint. While a card is
+ * dragged, a column that means a stage for it is ringed in the accent (filled
+ * once the card is over it), and one that doesn't fades.
+ */
 function Column({
   column,
   source,
@@ -147,6 +167,7 @@ function Column({
     e.dataTransfer.dropEffect = "move";
     onOver();
   };
+  const glyph = columnGlyph(column.key);
   return (
     <section
       aria-label={column.label}
@@ -160,14 +181,16 @@ function Column({
         e.preventDefault();
         onDrop();
       }}
+      style={{ minWidth: `max(168px, calc(${column.label.length}ch + 72px))` }}
       className={cn(
-        "flex min-h-[300px] min-w-[184px] flex-[1_1_0] flex-col gap-2 bg-[color:var(--band)] p-1 shadow-[inset_0_0_0_1px_var(--line)] transition-[background-color,opacity]",
-        takes && "ring-1 ring-[color:var(--accent)] ring-inset",
+        "flex min-h-[300px] flex-[1_1_0] flex-col gap-1.5 rounded-[12px] bg-[color:var(--soft)] p-1.5 shadow-[inset_0_0_0_1px_var(--line)] transition-[background-color,box-shadow,opacity] duration-200 ease-[var(--ease-out)]",
+        takes && "shadow-[inset_0_0_0_1.5px_var(--accent)]",
         takes && over && "bg-[color:var(--accent-soft)]",
         takes === false && !source && "opacity-55",
       )}
     >
-      <h2 className="m-0 mb-0.5 flex h-[30px] shrink-0 items-center gap-2 border-b border-[color:var(--line)] bg-[color:var(--surface)] px-2 text-[14px] font-medium">
+      <h2 className="m-0 flex h-8 shrink-0 items-center gap-1.5 px-2 font-mono text-[13px] font-medium tracking-normal whitespace-nowrap">
+        <StatusGlyph kind={glyph.kind} color={glyph.color} />
         {column.label}
         <span className="font-normal text-faint tabular-nums">{column.total}</span>
       </h2>
@@ -175,7 +198,7 @@ function Column({
       {column.more ? (
         <Link
           href={column.more.href}
-          className="grid h-[30px] place-items-center rounded-full text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
+          className="grid h-8 place-items-center rounded-[8px] text-[12.5px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
         >
           {column.more.label}
         </Link>
@@ -283,8 +306,8 @@ export function Board({ columns }: { columns: BoardColumn[] }) {
 
   return (
     <>
-      <KeyList title="Applicant Tickets" next="Next card" mode="focus" data-tour="board" className="-mx-4 overflow-x-auto px-4 pb-2 md:-mx-8 md:px-8">
-        <div className="flex min-w-full items-start gap-2">
+      <KeyList title="Applicant Tickets" next="Next card" mode="focus" data-tour="board" className="-mx-[var(--page-gutter)] overflow-x-auto px-[var(--page-gutter)] pb-2">
+        <div className="flex min-w-full items-start gap-1.5">
           {shown.map((column) => (
             <Column
               key={column.key}

@@ -2,10 +2,13 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { currentToasts, dismissToast, showToast, subscribeToasts, withoutFlash, type Toast } from "@/lib/toasts";
-import { cn } from "@/lib/utils";
+import "./overlays.css";
 
-// design/tats's toasts (`#toasts`, `.toast`): bottom right, across the bottom on a
-// phone, rising in and gone after six seconds. lib/toasts.ts is the store.
+// design/tats's toasts (`#toasts`), drawn as Testbench's `.toast`: black, white
+// words, 10px corners (overlays.css turns what a page puts in one, an Undo and
+// its key, to the toast's ink). Bottom right, across the bottom on a phone,
+// rising in and gone after six seconds. A refusal carries a mark and stays until
+// dismissed. lib/toasts.ts is the store.
 //
 // `Toaster` is mounted once, in the shell, always there so a screen reader hears
 // what lands in it. Only a toast's buttons take the pointer, so one over a page's Save
@@ -29,14 +32,19 @@ export function Toaster() {
   return (
     <div data-toasts role="status" aria-live="polite" className="pointer-events-none fixed right-5 bottom-[60px] z-[70] grid justify-items-end gap-2 max-sm:right-4 max-sm:left-4 max-sm:justify-items-stretch">
       {toasts.map((t) => (
-        <div key={t.id} className="toast flex max-w-[420px] [&_a]:pointer-events-auto [&_button]:pointer-events-auto items-center gap-2.5 border border-[color:var(--line-strong)] bg-raised py-2 pr-2 pl-3 text-[13px] shadow-[var(--pop-shadow)] max-sm:max-w-none">
-          <span className={cn("min-w-0 flex-1 break-words", t.tone === "error" && "text-negative")}>{t.text}</span>
+        <div key={t.id} className="toast ov-toast flex max-w-[440px] items-center gap-2.5 py-2.5 pr-2.5 pl-4 text-[13px] leading-5 max-sm:max-w-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
+          {t.tone === "error" ? (
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" className="ov-toast-alert size-4 flex-none" aria-hidden>
+              <path d="M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM8 5v3.5M8 10.9h.01" />
+            </svg>
+          ) : null}
+          <span className="min-w-0 flex-1 break-words">{t.text}</span>
           {t.action as React.ReactNode}
           {t.tone === "error" ? (
             <button
               type="button"
               onClick={() => dismissToast(t.id)}
-              className="flex-none rounded-full px-1.5 py-0.5 text-[12.5px] font-medium text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground"
+              className="flex-none rounded-[6px] px-2 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground"
             >
               Dismiss
             </button>

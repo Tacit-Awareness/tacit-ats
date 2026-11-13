@@ -38,7 +38,7 @@ describe("addAreas", () => {
 
 describe("TagInput", () => {
   test("with a name it sends one tag a line, the shape profileFromForm reads", () => {
-    const html = renderToStaticMarkup(<TagInput name="focusAreas" label="Knows" tags={["Go", "Rust"]} onChange={noop} />);
+    const html = renderToStaticMarkup(<TagInput name="focusAreas" label="Skills" tags={["Go", "Rust"]} onChange={noop} />);
     const value = /name="focusAreas" value="([^"]*)"/.exec(html)?.[1]?.replaceAll("&#10;", "\n");
     expect(value).toBe("Go\nRust");
     const form = new FormData();

@@ -41,7 +41,8 @@ import { ScheduleView, type CalendarEvent } from "./view";
 //
 // Above it, for whoever books, the prototype's banner of interviewers who are
 // away (their Interviewers profile's "Away through"), from the profiles their
-// own token reads; dismissed in this browser until someone else is away.
+// own token reads, each named on their own; dismissed in this browser until
+// someone else is away.
 //
 // Left out from the prototype: holds. An event the member cannot change opens
 // the interview on the Interviews page.
@@ -120,11 +121,17 @@ export default async function ClientSchedule({ searchParams }: { searchParams: P
             id={`schedule-away:${bannerTag(away.key)}`}
             status="info"
             size="compact"
-            title={away.title}
-            desc="Check before you book them."
+            // Each person away on their own, spaced apart; the advice is the hover, not a grey line.
+            title={
+              <span title="Check before you book them" className="inline-flex flex-wrap gap-x-4">
+                {away.parts.map((part) => (
+                  <span key={part}>{part}</span>
+                ))}
+              </span>
+            }
             actions={[{ label: "See interviewers", href: "/client/interviewers" }]}
             dismissible
-            className="mx-3 mt-2.5 md:mx-5 md:mt-3"
+            className="mx-[var(--page-gutter)] mb-3"
           />
         ) : null
       }

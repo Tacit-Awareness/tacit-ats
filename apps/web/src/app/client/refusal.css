@@ -1,0 +1,115 @@
+/* The pages outside the shell (refusal.tsx's SkyPage: a refused sign-in, a
+   page that failed to load), drawn as Testbench's sign-in (portal.css `.auth`):
+   the bare sky, the Tacit mark top-left, a Mona Sans title on the sky and one
+   card under it with the message and the way on. In the components layer, so a
+   utility on one of them still wins. */
+
+@layer components {
+  /* The sky is the body's (globals.css), drawn again here because a refused
+     sign-in's layout lays the box's surface over the body. Fixed and scrolling
+     on its own, so it covers that surface edge to edge. */
+  .sky-page {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    overflow-y: auto;
+    color: var(--sky-ink);
+    background-color: var(--sky-5);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E"),
+      linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 20%, var(--sky-2) 40%, var(--sky-3) 60%, var(--sky-4) 80%, var(--sky-5) 100%);
+    background-size: 220px 220px, 100% 100%;
+    background-attachment: fixed, fixed;
+  }
+
+  .sky-top {
+    display: flex;
+    align-items: center;
+    height: 64px;
+    padding: 0 32px;
+  }
+  /* Testbench's `.brand`: the mark, then the name in Mona Sans */
+  .sky-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 600 19px/1 var(--font-sans);
+    letter-spacing: -0.03em;
+    color: var(--sky-ink);
+  }
+
+  .sky-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 0 16px 40px;
+  }
+  .sky-title {
+    margin: 0;
+    max-width: 640px;
+    font: 600 36px/1.15 var(--font-sans);
+    letter-spacing: -0.02em;
+    text-align: center;
+    text-wrap: balance;
+    color: var(--sky-ink);
+  }
+  .sky-card {
+    display: grid;
+    gap: 20px;
+    width: min(100%, 440px);
+    padding: 32px;
+    border-radius: 16px;
+    background: var(--paper);
+    box-shadow: var(--box-shadow);
+    color: var(--ink);
+  }
+  .sky-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 22px;
+    color: var(--muted-text);
+  }
+  /* the foot keeps the stage centred between the top and the bottom */
+  .sky-foot {
+    height: 64px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sky-card {
+      animation: dlg-in 0.3s var(--ease-out) both;
+    }
+  }
+  @media (max-width: 639px) {
+    .sky-top {
+      padding: 0 20px;
+    }
+    .sky-title {
+      font-size: 28px;
+    }
+    .sky-card {
+      padding: 24px;
+    }
+  }
+
+  /* Caught under the sidebar (a page under /client failed, the shell still
+     standing): only the title and the card, centred on the box's surface. */
+  .shell-page .sky-page {
+    position: static;
+    display: block;
+    overflow: visible;
+    padding-top: 10vh;
+    background: none;
+    color: var(--ink);
+  }
+  .shell-page .sky-top,
+  .shell-page .sky-foot {
+    display: none;
+  }
+  .shell-page .sky-title {
+    font-size: 28px;
+    color: var(--ink);
+  }
+}

@@ -1,0 +1,15 @@
+/* Analytics' explorer: its segments have no colour key. Their names sit in plain
+   text in stack order (and head the table's columns); hovering a name, a column
+   head or a piece of a column keeps that segment lit everywhere and quiets the
+   rest, which ties each name to its colour. view.tsx draws it. */
+
+.an-ex [data-seg] { transition: opacity 0.15s var(--ease), color 0.15s var(--ease); }
+.an-key { cursor: default; }
+.an-ex:has([data-seg]:hover) [data-seg] { opacity: 0.25; }
+.an-ex:has([data-seg="0"]:hover) [data-seg="0"], .an-ex:has([data-seg="1"]:hover) [data-seg="1"],
+.an-ex:has([data-seg="2"]:hover) [data-seg="2"], .an-ex:has([data-seg="3"]:hover) [data-seg="3"],
+.an-ex:has([data-seg="4"]:hover) [data-seg="4"], .an-ex:has([data-seg="5"]:hover) [data-seg="5"],
+.an-ex:has([data-seg="6"]:hover) [data-seg="6"], .an-ex:has([data-seg="7"]:hover) [data-seg="7"],
+.an-ex:has([data-seg="8"]:hover) [data-seg="8"], .an-ex:has([data-seg="9"]:hover) [data-seg="9"],
+.an-ex:has([data-seg="10"]:hover) [data-seg="10"], .an-ex:has([data-seg="11"]:hover) [data-seg="11"] { opacity: 1; }
+.an-ex:has([data-seg]:hover) .an-key[data-seg]:hover, .an-ex:has([data-seg]:hover) .an-key { color: var(--ink); }
