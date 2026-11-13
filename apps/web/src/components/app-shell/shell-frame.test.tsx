@@ -67,3 +67,22 @@ test("the toasts are there from the start, so a reader hears the first, and stay
   expect(html).toContain('role="status"');
   expect(html).toContain("data-toasts");
 });
+
+describe("the company switcher", () => {
+  const withCompanies = (companies: { id: string; name: string }[]) =>
+    renderToStaticMarkup(
+      <ShellFrame actorId="a" org="Acme" orgLogoUrl={null} orgId="o1" companies={companies} user={{ name: "Sam", email: "s@a.co", level: "Admin" }} jobs={[]} sidebar={{ width: 240, collapsed: false }}>
+        <p>page</p>
+      </ShellFrame>,
+    );
+
+  test("someone in several companies gets a menu on the company's name", () => {
+    const html = withCompanies([{ id: "o1", name: "Acme" }, { id: "o2", name: "Globex" }]);
+    expect(html).toMatch(/<button[^>]*aria-haspopup="menu"[^>]*aria-label="Company: Acme\. Switch company"/);
+  });
+
+  test("someone in one company keeps the plain name", () => {
+    expect(withCompanies([{ id: "o1", name: "Acme" }])).not.toContain("Switch company");
+    expect(shell(false)).not.toContain("Switch company");
+  });
+});
