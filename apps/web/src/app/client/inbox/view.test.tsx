@@ -462,8 +462,8 @@ describe("the three sections", () => {
     total: 9,
     href: "/client/applicants",
     rows: [
-      { applicationId: "a1", href: "/client/inbox?a=a1", page: "/client/applicants?a=a1", name: "Lin Zhou", referral: false, job: "Founding Engineer", source: "Job board", age: "today", active: false },
-      { applicationId: "a2", href: "/client/inbox?a=a2", page: "/client/applicants?a=a2", name: "Sofia Alvarez", referral: true, job: "Founding Engineer", source: "Backchannel from Daniel", age: "1d ago", active: false },
+      { applicationId: "a1", href: "/client/inbox?a=a1", page: "/client/applicants?a=a1", name: "Lin Zhou", referral: false, added: false, job: "Founding Engineer", source: "Job board", age: "today", active: false },
+      { applicationId: "a2", href: "/client/inbox?a=a2", page: "/client/applicants?a=a2", name: "Sofia Alvarez", referral: true, added: false, job: "Founding Engineer", source: "Backchannel from Daniel", age: "1d ago", active: false },
     ],
   };
   const sectionOf = (html: string, key: string) => {
@@ -497,6 +497,14 @@ describe("the three sections", () => {
     expect(html).toContain("Sofia Alvarez was referred");
     expect(html).toContain("Backchannel from Daniel");
     expect(html).toContain("All 9 in New Applicants");
+  });
+
+  test("someone a member added says so, and who added them, not that they applied", () => {
+    const added = { applicationId: "a3", href: "/client/inbox?a=a3", page: "/client/applicants?a=a3", name: "Avery Chen", referral: false, added: true, job: "Founding Engineer", source: "Added by Ryan Huang", age: "today", active: false };
+    const html = sectionOf(card({ applicants: { ...applicants, rows: [added] } }), "applicants");
+    expect(html).toContain("Avery Chen was added");
+    expect(html).toContain("Added by Ryan Huang");
+    expect(html).not.toContain("Avery Chen applied");
   });
 
   test("J and K reach a new applicant over the card and from a pop-up alike, where they open the next ticket", () => {

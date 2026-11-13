@@ -36,7 +36,7 @@ import { ApplicantsView, type Ticket } from "./view";
 // opens a new applicant's ticket in its pop-up with this file's readTicket and
 // view.tsx's TicketReader, so it reads and routes there exactly as here.
 
-const isAdded = (e: Pick<QueueEntry, "source">) => e.source === "sourced";
+export const isAdded = (e: Pick<QueueEntry, "source">) => e.source === "sourced";
 
 /** A referral with its referrer's name alone, so "Referred by …" is said once ("Referred by Sam Whitaker", not twice over). */
 const named = (e: QueueEntry): QueueEntry => ({ ...e, referredBy: referrerName(e.referredBy) });
@@ -51,7 +51,7 @@ const addedTag = (source: string) => ({ text: "Added", title: source.replace(" �
 const detailOf = (e: QueueEntry): string | null => ("sourceDetail" in e && typeof e.sourceDetail === "string" ? e.sourceDetail : null);
 
 /** Someone added by hand, in words: who added them, and the detail they gave, if any. */
-function addedWords(e: QueueEntry, by: string | undefined): string {
+export function addedWords(e: QueueEntry, by: string | undefined): string {
   const who = by ? `Added by ${by}` : "Added by hand";
   const detail = detailOf(e);
   return detail ? `${who} · ${detail}` : who;

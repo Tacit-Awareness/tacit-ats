@@ -20,7 +20,8 @@ import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "../applicants/messages";
-import { readTicket, teamOf } from "../applicants/tickets";
+import { addedWords, isAdded, readTicket, teamOf } from "../applicants/tickets";
+import { readAddedBy } from "@/lib/client/intake";
 import { CandidateBody } from "../candidates/[id]/view";
 import { readCandidateView } from "../candidates/[id]/read";
 import { feedbackCards, loopProps } from "../interviews/loop-props";
@@ -100,8 +101,9 @@ function applicantHref(range: DigestRange, applicationId: string): string {
 /** Their ticket in New Applicants: the pop-up's Open as a page, and the row's. */
 const applicantPage = (applicationId: string) => `/client/applicants?a=${applicationId}`;
 
-/** How someone came in, in words: a referral's referrer as written (free text, so only ever rendered as text), else the job board. */
-const cameBy = (e: QueueEntry) => (isReferral(e) ? (e.referredBy ?? "Referral") : "Job board");
+/** How someone came in, in words: a referral's referrer as written (free text, so only ever rendered as text), who added someone added by hand, else the job board. */
+const cameBy = (e: QueueEntry, addedBy: Map<string, string>) =>
+  isReferral(e) ? (e.referredBy ?? "Referral") : isAdded(e) ? addedWords(e, addedBy.get(e.applicationId)) : "Job board";
 
 /** The queue New Applicants reads, on the member's own token. A failed read answers null and the card leaves the section quiet: the Inbox must never go down over it. */
 async function readNewcomers(db: Parameters<typeof readApplicantQueue>[0], who: Parameters<typeof readApplicantQueue>[1]): Promise<QueueEntry[] | null> {
@@ -235,6 +237,9 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   // Newest first, as the card lists them: routing one from its pop-up opens the one below it in this order.
   const newest = queue ? [...queue].sort((a, b) => Date.parse(b.appliedAt) - Date.parse(a.appliedAt)) : [];
   const newcomers = newest.slice(0, NEWCOMERS_SHOWN);
+  const addedIds = newcomers.filter(isAdded).map((e) => e.applicationId);
+  // Who added someone is a nicety: a failed read says "Added by hand" rather than taking the card down.
+  const addedBy = addedIds.length ? await readAddedBy(db, addedIds).catch(() => new Map<string, string>()) : new Map<string, string>();
   // The card's order, by section: what J and K walk, what takes focus after a dismiss, and which issue a fix opens next.
   const ordered = SECTIONS.flatMap((s) => issues.filter((i) => REASON_SECTION[i.reason] === s.key));
   const show = one(sp.show);
@@ -370,8 +375,9 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
                   active: e.applicationId === openApplicant?.applicationId,
                   name: e.name ?? "Unnamed applicant",
                   referral: isReferral(e),
+                  added: isAdded(e),
                   job: e.jobTitle,
-                  source: cameBy(e),
+                  source: cameBy(e, addedBy),
                   age: ago(e.appliedAt, nowMs),
                 })),
               }

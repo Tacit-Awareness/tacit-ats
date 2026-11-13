@@ -205,7 +205,7 @@ export function DoneBar() {
 const DONE_HREF = "/client/inbox?tab=done";
 
 /** A new applicant as the Inbox lists them: who, the job, how they came in, when. The row opens their ticket in the pop-up (`href`); `page` is it in New Applicants. */
-export type ApplicantRow = { applicationId: string; href: string; page: string; name: string; referral: boolean; job: string | null; source: string; age: string; active: boolean };
+export type ApplicantRow = { applicationId: string; href: string; page: string; name: string; referral: boolean; added: boolean; job: string | null; source: string; age: string; active: boolean };
 /** The newest few of `total`, and where the rest are. */
 export type ApplicantsProps = { rows: ApplicantRow[]; total: number; href: string };
 
@@ -351,7 +351,7 @@ function InfoRow({ r, group, range, n }: { r: DigestProps["groups"][number]["row
  * beside it, as every entry has. J and K reach it like any other entry.
  */
 function ApplicantEntry({ a, n }: { a: ApplicantRow; n: number }) {
-  const what = a.referral ? `${a.name} was referred` : `${a.name} applied`;
+  const what = a.referral ? `${a.name} was referred` : a.added ? `${a.name} was added` : `${a.name} applied`;
   return (
     <div data-key-row className={ENTRY} style={order(n)}>
       <Link href={a.href} scroll={false} data-key-item data-issue-row={a.applicationId} aria-current={a.active ? "true" : undefined} aria-haspopup="dialog" className={ENTRY_LINK}>
