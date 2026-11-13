@@ -8,6 +8,7 @@ import type { ClientMcpConfig } from "./config";
 import { buildClientHandler, type ClientHandlerDeps } from "./server";
 import { REFUSAL_TEXT, resolveMember } from "./session";
 import { clientInvitations, fetchVerifiedEmail, soleOrganization } from "./workos";
+import type { BindSupabaseResult } from "@tacit-ats/core";
 
 /**
  * The client connector, request to response. The route (app/api/client)
@@ -28,6 +29,10 @@ export type ClientRequestDeps = Omit<ClientHandlerDeps, "invitations" | "files" 
   email?: clientTools.ClientMailer | null;
   config: ClientMcpConfig | null;
   bind: (who: ClientIdentity) => Promise<BindClientResult>;
+  /** A Supabase Auth user's first sign-in (client/bind.ts's bindSupabaseMember). Absent = Supabase tokens are refused. */
+  bindSupabase?: (userId: string) => Promise<BindSupabaseResult>;
+  /** Supabase Auth's invitation email (client/invite-email.ts), used in place of WorkOS's when config.provider is supabase. */
+  supabaseInvitations?: () => IdentityProvider & InvitationRevoker;
   /** Verifies against this instead of the issuer's JWKS (tests). */
   keys?: JWTVerifyGetKey;
   /** For the WorkOS API calls (tests). */
@@ -55,6 +60,7 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
     publishableKey: config.publishableKey,
     signer: config.signer,
     bind: deps.bind,
+    bindSupabase: deps.bindSupabase,
     soleOrganization: apiKey ? (subject) => soleOrganization(subject, apiKey, deps.workosFetch) : null,
     verifiedEmail: apiKey ? (subject) => fetchVerifiedEmail(subject, apiKey, deps.workosFetch) : null,
   });
@@ -64,7 +70,10 @@ export async function handleClientRequest(request: Request, deps: ClientRequestD
   }
   // The handler is stateless, so a tool call does not carry initialize's clientInfo: the User-Agent decides.
   const source = clientSource(request.headers.get("user-agent"));
-  const invitations = deps.invitations !== undefined ? deps.invitations : apiKey ? clientInvitations(apiKey, deps.workosFetch) : null;
+  const invitations =
+    deps.invitations !== undefined ? deps.invitations
+    : config.provider === "supabase" ? (deps.supabaseInvitations?.() ?? null)
+    : apiKey ? clientInvitations(apiKey, deps.workosFetch) : null;
   return buildClientHandler(gate.member, source, { audit: deps.audit, breadth: deps.breadth, invitations, files: deps.files ?? null, email: deps.email ?? null,
     jobsOrigin: config.jobsOrigin ?? null, calendar: deps.calendar ?? null, granola: deps.granola ?? null,
   })(request);

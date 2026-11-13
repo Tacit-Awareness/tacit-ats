@@ -1,4 +1,4 @@
-import type { BindClientResult, ClientIdentity } from "@tacit-ats/core";
+import type { BindClientResult, BindSupabaseResult, ClientIdentity } from "@tacit-ats/core";
 import { memberTransaction, type MemberTransaction } from "@tacit-ats/member-db";
 import { CLIENT_MEMBER_ISSUER, CLIENT_MEMBER_ROLE, createUserClient, mintClientMemberToken, type Db, type MemberTokenSigner } from "@tacit/db";
 
@@ -33,8 +33,12 @@ export type ClientMember = {
   /** Tacit's id for the org (orgs.id). */
   orgId: string;
   accessLevel: AccessLevel;
-  /** The WorkOS user and organization the database token names. */
+  /** The user the token names: a WorkOS user, or a Supabase Auth user. */
   subject: string;
+  /**
+   * The organization invitations are sent into: WorkOS's for WorkOS, or with
+   * Supabase our own orgs.id (the invitation provider takes it as it is).
+   */
   workosOrgId: string;
 };
 
@@ -52,18 +56,22 @@ export type MemberGate = { status: "ok"; member: ClientMember } | { status: "for
 export type MemberDeps = {
   supabaseUrl: string;
   publishableKey: string;
-  signer: MemberTokenSigner;
+  /** Null only with Supabase, which mints nothing. */
+  signer: MemberTokenSigner | null;
   bind: (who: ClientIdentity) => Promise<BindClientResult>;
   /** Null when the connector has no WorkOS API key: the token must then name the org. */
   soleOrganization: ((subject: string) => Promise<OrganizationLookup>) | null;
   /** Null when the connector has no WorkOS API key: the token must then carry the email. */
   verifiedEmail: ((subject: string) => Promise<string | null>) | null;
+  /** Supabase Auth sign-ins: binds a first sign-in by the address Supabase Auth has verified (client/bind.ts). */
+  bindSupabase?: (userId: string) => Promise<BindSupabaseResult>;
   now?: () => number;
 };
 
 const isAccessLevel = (v: unknown): v is AccessLevel => v === "limited" || v === "elevated" || v === "admin";
 
 export async function resolveMember(claims: AccessClaims, deps: MemberDeps): Promise<MemberGate> {
+  if (claims.supabase) return resolveSupabaseMember(claims, claims.supabase, deps);
   let workosOrgId = claims.orgId;
   if (!workosOrgId) {
     const lookup = deps.soleOrganization ? await deps.soleOrganization(claims.subject) : { status: "none" as const };
@@ -88,7 +96,9 @@ export async function resolveMember(claims: AccessClaims, deps: MemberDeps): Pro
 
   const now = deps.now ?? Date.now;
   const member = { subject: claims.subject, workosOrgId };
-  const db = createUserClient(deps.supabaseUrl, deps.publishableKey, () => mintClientMemberToken(deps.signer, member, now()));
+  const signer = deps.signer;
+  if (!signer) return { status: "forbidden", reason: "token_rejected" };
+  const db = createUserClient(deps.supabaseUrl, deps.publishableKey, () => mintClientMemberToken(signer, member, now()));
 
   // Ask the database who the token is: the same answer every policy will use.
   const [actor, level] = await Promise.all([db.rpc("current_actor_id"), db.rpc("current_access_level")]);
@@ -105,6 +115,42 @@ export async function resolveMember(claims: AccessClaims, deps: MemberDeps): Pro
   return {
     status: "ok",
     member: { db, pg, actorId: bound.actorId, orgId: bound.orgId, accessLevel: level.data, subject: claims.subject, workosOrgId },
+  };
+}
+
+/**
+ * A Supabase Auth OAuth token (CLIENT_AUTH_PROVIDER=supabase). It already
+ * names the member (`sub`) and, through the access token hook, the company
+ * picked on the consent page (`org_id` = orgs.id), with `role: authenticated`
+ * and a key the database trusts, so it goes to the database as it is: nothing
+ * is minted. A first sign-in binds through client/bind.ts; a token with no
+ * company is refused, since the hook pins one per connector session.
+ */
+async function resolveSupabaseMember(
+  claims: AccessClaims,
+  issued: NonNullable<AccessClaims["supabase"]>,
+  deps: MemberDeps,
+): Promise<MemberGate> {
+  if (!deps.bindSupabase) return { status: "forbidden", reason: "token_rejected" };
+  const bound = await deps.bindSupabase(claims.subject);
+  if (bound.status !== "ok") return { status: "forbidden", reason: bound.reason };
+  // Bound just now: this token predates it and names no company. Signing in again issues one that does.
+  if (!claims.orgId) return { status: "forbidden", reason: bound.companies > 1 ? "ambiguous_org" : "no_org" };
+
+  const db = createUserClient(deps.supabaseUrl, deps.publishableKey, () => issued.token);
+  const [actor, level, org] = await Promise.all([db.rpc("current_actor_id"), db.rpc("current_access_level"), db.rpc("current_org_id")]);
+  if (actor.error || level.error || org.error || !actor.data || !org.data || !isAccessLevel(level.data)) {
+    console.error(
+      "[client-mcp] the database did not resolve the Supabase token to a member:",
+      actor.error?.message ?? level.error?.message ?? org.error?.message ?? "no member",
+    );
+    // Bound and still nobody: they left that company since the token was issued.
+    return { status: "forbidden", reason: actor.error || level.error || org.error ? "token_rejected" : "not_invited" };
+  }
+  const pg = memberTransaction(issued.claims);
+  return {
+    status: "ok",
+    member: { db, pg, actorId: actor.data, orgId: org.data, accessLevel: level.data, subject: claims.subject, workosOrgId: org.data },
   };
 }
 

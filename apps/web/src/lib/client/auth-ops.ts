@@ -86,3 +86,109 @@ export async function signOutAction(): Promise<AuthAnswer> {
   await auth.auth.signOut();
   return { to: CLIENT_SIGN_IN_PATH };
 }
+
+// ---------------------------------------------------------------------------
+// Connector consent (/client/oauth/consent): Supabase Auth's OAuth server sends
+// a member here to let an MCP client (Claude, tats) work as them. They are
+// already signed in (the proxy saw to that), so this reads the authorization
+// on their own session, records the company they pick for it
+// (choose_connector_company, which the access token hook pins to the session
+// and turns into the token's aud and org_id), and approves or denies.
+// ---------------------------------------------------------------------------
+
+export type ConsentRead =
+  | { kind: "ask"; clientName: string; redirectUri: string | null; email: string }
+  /** Approved before for this app: Supabase answered with the redirect already. */
+  | { kind: "approved"; redirectUrl: string; email: string }
+  | { kind: "gone" };
+
+const CONSENT_ID = /^[A-Za-z0-9_-]{1,200}$/;
+export const isConsentId = (id: unknown): id is string => typeof id === "string" && CONSENT_ID.test(id);
+
+async function memberSession(): Promise<{ token: string; email: string } | null> {
+  const auth = await supabaseAuthClient();
+  const claims = await signedInClaims(auth);
+  const { data } = await auth.auth.getSession();
+  const token = data.session?.access_token;
+  return claims && token ? { token, email: claims.email ?? "" } : null;
+}
+
+async function oauthApi(path: string, token: string, init: { method: "GET" | "POST"; body?: unknown }): Promise<Record<string, unknown> | null> {
+  const response = await fetch(`${process.env.SUPABASE_URL ?? ""}/auth/v1/oauth/authorizations/${path}`, {
+    method: init.method,
+    headers: {
+      apikey: process.env.SUPABASE_PUBLISHABLE_KEY ?? "",
+      authorization: `Bearer ${token}`,
+      accept: "application/json",
+      ...(init.body === undefined ? {} : { "content-type": "application/json" }),
+    },
+    ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
+    redirect: "error",
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (!response.ok) return null;
+  return (await response.json().catch(() => null)) as Record<string, unknown> | null;
+}
+
+const urlOrNull = (v: unknown): string | null => (typeof v === "string" && URL.canParse(v) ? v : null);
+
+export async function readConsent(authorizationId: string): Promise<ConsentRead> {
+  if (clientAuthProvider() !== "supabase" || !isConsentId(authorizationId)) return { kind: "gone" };
+  const me = await memberSession();
+  if (!me) return { kind: "gone" };
+  const details = await oauthApi(encodeURIComponent(authorizationId), me.token, { method: "GET" });
+  if (!details) return { kind: "gone" };
+  if (!("authorization_id" in details)) {
+    const redirectUrl = urlOrNull(details.redirect_url);
+    return redirectUrl ? { kind: "approved", redirectUrl, email: me.email } : { kind: "gone" };
+  }
+  const client = details.client as { name?: unknown; client_name?: unknown } | undefined;
+  const name = [client?.name, client?.client_name].find((n): n is string => typeof n === "string" && n.trim() !== "");
+  return { kind: "ask", clientName: name ?? "An AI app", redirectUri: urlOrNull(details.redirect_uri), email: me.email };
+}
+
+/** The connector URLs this page may approve (CLIENT_MCP_RESOURCE_URL, comma-separated). */
+function allowedResources(): Set<string> {
+  return new Set((process.env.CLIENT_MCP_RESOURCE_URL ?? "").split(",").map((r) => r.trim().replace(/\/+$/, "")).filter(Boolean));
+}
+
+const GONE = "This connection request has expired or was already answered. Start the connection again from your AI app.";
+
+/**
+ * Approve (with the company picked) or deny. `approved` says the page was told
+ * the app is already approved: the redirect is then the one the page holds, and
+ * only the company is recorded, before the app redeems its code.
+ */
+export async function consentAction(input: { authorizationId: unknown; orgId: unknown; approve: unknown; approved: unknown }): Promise<AuthAnswer> {
+  if (clientAuthProvider() !== "supabase") return UNAVAILABLE;
+  if (!isConsentId(input.authorizationId)) return { error: GONE };
+  const me = await memberSession();
+  if (!me) return { to: CLIENT_SIGN_IN_PATH };
+  const id = encodeURIComponent(input.authorizationId);
+
+  if (input.approve !== true) {
+    const denied = await oauthApi(`${id}/consent`, me.token, { method: "POST", body: { action: "deny" } });
+    const to = urlOrNull(denied?.redirect_url);
+    return to ? { to } : { error: GONE };
+  }
+
+  const orgId = str(input.orgId, 64);
+  if (!orgId) return { error: "Choose a company." };
+  const db = createUserClient(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_PUBLISHABLE_KEY ?? "", () => me.token);
+  const chosen = await db.rpc("choose_connector_company" as never, { p_authorization_id: input.authorizationId, p_org: orgId } as never);
+  const row = (chosen.data as { resource: string | null }[] | null)?.[0];
+  if (chosen.error || !row) return { error: chosen.error?.code === "42501" ? "You're not a member of that company." : GONE };
+  // Supabase doesn't check the resource an app asks for, so this page does:
+  // approving a token for a URL that isn't our connector would hand it out for nothing of ours.
+  const resource = row.resource?.replace(/\/+$/, "") ?? "";
+  if (!allowedResources().has(resource)) {
+    await oauthApi(`${id}/consent`, me.token, { method: "POST", body: { action: "deny" } });
+    return { error: "This app asked for access to something that isn't a Tacit connector, so it was refused." };
+  }
+
+  if (input.approved === true) return { to: "approved" };
+  const approved = await oauthApi(`${id}/consent`, me.token, { method: "POST", body: { action: "approve" } });
+  const to = urlOrNull(approved?.redirect_url);
+  return to ? { to } : { error: GONE };
+}

@@ -10,7 +10,13 @@ import { parseTacitSigningKey, type MemberTokenSigner } from "@tacit/db";
  * token audience.
  */
 export type ClientMcpConfig = {
-  /** The AuthKit domain of the clients' WorkOS environment: the token issuer. */
+  /**
+   * Who signs members in (CLIENT_AUTH_PROVIDER, as apps/web): WorkOS AuthKit's
+   * OAuth server (the default, until the cutover) or Supabase Auth's OAuth 2.1
+   * server on this project (`supabase`), whose tokens the database takes as they are.
+   */
+  provider?: "workos" | "supabase";
+  /** The token issuer: the AuthKit domain, or `<SUPABASE_URL>/auth/v1`. */
   issuer: string;
   /** This server's public URL, e.g. https://ats-mcp.tacitawareness.com/api/client: the token audience. */
   resource: string;
@@ -22,8 +28,12 @@ export type ClientMcpConfig = {
   workosApiKey: string | null;
   supabaseUrl: string;
   publishableKey: string;
-  /** Signs the per-request database token (@tacit/db's mintClientMemberToken). */
-  signer: MemberTokenSigner;
+  /**
+   * Signs the per-request database token (@tacit/db's mintClientMemberToken).
+   * WorkOS only: with Supabase the member's own token goes to the database, so
+   * it is null when SUPABASE_TACIT_SIGNING_KEY is unset.
+   */
+  signer: MemberTokenSigner | null;
   /**
    * The origin of the site serving public job posts (apps/web's /jobs/[slug]),
    * for the links the job-post tools return (CLIENT_JOBS_ORIGIN). Null or
@@ -40,19 +50,23 @@ const trimSlash = (s: string) => s.replace(/\/+$/, "");
  * member and nothing else.
  */
 export function clientMcpConfig(env: Record<string, string | undefined> = process.env): ClientMcpConfig | null {
-  const issuer = env.CLIENT_MCP_AUTHKIT_DOMAIN?.trim();
+  const provider = env.CLIENT_AUTH_PROVIDER?.trim().toLowerCase() === "supabase" ? "supabase" : "workos";
   const resource = env.CLIENT_MCP_RESOURCE_URL?.trim();
   const supabaseUrl = env.SUPABASE_URL?.trim();
   const publishableKey = env.SUPABASE_PUBLISHABLE_KEY?.trim();
   const rawKey = env.SUPABASE_TACIT_SIGNING_KEY?.trim();
-  if (!issuer || !resource || !supabaseUrl || !publishableKey || !rawKey) return null;
+  const issuer = provider === "supabase"
+    ? supabaseUrl && `${trimSlash(supabaseUrl)}/auth/v1`
+    : env.CLIENT_MCP_AUTHKIT_DOMAIN?.trim();
+  if (!issuer || !resource || !supabaseUrl || !publishableKey || (provider === "workos" && !rawKey)) return null;
   return {
+    provider,
     issuer: trimSlash(issuer.startsWith("http") ? issuer : `https://${issuer}`),
     resource: trimSlash(resource),
     workosApiKey: env.CLIENT_WORKOS_API_KEY?.trim() || null,
     supabaseUrl,
     publishableKey,
-    signer: parseTacitSigningKey(rawKey, env.SUPABASE_TACIT_SIGNING_KEY_ID?.trim() || undefined),
+    signer: rawKey ? parseTacitSigningKey(rawKey, env.SUPABASE_TACIT_SIGNING_KEY_ID?.trim() || undefined) : null,
     jobsOrigin: (() => {
       const origin = env.CLIENT_JOBS_ORIGIN?.trim();
       return origin ? trimSlash(origin) : null;

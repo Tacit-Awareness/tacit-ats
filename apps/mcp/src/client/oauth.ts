@@ -10,7 +10,9 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from "jose";
  */
 
 export type ResourceServer = {
-  /** The AuthKit domain: the token issuer. */
+  /** WorkOS AuthKit's (the default) or Supabase Auth's OAuth server (config.ts). */
+  provider?: "workos" | "supabase";
+  /** The token issuer: the AuthKit domain, or `<SUPABASE_URL>/auth/v1`. */
   issuer: string;
   /** This server's public URL, e.g. https://ats-mcp.tacitawareness.com/api/client: the token audience. */
   resource: string;
@@ -46,16 +48,23 @@ export function challenge(config: Pick<ResourceServer, "resource">, error?: { co
 export type AccessClaims = {
   subject: string;
   email: string | null;
-  /** The WorkOS organization the sign-in was for, when AuthKit put one in the token. */
+  /**
+   * The company the sign-in was for: WorkOS's organization when AuthKit put
+   * one in the token, or with Supabase our own orgs.id, from the access token
+   * hook (supabase/migrations/20261113000000_connector_oauth.sql).
+   */
   orgId: string | null;
+  /** Supabase only: the token as issued, which the database takes as it is, and its claims for direct Postgres. */
+  supabase?: { token: string; claims: { role: "authenticated"; aud: string | string[]; iss: string; sub: string; org_id?: string } };
 };
 
 const jwksByIssuer = new Map<string, JWTVerifyGetKey>();
 
-function remoteJwks(issuer: string): JWTVerifyGetKey {
+function remoteJwks(issuer: string, provider: ResourceServer["provider"] = "workos"): JWTVerifyGetKey {
   let jwks = jwksByIssuer.get(issuer);
   if (!jwks) {
-    jwks = createRemoteJWKSet(new URL(`${issuer}/oauth2/jwks`));
+    // AuthKit publishes its keys at /oauth2/jwks, Supabase Auth at /.well-known/jwks.json.
+    jwks = createRemoteJWKSet(new URL(provider === "supabase" ? `${issuer}/.well-known/jwks.json` : `${issuer}/oauth2/jwks`));
     jwksByIssuer.set(issuer, jwks);
   }
   return jwks;
@@ -68,13 +77,33 @@ function remoteJwks(issuer: string): JWTVerifyGetKey {
 export async function verifyAccessToken(
   token: string,
   config: ResourceServer,
-  keys: JWTVerifyGetKey = remoteJwks(config.issuer),
+  keys: JWTVerifyGetKey = remoteJwks(config.issuer, config.provider),
 ): Promise<AccessClaims> {
   const { payload } = await jwtVerify(token, keys, {
     issuer: config.issuer,
+    // With Supabase this is what binds a token to this connector: the access
+    // token hook sets aud to ["authenticated", <resource>] only for a session
+    // whose consent asked for this resource. A portal sign-in, or another
+    // connector's token, carries just "authenticated" and fails here.
     audience: config.resource,
     requiredClaims: ["sub", "exp"],
   });
+  if (config.provider === "supabase") {
+    // An OAuth token, not a website session: only OAuth tokens carry a client_id.
+    if (typeof payload.client_id !== "string" || !payload.client_id) throw new Error("not an OAuth access token");
+    if (payload.role !== "authenticated") throw new Error("not a member's token");
+    const orgId = typeof payload.org_id === "string" && payload.org_id ? payload.org_id : null;
+    return {
+      subject: payload.sub as string,
+      // Not trusted for binding: client/bind.ts reads the verified address from Supabase Auth itself.
+      email: null,
+      orgId,
+      supabase: {
+        token,
+        claims: { role: "authenticated", aud: payload.aud as string | string[], iss: payload.iss as string, sub: payload.sub as string, ...(orgId ? { org_id: orgId } : {}) },
+      },
+    };
+  }
   // An email claim is only present when the AuthKit JWT template adds it.
   const email = typeof payload.email === "string" && payload.email_verified !== false ? payload.email : null;
   const orgId = typeof payload.org_id === "string" && payload.org_id ? payload.org_id : null;

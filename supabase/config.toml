@@ -321,12 +321,14 @@ enabled = false
 
 # OAuth server configuration
 [auth.oauth_server]
-# Enable OAuth server functionality
-enabled = false
-# Path for OAuth consent flow UI
-authorization_url_path = "/oauth/consent"
-# Allow dynamic client registration
-allow_dynamic_registration = false
+# The connector's and tats's sign-in (apps/mcp, CLIENT_AUTH_PROVIDER=supabase):
+# Supabase Auth is the OAuth server, and the consent page is apps/web's. The
+# hosted projects set the same under Authentication -> OAuth Server.
+enabled = true
+# Path for OAuth consent flow UI, on site_url (apps/web).
+authorization_url_path = "/client/oauth/consent"
+# MCP clients register themselves.
+allow_dynamic_registration = true
 
 [edge_runtime]
 enabled = true

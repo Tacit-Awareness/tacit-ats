@@ -2,7 +2,8 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { clientTools } from "@tacit-ats/core";
 // Relative and without ".js": see apps/mcp/CLAUDE.md.
 import { auditClientCall, clientBreadthExceeded } from "../../../client/audit";
-import { bindMember } from "../../../client/bind";
+import { bindMember, bindSupabaseMember } from "../../../client/bind";
+import { supabaseInvitations } from "../../../client/invite-email";
 import { calendarConnections } from "../../../client/calendar";
 import { clientGoogleCalendar, clientMailer, clientMcpConfig, granolaConnectUrl } from "../../../client/config";
 import { putFile, removeFiles, signFileUrl } from "../../../client/files";
@@ -21,6 +22,9 @@ async function handle(request: Request): Promise<Response> {
   return handleClientRequest(request, {
     config: clientMcpConfig(),
     bind: bindMember,
+    // CLIENT_AUTH_PROVIDER=supabase: Supabase Auth's OAuth tokens, linked and invited through Supabase.
+    bindSupabase: bindSupabaseMember,
+    supabaseInvitations,
     audit: auditClientCall,
     breadth: clientBreadthExceeded,
     // Set where the private org-files bucket does not exist yet: the file tools then refuse.
