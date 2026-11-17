@@ -6,11 +6,12 @@ import { createTestbenchInvite, listTestbenchRoles, testbenchConfigured } from "
 // Testbench message and no link in it.
 
 const TOKEN = "tis_secret_do_not_leak";
-const CLIENT = "aaaaaaaa-0000-4000-8000-000000000001";
+/** The ATS org's own id: the only name a company goes by here. */
+const ORG = "a0000000-0000-4000-8000-00000000000a";
 const ROLE = "eeeeeeee-0000-4000-8000-000000000001";
 const REQUEST = "c45b02c1-3240-4d76-aeac-f0baf4e0de01";
 const LINK = "https://testbench.example/invite/abc123";
-const invite = { clientId: CLIENT, roleId: ROLE, requestId: REQUEST, email: "nia@example.com", name: "Nia Okafor" };
+const invite = { orgId: ORG, roleId: ROLE, requestId: REQUEST, email: "nia@example.com", name: "Nia Okafor" };
 const created = { applicationId: "dddddddd-0000-4000-8000-000000000001", attemptId: "cccccccc-0000-4000-8000-000000000001", outcome: "created", invitationUrl: LINK };
 
 const fetchMock = vi.fn();
@@ -41,39 +42,47 @@ describe("testbenchConfigured", () => {
 
   test("unset, nothing is asked of Testbench", async () => {
     vi.stubEnv("TESTBENCH_INVITE_TOKEN", "");
-    expect(await listTestbenchRoles(CLIENT)).toMatchObject({ ok: false, code: "not_configured" });
+    expect(await listTestbenchRoles(ORG)).toMatchObject({ ok: false, code: "not_configured" });
     expect(await createTestbenchInvite(invite)).toMatchObject({ ok: false, code: "not_configured" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
 describe("listTestbenchRoles", () => {
-  test("asks for the company's roles with the bearer token and the company header", async () => {
-    fetchMock.mockResolvedValue(json(200, { data: { client: { id: CLIENT }, items: [
+  test("asks for the org's company's roles with the bearer token and the org header, and no Testbench company id", async () => {
+    fetchMock.mockResolvedValue(json(200, { data: { client: { id: "aaaaaaaa-0000-4000-8000-000000000001" }, items: [
       { id: ROLE, title: "Engineer", status: "open", invitable: true },
       { id: "EEEEEEEE-0000-4000-8000-000000000002", title: " ", status: "closed", invitable: false },
     ] } }));
-    expect(await listTestbenchRoles(CLIENT)).toEqual({ ok: true, value: [
+    expect(await listTestbenchRoles(ORG)).toEqual({ ok: true, value: [
       { id: ROLE, title: "Engineer", status: "open", invitable: true },
       { id: "eeeeeeee-0000-4000-8000-000000000002", title: "Untitled role", status: "closed", invitable: false },
     ] });
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://testbench.example/api/v1/integration/roles");
     expect(init.method).toBe("GET");
-    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}`, "X-Tacit-Client": CLIENT });
+    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}`, "X-Tacit-Org": ORG });
+    expect(init.headers).not.toHaveProperty("X-Tacit-Client");
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 
-  test("a company id that isn't one is refused before any request", async () => {
+  test("an org with no Testbench company says so by its own code, which hides the picker", async () => {
+    fetchMock.mockResolvedValue(json(404, { error: { code: "org_not_linked", message: "no company" } }));
+    const out = await listTestbenchRoles(ORG);
+    expect(out).toMatchObject({ ok: false, code: "org_not_linked" });
+    if (!out.ok) expect(out.error).toMatch(/isn't connected for your company yet\. Ask Tacit/);
+  });
+
+  test("an org id that isn't one is refused before any request", async () => {
     expect(await listTestbenchRoles("../clients")).toMatchObject({ ok: false, code: "client_required" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   test("an answer that isn't a list of roles is refused, not guessed at", async () => {
     fetchMock.mockResolvedValue(json(200, { data: { items: [{ id: "not-a-uuid", title: "x" }] } }));
-    expect(await listTestbenchRoles(CLIENT)).toMatchObject({ ok: false, code: "bad_response" });
+    expect(await listTestbenchRoles(ORG)).toMatchObject({ ok: false, code: "bad_response" });
     fetchMock.mockResolvedValue(json(200, { items: [] }));
-    expect(await listTestbenchRoles(CLIENT)).toMatchObject({ ok: false, code: "bad_response" });
+    expect(await listTestbenchRoles(ORG)).toMatchObject({ ok: false, code: "bad_response" });
   });
 });
 
@@ -87,7 +96,8 @@ describe("createTestbenchInvite", () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe(`https://testbench.example/api/v1/integration/roles/${ROLE}/invites`);
     expect(init.method).toBe("POST");
-    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}`, "X-Tacit-Client": CLIENT, "Content-Type": "application/json" });
+    expect(init.headers).toMatchObject({ Authorization: `Bearer ${TOKEN}`, "X-Tacit-Org": ORG, "Content-Type": "application/json" });
+    expect(init.headers).not.toHaveProperty("X-Tacit-Client");
     expect(JSON.parse(init.body)).toEqual({ requestId: REQUEST, candidate: { email: "nia@example.com", name: "Nia Okafor" } });
   });
 
@@ -104,6 +114,8 @@ describe("createTestbenchInvite", () => {
     [409, "published_assessment_required", "published_assessment_required", /no published test/],
     [409, "invitation_request_conflict", "invitation_request_conflict", /Tell Tacit/],
     [404, "not_found", "not_found", /Pick the job's Testbench role again/],
+    [404, "org_not_linked", "org_not_linked", /isn't connected for your company yet/],
+    [503, "org_link_unavailable", "org_link_unavailable", /later/],
     [401, "invite_service_expired", "invite_service_expired", /expired/],
     [403, "invite_scope_denied", "invite_scope_denied", /Tell Tacit/],
     [503, "invite_service_unavailable", "invite_service_unavailable", /later/],

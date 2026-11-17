@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // The client area's Testbench reads and writes against a fake of the member's
 // own client and a mocked Testbench: where the company and the role come from
-// (the member's org row and the job's row, never the caller), each refusal,
-// and what is recorded. The policies themselves are supabase/tests'.
+// (the session's own org id and the job's row, never a form or a stored
+// Testbench id), each refusal, and what is recorded. The policies themselves are supabase/tests'.
 
 const tb = vi.hoisted(() => ({ testbenchConfigured: vi.fn(), listTestbenchRoles: vi.fn(), createTestbenchInvite: vi.fn() }));
 const core = vi.hoisted(() => ({ addressesOnFile: vi.fn() }));
@@ -19,7 +19,6 @@ const ACTOR = "a1000000-0000-4000-8000-000000000001";
 const JOB = "a3000000-0000-4000-8000-000000000001";
 const PERSON = "a4000000-0000-4000-8000-000000000001";
 const APP = "a5000000-0000-4000-8000-000000000001";
-const TB_CLIENT = "aaaaaaaa-0000-4000-8000-000000000001";
 const TB_ROLE = "eeeeeeee-0000-4000-8000-000000000001";
 const LINK = "https://testbench.example/invite/abc123";
 const member = { actorId: ACTOR, org: { id: ORG } };
@@ -27,7 +26,6 @@ const input = { applicationId: APP, candidateId: PERSON };
 
 type Row = Record<string, unknown>;
 type World = {
-  orgs: Row | null;
   roles: Row | null;
   applications: Row | null;
   people: Row | null;
@@ -49,7 +47,7 @@ function fakeDb(): Db {
     const answer = () => {
       world.asked.push({ table, filters });
       if (world.fail.has(table)) return { data: null, error: { message: `${table} is down` } };
-      return { data: world[table as "orgs" | "roles" | "applications" | "people"] ?? null, error: null };
+      return { data: world[table as "roles" | "applications" | "people"] ?? null, error: null };
     };
     const q = {
       select: () => (write ? Promise.resolve(world.fail.has(table) ? { data: null, error: { message: "down" } } : { data: Array.from({ length: world.updates }, () => ({ id: filters.id })), error: null }) : q),
@@ -70,7 +68,6 @@ function fakeDb(): Db {
 beforeEach(() => {
   vi.clearAllMocks();
   world = {
-    orgs: { testbench_client_id: TB_CLIENT },
     roles: { testbench_role_id: TB_ROLE },
     applications: { id: APP, role_id: JOB, person_id: PERSON },
     people: { display_name: " Nia Okafor ", email: "Nia@Example.com" },
@@ -88,17 +85,17 @@ beforeEach(() => {
 });
 
 describe("mintTestbenchLink", () => {
-  test("invites into the org's own company and the job's own role, under a request id of its own, and records Testbench's ids", async () => {
+  test("invites as the session's own org and into the job's own role, under a request id of its own, and records Testbench's ids", async () => {
     expect(await mintTestbenchLink(fakeDb(), member, input)).toEqual({ ok: true, url: LINK });
     expect(tb.createTestbenchInvite).toHaveBeenCalledExactlyOnceWith({
-      clientId: TB_CLIENT,
+      orgId: ORG,
       roleId: TB_ROLE,
       requestId: inviteRequestId({ applicationId: APP, testbenchRoleId: TB_ROLE, email: "nia@example.com" }),
       email: "nia@example.com",
       name: "Nia Okafor",
     });
-    // The company is read from the member's own org's row and the role from the application's job.
-    expect(world.asked).toContainEqual({ table: "orgs", filters: { id: ORG } });
+    // The role is the application's job's; no Testbench company id is read from anywhere.
+    expect(world.asked.map((a) => a.table)).not.toContain("orgs");
     expect(world.asked).toContainEqual({ table: "roles", filters: { id: JOB } });
     expect(world.writes).toEqual([
       {
@@ -129,7 +126,6 @@ describe("mintTestbenchLink", () => {
     ["an application they can't read", () => (world.applications = null), /isn't one you can see/],
     ["an application that is someone else's", () => (world.applications = { id: APP, role_id: JOB, person_id: "a4000000-0000-4000-8000-000000000009" }), /isn't one you can see/],
     ["a candidate they may not email", () => (world.rpc.can_edit_person = false), /can't email/],
-    ["a company not mapped", () => (world.orgs = { testbench_client_id: null }), /isn't connected for your company/],
     ["a job with no Testbench role", () => (world.roles = { testbench_role_id: null }), /no Testbench role yet/],
     ["no address on file", () => core.addressesOnFile.mockResolvedValue([]), /No email address on file/],
   ];
@@ -144,6 +140,8 @@ describe("mintTestbenchLink", () => {
 
   test.each([
     ["role_closed", "This job's Testbench role is closed."],
+    ["org_not_linked", "Testbench isn't connected for your company yet. Ask Tacit to connect it."],
+    ["org_link_unavailable", "Testbench isn't ready to take invitations yet. Try again later."],
     ["invite_service_expired", "The connection to Testbench has expired."],
     ["invite_service_unavailable", "Testbench isn't ready to take invitations yet."],
     ["timeout", "Testbench didn't answer in time."],
@@ -162,60 +160,62 @@ describe("mintTestbenchLink", () => {
   });
 
   test("a read that fails throws rather than inviting on a guess", async () => {
-    world.fail.add("orgs");
-    await expect(mintTestbenchLink(fakeDb(), member, input)).rejects.toThrow("orgs is down");
+    world.fail.add("roles");
+    await expect(mintTestbenchLink(fakeDb(), member, input)).rejects.toThrow("roles is down");
     expect(tb.createTestbenchInvite).not.toHaveBeenCalled();
   });
 });
 
 describe("readTestbenchOffered", () => {
-  test("offered only when configured, the org mapped and the job has a role", async () => {
-    expect(await readTestbenchOffered(fakeDb(), ORG, JOB)).toBe(true);
+  test("offered when configured and the job has a role, with no call to Testbench", async () => {
+    expect(await readTestbenchOffered(fakeDb(), JOB)).toBe(true);
     world.roles = { testbench_role_id: null };
-    expect(await readTestbenchOffered(fakeDb(), ORG, JOB)).toBe(false);
-    world.roles = { testbench_role_id: TB_ROLE };
-    world.orgs = { testbench_client_id: null };
-    expect(await readTestbenchOffered(fakeDb(), ORG, JOB)).toBe(false);
+    expect(await readTestbenchOffered(fakeDb(), JOB)).toBe(false);
+    expect(world.asked.every((a) => a.table === "roles")).toBe(true);
+    expect(tb.listTestbenchRoles).not.toHaveBeenCalled();
   });
 
   test("not configured reads nothing", async () => {
     tb.testbenchConfigured.mockReturnValue(false);
-    expect(await readTestbenchOffered(fakeDb(), ORG, JOB)).toBe(false);
+    expect(await readTestbenchOffered(fakeDb(), JOB)).toBe(false);
     expect(world.asked).toEqual([]);
   });
 
-  test("a read that fails (the column not there yet) offers nothing and does not fail the ticket", async () => {
+  test("a read that fails offers nothing and does not fail the ticket", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    world.fail.add("orgs");
-    expect(await readTestbenchOffered(fakeDb(), ORG, JOB)).toBe(false);
+    world.fail.add("roles");
+    expect(await readTestbenchOffered(fakeDb(), JOB)).toBe(false);
     log.mockRestore();
   });
 });
 
 describe("readJobTestbench", () => {
-  test("the job's role and the company's roles", async () => {
+  test("the job's role and the roles of the company linked to the member's org", async () => {
     expect(await readJobTestbench(fakeDb(), ORG, JOB)).toEqual({ jobId: JOB, roleId: TB_ROLE, roles: [{ id: TB_ROLE, title: "Engineer", status: "open", invitable: true }], unavailable: null });
-    expect(tb.listTestbenchRoles).toHaveBeenCalledWith(TB_CLIENT);
+    expect(tb.listTestbenchRoles).toHaveBeenCalledExactlyOnceWith(ORG);
   });
 
-  test("no picker with Testbench off or the company not mapped, and Testbench is not asked", async () => {
-    world.orgs = { testbench_client_id: null };
+  test("no picker when the org has no Testbench company", async () => {
+    tb.listTestbenchRoles.mockResolvedValue({ ok: false, code: "org_not_linked", error: "Testbench isn't connected for your company yet. Ask Tacit to connect it." });
     expect(await readJobTestbench(fakeDb(), ORG, JOB)).toBeNull();
+  });
+
+  test("no picker with Testbench off, and Testbench is not asked", async () => {
     tb.testbenchConfigured.mockReturnValue(false);
     expect(await readJobTestbench(fakeDb(), ORG, JOB)).toBeNull();
     expect(tb.listTestbenchRoles).not.toHaveBeenCalled();
   });
 
-  test("Testbench down still shows the job's pick, and says why there is no list", async () => {
-    tb.listTestbenchRoles.mockResolvedValue({ ok: false, code: "timeout", error: "Testbench didn't answer in time. Try again." });
+  test.each(["timeout", "org_link_unavailable", "invite_service_expired"])("Testbench not answering (%s) still shows the job's pick, and says why there is no list", async (code) => {
+    tb.listTestbenchRoles.mockResolvedValue({ ok: false, code, error: "Testbench didn't answer in time. Try again." });
     expect(await readJobTestbench(fakeDb(), ORG, JOB)).toEqual({ jobId: JOB, roleId: TB_ROLE, roles: [], unavailable: "Testbench didn't answer in time. Try again." });
   });
 });
 
 describe("saveJobTestbenchRole", () => {
-  test("a role Testbench lists for the org's company is saved on the job", async () => {
+  test("a role Testbench lists for the member's org is saved on the job", async () => {
     expect(await saveJobTestbenchRole(fakeDb(), ORG, { jobId: JOB, roleId: TB_ROLE })).toEqual({ ok: true });
-    expect(tb.listTestbenchRoles).toHaveBeenCalledWith(TB_CLIENT);
+    expect(tb.listTestbenchRoles).toHaveBeenCalledExactlyOnceWith(ORG);
     expect(world.updated).toEqual([{ testbench_role_id: TB_ROLE }]);
   });
 
@@ -242,10 +242,12 @@ describe("saveJobTestbenchRole", () => {
     expect(await saveJobTestbenchRole(fakeDb(), ORG, { jobId: JOB, roleId: TB_ROLE })).toEqual({ ok: false, error: "forbidden" });
   });
 
-  test("a company not mapped, or Testbench down, saves nothing", async () => {
+  test("an org with no Testbench company, Testbench off or Testbench down saves nothing", async () => {
     tb.listTestbenchRoles.mockResolvedValue({ ok: false, code: "timeout", error: "Testbench didn't answer in time. Try again." });
     expect(await saveJobTestbenchRole(fakeDb(), ORG, { jobId: JOB, roleId: TB_ROLE })).toEqual({ ok: false, error: "unavailable", sentence: "Testbench didn't answer in time. Try again." });
-    world.orgs = { testbench_client_id: null };
+    tb.listTestbenchRoles.mockResolvedValue({ ok: false, code: "org_not_linked", error: "x" });
+    expect(await saveJobTestbenchRole(fakeDb(), ORG, { jobId: JOB, roleId: TB_ROLE })).toEqual({ ok: false, error: "off" });
+    tb.testbenchConfigured.mockReturnValue(false);
     expect(await saveJobTestbenchRole(fakeDb(), ORG, { jobId: JOB, roleId: TB_ROLE })).toEqual({ ok: false, error: "off" });
     expect(world.updated).toEqual([]);
   });

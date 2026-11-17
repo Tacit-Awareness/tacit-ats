@@ -381,7 +381,7 @@ export function PostingEditor({
   seeds?: StepSeeds | null;
   /** On a job that exists: its own title, status and openings, saved apart from the post (job-settings.tsx). */
   settings?: JobSettings | null;
-  /** The job's Testbench role and the ones to pick from; null when Testbench is off or the company is not connected. */
+  /** The job's Testbench role and the ones to pick from; null when Testbench is off or no Testbench company is linked to the org. */
   testbench?: JobTestbench | null;
 }) {
   const router = useRouter();
