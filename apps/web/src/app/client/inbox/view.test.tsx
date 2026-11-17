@@ -540,7 +540,9 @@ describe("the three sections", () => {
     expect(sheet).toContain("Austin, TX");
     expect(sheet).toMatch(/aria-label="Open as a page"[^>]*href="\/client\/applicants\?a=a1"|href="\/client\/applicants\?a=a1"[^>]*aria-label="Open as a page"/);
     expect(sheet).toMatch(/aria-label="Close"[^>]*href="\/client\/inbox\?range=3"|href="\/client\/inbox\?range=3"[^>]*aria-label="Close"/);
-    for (const pick of ["Interview", "Testbench", "Decline"]) expect(sheet).toContain(`>${pick}<kbd`);
+    for (const pick of ["Interview", "Decline"]) expect(sheet).toContain(`>${pick}<kbd`);
+    // Testbench is a pick only where the reply can carry the candidate's own invite link: this ticket has no reply.
+    expect(sheet).not.toContain(">Testbench<kbd");
     expect(sheet).toContain('<span title="Infra"');
     expect(sheet).toContain('type="hidden" name="applicationId" value="a1"');
     expect(sheet).toContain('type="hidden" name="next" value="a2"');

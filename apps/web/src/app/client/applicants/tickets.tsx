@@ -18,6 +18,7 @@ import { referrerName } from "@/lib/client/referral-table";
 import { RESUME_ACCEPT, readAddForm } from "@/lib/client/referrals";
 import { replyStarters } from "@/lib/client/reply-starters";
 import { resolveClient, type ClientContext } from "@/lib/client/session";
+import { readTestbenchOffered } from "@/lib/client/testbench";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import { Refusal } from "../refusal";
 import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "./messages";
@@ -77,7 +78,7 @@ export async function readTicket(ctx: ClientContext, open: QueueEntry, place: Ti
   const mailer = webMailer();
   const referral = isReferral(open);
   const added = isAdded(open);
-  const [routing, reply, notes, personNotes, files, templates, by] = await Promise.all([
+  const [routing, reply, notes, personNotes, files, templates, by, testbench] = await Promise.all([
     readRouting(db, open.jobId),
     readReply(db, toolCtx(ctx), mailer, { candidateId: open.candidateId, applicationId: open.applicationId }),
     // A referral or someone added by hand has no form to read; what the team said is its note.
@@ -86,6 +87,8 @@ export async function readTicket(ctx: ClientContext, open: QueueEntry, place: Ti
     clientTools.listFiles(db, toolCtx(ctx), { candidateId: open.candidateId }),
     readTemplates(db, toolCtx(ctx)),
     addedBy ?? (added ? readAddedBy(db, [open.applicationId]) : new Map<string, string>()),
+    // Testbench is offered only where a link can be made: configured, the org mapped, the job with a Testbench role.
+    readTestbenchOffered(db, org.id, open.jobId),
   ]);
   const { phone, answers } = readerAnswers(open.answers, open.linkedinUrl);
   return {
@@ -120,6 +123,7 @@ export async function readTicket(ctx: ClientContext, open: QueueEntry, place: Ti
           templates: templateStarters(templates, { candidateName: open.name, jobTitle: open.jobTitle, company: org.name, sender: user.name }),
           subjectMax: clientTools.EMAIL_SUBJECT_MAX,
           bodyMax: clientTools.EMAIL_BODY_MAX,
+          testbench,
           home: place.home,
           inbox: place.inbox,
         }

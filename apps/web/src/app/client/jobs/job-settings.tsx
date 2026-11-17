@@ -9,8 +9,10 @@ import {
   type JobFormState, type JobSettings as Settings, type OpeningsFormState,
 } from "@/lib/client/job-settings-rules";
 import { buttonVariants } from "@/components/ui/button";
+import type { JobTestbench } from "@/lib/client/testbench";
 import { cn } from "@/lib/utils";
-import { addOpeningsAction, closeOpeningAction, saveJobAction } from "./actions";
+import { addOpeningsAction, closeOpeningAction, saveJobAction, saveTestbenchRoleAction } from "./actions";
+import type { TestbenchFormState } from "./messages";
 
 // The job itself, in the posting editor's "Only your team sees this" card:
 // design/tats's Live / Paused chip, as the job's status (open, paused, closed;
@@ -140,8 +142,45 @@ function Openings({ jobId, openings }: { jobId: string; openings: NonNullable<Se
   );
 }
 
-/** The job's own part of the team's card: the job, then its openings, a hairline between and under them. */
-export function JobSettingsPanel({ settings }: { settings: Settings }) {
+const TESTBENCH_MEANS = "The Testbench role this job's test comes from. With one picked, New Applicants offers a Testbench reply carrying each candidate's own invite link.";
+
+/**
+ * Which Testbench role the job's test comes from: the company's own roles in
+ * Testbench, read on the server. A role that can't take invitations now
+ * (closed, or no published test) is listed and says so; the job's current
+ * role stays listed even when Testbench no longer has it.
+ */
+function TestbenchForm({ testbench }: { testbench: JobTestbench }) {
+  const [state, action] = useActionState<TestbenchFormState, FormData>(saveTestbenchRoleAction, FIRST);
+  const known = testbench.roles.some((r) => r.id === testbench.roleId);
+  const current = state.picked !== undefined ? state.picked : (testbench.roleId ?? "");
+  return (
+    <form action={action} className="grid gap-3">
+      <input type="hidden" name="jobId" value={testbench.jobId} />
+      {state.error ? <Notice tone="error">{state.error}</Notice> : state.saved ? <Notice>Saved.</Notice> : null}
+      {testbench.unavailable ? <Notice tone="error">{testbench.unavailable}</Notice> : null}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <label className={label} title={TESTBENCH_MEANS}>
+          <span className={labelText}>Testbench role</span>
+          <select key={`${testbench.roleId}:${current}`} name="testbenchRoleId" defaultValue={current} className={selectClass}>
+            <option value="">No Testbench test</option>
+            {testbench.roleId && !known ? <option value={testbench.roleId}>{testbench.unavailable ? "The role picked now" : "A role Testbench no longer lists"}</option> : null}
+            {testbench.roles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.invitable ? r.title : `${r.title} (can't take invitations: ${r.status === "open" || !r.status ? "no published test" : r.status})`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <SubmitButton variant="outline">Save Testbench role</SubmitButton>
+      </div>
+      <p className="sr-only">{TESTBENCH_MEANS}</p>
+    </form>
+  );
+}
+
+/** The job's own part of the team's card: the job, then its openings, then its Testbench role, a hairline between and under them. */
+export function JobSettingsPanel({ settings, testbench = null }: { settings: Settings; testbench?: JobTestbench | null }) {
   return (
     <div className="grid gap-5 border-b border-[color:var(--line)] pt-4 pb-5">
       <div className="grid gap-3">
@@ -151,6 +190,12 @@ export function JobSettingsPanel({ settings }: { settings: Settings }) {
       {settings.openings ? (
         <div className="border-t border-[color:var(--line)] pt-5">
           <Openings jobId={settings.jobId} openings={settings.openings} />
+        </div>
+      ) : null}
+      {testbench ? (
+        <div className="grid gap-3 border-t border-[color:var(--line)] pt-5">
+          <MiniTitle className="mt-0">Testbench</MiniTitle>
+          <TestbenchForm testbench={testbench} />
         </div>
       ) : null}
     </div>

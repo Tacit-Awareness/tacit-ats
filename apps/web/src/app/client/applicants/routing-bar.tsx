@@ -19,7 +19,8 @@ import { routeApplicantAction } from "./actions";
 // no single key moves anyone. D with no reason picked focuses the reason
 // instead, since a decline needs one.
 // T picks design/tats's Testbench, which only picks the reply's starter: it
-// moves nobody, so it has no button here.
+// moves nobody, so it has no button here. It is there only when the reply can
+// carry the candidate's own invite link (`testbench`): otherwise no pill, no key.
 // The team is read-only: a route takes no team, the job already has one.
 // Two steady lines, whatever the reader's width or the team's name: the move
 // and its button on the first, the button always at its right end; the reason
@@ -44,12 +45,12 @@ const MOVES: { key: MoveKey; keyName: string; pick: string; act: string }[] = [
 ];
 
 /** The keys, inside the form so a key does nothing while a route is in flight. */
-function RoutingKeys({ pick }: { pick: (route: MoveKey) => void }) {
+function RoutingKeys({ pick, testbench }: { pick: (route: MoveKey) => void; testbench: boolean }) {
   const { pending } = useFormStatus();
-  useKeys({ i: () => pick("interview"), t: () => pick("testbench"), d: () => pick("decline") }, !pending);
+  useKeys({ i: () => pick("interview"), ...(testbench ? { t: () => pick("testbench") } : {}), d: () => pick("decline") }, !pending);
   useKeyHelp("New Applicants", [
     { keys: "I", label: "Pick Interview" },
-    { keys: "T", label: "Pick Testbench" },
+    ...(testbench ? [{ keys: "T", label: "Pick Testbench" }] : []),
     { keys: "D", label: "Pick Decline, then its reason" },
     { keys: "Enter", label: "Post the picked move" },
   ]);
@@ -117,6 +118,7 @@ export function RoutingBar({
   move,
   onMove,
   lead,
+  testbench = false,
 }: {
   routing: Routing;
   team: string | null;
@@ -124,6 +126,8 @@ export function RoutingBar({
   onMove: (move: MoveKey) => void;
   /** No reply can go out, so this is the panel's one action. */
   lead: boolean;
+  /** Whether Testbench is a pick here: only when the reply can carry the candidate's own invite link. */
+  testbench?: boolean;
 }) {
   const reason = useRef<HTMLSelectElement>(null);
   const buttons = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -151,7 +155,7 @@ export function RoutingBar({
 
   return (
     <form action={routeApplicantAction} className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
-      <RoutingKeys pick={keyPick} />
+      <RoutingKeys pick={keyPick} testbench={testbench} />
       <input type="hidden" name="applicationId" value={routing.applicationId} />
       {routing.next ? <input type="hidden" name="next" value={routing.next} /> : null}
       {routing.home ? <input type="hidden" name="home" value="1" /> : null}
@@ -162,7 +166,7 @@ export function RoutingBar({
           Next step
         </span>
         <div role="group" aria-labelledby="next-step" className={pillTrack}>
-          {MOVES.map((m) => (
+          {MOVES.filter((m) => m.key !== "testbench" || testbench).map((m) => (
             <MovePill key={m.key} move={m} picked={m.key === move} onPick={() => pick(m.key)} />
           ))}
         </div>

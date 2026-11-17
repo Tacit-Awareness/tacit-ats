@@ -6,7 +6,9 @@ import { parseAddOpenings, parseCloseOpening, parseJobForm, type JobFormState, t
 import { parseDraft, parseSeenJob, UUID } from "@/lib/client/posting-edit-rules";
 import { createRole, savePosting, type SaveResult } from "@/lib/client/posting-edits";
 import { requireClient } from "@/lib/client/session";
+import { saveJobTestbenchRole } from "@/lib/client/testbench";
 import { toolCtx } from "@/lib/client/tool-ctx";
+import { TESTBENCH_ROLE_ERRORS, type TestbenchFormState } from "./messages";
 
 // The posting editor's saves: audited clientTools on the signed-in member's own
 // client, source `dashboard` (lib/client/posting-edits.ts), the posted draft
@@ -145,4 +147,31 @@ export async function closeOpeningAction(_prev: OpeningsFormState, form: FormDat
   if (!outcome.ok) return { error: outcome.error, draft };
   revalidatePath("/client", "layout");
   return { notice: outcome.value.outcome === "closed" ? "closed" : "unchanged" };
+}
+
+/**
+ * The job's Testbench role, from the picker under "The job": one of the roles
+ * Testbench lists for the member's own company, or none. The company is their
+ * org's row, never the form's; whoever may manage the job, and the roles
+ * policy decides again.
+ */
+export async function saveTestbenchRoleAction(_prev: TestbenchFormState, form: FormData): Promise<TestbenchFormState> {
+  const member = await requireClient();
+  const jobId = form.get("jobId");
+  const picked = form.get("testbenchRoleId");
+  if (typeof jobId !== "string" || !UUID.test(jobId) || typeof picked !== "string" || (picked !== "" && !UUID.test(picked))) return { error: TESTBENCH_ROLE_ERRORS.invalid };
+
+  let outcome: Awaited<ReturnType<typeof saveJobTestbenchRole>>;
+  try {
+    outcome = await saveJobTestbenchRole(member.db, member.org.id, { jobId, roleId: picked === "" ? null : picked.toLowerCase() });
+  } catch (err) {
+    settingsFailed(err);
+    return { error: TESTBENCH_ROLE_ERRORS.failed, picked };
+  }
+  if (!outcome.ok) return { error: outcome.error === "unavailable" ? `${outcome.sentence ?? "Testbench couldn't be reached."} Nothing was saved.` : TESTBENCH_ROLE_ERRORS[outcome.error], picked };
+  // New Applicants offers the Testbench reply by this.
+  revalidate(jobId);
+  revalidatePath("/client/applicants");
+  revalidatePath("/client");
+  return { saved: true };
 }

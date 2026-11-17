@@ -12,7 +12,8 @@ import { RoutingBar, TeamField, type MoveKey, type Routing } from "./routing-bar
 // keep their own forms. This holds the one thing they share: the picked move,
 // which also picks the reply's starter. On a phone the panel scrolls with the
 // page, or it would cover the application. Testbench is that reply with the
-// invite link in it: it emails them and moves nobody.
+// candidate's own invite link in it: it emails them and moves nobody. It is
+// offered only when the reply can carry that link (`reply.testbench`).
 
 export function ControlPanel({ routing, reply, team }: { routing: Routing | null; reply: Reply | null; team: string | null }) {
   const [move, setMove] = useState<MoveKey>("interview");
@@ -22,7 +23,7 @@ export function ControlPanel({ routing, reply, team }: { routing: Routing | null
       className="@container bottom-0 z-10 grid grid-cols-[minmax(0,1fr)] gap-4 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-4 pb-5 shadow-[0_-12px_32px_-20px_oklch(var(--ink-a)/0.22)] md:sticky md:px-6"
     >
       {routing ? (
-        <RoutingBar routing={routing} team={team} move={move} onMove={setMove} lead={!reply?.enabled || !reply.to} />
+        <RoutingBar routing={routing} team={team} move={move} onMove={setMove} lead={!reply?.enabled || !reply.to} testbench={reply?.testbench === true} />
       ) : team ? (
         <TeamField team={team} />
       ) : null}

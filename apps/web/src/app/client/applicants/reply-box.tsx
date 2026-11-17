@@ -55,6 +55,8 @@ export type Reply = {
   templates?: TemplateStarter[];
   subjectMax: number;
   bodyMax: number;
+  /** Whether the Testbench starter is offered: Testbench set up, the company connected, the job with a Testbench role. */
+  testbench?: boolean;
 };
 
 const LABEL: Record<ReplyKind, string> = { interview: "Interview", testbench: "Testbench", decline: "Decline", blank: "Blank" };
@@ -290,7 +292,7 @@ export function ReplyBox({ reply, suggested = "interview" }: { reply: Reply; sug
               {mine === null ? (
                 <span className="ml-auto flex flex-wrap items-center gap-2">
                   <span role="group" aria-label="Start from" className={pillTrack}>
-                    {REPLY_KINDS.map((k) => {
+                    {REPLY_KINDS.filter((k) => k !== "testbench" || reply.testbench).map((k) => {
                       const on = picked === null && k === kind;
                       return (
                         <button key={k} type="button" aria-pressed={on} onClick={() => startFrom({ kind: k })} className={pillOption(on, "sm")}>

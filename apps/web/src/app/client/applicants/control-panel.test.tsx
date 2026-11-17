@@ -38,8 +38,14 @@ describe("the control panel", () => {
     expect(out).toContain("Not a fit");
   });
 
-  test("the next step is three pills, with interview picked first, and Testbench posts no route", () => {
+  test("with no Testbench link to offer, the next step is two pills and the reply has no Testbench starter", () => {
     const out = html();
+    expect(out.match(/aria-keyshortcuts="[ITD]"/g)).toEqual(['aria-keyshortcuts="I"', 'aria-keyshortcuts="D"']);
+    expect(out).not.toContain("Testbench");
+  });
+
+  test("the next step is three pills, with interview picked first, and Testbench posts no route", () => {
+    const out = html({ reply: { ...reply, testbench: true } });
     expect(out.match(/aria-pressed="true"[^>]*aria-keyshortcuts="[ITD]"/g)).toEqual(['aria-pressed="true" aria-keyshortcuts="I"']);
     expect(out.match(/aria-pressed="false"[^>]*aria-keyshortcuts="[ITD]"/g)).toHaveLength(2);
     expect(out).not.toContain('value="testbench"');

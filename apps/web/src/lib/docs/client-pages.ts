@@ -194,7 +194,7 @@ Admins add a job with **Add a role**. Whoever manages a job can edit its post in
 - **The post**: its title, location and description.
 - **The application form**: name and email are always asked. Phone, LinkedIn and a resume upload are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
 - **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
-- **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left.
+- **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left. Once Tacit has connected your company to Tacit Testbench, **Testbench role** picks which of your Testbench roles this job's test comes from (one that is closed or has no published test says so); with a role picked, New Applicants offers the Testbench reply for this job. **No Testbench test** turns it off.
 - **Preview as applicant**: the page exactly as an applicant will see it.
 
 **Publish** puts a post live and **Close post** takes it down. A post can go live only while its job is open, and edits to a live post reach applicants when you save. If a teammate saved first, Tacit asks before replacing their work.
@@ -218,12 +218,12 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | --- | --- |
 | \`J\` / \`K\` | Next, previous |
 | \`I\` | Pick Interview |
-| \`T\` | Pick Testbench |
+| \`T\` | Pick Testbench, on a job that has a Testbench role |
 | \`D\` | Pick Decline, then choose a reason from your company's list |
 | \`Enter\` | After one of those keys, press the button: this moves the candidate |
 | \`R\` | Write a reply |
 
-A referral shows who referred them in the list and on the application. Picking Testbench starts the reply from a message with the Testbench invite link, sent like any other reply; it moves nobody. **Template** starts it from one of your company's email templates instead, filled in for this candidate; the words are still yours to change. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+A referral shows who referred them in the list and on the application. Testbench is offered on a job that has a Testbench role (see **The job** on its posting). Picking it starts the reply from a message that says \`{{testbench_link}}\` where the link goes; **Review draft** then makes that candidate's own invite link and shows it in the draft you read before sending. The link is theirs alone, lasts about seven days, and lets whoever holds it take the test. If the link can't be made (the Testbench role is closed or has no published test, the candidate has no email address, Testbench can't be reached), no draft is written and the box says why. It is sent like any other reply and moves nobody. **Template** starts it from one of your company's email templates instead, filled in for this candidate; the words are still yours to change. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
 
 ## Analytics
 
