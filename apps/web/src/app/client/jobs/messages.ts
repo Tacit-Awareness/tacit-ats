@@ -42,3 +42,14 @@ export const isPostingNotice = (v: unknown): v is PostingNotice => typeof v === 
 
 /** Errors about the form: the editor opens the Application tab to show them. */
 export const QUESTION_ERRORS: readonly PostingError[] = ["question_too_long", "too_many_questions", "options_needed", "invalid_questions"];
+
+/** The Testbench role form's answer, in place: a sentence, and the pick it was refused on so the select keeps it. */
+export type TestbenchFormState = { saved?: boolean; error?: string; picked?: string };
+
+export const TESTBENCH_ROLE_ERRORS = {
+  invalid: "That couldn't be read. Nothing was saved.",
+  forbidden: "You can't change this job. Ask whoever manages it, or an admin.",
+  off: "Testbench isn't connected for your company, so no role was saved.",
+  bad_role: "Testbench doesn't list that role for your company any more. Pick another.",
+  failed: "That didn't work. Nothing was saved: try again.",
+} as const;

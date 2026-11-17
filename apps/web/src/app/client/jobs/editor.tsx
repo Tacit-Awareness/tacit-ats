@@ -18,6 +18,7 @@ import {
 import type { StepSeeds } from "@/lib/client/process-stages";
 import type { SaveResult } from "@/lib/client/posting-edits";
 import type { JobSettings } from "@/lib/client/job-settings-rules";
+import type { JobTestbench } from "@/lib/client/testbench";
 import type { DepartmentChoice } from "@/lib/client/postings";
 import type { PostBlock } from "@/lib/public/post-text";
 import { cn } from "@/lib/utils";
@@ -365,6 +366,7 @@ export function PostingEditor({
   notice,
   seeds = null,
   settings = null,
+  testbench = null,
 }: {
   /** `id` is null for a role not made yet. */
   job: { id: string | null; title: string; status: string };
@@ -379,6 +381,8 @@ export function PostingEditor({
   seeds?: StepSeeds | null;
   /** On a job that exists: its own title, status and openings, saved apart from the post (job-settings.tsx). */
   settings?: JobSettings | null;
+  /** The job's Testbench role and the ones to pick from; null when Testbench is off or the company is not connected. */
+  testbench?: JobTestbench | null;
 }) {
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
@@ -670,7 +674,7 @@ export function PostingEditor({
 
         {preview ? null : (
           <Section title="Only your team sees this" icon={<TeamOnlyIcon />} className="gap-0 pb-3">
-            {settings ? <JobSettingsPanel settings={settings} /> : null}
+            {settings ? <JobSettingsPanel settings={settings} testbench={testbench} /> : null}
             <div className="grid gap-1 pt-5">
               <MiniTitle className="mt-0">Hiring steps</MiniTitle>
               <div>

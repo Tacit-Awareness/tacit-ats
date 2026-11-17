@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { toolCtx } from "@/lib/client/candidate";
 import { readJobSettings } from "@/lib/client/job-settings";
+import { readJobTestbench } from "@/lib/client/testbench";
 import { draftFromPost } from "@/lib/client/posting-draft";
 import { leadPost } from "@/lib/client/posting-groups";
 import { readPosting, readPostingEditing } from "@/lib/client/postings";
@@ -62,7 +63,8 @@ export default async function ClientJobPost({
     return <PostingView job={read.job} post={post} postTabs={postTabs} tab={tab} tabHref={(t) => href({ tab: t })} link={link} />;
   }
   const notice = one(sp.notice);
-  const settings = await readJobSettings(gate.ctx.db, ctx, read.job);
+  // The Testbench picker is null (and not drawn) with Testbench off or the company not connected.
+  const [settings, testbench] = await Promise.all([readJobSettings(gate.ctx.db, ctx, read.job), readJobTestbench(gate.ctx.db, gate.ctx.org.id, id)]);
   return (
     <PostingEditor
       // A save keeps the same post, so what was typed survives its refresh; picking another post starts over.
@@ -76,6 +78,7 @@ export default async function ClientJobPost({
       tab={tab}
       notice={isPostingNotice(notice) ? notice : null}
       settings={settings}
+      testbench={testbench}
     />
   );
 }

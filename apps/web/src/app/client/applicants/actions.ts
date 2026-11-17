@@ -10,7 +10,9 @@ import { webFileStore } from "@/lib/client/file-store";
 import { addApplicant, type IntakeOutcome } from "@/lib/client/intake";
 import { webMailer } from "@/lib/client/mailer";
 import { referralFile } from "@/lib/client/referrals";
+import { hasTestbenchLink, withTestbenchLink } from "@/lib/client/reply-starters";
 import { requireClient } from "@/lib/client/session";
+import { mintTestbenchLink } from "@/lib/client/testbench";
 import { toolCtx } from "@/lib/client/tool-ctx";
 import type { ApplicantError, ApplicantNotice, IntakeError, IntakeState, ReplyState } from "./messages";
 
@@ -23,7 +25,12 @@ import type { ApplicantError, ApplicantNotice, IntakeError, IntakeState, ReplySt
 // and choice is re-checked. The reply box's two writes are clientTools' draft
 // and send on the same client, with source `dashboard`, and always two posts:
 // nothing here both writes a draft and sends it. A subject or body never goes
-// in the URL or the log. "Add applicant" is lib/client/intake.ts's
+// in the URL or the log. A body with the Testbench marker (reply-starters.ts)
+// gets the candidate's own invite link first, made here and only here: on
+// "Review draft", never on a page render or a pick, from the Testbench company
+// and role the member's own token reads for their org and the application's
+// job (lib/client/testbench.ts), never from the form. If the link cannot be
+// made no draft is written. "Add applicant" is lib/client/intake.ts's
 // addApplicant, the audited clientTools.addCandidate with source `sourced`,
 // as "Add referral" is with source `referral`.
 
@@ -84,9 +91,17 @@ export async function draftReplyAction(_: ReplyState, form: FormData): Promise<R
 
   let outcome: Awaited<ReturnType<typeof draftReply>>;
   try {
+    const mailer = webMailer();
+    let words = body;
+    // Only with a mailer: without one draftReply writes nothing, so nobody is invited for a draft that can't be.
+    if (mailer && hasTestbenchLink(body)) {
+      const link = await mintTestbenchLink(member.db, member, { applicationId, candidateId });
+      if (!link.ok) return { error: link.error };
+      words = withTestbenchLink(body, link.url);
+    }
     // The template it started from, if any: only an id, recorded on the draft; the words are what the box posted.
     const template = id(form, "templateId");
-    outcome = await draftReply(member.db, toolCtx(member), webMailer(), { candidateId, applicationId, subject, body, ...(template ? { template } : {}) });
+    outcome = await draftReply(member.db, toolCtx(member), mailer, { candidateId, applicationId, subject, body: words, ...(template ? { template } : {}) });
   } catch (err) {
     console.error("[client-applicants] draft failed:", err instanceof Error ? err.message : err);
     return { error: "That didn't work. No draft was written." };
