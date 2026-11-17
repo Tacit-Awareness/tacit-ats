@@ -55,7 +55,7 @@ export type Reply = {
   templates?: TemplateStarter[];
   subjectMax: number;
   bodyMax: number;
-  /** Whether the Testbench starter is offered: Testbench set up, the company connected, the job with a Testbench role. */
+  /** Whether the Testbench starter is offered: Testbench set up and the job with a Testbench role. */
   testbench?: boolean;
 };
 

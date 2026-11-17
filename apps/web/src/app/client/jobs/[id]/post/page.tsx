@@ -63,7 +63,7 @@ export default async function ClientJobPost({
     return <PostingView job={read.job} post={post} postTabs={postTabs} tab={tab} tabHref={(t) => href({ tab: t })} link={link} />;
   }
   const notice = one(sp.notice);
-  // The Testbench picker is null (and not drawn) with Testbench off or the company not connected.
+  // The Testbench picker is null (and not drawn) with Testbench off or no Testbench company linked to the org.
   const [settings, testbench] = await Promise.all([readJobSettings(gate.ctx.db, ctx, read.job), readJobTestbench(gate.ctx.db, gate.ctx.org.id, id)]);
   return (
     <PostingEditor

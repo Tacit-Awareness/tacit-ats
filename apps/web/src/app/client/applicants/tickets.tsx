@@ -87,8 +87,8 @@ export async function readTicket(ctx: ClientContext, open: QueueEntry, place: Ti
     clientTools.listFiles(db, toolCtx(ctx), { candidateId: open.candidateId }),
     readTemplates(db, toolCtx(ctx)),
     addedBy ?? (added ? readAddedBy(db, [open.applicationId]) : new Map<string, string>()),
-    // Testbench is offered only where a link can be made: configured, the org mapped, the job with a Testbench role.
-    readTestbenchOffered(db, org.id, open.jobId),
+    // Testbench is offered only on a job with a Testbench role, with Testbench configured.
+    readTestbenchOffered(db, open.jobId),
   ]);
   const { phone, answers } = readerAnswers(open.answers, open.linkedinUrl);
   return {

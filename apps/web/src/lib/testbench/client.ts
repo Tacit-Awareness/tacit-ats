@@ -1,9 +1,12 @@
 // Tacit Testbench's invite service connection, from the server only
 // (tacit-testbench's packages/server/INVITE_INTEGRATION.md). One `tis_`
 // credential, Tacit's own Testbench agency, for every ATS company: so this
-// module decides nothing about who may invite where. Its callers take the
-// Testbench company from the member's own org row and the role from the job's
-// row, on the member's own token (lib/client/testbench.ts), never from a form.
+// module decides nothing about who may invite where. A request names its
+// company by the ATS org's own id (`X-Tacit-Org`), which Testbench resolves to
+// the one company linked to that org: the ATS keeps no Testbench company id
+// and nothing is matched by name. Its callers pass the org of the member's
+// verified session and the role from the job's row (lib/client/testbench.ts),
+// never anything from a form.
 //
 // Off unless both TESTBENCH_URL (the site's origin, no /api/v1) and
 // TESTBENCH_INVITE_TOKEN are set. It holds no database client. The token goes
@@ -40,6 +43,8 @@ const SENTENCES: Record<string, string> = {
   invite_scope_denied: `The connection to Testbench doesn't allow this. ${TACIT}`,
   invite_service_unavailable: "Testbench isn't ready to take invitations yet. Try again later.",
   client_required: `Testbench didn't recognise your company. ${TACIT}`,
+  org_not_linked: "Testbench isn't connected for your company yet. Ask Tacit to connect it.",
+  org_link_unavailable: "Testbench isn't ready to take invitations yet. Try again later.",
   validation: "Testbench didn't accept the candidate's name or email address. Check them on the candidate.",
   rate_limited: "Testbench is taking too many invitations right now. Try again in a minute.",
   timeout: "Testbench didn't answer in time. Try again.",
@@ -62,7 +67,7 @@ function codeOf(status: number, body: unknown): string {
   return "refused";
 }
 
-async function call(path: string, init: { clientId?: string; body?: unknown }): Promise<TestbenchResult<unknown>> {
+async function call(path: string, init: { orgId: string; body?: unknown }): Promise<TestbenchResult<unknown>> {
   const cfg = config();
   if (!cfg) return failure("not_configured");
   let res: Response;
@@ -72,7 +77,7 @@ async function call(path: string, init: { clientId?: string; body?: unknown }): 
       headers: {
         Authorization: `Bearer ${cfg.token}`,
         Accept: "application/json",
-        ...(init.clientId ? { "X-Tacit-Client": init.clientId } : {}),
+        "X-Tacit-Org": init.orgId,
         ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
       },
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
@@ -96,10 +101,13 @@ async function call(path: string, init: { clientId?: string; body?: unknown }): 
   return { ok: true, value: data };
 }
 
-/** The roles of one Testbench company, with whether each can take an invitation now. */
-export async function listTestbenchRoles(clientId: string): Promise<TestbenchResult<TestbenchRole[]>> {
-  if (!UUID.test(clientId)) return failure("client_required");
-  const res = await call("/integration/roles", { clientId });
+/**
+ * The roles of the Testbench company linked to this ATS org, with whether each
+ * can take an invitation now. `org_not_linked`: the org has no company there.
+ */
+export async function listTestbenchRoles(orgId: string): Promise<TestbenchResult<TestbenchRole[]>> {
+  if (!UUID.test(orgId)) return failure("client_required");
+  const res = await call("/integration/roles", { orgId });
   if (!res.ok) return res;
   const items = (res.value as { items?: unknown }).items;
   if (!Array.isArray(items)) return failure("bad_response");
@@ -124,11 +132,11 @@ const usableLink = (v: unknown): v is string => typeof v === "string" && /^https
  * on `requestId`: the same request returns the same invitation and link, and
  * Testbench sends no email of its own.
  */
-export async function createTestbenchInvite(input: { clientId: string; roleId: string; requestId: string; email: string; name: string }): Promise<TestbenchResult<TestbenchInvite>> {
-  if (!UUID.test(input.clientId)) return failure("client_required");
+export async function createTestbenchInvite(input: { orgId: string; roleId: string; requestId: string; email: string; name: string }): Promise<TestbenchResult<TestbenchInvite>> {
+  if (!UUID.test(input.orgId)) return failure("client_required");
   if (!UUID.test(input.roleId)) return failure("not_found");
   const res = await call(`/integration/roles/${input.roleId}/invites`, {
-    clientId: input.clientId,
+    orgId: input.orgId,
     body: { requestId: input.requestId, candidate: { email: input.email, name: input.name } },
   });
   if (!res.ok) return res;
