@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createUserClient } from "@tacit/db";
+import { bindNewInvitations } from "@/lib/client/bind";
 import { CLIENT_SIGN_IN_PATH } from "@/lib/client/config";
 import { signedInClaims, supabaseAuthClient } from "@/lib/client/supabase-auth";
 import { CompanyPickerScreen } from "../screens";
@@ -15,6 +16,10 @@ export default async function ChooseCompanyPage() {
   const { data: session } = await auth.auth.getSession();
   const token = session.session?.access_token;
   if (!claims || !token) redirect(CLIENT_SIGN_IN_PATH);
+  // An invitation that arrived while they were signed in elsewhere is listed too.
+  await bindNewInvitations(claims.sub, claims.email).catch((err: unknown) => {
+    console.error("[client] could not bind a new invitation:", err instanceof Error ? err.message : err);
+  });
   const db = createUserClient(process.env.SUPABASE_URL ?? "", process.env.SUPABASE_PUBLISHABLE_KEY ?? "", () => token);
   const { data, error } = await db.rpc("my_sign_in_orgs" as never);
   if (error) throw new Error(error.message);

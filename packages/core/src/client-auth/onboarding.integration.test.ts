@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "vitest";
 import { createClientOrg, inviteOrgMember, type IdentityProvider } from "@tacit/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
-import { bindSupabaseUser } from "./bind.js";
+import { bindSupabaseUser, hasPendingInvitation } from "./bind.js";
 
 // Staff onboarding (tacit-internal's ATS Admin, /admin/orgs, @tacit/core's createClientOrg and
 // inviteOrgMember) handing over to this repo's first sign-in. The onboarding
@@ -79,5 +79,22 @@ describe("client org onboarding, then the first sign-in, against real Postgres",
     expect(await bindSupabaseUser(db(), { userId, email: "both@example.test", emailVerified: true })).toEqual({ status: "ok", companies: 2, firstSignIn: true });
     const { data: rows } = await db().from("actors").select("id, auth_subject").in("id", [a.actorId, g.actorId]);
     expect(rows?.every((r) => r.auth_subject === userId)).toBe(true);
+  });
+  test("a member invited to a second company later is bound to it on their next request", async () => {
+    const { idp } = fakeIdp();
+    const acme = await createClientOrg(db(), idp, { name: "Acme" });
+    await inviteOrgMember(db(), idp, { orgId: acme.id, email: "later@example.test", displayName: "Later", accessLevel: "admin" });
+    const userId = "5a000000-0000-4000-8000-0000000000c0";
+    expect(await bindSupabaseUser(db(), { userId, email: "later@example.test", emailVerified: true })).toEqual({ status: "ok", companies: 1, firstSignIn: true });
+    expect(await hasPendingInvitation(db(), "later@example.test")).toBe(false);
+
+    // Already signed in to Acme when Globex invites them: apps/web asks on every request.
+    const globex = await createClientOrg(db(), idp, { name: "Globex" });
+    const g = await inviteOrgMember(db(), idp, { orgId: globex.id, email: "later@example.test", displayName: "Later", accessLevel: "limited" });
+    expect(await hasPendingInvitation(db(), "  Later@Example.test ")).toBe(true);
+    expect(await bindSupabaseUser(db(), { userId, email: "later@example.test", emailVerified: true })).toEqual({ status: "ok", companies: 2, firstSignIn: true });
+    const { data: bound } = await db().from("actors").select("auth_subject").eq("id", g.actorId).single();
+    expect(bound?.auth_subject).toBe(userId);
+    expect(await hasPendingInvitation(db(), "later@example.test")).toBe(false);
   });
 });

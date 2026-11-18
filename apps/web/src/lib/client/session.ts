@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createUserClient, type Db } from "@tacit/db";
-import { bindInvitedUser } from "./bind";
+import { bindInvitedUser, bindNewInvitations } from "./bind";
 import { CLIENT_CHOOSE_COMPANY_PATH, CLIENT_REFRESH_PATH, REFRESHED_COOKIE } from "./config";
 import { signedInClaims, supabaseAuthClient } from "./supabase-auth";
 
@@ -100,6 +100,14 @@ async function resolveSupabase(): Promise<ClientGate> {
     db.from("orgs").select("id, name, slug, brand_accent, brand_logo_url").maybeSingle(),
     // The name the admin invited them by: Supabase Auth holds no name.
     db.from("org_members").select("display_name").eq("id", who.data).maybeSingle(),
+    // Invited to another company since they first signed in: bind it now, so
+    // the sidebar's switcher (my_sign_in_orgs, read after this) lists it. Before
+    // this, only someone who belonged nowhere was ever bound. A failure here
+    // costs only the new company, never the page.
+    bindNewInvitations(claims.sub, claims.email).catch((err: unknown) => {
+      console.error("[client] could not bind a new invitation:", err instanceof Error ? err.message : err);
+      return false;
+    }),
   ]);
   if (level.error) unlessRefused(level.status);
   if (org.error) unlessRefused(org.status);

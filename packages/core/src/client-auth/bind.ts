@@ -67,3 +67,25 @@ export async function bindSupabaseUser(db: Db, who: SupabaseIdentity): Promise<B
   const elsewhere = (invited ?? []).some((a) => a.auth_subject && a.auth_subject !== who.userId);
   return { status: "forbidden", reason: elsewhere ? "subject_mismatch" : "not_invited" };
 }
+
+/**
+ * Whether `email` has an invitation nobody has claimed yet: an unbound,
+ * unarchived actor in a `client` org. One indexed read, so the web app can ask
+ * on every request from someone already signed in, and only then pay for
+ * Supabase Auth's verified record and bindSupabaseUser. Without it, a member
+ * of one company who is invited to another (the admin's invite sends no email
+ * to an existing account: "sign in and pick the company") was never bound,
+ * since the web app bound only someone who belonged nowhere yet.
+ *
+ * A hint, never a grant: binding still goes through bindSupabaseUser, on the
+ * verified address. `db` is a service-role client.
+ */
+export async function hasPendingInvitation(db: Db, email: string | null | undefined): Promise<boolean> {
+  const address = email?.trim().toLowerCase();
+  if (!address) return false;
+  const { count, error } = await db
+    .from("actors").select("id, orgs!actors_org_id_fkey!inner(kind)", { count: "exact", head: true })
+    .ilike("email", likeEscape(address)).is("auth_subject", null).is("archived_at", null).eq("orgs.kind", "client");
+  if (error) throw new Error(error.message);
+  return (count ?? 0) > 0;
+}

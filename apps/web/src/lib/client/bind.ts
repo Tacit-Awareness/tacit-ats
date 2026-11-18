@@ -1,4 +1,4 @@
-import { bindSupabaseUser, type BindSupabaseResult, type SupabaseIdentity } from "@tacit-ats/core";
+import { bindSupabaseUser, hasPendingInvitation, type BindSupabaseResult, type SupabaseIdentity } from "@tacit-ats/core";
 import { getSupabaseServiceClient } from "@tacit/db";
 
 /**
@@ -13,4 +13,26 @@ import { getSupabaseServiceClient } from "@tacit/db";
  */
 export async function bindInvitedUser(who: SupabaseIdentity): Promise<BindSupabaseResult> {
   return bindSupabaseUser(getSupabaseServiceClient(), who);
+}
+
+/**
+ * For someone already signed in to a company: binds an invitation to another
+ * one that has arrived since (the admin's invite emails nobody who already has
+ * an account; they are told to sign in and pick the company). Asked on every
+ * request, so it first makes one cheap read for an unclaimed invitation to the
+ * token's address, and only then reads Supabase Auth's own record of the user
+ * and binds on its verified address, as apps/mcp's bindSupabaseMember does on
+ * every call. True when a company was added.
+ */
+export async function bindNewInvitations(userId: string, tokenEmail: string | null | undefined): Promise<boolean> {
+  const service = getSupabaseServiceClient();
+  if (!(await hasPendingInvitation(service, tokenEmail))) return false;
+  const { data, error } = await service.auth.admin.getUserById(userId);
+  if (error || !data.user) return false;
+  const bound = await bindSupabaseUser(service, {
+    userId,
+    email: data.user.email,
+    emailVerified: Boolean(data.user.email_confirmed_at),
+  });
+  return bound.status === "ok" && bound.firstSignIn;
 }
