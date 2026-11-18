@@ -77,7 +77,7 @@ describe("the client site", () => {
 
   test("the overview reaches the app, the connector, the CLI and the bot", () => {
     const links = linksOf(findDocPage(CLIENT_SITE, [])!);
-    for (const slug of ["app-home", "connect", "cli", "grok-bot"]) expect(links).toContain(`/docs/${slug}`);
+    for (const slug of ["app-home", "connect", "cli", "grok-slack"]) expect(links).toContain(`/docs/${slug}`);
   });
 
   test("every sidebar page of the app has a features page", () => {
