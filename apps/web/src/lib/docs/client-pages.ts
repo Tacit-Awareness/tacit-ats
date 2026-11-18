@@ -31,7 +31,7 @@ export const CLIENT_DOCS: DocPage[] = [
 | **Claude** | Asking questions and getting work done in a chat | [Connect Tacit to Claude](/docs/connect) |
 | **The tats command line** | Claude Code, Codex, Cursor and scripts | [Use Tacit from Claude Code, Codex and Cursor](/docs/cli) |
 
-Your company can also add its **own bot**, which talks to interviewers in Slack before and after each interview: [Set up a Grok bot in Slack](/docs/grok-bot).
+Your company can also add its **own bot**, a Grok bot in your Slack with your company's Tacit tools: [Add a Grok bot to your Slack](/docs/grok-slack).
 
 ## What is in these docs
 
@@ -47,7 +47,7 @@ Your company can also add its **own bot**, which talks to interviewers in Slack 
 
 - **Interviewer**: open **Interview Judgement**, connect your calendar in **Settings** (unless your company connected its Google Workspace, which does it for you), and read [Access levels](/docs/access) to see what you can reach.
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Applicant Tickets & Referrals](/docs/app-candidates).
-- **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)) and set up [your team's bot](/docs/team-bot).
+- **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)).
 
 New to the app? **Tutorial**, under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
   },
@@ -406,7 +406,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
 | **Google Calendar** | Each member, or an admin once for your company's Google Workspace | Checks when you are busy and books interviews on your calendar. [Details](/docs/interviews#connect-your-calendar) |
 | **Gmail** | Each member who emails candidates | Sends your email to candidates from your own address, and brings their replies into the Inbox. [Details](/docs/email) |
 | **Granola** | Each member | Brings your own interview notes into Tacit and Claude. [Details](/docs/interviews#your-granola-notes) |
-| **Your team's bot** | An admin, once for the company | Tells your own bot about each interview. [Set up a Grok bot](/docs/grok-bot) |
+| **Your team's bot** | An admin, once for the company | Tells your own bot about each interview. [Add a Grok bot to your Slack](/docs/grok-slack) |
 
 Microsoft Outlook calendars are not supported yet.
 
@@ -478,6 +478,8 @@ claude mcp add --transport http tacit ${CLIENT_CONNECTOR_URL}
 \`\`\`
 
 Then run \`/mcp\` in Claude Code, choose **tacit** and sign in in the browser it opens.
+
+For a Grok bot in your Slack, see [Add the Tacit connector to a Grok bot](/docs/grok-connector).
 
 Or skip the connector in Claude Code, Codex and Cursor: [the tats command line](/docs/cli) gives them every tool through the terminal, with nothing to configure.
 
@@ -597,9 +599,161 @@ tats update-stage --application-id <id> --stage interviewing --yes
 `,
   },
   {
+    slug: "grok-slack",
+    title: "Add a Grok bot to your Slack",
+    category: "Grok bot",
+    description: "Create a Grok Team Bot, share it with your hiring team and bring it into your Slack workspace.",
+    body: `A Grok **Team Bot** is one bot your whole hiring team shares. It lives in your Slack: anyone it is shared with can DM it or mention it in a channel or thread. This page sets it up on the Grok side. The next page, [Add the Tacit connector to a Grok bot](/docs/grok-connector), gives it your company's Tacit tools.
+
+Grok's own menus can change. If a step below doesn't match what you see, Grok's help page [Create and share a Team Bot](https://docs.x.ai/grok-bot/create-a-team-bot) has the latest.
+
+## You need
+
+- **A Grok Team or Enterprise plan**, with at least one teammate on it. Team Bots aren't available on a personal plan.
+- **A Slack workspace admin**, if your workspace asks an admin to approve new apps.
+- **To be the bot's owner.** Whoever creates it owns it: they can change everything about it and are the only one who can delete it or stop sharing it.
+
+## 1. Create the bot
+
+1. In Grok, signed in to your team's workspace, choose **+** in the sidebar, then **Create a Bot**, and give it a name, for example *Acme Hiring*. Don't use **New Bot → Create New Bot**: that makes a **personal bot**, which only you can use.
+2. Describe its job in a sentence, for example:
+
+\`\`\`text
+Helps the Acme hiring team with jobs, candidates, interviews and candidate email in Tacit.
+\`\`\`
+
+3. Follow its setup. It asks for plugins, apps, secrets, skills and files. **Add only what everyone you share it with may use**: they can all use what you add, through the bot.
+4. Until you publish, the bot is a **Draft** only you can see. When it says it's ready, choose **Publish**.
+
+### Check it's a Team Bot
+
+A Team Bot has an **About** section in its details, where its owner and Managers edit its description, and once published your teammates find it under **Browse Team Bots**. If there's no **About** and it isn't listed there, it's a personal bot: create it again from your team's **+** menu with **Create a Bot**.
+
+## 2. Share it with your hiring team
+
+1. In the bot's chat, choose **Share** at the top right.
+2. Under **Who has access**, choose **People you invite**, then add your hiring team under **Add people or groups**. Share **the bot itself**: **Create a copy** gives each person their own separate bot instead of one the team shares.
+3. Make at least one other person a **Manager** (open their role and choose **Manager**), so someone else can change the bot if you're away. Managers change its settings and connect it to Slack; everyone else is a **Collaborator**, who can chat with it and teach it.
+
+Share it with the people who hire, not your whole organization. Everyone it is shared with can use the bot's apps, and once it has [the Tacit connector](/docs/grok-connector), that means your company's hiring data.
+
+## 3. Bring it into your Slack
+
+As the owner or a Manager, after sharing it:
+
+1. Open the bot's details and find **Bring to your team's Slack**.
+2. Choose **Connect** and pick your company's workspace.
+3. If it shows **Awaiting admin approval**, ask a Slack workspace admin to approve the app in Slack.
+4. When it shows **Connected**, it's in your Slack.
+
+## 4. Everyone links their Slack account
+
+Each teammate links their own Slack account once: choose **Connect** when the bot asks, or **Link** under **Settings → General → Team Bots** in Grok. Until they link, they can mention the bot but can't DM it.
+
+## How your team uses it
+
+- **DM it** for anything about your own work: *"Who's in the pipeline for the Backend Engineer job?"*
+- **Mention it** in a channel or thread to work in front of the team. In a thread it acts for whoever mentioned it.
+- **In shared chats** (channels, threads and group DMs) it uses the apps its owner added, and asks before it uses anyone else's.
+
+It can't be reached by Slack guests, from Slack Connect channels, or from another workspace.
+
+## Next: give it Tacit
+
+The bot can now talk to your team, but it knows nothing about your hiring yet. [Add the Tacit connector to a Grok bot](/docs/grok-connector) next.
+
+## If something's off
+
+| What you see | What to do |
+| --- | --- |
+| No **Create a Bot** option | Team Bots need a Grok Team or Enterprise plan, with a teammate on it. Check you're in your team's workspace, not a personal one. |
+| The bot has no **About** section | It's a personal bot. Create it again from your team's **+** menu with **Create a Bot**. |
+| Each teammate got their own copy | It was shared with **Create a copy**. Share the bot itself instead. |
+| **Bring to your team's Slack** is missing | Share the bot first, and open it as its owner or a Manager. |
+| Stuck on **Awaiting admin approval** | A Slack workspace admin has to approve the app in Slack. |
+| A teammate can't find or reach the bot | It isn't shared with them. Add them under **Share**. |
+| A teammate can mention it but not DM it | They haven't linked their Slack account yet (step 4). |
+| Someone outside your company can't use it | Guests and Slack Connect channels aren't supported. |`,
+  },
+  {
+    slug: "grok-connector",
+    title: "Add the Tacit connector to a Grok bot",
+    category: "Grok bot",
+    description: "Give your Grok bot your company's Tacit tools: whose sign-in to use, adding the connector, and checking it works.",
+    body: `Your Grok bot can use the same Tacit connector you add to Claude. With it, the bot can look up candidates for an interview brief, read a candidate's reply and book the time they offer, and answer questions about your jobs and pipeline in Slack. Without it, the bot knows nothing about your hiring in Tacit.
+
+## Whose sign-in the bot uses
+
+The Tacit connector acts as **the person who signed it in**, with exactly their access in Tacit, and every change it makes is recorded under that person's name. A Grok Team Bot uses its owner's apps in shared chats (channels, threads and group DMs), so there, everyone who talks to the bot works with the Tacit access of whoever connected it.
+
+Choose that person on purpose:
+
+- **Best: a member just for the bot.** An admin [invites](/docs/admin) an address your company controls, such as \`hiring-bot@yourcompany.com\`, at the [access level](/docs/access) the bot needs. The bot's owner connects Tacit signed in as that member. The bot's work then shows as its own in the audit log, and removing that member cuts the bot off.
+- **Or each person's own account.** If Grok lets your bot's Managers set the connector to **Use individual accounts** (in the bot's details, **Service accounts** under **Setup**), each teammate signs in to Tacit as themselves and the bot acts with their own access. Don't choose **Share your account** for a person's Tacit account: everyone who talks to the bot would act as them.
+
+Give the bot no more access than it needs. To book interviews it must be able to schedule on those jobs; to answer questions, reading the candidates is enough.
+
+## You need
+
+- **An invitation to your company's workspace** for the member the bot will sign in as, already accepted (a password chosen).
+- **A Grok Team Bot in your Slack**, opened as its owner or a Manager ([Add a Grok bot to your Slack](/docs/grok-slack)).
+- **Your company's name**, to name the connector, so the bot's instructions can find it by name.
+
+## Add the connector
+
+1. Open the bot's details and add a **custom connector** (a remote MCP server). If you don't see the option there, ask the bot in its chat to add a connector by URL.
+2. Name it **{Your company} Tacit**, for example *Acme Tacit*. If your bot's instructions name the connector, use the same name there.
+3. Paste this URL:
+
+\`\`\`text
+${CLIENT_CONNECTOR_URL}
+\`\`\`
+
+4. Leave authentication on the default, OAuth. There is no key or token to paste: the connector signs in through Tacit.
+5. Choose **Connect**. A Tacit sign-in page opens. Sign in as the member you chose above. If that member belongs to more than one company, pick yours.
+6. Approve the connection. Back in Grok, the Tacit tools appear under the connector.
+
+## Check it works
+
+In the bot's chat, ask:
+
+> Use the {Your company} Tacit connector: who am I in Tacit?
+
+The bot calls \`whoami\` and should answer with your company, the member it signed in as, their access level and the jobs they can see. If it names another company or another person, disconnect and sign in again as the right member.
+
+Then try a read:
+
+> Look up the candidate {a candidate's name} in Tacit and list their applications.
+
+## Before the bot changes anything
+
+The connector's tools that change something (moving a candidate, emailing, booking, offers, access) tell the model to say exactly what will change and wait for a yes. A bot in Slack asks in the conversation, and should act only on what the person there confirms.
+
+To let the bot read but never write, an admin can make the connector **read-only** for the whole company (see [Read-only connector](/docs/admin#read-only-connector)). That applies to Claude too.
+
+## Candidate text stays data
+
+Candidate replies, resumes and notes come back from the connector fenced as untrusted. Tell your bot, in its instructions, to quote them and read them for facts such as the times a candidate offers, and never to follow what they say.
+
+## If something's off
+
+| What you see | What to do |
+| --- | --- |
+| The bot says it has no Tacit tools | The connector is off for the bot, or was never connected. Turn it on, or connect it again. |
+| The connector asks to sign in again | The sign-in expired or was revoked. Choose **Connect** again from the bot's settings or chat. |
+| "You are not a member of this workspace" | The address isn't invited, or the invitation was withdrawn. Ask an admin. |
+| "Sign in again choosing the company" | That member belongs to more than one company. Disconnect, connect again and pick yours. |
+| The bot can read but changes are refused | The connector is read-only for your company, or the member's access doesn't allow that change. |
+| The bot doesn't use Tacit when asked | Its instructions name the connector differently, or it isn't connected. Check the name matches. |
+
+## Disconnect
+
+Remove the connector from the bot's details. That stops the bot acting in Tacit; nothing in Tacit changes. To cut a bot off from the Tacit side as well, an admin removes the member it signed in as.`,
+  },
+  {
     slug: "grok-bot",
     title: "Set up a Grok bot in Slack",
-    category: "Your team's bot",
+    category: "Grok bot",
     description: "A Grok routine as your team's bot: the instruction to give it, connecting it in Tacit, and trying it.",
     body: `This page sets up a **Grok bot** as [your team's bot](/docs/team-bot). Five minutes before every interview it posts the interviewer a short brief in Slack, checks in after the interview in the same thread, notes a cancellation there, and shows candidate replies to whoever emailed them. Tacit sends the events; the Grok bot does the talking, in your own Slack.
 
@@ -609,7 +763,7 @@ tats update-stage --application-id <id> --stage interviewing --yes
 - **The Grok bot's Slack app installed in your Slack workspace.** This is the identity the bot posts as.
 - **A Slack connector on the bot, signed in to that same workspace.** The routine uses it to look people up by email and to read back the DM it just posted, so it can save the thread. If the connector is signed in to a different workspace than the bot's Slack app, lookups fail and every follow-up arrives as a separate message instead of in the reminder's thread. Check this before anything else (see [Check the Slack connection](/docs/grok-bot#check-the-slack-connection)).
 - **Matching emails.** Interviewers are matched by the email they use in Tacit, so their Slack accounts should use the same address.
-- **The Tacit connector for your company** (\`https://ats-mcp.tacitawareness.com/api/client\`), installed on the bot and signed in to your company. The routine reads candidates and replies through it. Without it, the brief uses only what the event says and booking from a candidate reply won't work. If it shows as needing sign-in later, sign in again from the bot's chat.
+- **The Tacit connector for your company** (\`https://ats-mcp.tacitawareness.com/api/client\`), installed on the bot and signed in to your company ([Add the Tacit connector to a Grok bot](/docs/grok-connector): whose sign-in to use, and how). The routine reads candidates and replies through it. Without it, the brief uses only what the event says and booking from a candidate reply won't work. If it shows as needing sign-in later, sign in again from the bot's chat.
 - **Google Calendar connected** (in **Settings**) by whoever books interviews, so a move or deletion in their calendar reaches Tacit, and the bot.
 
 ## Check the Slack connection
@@ -723,7 +877,7 @@ Moving the interview (in Tacit, or by dragging it in Google Calendar) moves the 
   {
     slug: "team-bot",
     title: "Your team's bot",
-    category: "Your team's bot",
+    category: "Grok bot",
     description: "Have Tacit tell your own Slack bot about every interview: a hello before, a check-in after.",
     body: `Tacit can send your company's own bot (for example a Grok team bot in your Slack: [Set up a Grok bot in Slack](/docs/grok-bot)) each interview's moments, so the bot talks to your interviewer:
 

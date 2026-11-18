@@ -16,12 +16,18 @@ export type DocsSite = {
   pages: DocPage[];
 };
 
+/**
+ * Pages kept in client-pages.ts but not shown for now. Take a slug out to
+ * bring its page back (and its links from other pages).
+ */
+const HIDDEN_SLUGS = new Set(["grok-bot", "team-bot"]);
+
 /** /client/docs: the app, the connector, the CLI and the team's bot, in one place. */
 export const CLIENT_SITE: DocsSite = {
   basePath: "/client/docs",
   title: "tATS documentation",
   intro: "The app, Claude, the command line and your team's bot.",
-  pages: CLIENT_DOCS,
+  pages: CLIENT_DOCS.filter((p) => !HIDDEN_SLUGS.has(p.slug)),
 };
 
 /** The page a slug names, or the site's first page for no slug; null when there is none. */
