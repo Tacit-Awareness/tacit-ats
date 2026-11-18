@@ -4,7 +4,7 @@
 // tacit-internal's @tacit/core, vendored (vendor/, scripts/sync-tacit.mjs).
 
 // First sign-in for a member of a client org (apps/web's /client, apps/mcp's /api/client).
-export { bindSupabaseUser } from "./client-auth/bind.js";
+export { bindSupabaseUser, hasPendingInvitation } from "./client-auth/bind.js";
 export type { BindSupabaseResult, SupabaseIdentity } from "./client-auth/bind.js";
 // A client admin inviting their own team, on their own token.
 export { ClientInviteError, inviteClientMember, listPendingInvites, withdrawClientInvite } from "./client-auth/invite.js";
