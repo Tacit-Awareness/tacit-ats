@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // when it means something (positive = now/done, negative = overdue or failed).
 // The status tag with a tinted fill is `Pill` in components/page.tsx.
 export const badgeVariants = cva(
-  "inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-[6px] border px-2 font-mono text-[12px] leading-none font-medium whitespace-nowrap transition-colors",
+  "inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-[6px] border px-2 text-[12px] leading-none font-medium whitespace-nowrap transition-colors",
   {
     variants: {
       variant: {

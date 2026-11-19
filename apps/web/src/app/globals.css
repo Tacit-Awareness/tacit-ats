@@ -553,11 +553,11 @@ body:has(.ui-root) {
 
 /* where you are: the current page is raised off the box, as the picked option
    of Testbench's segmented nav. */
+/* Tacit Tickets: the page you are on is a raised grey row, no lift */
 .nav-on,
 .nav-on:hover {
-  background: var(--pick);
+  background: var(--sel);
   color: var(--ink);
-  box-shadow: var(--pick-shadow);
 }
 
 /* design/tats's sidebar mark: something arrived since you last opened the page. */
@@ -575,11 +575,11 @@ body:has(.ui-root) {
    Each grows with the window between a floor and a ceiling, so the sidebar
    fills the height; below the floor it scrolls and nothing overlaps. */
 .sb {
-  --sb-item-h: clamp(30px, 3.6vh, 34px); /* each row */
-  --sb-gap: clamp(0px, 0.3vh, 4px); /* between items */
-  --sb-sec-h: clamp(24px, 3.3vh, 30px); /* a section label */
-  --sb-sec-gap: clamp(2px, 0.8vh, 8px); /* label to its first item */
-  --sb-group-gap: clamp(12px, 2.6vh, 28px); /* between sections */
+  --sb-item-h: clamp(28px, 3.2vh, 30px); /* each row: Tacit Tickets' 28px, a little more on a tall window */
+  --sb-gap: 1px; /* between items */
+  --sb-sec-h: clamp(22px, 3vh, 26px); /* a section label */
+  --sb-sec-gap: clamp(2px, 0.6vh, 6px); /* label to its first item */
+  --sb-group-gap: clamp(12px, 2.2vh, 22px); /* between sections */
   --sb-head-gap: clamp(14px, 2.6vh, 28px); /* workspace to the first section */
   --sb-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --sb-dur: 0.26s;
@@ -686,8 +686,8 @@ body:has(.ui-root) {
   margin-left: 2px;
   padding: 0 10px 0 12px;
   overflow: hidden;
-  border-radius: 7px;
-  background: var(--paper);
+  border-radius: 8px;
+  background: transparent;
   box-shadow: var(--btn-ring);
   font: 500 13px/1 var(--font-mono);
 }
@@ -1077,4 +1077,228 @@ body:has(.ui-root) {
     opacity: 0;
     transform: translateY(6px);
   }
+}
+
+/* ---------- Tacit Tickets: the signed-in client area's skin ----------
+   design/tacit-tickets (DESIGN.md) redrawn onto the tokens above, so every page
+   moves with it and none is rewritten. Scoped to the signed-in shell
+   (:has(.ui-root)), so the public careers pages, job posts and a refused
+   sign-in keep the look above; the shell's pop-ups portal to <body>, which
+   :root still covers.
+
+   Inside the box it is Linear as Hy read it: quiet greys, Inter for everything,
+   a card is a border with no shadow (only what floats casts one), and colour
+   only for status, always meaning the same thing: amber is waiting on you, red
+   is overdue or failed, blue is waiting on someone else, green is moving.
+   The company's brand accent is left alone (--accent is not set here), so
+   brand-style.tsx still reaches links, selection and what is live.
+
+   The grey ramp, DESIGN.md's names to ours:
+     well -> --frame          panel -> --paper, --pane, --surface, --raised
+     hover -> --hover, --soft raised -> --sel, --press, --soft-strong
+     line -> --line           line-strong -> --line-strong, --field
+     ink -> --ink   body -> --muted-text   mute -> --faint   faint -> --ink-4 */
+:root:has(.ui-root) {
+  --frame: #f4f5f8;
+  --surface: #ffffff;
+  --paper: #ffffff;
+  --raised: #ffffff;
+  --pane: #ffffff;
+  --band: #f6f7f9;
+  --ink: #16171a;
+  --fg-rgb: 22, 23, 26;
+  --muted-text: #3a3d44;
+  --faint: #62656e;
+  --ink-4: #8a8d96;
+  --line: #e9ebef;
+  --line-strong: #d6d9df;
+  --field: #d6d9df;
+  --soft: #f6f7f9;
+  --soft-strong: #eef0f4;
+  --pick: #ffffff;
+  --pick-ink: #16171a;
+  --pick-shadow: 0 0 0 1px #d6d9df;
+  --track: #f4f5f8;
+  --glass: rgba(22, 23, 26, 0.04);
+  --hover: #f6f7f9;
+  --press: #eef0f4;
+  --sel: #eef0f4;
+  --primary: #16171a;
+  --primary-hover: #2c2d31;
+  --primary-ink: #f4f5f8;
+  --green: #3f9a6c;
+  --green-bright: #3f9a6c;
+  --green-soft: rgb(63 154 108 / 0.12);
+  --red: #c8615a;
+  --red-soft: rgb(214 96 88 / 0.12);
+  --amber: #b98a35;
+  --amber-soft: rgb(214 160 60 / 0.14);
+  --blue: #6276c9;
+  --blue-soft: rgb(98 118 201 / 0.12);
+  --orange: #c4744a;
+  --tone-3: #b98a35;
+  --tone-4: #c4744a;
+  --tone-5: #6276c9;
+  --st-3: #b98a35;
+  --st-4: #c4744a;
+  --st-5: #6276c9;
+  --done: #6276c9;
+  --closed: #c3c6cd;
+  /* a card is its border; only what floats has a shadow */
+  --ring: 0 0 0 1px #e9ebef;
+  --shadow: 0 0 0 1px #d6d9df;
+  --shadow-sm: 0 0 0 1px #d6d9df;
+  --pop-shadow: 0 0 0 1px #d6d9df, 0 16px 40px -12px rgba(22, 23, 26, 0.18);
+  --btn-ring: inset 0 0 0 1px #d6d9df;
+  --active-inset: none;
+  /* Inter for everything; real code keeps its monospace (--font-code, from layout.tsx) */
+  --font-mona: var(--font-inter);
+  --font-geist-mono: var(--font-inter);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):has(.ui-root) {
+    --frame: #0b0b0c;
+    --surface: #111112;
+    --paper: #111112;
+    --raised: #111112;
+    --pane: #111112;
+    --band: #161618;
+    --ink: #ededec;
+    --fg-rgb: 237, 237, 236;
+    --muted-text: #b6b6b3;
+    --faint: #8a8a87;
+    --ink-4: #5d5d5b;
+    --line: #1f1f21;
+    --line-strong: #2a2a2d;
+    --field: #2a2a2d;
+    --soft: #161618;
+    --soft-strong: #1a1a1c;
+    --pick: #111112;
+    --pick-ink: #ededec;
+    --pick-shadow: 0 0 0 1px #2a2a2d;
+    --track: #0b0b0c;
+    --glass: rgba(255, 255, 255, 0.04);
+    --hover: #161618;
+    --press: #1a1a1c;
+    --sel: #1a1a1c;
+    --primary: #ededec;
+    --primary-hover: #d6d6d4;
+    --primary-ink: #0b0b0c;
+    --green: #9ccdb3;
+    --green-bright: #9ccdb3;
+    --green-soft: rgb(156 205 179 / 0.1);
+    --red: #dfa3a3;
+    --red-soft: rgb(223 163 163 / 0.11);
+    --amber: #dcbf8e;
+    --amber-soft: rgb(220 191 142 / 0.11);
+    --blue: #a7b3e6;
+    --blue-soft: rgb(167 179 230 / 0.1);
+    --orange: #e3a27c;
+    --tone-1: #2a2a2d;
+    --tone-2: #5d5d5b;
+    --tone-3: #dcbf8e;
+    --tone-4: #e3a27c;
+    --tone-5: #a7b3e6;
+    --st-1: #6f6f6c;
+    --st-2: #6f6f6c;
+    --st-3: #dcbf8e;
+    --st-4: #e3a27c;
+    --st-5: #a7b3e6;
+    --done: #a7b3e6;
+    --closed: #4a4a48;
+    --ring: 0 0 0 1px #1f1f21;
+    --shadow: 0 0 0 1px #2a2a2d;
+    --shadow-sm: 0 0 0 1px #2a2a2d;
+    --pop-shadow: 0 0 0 1px #2a2a2d, 0 16px 40px -12px rgba(0, 0, 0, 0.45);
+    --btn-ring: inset 0 0 0 1px #2a2a2d;
+  }
+}
+:root[data-theme="dark"]:has(.ui-root) {
+  --frame: #0b0b0c;
+  --surface: #111112;
+  --paper: #111112;
+  --raised: #111112;
+  --pane: #111112;
+  --band: #161618;
+  --ink: #ededec;
+  --fg-rgb: 237, 237, 236;
+  --muted-text: #b6b6b3;
+  --faint: #8a8a87;
+  --ink-4: #5d5d5b;
+  --line: #1f1f21;
+  --line-strong: #2a2a2d;
+  --field: #2a2a2d;
+  --soft: #161618;
+  --soft-strong: #1a1a1c;
+  --pick: #111112;
+  --pick-ink: #ededec;
+  --pick-shadow: 0 0 0 1px #2a2a2d;
+  --track: #0b0b0c;
+  --glass: rgba(255, 255, 255, 0.04);
+  --hover: #161618;
+  --press: #1a1a1c;
+  --sel: #1a1a1c;
+  --primary: #ededec;
+  --primary-hover: #d6d6d4;
+  --primary-ink: #0b0b0c;
+  --green: #9ccdb3;
+  --green-bright: #9ccdb3;
+  --green-soft: rgb(156 205 179 / 0.1);
+  --red: #dfa3a3;
+  --red-soft: rgb(223 163 163 / 0.11);
+  --amber: #dcbf8e;
+  --amber-soft: rgb(220 191 142 / 0.11);
+  --blue: #a7b3e6;
+  --blue-soft: rgb(167 179 230 / 0.1);
+  --orange: #e3a27c;
+  --tone-1: #2a2a2d;
+  --tone-2: #5d5d5b;
+  --tone-3: #dcbf8e;
+  --tone-4: #e3a27c;
+  --tone-5: #a7b3e6;
+  --st-1: #6f6f6c;
+  --st-2: #6f6f6c;
+  --st-3: #dcbf8e;
+  --st-4: #e3a27c;
+  --st-5: #a7b3e6;
+  --done: #a7b3e6;
+  --closed: #4a4a48;
+  --ring: 0 0 0 1px #1f1f21;
+  --shadow: 0 0 0 1px #2a2a2d;
+  --shadow-sm: 0 0 0 1px #2a2a2d;
+  --pop-shadow: 0 0 0 1px #2a2a2d, 0 16px 40px -12px rgba(0, 0, 0, 0.45);
+  --btn-ring: inset 0 0 0 1px #2a2a2d;
+}
+
+/* Inter at 13px, a touch heavier and tighter than its default, as Tacit Tickets sets it */
+body:has(.ui-root) {
+  font-weight: 450;
+  letter-spacing: -0.006em;
+  font-feature-settings: "cv01", "ss03";
+}
+body:has(.ui-root) :is(b, strong, th, h1, h2, h3, h4, h5, h6) {
+  font-feature-settings: "cv01", "ss03";
+}
+body:has(.ui-root) :is(code, pre, .set-code) {
+  font-family: var(--font-code), ui-monospace, "SF Mono", Menlo, monospace;
+  letter-spacing: 0;
+}
+
+/* The keyboard ring is the ink at 45%, not the accent; anywhere you type shows its caret, not a ring */
+:root:has(.ui-root) :focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--ink) 45%, transparent);
+  outline-offset: 1px;
+}
+:root:has(.ui-root) :is(input, textarea, select, [contenteditable]):focus-visible {
+  outline: none;
+}
+
+/* Scroll bars stay out of sight in the box; wheel, trackpad, touch and keys still scroll */
+.tb-box,
+.tb-box * {
+  scrollbar-width: none;
+}
+.tb-box ::-webkit-scrollbar {
+  display: none;
 }
