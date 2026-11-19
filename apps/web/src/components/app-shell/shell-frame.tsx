@@ -54,11 +54,10 @@ const OFFERS: NavLink = { href: "/client/tickets/offers", label: "Offers", icon:
 const ASKS: NavLink = { href: "/client/jobs", label: "Listings & Asks", icon: <Target size={15} />, go: "l" };
 const NAV = [HOME, TRIAGE, TICKETS, PEOPLE, INTERVIEWS, OFFERS, ASKS];
 
-const INSIGHTS = { href: "/client/analytics", label: "Insights" };
+const INSIGHTS = { href: "/client/insights", label: "Insights" };
 const SETTINGS = { href: "/client/settings", label: "Settings" };
 /** The pages Hy's sidebar has no row for, a click away in the workspace menu. */
 const MORE = [
-  { href: "/client?view=overview", label: "Recruiting Overview" },
   { href: "/client/onboarding/people", label: "Onboarding" },
   { href: "/client/onboarding/process", label: "Interview Process" },
   { href: "/client/interviewers", label: "Interviewers" },
@@ -466,6 +465,8 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, teams = [], side
   const commands: CommandItem[] = [
     ...NAV.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: INSIGHTS.label, href: INSIGHTS.href },
+    { group: "Go to", label: "Analytics", href: "/client/analytics" },
+    { group: "Go to", label: "Recruiting Overview", href: "/client?view=overview" },
     { group: "Go to", label: "Applicant Tickets", href: "/client/pipeline" },
     { group: "Go to", label: "CRM", href: "/client/candidates" },
     { group: "Go to", label: "Interview Judgement", href: "/client/interviews" },
