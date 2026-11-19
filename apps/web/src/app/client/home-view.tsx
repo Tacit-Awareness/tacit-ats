@@ -127,7 +127,7 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
 
 /** The tabs under the bar: Home's own and the pages its numbers lead to. */
 const NAV: { sub: HomeSub | null; href: string; label: string }[] = [
-  { sub: null, href: "/client", label: "Overview" },
+  { sub: null, href: "/client?view=overview", label: "Overview" },
   { sub: "tickets", href: homeSubBase("tickets"), label: "New Applicants" },
   { sub: "interviews", href: homeSubBase("interviews"), label: "Interview Judgement" },
   { sub: "referrals", href: homeSubBase("referrals"), label: "Referrals" },

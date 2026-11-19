@@ -2,116 +2,82 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { AccountMenu } from "@/components/app-shell/account-menu";
+import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { Calendar, ChevronDown, ChevronRight, CircleUser, GraduationCap, House, Inbox, Menu as MenuIcon, Moon, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
+import { AccountMenu, applyTheme } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
-import { CompanyMenu, switchCompany, type ShellCompany } from "@/components/app-shell/company-menu";
+import { OPEN_COMMAND_EVENT } from "@/components/app-shell/command-context";
+import { switchCompany, type ShellCompany } from "@/components/app-shell/company-menu";
 import { HoverCard } from "@/components/hover-card";
 import { ShellKeys, type GoKey } from "@/components/app-shell/shell-keys";
 import { PillGlass } from "@/components/app-shell/pill-glass";
 import { ShellMemory, useMarks, useViews } from "@/components/app-shell/shell-memory";
 import { START_EVENT, ShellTour, TourButton } from "@/components/app-shell/shell-tour";
 import { initialsOf } from "@/components/page";
+import { Kbd, Menu, useMod, type MenuItem } from "@/components/tickets/kit";
 import { Toaster } from "@/components/toasts";
 import { modalOpen } from "@/lib/keys";
 import { cn } from "@/lib/utils";
+import type { SidebarCounts, TeamStat } from "@/lib/client/sidebar-counts-rules";
 import { SIDEBAR_COOKIE, SIDEBAR_DEFAULT, SIDEBAR_RAIL, clampSidebar, dragSidebar, formatSidebar, type SidebarState } from "@/lib/sidebar";
-import { allViews, pinnedViews, viewHref, type SavedView } from "@/lib/saved-views";
+import { allViews, viewHref } from "@/lib/saved-views";
 
-// design/tats's sidebar (Hy's tATS prototype), for the pages that exist so
-// far: the org and its search and collapse buttons, Home, then the funnel's
-// sections (Top of Funnel, Routing & Tracking) and Onboarding, with your name, then Tutorial and Settings at the bottom.
-// Documentation and the keys are in the menu your name opens (account-menu.tsx).
-// A section only appears once it has a page; each new page adds its own link.
+// Tacit Tickets' sidebar (design/tacit-tickets/src/views/sidebar.tsx) on the
+// client area's pages: the workspace menu (the company, and every company the
+// member is in to switch to), search, then All Teams' Home, Triage, Tickets with
+// People and Interviews under it, Listings & Asks; then Teams, the org's
+// departments, each folding open to its own pages, with what needs a look
+// counted; and at the foot your name (the account menu), Tutorial, the theme and
+// Settings. Until each of Hy's screens is ported, its link opens the page that
+// does its work today: Triage the Inbox (and New Applicants), Tickets the
+// Pipeline, People the CRM, Listings & Asks Job Postings. The pages Hy's sidebar
+// has no row for (Insights, Onboarding, Referrals, the calendar ...) are in the
+// workspace menu and ⌘K.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
-// edge to open it again), ⌘K opens the command menu. The sidebar is for getting
-// around, not a report, so it carries no counts. The one signal is design/tats's
-// mark, a faint red tint on Inbox or New Applicants when something arrived
-// since you last opened it (shell-memory.tsx, which holds both).
-// Saved views you pin sit under Pipeline.
-// Client only for what the server cannot know: which link is active, the
-// drawer on a phone, the menu and the width. The rail and the folds are CSS
-// (globals.css's .sb rules), so they can ease: rows stay mounted either way.
+// edge to open it again), ⌘K opens the command menu. The counts arrive after the
+// page has drawn (GET /client/sidebar); design/tats's mark, a faint red tint
+// when something arrived since you last opened Triage, is kept
+// (shell-memory.tsx). The rail is CSS (globals.css's .sb rules), so it can ease:
+// rows stay mounted either way.
 
-const ICONS = {
-  home: "M2.5 7.2 8 2.8l5.5 4.4V13a.5.5 0 0 1-.5.5H9.5V10h-3v3.5H3a.5.5 0 0 1-.5-.5Z",
-  brief: "M2.5 5.5h11v7.5h-11ZM6 5.5V3.5h4v2M2.5 8.5h11",
-  people: "M8 8.2a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2M3 13.5c.5-2.5 2.5-3.8 5-3.8s4.5 1.3 5 3.8",
-  team: "M6 7.5a2.3 2.3 0 1 0 0-4.6 2.3 2.3 0 0 0 0 4.6M1.8 13c.4-2.3 2-3.6 4.2-3.6s3.8 1.3 4.2 3.6M11 3.2a2.2 2.2 0 0 1 0 4.1M12.6 9.8c1 .6 1.6 1.7 1.8 3.2",
-  db: "M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2ZM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2",
-  gear: "M12.61 6.05 L14.22 6.48 L14.22 9.52 L12.61 9.95 L12.63 9.88 L13.47 11.32 L11.32 13.47 L9.88 12.63 L9.95 12.61 L9.52 14.22 L6.48 14.22 L6.05 12.61 L6.12 12.63 L4.68 13.47 L2.53 11.32 L3.37 9.88 L3.39 9.95 L1.78 9.52 L1.78 6.48 L3.39 6.05 L3.37 6.12 L2.53 4.68 L4.68 2.53 L6.12 3.37 L6.05 3.39 L6.48 1.78 L9.52 1.78 L9.95 3.39 L9.88 3.37 L11.32 2.53 L13.47 4.68 L12.63 6.12Z M10.2 8a2.2 2.2 0 1 1-4.4 0a2.2 2.2 0 1 1 4.4 0Z",
-  help: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.3 6.2a1.8 1.8 0 0 1 3.4.8c0 1.2-1.7 1.5-1.7 2.5M8 11.3h.01",
-  search: "M7 7m-4.5 0a4.5 4.5 0 1 0 9 0a4.5 4.5 0 1 0-9 0M10.5 10.5l3 3",
-  sidebar: "M2.5 3h11v10h-11ZM6.5 3v10",
-  menu: "M2.5 4.5h11M2.5 8h11M2.5 11.5h11",
-  chart: "M2.5 13.5h11M4.5 11V8M8 11V4.5M11.5 11V6.5",
-  inbox: "M2.5 9h3l1 2h3l1-2h3M4 3h8l1.5 6v4h-11V9Z",
-  ticket: "M2.5 5a1.5 1.5 0 0 0 0 3v3.5h11V8a1.5 1.5 0 0 1 0-3V2.5h-11ZM6.5 2.5v9",
-  mic: "M8 2.5a2 2 0 0 0-2 2v3.5a2 2 0 0 0 4 0V4.5a2 2 0 0 0-2-2ZM4.5 7.5a3.5 3.5 0 0 0 7 0M8 11v2.5",
-  cal: "M3 4h10v9H3ZM3 7h10M6 2.5v3M10 2.5v3",
-  layers: "M8 2.5 14 5.5 8 8.5 2 5.5ZM2 8.5l6 3 6-3M2 11.5l6 3 6-3",
-  tour: "M8 14a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM6.7 5.6 10.4 8l-3.7 2.4Z",
-  route: "M3 2.5h4v3.5H3ZM9 10h4v3.5H9ZM5 6v3a2 2 0 0 0 2 2h2",
-} as const;
-type IconName = keyof typeof ICONS;
+type NavLink = { href: string; label: string; icon: ReactNode; go: string; activeUnder?: string[]; under?: boolean };
 
-function Icon({ name, className }: { name: IconName; className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.35}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={cn("size-[15px] shrink-0", className)}
-      aria-hidden
-    >
-      <path d={ICONS[name]} />
-    </svg>
-  );
-}
+const HOME: NavLink = { href: "/client", label: "Home", icon: <House size={15} />, go: "h" };
+const TRIAGE: NavLink = { href: "/client/inbox", label: "Triage", icon: <Inbox size={15} />, go: "t", activeUnder: ["/client/applicants"] };
+const TICKETS: NavLink = { href: "/client/pipeline", label: "Tickets", icon: <Ticket size={15} />, go: "w", activeUnder: ["/client/views"] };
+const PEOPLE: NavLink = { href: "/client/candidates", label: "People", icon: <CircleUser size={15} />, go: "p", under: true };
+const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: <Calendar size={15} />, go: "i", under: true, activeUnder: ["/client/schedule"] };
+const ASKS: NavLink = { href: "/client/jobs", label: "Listings & Asks", icon: <Target size={15} />, go: "l" };
+const NAV = [HOME, TRIAGE, TICKETS, PEOPLE, INTERVIEWS, ASKS];
 
-type NavLink = { href: string; label: string; icon: IconName; activeUnder?: string[] };
+const INSIGHTS = { href: "/client/analytics", label: "Insights" };
+const SETTINGS = { href: "/client/settings", label: "Settings" };
+/** The pages Hy's sidebar has no row for, a click away in the workspace menu. */
+const MORE = [
+  { href: "/client?view=overview", label: "Recruiting Overview" },
+  { href: "/client/onboarding/people", label: "Onboarding" },
+  { href: "/client/onboarding/process", label: "Interview Process" },
+  { href: "/client/interviewers", label: "Interviewers" },
+  { href: "/client/schedule", label: "Interview Calendar" },
+  { href: "/client/referrals", label: "Referrals" },
+];
 
-const HOME: NavLink = { href: "/client", label: "Home", icon: "home" };
-const INBOX: NavLink = { href: "/client/inbox", label: "Inbox", icon: "inbox" };
-const CRM: NavLink = { href: "/client/candidates", label: "CRM", icon: "db" };
-const JOBS: NavLink = { href: "/client/jobs", label: "Job Postings", icon: "brief" };
-const APPLICANTS: NavLink = { href: "/client/applicants", label: "New Applicants", icon: "ticket" };
-const ANALYTICS: NavLink = { href: "/client/analytics", label: "Analytics", icon: "chart" };
-const PIPELINE: NavLink = { href: "/client/pipeline", label: "Applicant Tickets", icon: "people", activeUnder: ["/client/views"] };
-const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interview Judgement", icon: "mic" };
-const CALENDAR: NavLink = { href: "/client/schedule", label: "Interview Calendar", icon: "cal" };
-const INTERVIEWERS: NavLink = { href: "/client/interviewers", label: "Interviewers", icon: "team" };
-const REFERRALS: NavLink = { href: "/client/referrals", label: "Referrals", icon: "team" };
-// Onboarding's steps but its process, which has its own link, as in design/tats.
-const TEAM: NavLink = {
-  href: "/client/onboarding/people",
-  label: "Team",
-  icon: "team",
-  activeUnder: ["/client/onboarding/teams", "/client/onboarding/skills", "/client/onboarding/review"],
-};
-const PROCESS: NavLink = { href: "/client/onboarding/process", label: "Interview Process", icon: "route" };
-const SETTINGS: NavLink = { href: "/client/settings", label: "Settings", icon: "gear" };
-const DOCS: NavLink = { href: "/client/docs", label: "Documentation", icon: "help" };
-// G then a letter (shell-keys.tsx): design/tats's T and A and J, then H, C, I.
+// G then a letter (shell-keys.tsx), Tacit Tickets' GO_KEYS.
 const GO: GoKey[] = [
-  { key: "h", label: HOME.label, href: HOME.href },
-  { key: "c", label: CRM.label, href: CRM.href },
-  { key: "j", label: JOBS.label, href: JOBS.href },
-  { key: "t", label: APPLICANTS.label, href: APPLICANTS.href },
-  { key: "a", label: PIPELINE.label, href: PIPELINE.href },
-  { key: "i", label: INTERVIEWS.label, href: INTERVIEWS.href },
+  ...NAV.map((l) => ({ key: l.go, label: l.label, href: l.href })),
+  { key: "n", label: INSIGHTS.label, href: INSIGHTS.href },
+  { key: "s", label: SETTINGS.label, href: SETTINGS.href },
 ];
 
 export type ShellJob = { id: string; title: string };
+/** A team: one of the org's live departments, by its place in the tree. */
+export type ShellTeam = { id: string; name: string; depth: number };
 
 function useIsActive() {
   const pathname = usePathname();
   // Segment-aware prefix match: /client/jobs must not light Home up.
   const under = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
-  return (link: NavLink) => (link.href === "/client" ? pathname === "/client" : under(link.href)) || (link.activeUnder ?? []).some(under);
+  return (link: { href: string; activeUnder?: string[] }) => (link.href === "/client" ? pathname === "/client" : under(link.href)) || (link.activeUnder ?? []).some(under);
 }
 
 /** True while the user is typing, so `[` stays a character there. */
@@ -120,109 +86,215 @@ function typing(target: EventTarget | null) {
   return !!el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
 }
 
-const itemCls = (active: boolean, fresh = false) =>
-  cn(
-    "sb-item flex w-full items-center gap-2 px-2 text-left text-[13px] whitespace-nowrap transition-colors",
-    active ? "nav-on" : fresh ? "nav-new" : "text-muted-foreground hover:bg-[color:var(--hover)] [&_svg]:text-faint hover:[&_svg]:text-foreground",
-  );
-
-/** `fresh` is the mark's tooltip, when something new is there. */
-function NavItem({ link, active, rail, fresh }: { link: NavLink; active: boolean; rail: boolean; fresh?: string | null }) {
-  return (
-    <Link
-      href={link.href}
-      aria-current={active ? "page" : undefined}
-      title={fresh ?? (rail ? link.label : undefined)}
-      // The label leaves the layout on the rail, and the accessibility tree with it.
-      aria-label={rail ? link.label : undefined}
-      aria-description={fresh ?? undefined}
-      className={itemCls(active, !!fresh)}
-    >
-      <span className="grid size-5 shrink-0 place-items-center">
-        <Icon name={link.icon} />
-      </span>
-      <span className="sb-label">{link.label}</span>
-    </Link>
-  );
-}
-
-/** Pipeline, and the views pinned under it: only one of them is lit, the view when it is one you pinned. */
-function PipelineLinks({ rail, pathname }: { rail: boolean; pathname: string }) {
-  const isActive = useIsActive();
-  const on = useSearchParams().get("view");
-  const pins = pinnedViews(useViews().state);
-  const onPin = pathname === PIPELINE.href && pins.some((v) => v.id === on);
-  return (
-    <>
-      <NavItem link={PIPELINE} active={isActive(PIPELINE) && !onPin} rail={rail} />
-      {pins.map((v) => (
-        <PinnedView key={v.id} view={v} active={onPin && v.id === on} rail={rail} />
-      ))}
-    </>
-  );
-}
-
-function PinnedView({ view, active, rail }: { view: SavedView; active: boolean; rail: boolean }) {
-  return (
-    <Link
-      href={viewHref(view)}
-      aria-current={active ? "page" : undefined}
-      title={rail ? view.name : undefined}
-      aria-label={rail ? view.name : undefined}
-      className={cn(itemCls(active), "sb-sub")}
-    >
-      <span className="grid size-5 shrink-0 place-items-center">
-        <Icon name="layers" className="size-[13px]" />
-      </span>
-      <span className="sb-label">{view.name}</span>
-    </Link>
-  );
-}
-
-/** A collapsible section heading: the funnel's stages. */
-function Section({ label, open, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: React.ReactNode }) {
-  return (
-    <nav className={cn("sb-group", !open && "shut")} aria-label={label}>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className="sb-sec flex items-center gap-1.5 rounded-[8px] px-2 text-left text-[12px] text-[color:var(--ink-4)] transition-colors hover:text-foreground"
-      >
-        {label}
-        <svg viewBox="0 0 8 8" className={cn("sb-tri size-2 fill-current", !open && "-rotate-90")} aria-hidden>
-          <path d="M1 2.2h6L4 6Z" />
-        </svg>
-      </button>
-      {children}
-    </nav>
-  );
-}
-
-function IconButton({ label, onClick, children, className }: { label: string; onClick: () => void; children: React.ReactNode; className?: string }) {
+function IconButton({ label, onClick, children, className }: { label: string; onClick: () => void; children: ReactNode; className?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={cn("grid size-8 shrink-0 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-[color:var(--hover)] hover:text-foreground", className)}
+      className={cn("flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-sel hover:text-ink", className)}
     >
       {children}
     </button>
   );
 }
 
-/** The org's square: its logo, on white so a dark one shows on the dark theme, or its initial in ink, as Testbench's workspace glyph. */
+/** The org's square: its logo, on white so a dark one shows on the dark theme, or its initial in ink. */
 function OrgLogo({ org, logoUrl }: { org: string; logoUrl: string | null }) {
   if (logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element -- a stored public file, not a page asset
-    return <img src={logoUrl} alt="" className="size-[22px] shrink-0 rounded-[6px] bg-white object-contain" />;
+    return <img src={logoUrl} alt="" className="size-5 shrink-0 rounded-[5px] bg-white object-contain" />;
   }
   return (
-    <span className="grid size-[22px] shrink-0 place-items-center rounded-[6px] bg-[color:var(--primary)] font-mono text-[10px] font-semibold text-[color:var(--primary-ink)]" aria-hidden>
+    <span className="grid size-5 shrink-0 place-items-center rounded-[5px] bg-ink text-[10px] font-semibold text-well" aria-hidden>
       {initialsOf(org).slice(0, 1)}
     </span>
+  );
+}
+
+function NavItem({ link, active, rail, count, fresh }: { link: NavLink; active: boolean; rail: boolean; count?: number; fresh?: string | null }) {
+  return (
+    <Link
+      href={link.href}
+      aria-current={active ? "page" : undefined}
+      aria-label={rail ? link.label : undefined}
+      aria-description={fresh ?? undefined}
+      title={fresh ?? (rail ? link.label : `Press G, then ${link.go.toUpperCase()}`)}
+      className={cn(
+        "sb-item group/nav flex items-center gap-2 px-1.5 text-left whitespace-nowrap transition-colors",
+        link.under && "sb-under ml-[15px] rounded-l-none border-l border-line pl-3",
+        active ? "bg-sel text-ink" : fresh ? "nav-new" : link.under ? "text-mute hover:bg-hover hover:text-body" : "text-body hover:bg-hover",
+      )}
+    >
+      <span className={cn("grid size-[15px] shrink-0 place-items-center", link.under && "sb-rail-only", active ? "text-ink" : "text-mute")}>{link.icon}</span>
+      <span className="sb-label">{link.label}</span>
+      {count ? (
+        <span className="sb-label ml-auto text-xs text-dim tabular-nums">{count}</span>
+      ) : (
+        <span className="sb-label ml-auto hidden text-[11px] text-dim group-hover/nav:inline">G then {link.go.toUpperCase()}</span>
+      )}
+    </Link>
+  );
+}
+
+const PINS_KEY = "tacit-team-pins";
+
+/** Teams: the org's live departments, each folding open to its own pages. The picked team is ?department= on those pages. */
+function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, TeamStat> }) {
+  const pathname = usePathname();
+  const here = useSearchParams().get("department");
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [pins, setPins] = useState<string[]>([]);
+  const [onlyAttn, setOnlyAttn] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]");
+      if (Array.isArray(saved)) setPins(saved.filter((x): x is string => typeof x === "string"));
+    } catch {
+      /* nothing pinned */
+    }
+  }, []);
+  useEffect(() => {
+    if (here) setOpen((o) => ({ ...o, [here]: true }));
+  }, [here]);
+  const pin = (id: string) =>
+    setPins((p) => {
+      const next = p.includes(id) ? p.filter((x) => x !== id) : [...p, id];
+      try {
+        localStorage.setItem(PINS_KEY, JSON.stringify(next));
+      } catch {
+        /* pinned for this visit */
+      }
+      return next;
+    });
+
+  const sub = [
+    { label: "Tickets", href: "/client/pipeline", count: (st?: TeamStat) => st?.attn ?? 0 },
+    { label: "People", href: "/client/candidates", count: () => 0 },
+  ];
+  const match = (name: string) => name.toLowerCase().includes(q.trim().toLowerCase());
+  const visible = teams.filter((t) => match(t.name) && (!onlyAttn || (stats[t.id]?.attn ?? 0) > 0 || t.id === here));
+  const pinned = visible.filter((t) => pins.includes(t.id));
+  const rest = visible.filter((t) => !pins.includes(t.id));
+
+  const row = (t: ShellTeam, indent: boolean) => {
+    const st = stats[t.id];
+    const isOpen = !!open[t.id] || !!q.trim();
+    const picked = here === t.id;
+    return (
+      <div key={t.id} data-team={t.id}>
+        <div className={cn("group flex h-7 items-center rounded-md pr-1 transition-colors", picked && !isOpen ? "bg-sel" : "hover:bg-hover")}>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => ({ ...o, [t.id]: !isOpen }))}
+            aria-expanded={isOpen}
+            className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pl-1.5 text-left"
+            style={indent ? { paddingLeft: 6 + t.depth * 12 } : undefined}
+          >
+            <Users size={14} className="shrink-0 text-mute" />
+            <span className={cn("truncate", picked ? "text-ink" : "text-body")}>{t.name}</span>
+            <ChevronRight size={12} className={cn("shrink-0 text-dim transition-transform", isOpen && "rotate-90")} />
+          </button>
+          <button
+            type="button"
+            aria-label={pins.includes(t.id) ? `Unpin ${t.name}` : `Pin ${t.name}`}
+            aria-pressed={pins.includes(t.id)}
+            onClick={() => pin(t.id)}
+            className="hidden size-5 items-center justify-center rounded text-dim group-hover:flex hover:text-ink focus-visible:flex"
+          >
+            <Pin size={12} className={pins.includes(t.id) ? "fill-current" : ""} />
+          </button>
+          {st && st.attn > 0 && (
+            <span
+              className={cn(
+                "ml-1 inline-flex h-[18px] items-center justify-center text-xs tabular-nums group-hover:hidden",
+                st.stuck ? "min-w-[18px] rounded-full bg-bad px-1 text-[11px] font-medium text-white" : "px-1 text-dim",
+              )}
+              title={st.stuck ? "Someone here is overdue" : "Needs you"}
+            >
+              {st.attn}
+            </span>
+          )}
+        </div>
+        {isOpen && (
+          <div className="relative mb-1 ml-[13px] flex flex-col gap-px border-l border-line pl-2">
+            {sub.map((it) => {
+              const active = picked && pathname === it.href;
+              const count = it.count(st);
+              return (
+                <Link
+                  key={it.href}
+                  href={`${it.href}?department=${t.id}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn("flex h-7 items-center rounded-md px-2 text-left transition-colors", active ? "bg-sel text-ink" : "text-mute hover:bg-hover hover:text-body")}
+                >
+                  {it.label}
+                  {!!count && <span className="ml-auto text-xs text-dim tabular-nums">{count}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="sb-teams flex min-h-0 flex-col">
+      <div className="mt-5 flex shrink-0 items-center px-1.5 text-xs text-dim">
+        Teams <span className="ml-1.5 tabular-nums">{teams.length}</span>
+        <button
+          type="button"
+          onClick={() => setOnlyAttn(!onlyAttn)}
+          aria-pressed={onlyAttn}
+          title="Only teams that need you"
+          className={cn("ml-auto flex h-5 items-center gap-1 rounded px-1.5 transition-colors", onlyAttn ? "bg-sel text-ink" : "hover:text-body")}
+        >
+          Needs You
+        </button>
+      </div>
+      <div className="mt-1.5 flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line px-2 focus-within:border-line-strong">
+        <Search size={12} className="shrink-0 text-dim" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a team" aria-label="Find a team" className="h-full min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-dim" />
+        {q && (
+          <button type="button" aria-label="Clear" onClick={() => setQ("")} className="text-dim hover:text-ink">
+            <X size={12} />
+          </button>
+        )}
+      </div>
+      <div className="mt-1.5 flex flex-col gap-px pb-2">
+        {pinned.map((t) => row(t, false))}
+        {pinned.length > 0 && rest.length > 0 && <div className="mx-1.5 my-1.5 h-px shrink-0 bg-line" />}
+        {rest.map((t) => row(t, !q.trim()))}
+        {!visible.length && <div className="px-1.5 py-3 text-dim">No teams</div>}
+      </div>
+    </div>
+  );
+}
+
+/** The sun or the moon: whichever theme is not on screen now. The account menu keeps Light, Dark and System. */
+function ThemeButton() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const t = document.documentElement.dataset.theme;
+    setDark(t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches));
+  }, []);
+  const name = dark ? "Switch to light mode" : "Switch to dark mode";
+  return (
+    <button
+      type="button"
+      aria-label={name}
+      title={name}
+      onClick={() => {
+        applyTheme(dark ? "light" : "dark");
+        setDark(!dark);
+      }}
+      className="flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-sel hover:text-ink"
+    >
+      {dark ? <Sun size={15} /> : <Moon size={15} />}
+    </button>
   );
 }
 
@@ -230,13 +302,15 @@ type ShellProps = {
   actorId: string;
   org: string;
   orgLogoUrl: string | null;
-  /** The company on the token, and every company the member belongs to: more than one makes the name a switcher. */
+  /** The company on the token, and every company the member belongs to: more than one adds them to the workspace menu. */
   orgId?: string;
   companies?: ShellCompany[];
   user: { name: string; email: string; level: string };
   jobs: ShellJob[];
+  /** The org's live departments, in tree order; none for an interviewer or an org without them. */
+  teams?: ShellTeam[];
   sidebar: SidebarState;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export function ShellFrame({ actorId, ...props }: ShellProps) {
@@ -247,35 +321,57 @@ export function ShellFrame({ actorId, ...props }: ShellProps) {
   );
 }
 
-function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, sidebar: initial, children }: Omit<ShellProps, "actorId">) {
+function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, teams = [], sidebar: initial, children }: Omit<ShellProps, "actorId">) {
   const pathname = usePathname();
   const isActive = useIsActive();
+  const mod = useMod("K");
   const [drawer, setDrawer] = useState(false);
   const [menu, setMenu] = useState(false);
   const [sb, setSb] = useState(initial);
-  const [shut, setShut] = useState<Set<string>>(() => new Set());
+  const [counts, setCounts] = useState<SidebarCounts>({ triage: 0, teams: {} });
   const side = useRef<HTMLElement>(null);
   const views = useViews();
-  const marks = useMarks(isActive(INBOX) ? "inbox" : isActive(APPLICANTS) ? "tickets" : null);
+  const marks = useMarks(isActive(TRIAGE) ? (pathname.startsWith("/client/applicants") ? "tickets" : "inbox") : null);
   // The drag's start and where it has got to: the release saves `now`, not the
   // state from the last render, which may not have caught up. `snapUntil` is how
   // long the edge eases after a snap before it follows the pointer again.
   const drag = useRef<{ x: number; w: number; from: number; now: SidebarState; snapUntil: number } | null>(null);
   const animating = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const askedAt = useRef(0);
   useEffect(() => setDrawer(false), [pathname]);
+  // The counts, once the page has drawn, and again on a later page at most every half minute.
+  useEffect(() => {
+    if (Date.now() - askedAt.current < 30_000) return;
+    askedAt.current = Date.now();
+    let live = true;
+    fetch("/client/sidebar", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<SidebarCounts>) : null))
+      .then((c) => {
+        if (live && c) setCounts(c);
+      })
+      .catch(() => {
+        /* the counts are a nicety: without them the rows still go where they go */
+      });
+    return () => {
+      live = false;
+    };
+  }, [pathname]);
   // The drawer is a phone's: left open while the window widens, it would hold the
   // sidebar full on a collapsed desktop. And the tutorial walks the page behind it.
   useEffect(() => {
     const shut = () => setDrawer(false);
+    const open = () => setMenu(true);
     const desktop = matchMedia("(min-width: 768px)");
     const onWidth = () => {
       if (desktop.matches) shut();
     };
     desktop.addEventListener("change", onWidth);
     window.addEventListener(START_EVENT, shut);
+    window.addEventListener(OPEN_COMMAND_EVENT, open);
     return () => {
       desktop.removeEventListener("change", onWidth);
       window.removeEventListener(START_EVENT, shut);
+      window.removeEventListener(OPEN_COMMAND_EVENT, open);
     };
   }, []);
 
@@ -357,168 +453,173 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, sidebar: initial
     }
   };
 
-  const shutToggle = (k: string) => {
-    animate();
-    setShut((s) => {
-      const n = new Set(s);
-      if (n.has(k)) n.delete(k);
-      else n.add(k);
-      return n;
-    });
-  };
-
   const others = orgId && companies && companies.length > 1 ? companies.filter((c) => c.id !== orgId) : [];
+  // A refusal here lands on the picker, which says why.
+  const switchTo = (id: string) => void switchCompany(id).catch(() => window.location.assign("/client/choose-company"));
   const commands: CommandItem[] = [
-    { group: "Go to", label: HOME.label, href: HOME.href },
-    { group: "Go to", label: INBOX.label, href: INBOX.href },
-    { group: "Go to", label: CRM.label, href: CRM.href },
-    { group: "Go to", label: JOBS.label, href: JOBS.href },
-    { group: "Go to", label: APPLICANTS.label, href: APPLICANTS.href },
-    { group: "Go to", label: ANALYTICS.label, href: ANALYTICS.href },
-    { group: "Go to", label: PIPELINE.label, href: PIPELINE.href },
+    ...NAV.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
+    { group: "Go to", label: INSIGHTS.label, href: INSIGHTS.href },
+    { group: "Go to", label: "New Applicants", href: "/client/applicants" },
     { group: "Go to", label: "Views", href: "/client/views" },
-    { group: "Go to", label: INTERVIEWS.label, href: INTERVIEWS.href },
-    { group: "Go to", label: CALENDAR.label, href: CALENDAR.href },
-    { group: "Go to", label: REFERRALS.label, href: REFERRALS.href },
-    { group: "Go to", label: "Onboarding", href: TEAM.href },
-    { group: "Go to", label: INTERVIEWERS.label, href: INTERVIEWERS.href },
-    { group: "Go to", label: PROCESS.label, href: PROCESS.href },
+    ...MORE.map((m) => ({ group: "Go to", label: m.label, href: m.href })),
     { group: "Go to", label: SETTINGS.label, href: SETTINGS.href },
-    { group: "Go to", label: DOCS.label, href: DOCS.href },
+    { group: "Go to", label: "Documentation", href: "/client/docs" },
+    ...teams.map((t) => ({ group: "Teams", label: t.name, href: `/client/pipeline?department=${t.id}` })),
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
     ...allViews(views.state).map((v) => ({ group: "Views", label: v.name, href: viewHref(v) })),
-    // A refusal here lands on the picker, which says why.
-    ...others.map((c) => ({ group: "Switch company", label: c.name, run: () => void switchCompany(c.id).catch(() => window.location.assign("/client/choose-company")) })),
+    ...others.map((c) => ({ group: "Switch company", label: c.name, run: () => switchTo(c.id) })),
+  ];
+  const workspace: MenuItem[] = [
+    { heading: `${user.name || user.email}, ${user.level}` },
+    { label: INSIGHTS.label, href: INSIGHTS.href },
+    { label: SETTINGS.label, href: SETTINGS.href },
+    ...(others.length ? (["sep", { heading: "Switch Company" }] as MenuItem[]) : []),
+    ...others.map((c) => ({ label: c.name, onPick: () => switchTo(c.id) })),
+    "sep",
+    ...MORE.map((m) => ({ label: m.label, href: m.href })),
+    "sep",
+    {
+      label: (
+        <span className="flex items-center">
+          Command Menu{" "}
+          <span className="ml-auto text-dim">
+            <Kbd>{mod}</Kbd>
+          </span>
+        </span>
+      ),
+      onPick: () => setMenu(true),
+    },
   ];
 
   return (
     <div className="ui-root flex" style={{ "--sbw": `${sb.width}px`, "--rail": `${SIDEBAR_RAIL}px` } as React.CSSProperties}>
       {/* Testbench's box: the app sits in one rounded box on the sky (globals.css .tb-box). */}
       <div className="tb-box max-md:rounded-none max-md:shadow-none">
-      {/* phone: a slim bar with the menu button; the sidebar becomes a drawer */}
-      <div className="fixed inset-x-0 top-0 z-30 flex h-12 items-center gap-2 border-b border-[color:var(--line)] bg-frame px-3 md:hidden">
-        <IconButton label="Open the sidebar" onClick={() => setDrawer(true)}>
-          <Icon name="menu" className="size-4" />
-        </IconButton>
-        <OrgLogo org={org} logoUrl={orgLogoUrl} />
-        <span className="truncate font-sans text-[15px] font-semibold tracking-[-0.01em]">{org}</span>
-        <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="ml-auto">
-          <Icon name="search" />
-        </IconButton>
-      </div>
-      {drawer ? <div className="fixed inset-0 z-40 bg-[color:var(--scrim)] md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
+        {/* phone: a slim bar with the menu button; the sidebar becomes a drawer */}
+        <div className="fixed inset-x-0 top-0 z-30 flex h-11 items-center gap-2.5 border-b border-line bg-well px-3 md:hidden">
+          <IconButton label="Open the sidebar" onClick={() => setDrawer(true)}>
+            <MenuIcon size={16} />
+          </IconButton>
+          <OrgLogo org={org} logoUrl={orgLogoUrl} />
+          <span className="truncate font-medium text-ink">{org}</span>
+          <IconButton label={`Search, ${mod}`} onClick={() => setMenu(true)} className="ml-auto">
+            <Search size={15} />
+          </IconButton>
+        </div>
+        {drawer ? <div className="fixed inset-0 z-40 bg-[color:var(--scrim)] md:hidden" onClick={() => setDrawer(false)} aria-hidden /> : null}
 
-      <aside
-        ref={side}
-        // Any link: a pinned view can be the page you are on with another query, which the pathname effect never sees.
-        onClick={(e) => {
-          if ((e.target as Element).closest("a")) setDrawer(false);
-        }}
-        className={cn(
-          "sb fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col overflow-y-auto bg-frame pt-4 pr-2 pb-3 pl-3 transition-transform duration-300 [scrollbar-width:none]",
-          "md:static md:z-auto md:translate-x-0",
-          rail ? "sb-rail md:w-[var(--rail)] md:pr-1.5" : "md:w-[var(--sbw)]",
-          drawer ? "translate-x-0 shadow-[var(--pop-shadow)]" : "-translate-x-full",
-        )}
-        aria-label="Workspace"
-      >
-        <div className="sb-ws">
-          {orgId && companies && others.length ? (
-            <CompanyMenu current={orgId} companies={companies} rail={rail}>
-              <OrgLogo org={org} logoUrl={orgLogoUrl} />
-              <span className="sb-label truncate">{org}</span>
-            </CompanyMenu>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setMenu(true)}
-              title={rail ? org : undefined}
-              aria-label={rail ? org : undefined}
-              className="sb-org flex h-8 min-w-0 flex-1 items-center gap-2 px-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-[color:var(--hover)]"
-            >
-              <OrgLogo org={org} logoUrl={orgLogoUrl} />
-              <span className="sb-label">{org}</span>
-            </button>
+        <aside
+          ref={side}
+          // Any link: a team's page can be the page you are on with another query, which the pathname effect never sees.
+          onClick={(e) => {
+            if ((e.target as Element).closest("a")) setDrawer(false);
+          }}
+          className={cn(
+            "sb scroll-quiet fixed inset-y-0 left-0 z-50 flex w-[272px] flex-col overflow-y-auto bg-well pt-3 pr-2 pb-3 pl-3 transition-transform duration-300",
+            "md:static md:z-auto md:translate-x-0",
+            rail ? "sb-rail md:w-[var(--rail)] md:pr-1.5" : "md:w-[var(--sbw)]",
+            drawer ? "translate-x-0 shadow-[var(--pop-shadow)]" : "-translate-x-full",
           )}
-          <IconButton label="Search (⌘K)" onClick={() => setMenu(true)} className="sb-search">
-            <Icon name="search" />
-          </IconButton>
-          <IconButton label={`${sb.collapsed ? "Expand" : "Collapse"} sidebar ([)`} onClick={toggle} className="sb-toggle max-md:hidden">
-            <Icon name="sidebar" />
-          </IconButton>
-        </div>
-
-        <nav className="sb-group" aria-label="Home">
-          <NavItem link={HOME} active={isActive(HOME)} rail={rail} />
-          <NavItem link={INBOX} active={isActive(INBOX)} rail={rail} fresh={marks.inbox ? "New in your Inbox" : null} />
-        </nav>
-
-        <Section label="Top of Funnel" open={!shut.has("top")} onToggle={() => shutToggle("top")}>
-          <NavItem link={JOBS} active={isActive(JOBS)} rail={rail} />
-          <NavItem link={APPLICANTS} active={isActive(APPLICANTS)} rail={rail} fresh={marks.tickets ? "New applicants since you last looked" : null} />
-          <NavItem link={ANALYTICS} active={isActive(ANALYTICS)} rail={rail} />
-        </Section>
-
-        <Section label="Routing & Tracking" open={!shut.has("rt")} onToggle={() => shutToggle("rt")}>
-          <Suspense fallback={<NavItem link={PIPELINE} active={isActive(PIPELINE)} rail={rail} />}>
-            <PipelineLinks rail={rail} pathname={pathname} />
-          </Suspense>
-          <NavItem link={INTERVIEWS} active={isActive(INTERVIEWS)} rail={rail} />
-          <NavItem link={CALENDAR} active={isActive(CALENDAR)} rail={rail} />
-          <NavItem link={REFERRALS} active={isActive(REFERRALS)} rail={rail} />
-        </Section>
-
-        <Section label="Onboarding" open={!shut.has("ob")} onToggle={() => shutToggle("ob")}>
-          <NavItem link={TEAM} active={isActive(TEAM)} rail={rail} />
-          <NavItem link={INTERVIEWERS} active={isActive(INTERVIEWERS)} rail={rail} />
-          <NavItem link={PROCESS} active={isActive(PROCESS)} rail={rail} />
-          <NavItem link={CRM} active={isActive(CRM)} rail={rail} />
-        </Section>
-
-        <div className="sb-foot">
-          <AccountMenu user={user} rail={rail} pathname={pathname} />
-          {/* design/tats's foot: Tutorial and Settings side by side under your name. */}
-          <div className="sb-tools">
-            <TourButton title={rail ? "Tutorial" : undefined} aria-label={rail ? "Tutorial" : undefined} className={itemCls(false)}>
-              <span className="grid size-5 shrink-0 place-items-center">
-                <Icon name="tour" />
-              </span>
-              <span className="sb-label">Tutorial</span>
-            </TourButton>
-            <NavItem link={SETTINGS} active={isActive(SETTINGS)} rail={rail} />
+          aria-label="Workspace"
+        >
+          <div className="sb-ws">
+            <Menu
+              width={240}
+              items={workspace}
+              trigger={(open) => (
+                <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={open}
+                  aria-label={others.length ? `Company: ${org}. Switch company` : `Workspace: ${org}`}
+                  title={rail ? org : undefined}
+                  className="sb-org flex h-8 min-w-0 items-center gap-2 px-1.5 transition-colors hover:bg-hover"
+                >
+                  <OrgLogo org={org} logoUrl={orgLogoUrl} />
+                  <span className="sb-label font-medium text-ink">{org}</span>
+                  <ChevronDown size={13} className="sb-chev shrink-0 text-dim" />
+                </button>
+              )}
+            />
+            <IconButton label={`Search, ${mod}`} onClick={() => setMenu(true)} className="sb-search ml-auto">
+              <Search size={15} />
+            </IconButton>
+            <IconButton label={`${sb.collapsed ? "Expand" : "Collapse"} sidebar ([)`} onClick={toggle} className="sb-toggle max-md:hidden">
+              <PanelLeft size={15} />
+            </IconButton>
           </div>
+
+          <div className="sb-sec flex items-end px-1.5 text-xs text-dim">All Teams</div>
+          <nav className="sb-group" aria-label="All Teams">
+            {NAV.map((l) => (
+              <NavItem
+                key={l.href}
+                link={l}
+                active={isActive(l)}
+                rail={rail}
+                count={l === TRIAGE ? counts.triage : undefined}
+                fresh={l === TRIAGE && (marks.inbox || marks.tickets) ? "New in Triage since you last looked" : null}
+              />
+            ))}
+          </nav>
+
+          {teams.length > 0 && (
+            <Suspense fallback={null}>
+              <Teams teams={teams} stats={counts.teams} />
+            </Suspense>
+          )}
+
+          <div className="sb-foot">
+            <AccountMenu user={user} rail={rail} pathname={pathname} />
+            {/* Tacit Tickets' foot: Tutorial, the theme and Settings beside your name. */}
+            <div className="sb-tools">
+              <TourButton title="Tutorial" className="flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-sel hover:text-ink">
+                <GraduationCap size={15} aria-hidden />
+                <span className="sr-only">Tutorial</span>
+              </TourButton>
+              <ThemeButton />
+              <Link
+                href={SETTINGS.href}
+                aria-current={isActive(SETTINGS) ? "page" : undefined}
+                title="Settings, G then S"
+                className={cn("flex size-7 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-sel hover:text-ink", isActive(SETTINGS) ? "bg-sel text-ink" : "text-mute")}
+              >
+                <Settings size={15} aria-hidden />
+                <span className="sr-only">Settings</span>
+              </Link>
+            </div>
+          </div>
+        </aside>
+
+        {/* the edge between the sidebar and the panel: drag to resize, double-click to reset */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the sidebar"
+          aria-valuenow={sb.width}
+          tabIndex={sb.collapsed ? -1 : 0}
+          title={sb.collapsed ? "Drag to open. Double-click to open." : "Drag to resize. Double-click to reset."}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          onDoubleClick={() => {
+            animate();
+            save({ width: sb.collapsed ? sb.width : SIDEBAR_DEFAULT, collapsed: false });
+          }}
+          onKeyDown={onResizeKey}
+          className={cn(
+            "relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize outline-none md:block",
+            "after:absolute after:inset-y-0 after:left-[3.5px] after:w-px after:bg-transparent after:transition-colors hover:after:inset-y-3 hover:after:left-[3px] hover:after:w-0.5 hover:after:rounded-full hover:after:bg-line-strong focus-visible:after:bg-[color:var(--accent)]",
+          )}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col pt-11 md:pt-0">
+          {/* Tacit Tickets: the page is one bordered panel inset in the box, beside the sidebar on the well. */}
+          <main className="scroll-quiet flex min-h-0 flex-1 flex-col overflow-y-auto bg-panel md:my-2 md:mr-2 md:rounded-lg md:border md:border-line">
+            <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-7">{children}</div>
+          </main>
         </div>
-      </aside>
-
-      {/* the edge between the sidebar and the panel: drag to resize, double-click to reset */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize the sidebar"
-        aria-valuenow={sb.width}
-        tabIndex={sb.collapsed ? -1 : 0}
-        title={sb.collapsed ? "Drag to open. Double-click to open." : "Drag to resize. Double-click to reset."}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-        onDoubleClick={() => {
-          animate();
-          save({ width: sb.collapsed ? sb.width : SIDEBAR_DEFAULT, collapsed: false });
-        }}
-        onKeyDown={onResizeKey}
-        className={cn(
-          "relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize outline-none md:block",
-          "after:absolute after:inset-y-0 after:left-[3.5px] after:w-px after:bg-transparent after:transition-colors hover:after:inset-y-3 hover:after:left-[3px] hover:after:w-0.5 hover:after:rounded-full hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
-        )}
-      />
-
-      <div className="flex min-w-0 flex-1 flex-col pt-12 md:pt-0">
-        {/* Tacit Tickets: the page is one bordered panel inset in the box, beside the sidebar on the well. */}
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[color:var(--paper)] md:my-2 md:mr-2 md:rounded-[10px] md:border md:border-[color:var(--line)]">
-          <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-7">{children}</div>
-        </main>
-      </div>
       </div>
 
       <CommandMenu open={menu} onClose={() => setMenu(false)} items={commands} />

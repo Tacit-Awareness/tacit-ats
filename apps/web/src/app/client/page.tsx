@@ -4,6 +4,7 @@ import { Empty, Page, PageBar, Row, Rows, Section, Split, StatStrip, textLink, t
 import { StatusBadge } from "@/components/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { readHome } from "@/lib/client/home";
+import { readHomeTickets } from "@/lib/client/home-tickets";
 import { parseHomeSub } from "@/lib/client/home-tabs";
 import { WIDGETS_COOKIE, parseWidgets } from "@/lib/client/home-widgets";
 import { parsePeriod } from "@/lib/client/home-metrics";
@@ -11,12 +12,14 @@ import { LEVELS, levelName } from "@/lib/client/levels";
 import { resolveClient, type ClientContext } from "@/lib/client/session";
 import { overviewProps } from "./home-props";
 import { ApplicantsContent } from "./applicants/tickets";
+import { HomeTickets } from "./home-tickets";
 import { HomeTab, HomeView } from "./home-view";
 import { InterviewsContent } from "./interviews/interviews-page";
 import { ReferralsContent } from "./referrals/referrals-page";
 import { Refusal } from "./refusal";
 
-// The client area's home. For admins and the hiring team, design/tats's
+// The client area's home. For admins and the hiring team, Tacit Tickets' Home
+// (home-tickets.tsx, lib/client/home-tickets.ts); at `?view=overview`, design/tats's
 // Recruiting Overview: where are candidates getting stuck? (lib/client/home.ts
 // reads, lib/client/home-metrics.ts counts, home-props.ts words it,
 // home-view.tsx draws, home-board.tsx arranges), with the period (?days=7|30|90), the department
@@ -43,6 +46,13 @@ export default async function ClientHome({ searchParams }: { searchParams: Promi
         {sub === "tickets" ? <ApplicantsContent sp={sp} home /> : sub === "interviews" ? <InterviewsContent sp={sp} home /> : <ReferralsContent sp={sp} home />}
       </HomeTab>
     );
+  }
+  // Tacit Tickets' Home (home-tickets.tsx). The Recruiting Overview it replaced
+  // stays one link away, `?view=overview` (the workspace menu's Recruiting
+  // Overview), until Insights takes its place.
+  if (one(sp.view) !== "overview") {
+    const read = await readHomeTickets(ctx.db, { actorId: ctx.actorId, orgId: ctx.org.id, accessLevel: ctx.accessLevel }, new Date());
+    return <HomeTickets firstName={ctx.user.name.trim().split(/\s+/)[0] ?? ""} read={read} />;
   }
   const days = parsePeriod(one(sp.days));
   const now = new Date();

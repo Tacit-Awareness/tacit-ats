@@ -33,3 +33,7 @@ export function useCommandContext(ctx: CommandContext) {
 }
 
 export const useCurrentCommandContext = () => useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+
+/** Opens the shell's ⌘K menu from a page, as Home's search field does (shell-frame.tsx listens). */
+export const OPEN_COMMAND_EVENT = "tats:open-command";
+export const openCommandMenu = () => window.dispatchEvent(new Event(OPEN_COMMAND_EVENT));
