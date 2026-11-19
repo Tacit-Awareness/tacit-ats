@@ -106,12 +106,13 @@ export function useStoreState() {
   const tickets = tasks.filter((t) => !t.parent)
   /*
    * The one colour for a person, wherever they are drawn: red if a ticket of theirs has failed or
-   * they are overdue, amber if a ticket of theirs is waiting on you, else where they stand.
+   * they are overdue, amber if a ticket of theirs is waiting on you, blue if they or a ticket of theirs
+   * is waiting on someone else, else moving.
    */
   const toneFor = (p: Person): Tone => {
     const mine = tickets.filter((t) => t.person === p.id).map(statusOf).filter(isOpen)
     const own = toneOf(p)
-    return own === "failed" || mine.includes("failed") ? "failed" : mine.includes("needs") ? "needs" : own
+    return own === "failed" || mine.includes("failed") ? "failed" : mine.includes("needs") ? "needs" : own === "waiting" || mine.includes("waiting") ? "waiting" : own
   }
   const attn = (t: Task) => statusOf(t) === "needs" || t.status === "failed"
   const sourceOf = (a: Applicant) => (a.by ? `${ORIGIN_LABEL[a.origin]} by ${STAFF[a.by].first}` : "Job board")

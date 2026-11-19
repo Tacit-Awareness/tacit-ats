@@ -1,20 +1,29 @@
 import { useState, type ReactNode } from "react"
-import { ChevronRight, CircleUser, Plus } from "lucide-react"
-import { STAGES, statusOf, type Person, type Task } from "../data"
+import { ChevronDown, ChevronRight, CircleUser, Plus } from "lucide-react"
+import { STAGES, statusOf, type Person, type Status, type Task } from "../data"
 import { Avatar, Person as Member, StagePips, StatusIcon } from "../ui"
-import { Btn, Empty, Header, Menu, heading, standing, title, TONE_COLOR, worst, ToneLegend } from "../kit"
+import { Btn, Empty, Header, Menu, heading, standing, teamOf, title, TONE_COLOR, worst, ToneLegend } from "../kit"
 import { useStore } from "../store"
 import { CheckIns } from "./checkin"
 import { FUNNEL_INSET, Funnel } from "./funnel"
 
 /* ---------------- People: applications ---------------- */
 
-const COLS = "grid grid-cols-[minmax(180px,1fr)_150px_minmax(140px,220px)_40px] @max-2xl:grid-cols-[minmax(160px,1fr)_150px] items-center gap-4"
+/* The groups of the list, in the order they matter. The same four meanings as everywhere else, then the closed. */
+const GROUPS: { key: Status; name: string; means: string }[] = [
+  { key: "needs", name: "Needs You", means: "Waiting on you to act" },
+  { key: "failed", name: "Overdue", means: "Past its date or failed, needs a look" },
+  { key: "waiting", name: "Waiting", means: "Someone else has not replied" },
+  { key: "running", name: "Moving", means: "Nothing for you to do" },
+  { key: "done", name: "Closed", means: "Hired, rejected or withdrawn" },
+]
 
 export function People({ scope, people, tickets, openId, onOpen, onProfile }: { scope?: ReactNode; people: Person[]; tickets: Task[]; openId: string | null; onOpen: (id: string) => void; onProfile: (id: string) => void }) {
   const s = useStore()
   const [tab, setTab] = useState("Active")
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ rohan: true })
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [shut, setShut] = useState<Status[]>([])
+  const groupOf = (p: Person): Status => (p.closed ? "done" : s.toneFor(p))
   /* On a team, the blocks at the top are that team's people by stage; picking one shows only that stage */
   const [stage, setStage] = useState<number | null>(null)
   const [hot, setHot] = useState<number | null>(null)
@@ -131,13 +140,7 @@ export function People({ scope, people, tickets, openId, onOpen, onProfile }: { 
           </div>
         </div>
       )}
-      <div className={`${COLS} h-9 shrink-0 border-b border-line pr-5 pl-5 text-xs text-faint`}>
-        <span className="pl-6">Name</span>
-        <span>Stage</span>
-        <span className="@max-2xl:hidden">Next</span>
-        <span className="@max-2xl:hidden">Owner</span>
-      </div>
-      <div className="scroll-quiet flex-1 overflow-y-auto py-1">
+      <div className="scroll-quiet flex-1 overflow-y-auto">
         {!shown.length && (
           <Empty
             icon={<CircleUser size={18} />}
@@ -151,58 +154,76 @@ export function People({ scope, people, tickets, openId, onOpen, onProfile }: { 
             {tab === "Referred" ? "People your team refers show up here." : "People you route from Triage show up here, with where they stand."}
           </Empty>
         )}
-        {shown.map((p) => {
-          const kids = tickets.filter((t) => t.person === p.id)
-          const isOpen = !!expanded[p.id]
-          const toggle = () => setExpanded((e) => ({ ...e, [p.id]: !e[p.id] }))
+        {/* Grouped the way Tickets is: by what has to happen, most pressing first */}
+        {GROUPS.map((g) => {
+          const rows = shown.filter((p) => groupOf(p) === g.key)
+          if (!rows.length) return null
+          const folded = shut.includes(g.key)
           return (
-            <div key={p.id} className="anim-rise">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={toggle}
-                onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault()
-                    toggle()
-                  }
-                }}
-                aria-expanded={isOpen}
-                className={`${COLS} h-12 w-full pr-5 pl-5 text-left transition-colors hover:bg-hover ${p.closed ? "opacity-55" : ((t) => (t === "failed" || t === "needs" ? `wash-${t}` : ""))(s.toneFor(p))}`}
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <ChevronRight size={14} className={`shrink-0 text-faint transition-transform ${isOpen ? "rotate-90" : ""} ${kids.length ? "" : "invisible"}`} />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onProfile(p.id)
-                    }}
-                    className="flex shrink-0 items-center gap-2.5 rounded-md font-medium text-ink decoration-faint underline-offset-4 hover:underline"
-                  >
-                    <Avatar name={p.name} size={22} />
-                    {p.name}
-                  </button>
-                </span>
-                {p.closed ? <span className="text-faint">{p.closed}</span> : <StagePips stage={p.stage} />}
-                <span className="truncate text-mute @max-2xl:hidden">
-                  {p.next}
-                  {p.due && <span className="ml-2 text-faint">Due {p.due}</span>}
-                </span>
-                <span className="flex items-center @max-2xl:hidden">
-                  <Member id={p.owner} />
-                </span>
-              </div>
-              {isOpen &&
-                kids.map((t, i) => (
-                  <button key={t.id} onClick={() => onOpen(t.id)} className={`relative flex h-10 w-full items-center gap-2.5 pr-5 pl-[62px] text-left transition-colors ${openId === t.id ? "bg-raised" : "hover:bg-hover"}`}>
-                    <span className={`absolute left-[38px] w-px bg-line-strong ${i === kids.length - 1 ? "top-0 h-1/2" : "inset-y-0"}`} />
-                    <span className="absolute top-1/2 left-[38px] h-px w-3.5 bg-line-strong" />
-                    <StatusIcon status={statusOf(t)} />
-                    <span className="text-ink">{title(t)}</span>
-                    <span className="ml-auto truncate pl-3 text-mute">{standing(t)}</span>
-                  </button>
-                ))}
-            </div>
+            <section key={g.key}>
+              <button onClick={() => setShut(folded ? shut.filter((x) => x !== g.key) : [...shut, g.key])} aria-expanded={!folded} className="sticky top-0 z-10 flex h-9 w-full items-center gap-2.5 bg-panel pt-1 pr-3 pl-5 text-left">
+                <StatusIcon status={g.key} label={g.means} />
+                <span className="font-medium text-ink">{g.name}</span>
+                <span className="text-faint tabular-nums">{rows.length}</span>
+                <ChevronDown size={13} className={`text-faint transition-transform ${folded ? "-rotate-90" : ""}`} />
+              </button>
+              {!folded &&
+                rows.map((p) => {
+                  const kids = tickets.filter((t) => t.person === p.id)
+                  /* The ticket that put them in this group says what has to happen; without one, their own next step does */
+                  const lead = kids.find((t) => statusOf(t) === g.key)
+                  const isOpen = !!expanded[p.id]
+                  const toggle = () => (kids.length ? setExpanded((e) => ({ ...e, [p.id]: !e[p.id] })) : onProfile(p.id))
+                  const r = s.roleOf(p.role)
+                  return (
+                    <div key={p.id} className="anim-rise">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={toggle}
+                        onKeyDown={(e) => {
+                          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                            e.preventDefault()
+                            toggle()
+                          }
+                        }}
+                        aria-expanded={kids.length ? isOpen : undefined}
+                        className={`flex h-11 w-full items-center gap-2.5 pr-4 pl-5 text-left transition-colors hover:bg-hover ${p.closed ? "" : `wash-${g.key}`}`}
+                      >
+                        <StatusIcon status={g.key} label={g.means} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onProfile(p.id)
+                          }}
+                          className={`shrink-0 rounded-md font-medium decoration-faint underline-offset-4 hover:underline ${p.closed ? "text-mute" : "text-ink"}`}
+                        >
+                          {p.name}
+                        </button>
+                        <span className="truncate text-mute">{p.closed ? p.closed : lead ? title(lead) : p.next}</span>
+                        {kids.length > 0 && <ChevronRight size={13} className={`shrink-0 text-faint transition-transform ${isOpen ? "rotate-90" : ""}`} />}
+                        <span className="ml-auto flex shrink-0 items-center gap-3 pl-3">
+                          {/* Blank when there is nothing to say: no placeholder */}
+                          <span className="hidden max-w-[220px] truncate text-mute @xl:inline">{p.closed ? "" : lead ? standing(lead) : p.due ? `Due ${p.due}` : ""}</span>
+                          <span className="hidden w-[150px] truncate text-right text-faint @3xl:inline">{s.team ? r.title : teamOf(r.team).name}</span>
+                          <span className="hidden w-[136px] @2xl:block">{!p.closed && <StagePips stage={p.stage} />}</span>
+                          <Member id={p.owner} />
+                        </span>
+                      </div>
+                      {isOpen &&
+                        kids.map((t, i) => (
+                          <button key={t.id} onClick={() => onOpen(t.id)} className={`relative flex h-10 w-full items-center gap-2.5 pr-4 pl-[52px] text-left transition-colors ${openId === t.id ? "bg-raised" : "hover:bg-hover"}`}>
+                            <span className={`absolute left-[26px] w-px bg-line-strong ${i === kids.length - 1 ? "top-0 h-1/2" : "inset-y-0"}`} />
+                            <span className="absolute top-1/2 left-[26px] h-px w-3.5 bg-line-strong" />
+                            <StatusIcon status={statusOf(t)} />
+                            <span className="text-ink">{title(t)}</span>
+                            <span className="ml-auto truncate pl-3 text-mute">{standing(t)}</span>
+                          </button>
+                        ))}
+                    </div>
+                  )
+                })}
+            </section>
           )
         })}
       </div>
