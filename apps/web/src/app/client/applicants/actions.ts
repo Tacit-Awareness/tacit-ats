@@ -14,6 +14,7 @@ import { hasTestbenchLink, withTestbenchLink } from "@/lib/client/reply-starters
 import { requireClient } from "@/lib/client/session";
 import { mintTestbenchLink } from "@/lib/client/testbench";
 import { toolCtx } from "@/lib/client/tool-ctx";
+import { TRIAGE_PATH, postedFromTriage } from "@/lib/client/triage-return";
 import type { ApplicantError, ApplicantNotice, IntakeError, IntakeState, ReplyState } from "./messages";
 
 // New Applicants' routing bar: interview, or decline with a reason, on its
@@ -42,8 +43,15 @@ function id(form: FormData, key: string): string | null {
 }
 
 // Only codes and ids go in the URL, never a name or a message.
-const back = (form: FormData, params: { a?: string | null; notice?: ApplicantNotice; error?: ApplicantError }): never => {
+const back = async (form: FormData, params: { a?: string | null; notice?: ApplicantNotice; error?: ApplicantError }): Promise<never> => {
   const qs = new URLSearchParams();
+  // Posted from Triage: back there, on the ticket it opens next (lib/client/triage-return.ts).
+  if (await postedFromTriage()) {
+    if (params.a) qs.set("a", params.a);
+    if (params.notice) qs.set("notice", params.notice);
+    if (params.error) qs.set("error", params.error);
+    return redirect(hrefAt(TRIAGE_PATH, qs));
+  }
   const home = form.get("home") === "1";
   // From the Inbox's pop-up: back to its digest range, where `a` opens that ticket in the pop-up again.
   const inbox = !home && form.has("inbox");
@@ -76,6 +84,7 @@ export async function routeApplicantAction(form: FormData): Promise<void> {
   revalidatePath("/client/pipeline");
   // The Inbox lists who is newly in too.
   revalidatePath("/client/inbox");
+  revalidatePath(TRIAGE_PATH);
   // On to the next ticket: the one below it in the list, as the page sent it.
   return back(form, { a: id(form, "next"), notice: outcome.route });
 }

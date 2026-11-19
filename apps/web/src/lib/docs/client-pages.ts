@@ -148,6 +148,16 @@ The tabs under the bar open New Applicants, Interviews and Referrals inside the 
 
 Interviewers get a simpler Home: the people they interview, the jobs they can see and the team.
 
+## Triage
+
+**Triage** in the sidebar is everything waiting on you, in one place. On the left, **Needs You** comes first: the team's calls, offers waiting on your sign-off, overdue next steps, feedback still owed, replies and drafts, each marked amber, or red when it is late. Under it, new applicants by how they came in: **Referred**, **Applied** and **Sourced**, newest first.
+
+Pick an applicant and their files open in the middle, with what they sent on the right. Under the files you route them: **Interview**, **Testbench** (where the job has a Testbench role) or **Decline**, also \`I\`, \`T\` and \`D\`. Decline asks for one of your company's rejection reasons. **Move** puts them in interviewing, or declines them, at once. **Review Draft** (\`⌘↵\`) writes the reply for you to read; nothing goes out until you press **Send**. **Later** skips to the next one.
+
+Pick a Needs You item and it opens in the middle with the same buttons the Inbox gives it, and the candidate under it. **Open In Inbox** shows it there instead. Either way you come back to Triage once it is dealt with.
+
+Open a team in the sidebar and its **Triage** shows only that team's jobs.
+
 ## Inbox
 
 The Inbox is one card for admins and the hiring team: what is stuck and waiting on someone, under **Needs you**, then what has happened lately. Nothing is added by hand: an issue appears when something needs doing and leaves when it is dealt with. When you open it, the card shows what it read, with the counts, for under a second; a click or a key skips that.
@@ -440,7 +450,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | --- | --- |
 | \`⌘K\` | Command menu: go to any page, job or saved view, find a candidate by name, email, title or company, and on an open candidate jump to a note, labels, a stage or rejecting them. Interviewers find only the people they interview. On these docs, it searches them |
 | \`G\` then \`H\` | Home |
-| \`G\` then \`T\` | Triage (the Inbox) |
+| \`G\` then \`T\` | Triage |
 | \`G\` then \`W\` | Tickets (Applicant Tickets) |
 | \`G\` then \`P\` | People (the CRM) |
 | \`G\` then \`I\` | Interviews |
@@ -457,7 +467,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Tutorial
 
-**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, Triage, the CRM, Job Postings, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 

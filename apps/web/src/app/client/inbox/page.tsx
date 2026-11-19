@@ -6,31 +6,25 @@ import { Notice, Page, PageBar, Section, textLink } from "@/components/page";
 import { groupByTeam, isReferral, neighbour, type QueueEntry } from "@/lib/client/applicant-queue";
 import { readApplicantQueue } from "@/lib/client/applicants";
 import { readDepartments } from "@/lib/client/departments";
-import { readSender } from "@/lib/client/email";
-import { stageLabel } from "@/lib/client/crm-views";
-import { readDecisionLoop, readDone, readDoneStory, readInbox, readIssue, readIssueName, type DecisionLoop } from "@/lib/client/inbox";
+import { readDecisionLoop, readDone, readDoneStory, readInbox, readIssueName } from "@/lib/client/inbox";
 import { inboxHref, parseRange, rowAfter, selectedRow, type DigestRange } from "@/lib/client/inbox-digest";
-import { decisionProps, offerTermLines } from "@/lib/client/inbox-decisions";
 import { doneCandidateHref, isIssueKey, selectedDone, type DoneItem } from "@/lib/client/inbox-done";
 import { readDigest } from "@/lib/client/inbox-feed";
-import { candidateHref, issueFix, issueLine, nextIssue, secondaryLink, selectedIssue, waitingSince, type Issue, type IssueFix } from "@/lib/client/inbox-issues";
-import { hiddenOn, lastHeld } from "@/lib/client/interview-loop";
-import { webMailer } from "@/lib/client/mailer";
+import { candidateHref, issueLine, selectedIssue, waitingSince } from "@/lib/client/inbox-issues";
 import { ago } from "@/lib/client/pipeline-columns";
 import { resolveClient } from "@/lib/client/session";
-import { toolCtx } from "@/lib/client/tool-ctx";
 import { APPLICANT_ERRORS, APPLICANT_NOTICES, isApplicantError, isApplicantNotice } from "../applicants/messages";
 import { addedWords, isAdded, readTicket, teamOf } from "../applicants/tickets";
 import { readAddedBy } from "@/lib/client/intake";
 import { CandidateBody } from "../candidates/[id]/view";
 import { readCandidateView } from "../candidates/[id]/read";
-import { feedbackCards, loopProps } from "../interviews/loop-props";
 import { Refusal } from "../refusal";
 import { DoneView } from "./done-view";
 import { INBOX_ERRORS, INBOX_NOTICES, isInboxError, isInboxNotice, movedToast } from "./messages";
 import { DIGEST_SECTION, REASON_SECTION, SECTIONS, isSectionKey } from "./sections";
 import { UndoToast } from "./set-aside";
-import { InboxView, type TicketLoop } from "./view";
+import { InboxView } from "./view";
+import { GAP, readIssueReader, stageOf, ticketLoop } from "./issue-reader";
 
 // The Inbox (design/tats's #inbox): what is stuck and waiting on someone, who
 // is newly in and what happened lately, in one card of three sections
@@ -51,42 +45,6 @@ import { InboxView, type TicketLoop } from "./view";
 // New Applicants' words. `?tab=done` is Done, where `?i=` is a dismissal's id.
 // `?was=` names what a pop-up just dealt with, for the toast. An interviewer
 // gets the pointer home.
-
-/** Between the facts of a pop-up's subject line: a wide space, as Testbench puts no dot between facts. */
-const GAP = "\u2003";
-
-/**
- * The card's words: `detail` is what is so, shown on the card; `hint` is how the
- * fix deals with it, the fix button's hover rather than a line under the
- * buttons. A draft that can't go out says why on the card: its button is off,
- * so it has no hover to say it on.
- */
-function card(i: Issue, fix: IssueFix): { title: string; detail: string; hint?: string } {
-  const decidable = fix.type === "decide";
-  switch (i.reason) {
-    case "feedback":
-      return { title: "Waiting on feedback", detail: `${i.why}.`, hint: "Nothing here can remind them yet." };
-    case "overdue":
-      // Who it's with is beside the card's age ("With …"), so the line is only why.
-      return { title: i.nextAction ?? "Next action overdue", detail: `${i.why}.` };
-    case "quiet":
-      return { title: "No touch in over a week", detail: `${i.why}.${i.who ? ` Owned by ${i.who}.` : ""}` };
-    case "decide":
-      return {
-        title: "The team's call",
-        detail: `${i.why}.`,
-        hint: decidable ? "Next round finds a time for their next interview." : "Move them on or close them from their page.",
-      };
-    case "approval":
-      return { title: "Waiting on your approval", detail: `${i.who ? `Asked by ${i.who}. ` : ""}${i.why}.` };
-    case "reply":
-      return { title: "They wrote back", detail: `From ${i.reply?.fromEmail ?? "the candidate"}.`, hint: "It's also forwarded to your own email. Writing to them again clears this." };
-    case "draft":
-      return fix.type === "send" && fix.canSend
-        ? { title: "Not sent", detail: "", hint: "Read it, then Send here. It only goes out after you confirm." }
-        : { title: "Not sent", detail: "Email isn't set up on this deployment, so it can't go out from here. The client connector's send_email may still send it." };
-  }
-}
 
 /** New applicants the card lists, newest first; the rest are a link away, in New Applicants. */
 const NEWCOMERS_SHOWN = 4;
@@ -120,33 +78,6 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function doneNote(x: DoneItem): string | null {
   if (x.how === "resolved") return x.stands ? "It's waiting again, so it's back in your Inbox." : null;
   return x.stands ? null : "It has been dealt with since, so there's nothing to move back.";
-}
-
-const stageOf = (applications: { applicationId: string; stage: string }[], applicationId: string) => {
-  const stage = applications.find((a) => a.applicationId === applicationId)?.stage;
-  return stage ? stageLabel(stage) : null;
-};
-
-/** The route and the read, once a round has been held to read (design/tats's `fullBody`, which has none before one). */
-function ticketLoop(read: DecisionLoop | null, candidate: string, isAdmin: boolean, now: number): TicketLoop | null {
-  const held = read ? lastHeld(read.progress, now) : null;
-  if (!read || !held) return null;
-  const hidden = hiddenOn(read.progress, held);
-  const notes = [
-    read.feedback?.yoursOutstanding && !isAdmin ? "Others' feedback may stay hidden until you file yours." : null,
-    hidden ? `${hidden === 1 ? "One interviewer's" : `${hidden} interviewers'`} feedback on the last round is not visible to you.` : null,
-  ].filter(Boolean);
-  return {
-    ...loopProps({ candidate, jobTitle: read.plan.title, progress: read.progress, selectedId: held, listed: new Set(), href: () => "", stage: read.stage, routing: read.routing, isAdmin, now }),
-    feedback: read.feedback ? feedbackCards(read.feedback, now) : [],
-    feedbackNote: notes.length ? notes.join(" ") : null,
-  };
-}
-
-/** How long an issue has waited, for its card: "Waiting 4d", or "Waiting since today". */
-function waited(iso: string, now: number): string {
-  const since = ago(iso, now);
-  return since === "today" ? "Waiting since today" : `Waiting ${since.replace(/ ago$/, "")}`;
 }
 
 export default async function ClientInbox({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -244,19 +175,11 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
   const ordered = SECTIONS.flatMap((s) => issues.filter((i) => REASON_SECTION[i.reason] === s.key));
   const show = one(sp.show);
   const open = selectedIssue(issues, one(sp.i));
-  const detail = open ? await readIssue(db, member, open) : null;
-  const mailer = webMailer();
-  const fix = open ? issueFix(open, detail?.canEdit ?? false, mailer !== null) : null;
-  const sender = open?.draft ? await readSender(db, toolCtx(gate.ctx), mailer) : null;
-  const decision = open && fix ? decisionProps(fix, open, detail?.reasons ?? []) : null;
-
   // Nothing about a candidate is read until their row is open. An issue wins over a row.
   const openRow = open ? null : selectedRow(digest.groups, one(sp.open));
   const openPerson = openRow ? await readCandidateView(gate.ctx, openRow.candidate.id, nowMs) : null;
   const shownRow = openPerson ? openRow : null;
-  // An approver not on the job has neither their page nor the loop, so keeps the reader.
-  const whole = open?.candidate && detail?.canOpen ? await readCandidateView(gate.ctx, open.candidate.id, nowMs) : null;
-  const loop = open && whole && open.job.id && open.applicationId ? await readDecisionLoop(db, member, { jobId: open.job.id, applicationId: open.applicationId }) : null;
+  const issue = open ? await readIssueReader(gate.ctx, { issues: ordered, open, nowMs }) : null;
   const personApp = openPerson && shownRow ? openPerson.candidate.applications.find((a) => a.applicationId === shownRow.applicationId) : null;
   const personLoop = shownRow && personApp ? await readDecisionLoop(db, member, { jobId: personApp.jobId, applicationId: shownRow.applicationId }) : null;
   const shownGroup = shownRow ? digest.groups.find((g) => g.rows.includes(shownRow)) : undefined;
@@ -305,39 +228,7 @@ export default async function ClientInbox({ searchParams }: { searchParams: Prom
           page: i.candidate && i.reason !== "approval" ? candidateHref(i) : null,
           next: rowAfter(walk, i.key),
         }))}
-        issue={
-          open && fix
-            ? {
-                kind: open.kind,
-                instance: { key: open.key, reason: open.reason, at: open.at },
-                what: open.what,
-                subject: [open.candidate?.name, open.job.title].filter(Boolean).join(GAP),
-                card: card(open, fix),
-                draft: open.draft ? { to: open.draft.toEmail, subject: open.draft.subject, body: open.draft.body, from: sender?.from ?? null, replyTo: sender?.replyTo ?? null } : null,
-                reply: open.reply ? { subject: open.reply.subject, body: detail?.replyBody ?? "" } : null,
-                fix,
-                decision,
-                terms: detail?.terms ? offerTermLines(detail.terms) : null,
-                next: nextIssue(ordered, open.key)?.key ?? null,
-                secondary: secondaryLink(open, fix, detail?.canOpen ?? true),
-                who: open.who,
-                age: waited(waitingSince(open), nowMs),
-                page: (detail?.canOpen ?? true) ? candidateHref(open) : null,
-                story: open.candidate ? (detail?.story ?? null) : null,
-                ticket:
-                  whole && open.candidate
-                    ? {
-                        title: open.candidate.name,
-                        subject: [open.job.title, open.applicationId ? stageOf(whole.candidate.applications, open.applicationId) : null].filter(Boolean).join(GAP),
-                        loop: ticketLoop(loop, open.candidate.name, accessLevel === "admin", nowMs),
-                        // An overdue ticket already states the next action, so the dashboard under it doesn't repeat it.
-                        body: (call) => <CandidateBody {...whole} notice={null} error={null} call={call} dashboard nextInCall={open.reason === "overdue" ? open.applicationId : null} />,
-                      }
-                    : null,
-                now: nowMs,
-              }
-            : null
-        }
+        issue={issue}
         person={
           shownRow && openPerson
             ? {

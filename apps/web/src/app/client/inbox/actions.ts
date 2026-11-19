@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { TRIAGE_PATH, postedFromTriage } from "@/lib/client/triage-return";
 import { sendDraft } from "@/lib/client/email";
 import { clearOverdueAction, decideInboxApplication, decideInboxApproval, dismissIssue, noteResolved, restoreIssue, touchApplication } from "@/lib/client/inbox";
 import { approvalNotice, parseDecision } from "@/lib/client/inbox-decisions";
@@ -29,7 +30,7 @@ import type { InboxError, InboxNotice } from "./messages";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Only codes and ids go in the URL, never a name or a message.
-const back = (params: { tab?: "done"; range?: DigestRange; i?: string | null; was?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): never => {
+const back = async (params: { tab?: "done"; range?: DigestRange; i?: string | null; was?: string | null; notice?: InboxNotice; error?: InboxError; undo?: string }): Promise<never> => {
   const qs = new URLSearchParams();
   if (params.range && params.range !== DEFAULT_RANGE) qs.set("range", String(params.range));
   if (params.tab) qs.set("tab", params.tab);
@@ -38,6 +39,8 @@ const back = (params: { tab?: "done"; range?: DigestRange; i?: string | null; wa
   if (params.notice) qs.set("notice", params.notice);
   if (params.error) qs.set("error", params.error);
   if (params.undo) qs.set("undo", params.undo);
+  // Posted from Triage's middle pane: back there on the issue it opens next (lib/client/triage-return.ts).
+  if (!params.tab && (await postedFromTriage())) return redirect(`${TRIAGE_PATH}?${qs}`);
   return redirect(`/client/inbox?${qs}`);
 };
 

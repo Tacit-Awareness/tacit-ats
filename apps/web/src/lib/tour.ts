@@ -34,10 +34,16 @@ export const TOUR: TourStep[] = [
     body: "A block per stage and a dot per person. Amber needs you, red is overdue, blue has gone quiet. Pick a block to see who is in it.",
   },
   {
-    href: "/client/inbox",
-    targets: ['[data-tour="inbox-keys"]', '[data-tour="inbox"]'],
-    title: "Inbox",
-    body: "Only what's stuck or waiting on you, on one card. Open an issue, or use a row's own buttons: F runs the fix and E sets it aside under Done. On a decision, A, O and R move it on, and each asks you first. So does Send here, on a draft you never sent.",
+    href: "/client/triage",
+    targets: ['[data-tour="triage"]'],
+    title: "Triage",
+    body: "Everything waiting on you, in one place: what needs you first, then new applicants by how they came in. Open one to deal with it right here.",
+  },
+  {
+    href: "/client/triage",
+    targets: ['[data-tour="route"]'],
+    title: "Route an applicant",
+    body: "Pick Interview, Testbench or Decline (I, T, D). Move puts them in interviewing; Review Draft writes the reply for you to read, then Send. Later skips to the next one.",
   },
   {
     href: "/client/candidates",
@@ -50,12 +56,6 @@ export const TOUR: TourStep[] = [
     targets: ['[data-tour="add-role"]', 'aside a[href="/client/jobs"]'],
     title: "Job Postings",
     body: "Your careers page as applicants see it. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
-  },
-  {
-    href: "/client/applicants",
-    targets: ['[data-tour="route"]', '[data-tour="tickets"]'],
-    title: "New Applicants",
-    body: "New applicants, read like email. R writes a reply: you read the draft, then Send. Pick Interview or Decline, then press the button beside it, or Enter after a key, and the next one opens.",
   },
   {
     href: "/client/pipeline",

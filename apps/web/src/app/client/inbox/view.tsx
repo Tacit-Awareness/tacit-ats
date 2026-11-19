@@ -501,7 +501,7 @@ function Bar({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) 
 const WHEN_ONLY: ReadonlySet<IssueReason> = new Set(["overdue", "feedback", "quiet"]);
 
 /** The issue's card: a decision's call, the read and the buttons together, or where anything else stands. */
-function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
+export function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   const brief = !!issue.ticket && WHEN_ONLY.has(issue.instance.reason);
   const extra =
     issue.draft || issue.reply || issue.terms ? (
@@ -550,7 +550,7 @@ function IssueCard({ issue, range }: { issue: IssueReaderProps; range: DigestRan
 }
 
 /** An issue with no one to open, a job's approval or an approver not on the job: the card and the story. */
-function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
+export function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange }) {
   return (
     <article className="mx-auto grid w-[760px] max-w-full content-start">
       <IssueCard issue={issue} range={range} />
@@ -565,7 +565,7 @@ function Reader({ issue, range }: { issue: IssueReaderProps; range: DigestRange 
 }
 
 /** The route, edge to edge over the candidate (design/tats's `fullBody`). */
-function Route({ loop }: { loop: TicketLoop | null }) {
+export function Route({ loop }: { loop: TicketLoop | null }) {
   return loop ? (
     <div className="@container">
       <Loop reader={loop} />
