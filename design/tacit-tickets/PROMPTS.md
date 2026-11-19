@@ -8,9 +8,9 @@ The quality here did not come from one good prompt. It came from about seventy s
 
 ## Set up once
 
-1. Open the session in this folder. `CLAUDE.md` loads by itself and pulls in `DESIGN.md` with it, so the rules are in front of the model from the first message without being pasted.
+1. Open the session in this folder, so `CLAUDE.md` loads by itself.
 2. Give the model a browser it can drive, pointed at `pnpm dev`. Most fixes in this app came from looking at the running page.
-3. The reference pictures are in `reference/`, with a note on each in `reference/README.md`. The pictures stay on your machine; only the notes are in git.
+3. Put your references in a `reference/` folder (see the end of this file) and tell the model it is there.
 
 ## The first message of a session
 
@@ -71,18 +71,6 @@ Open on the finding. No cover, no overview paragraph. Light and dark.
 Use only data tATS returns today; list anything missing.
 ```
 
-## Asking for a component that already exists
-
-Give the install command, not a picture of it.
-
-```text
-Add a loading skeleton to Triage. Install it, do not draw it:
-pnpm dlx shadcn@latest add https://www.affectui.com/r/skeleton-clean.json
-Wrap it in src/kit.tsx and give it the app's greys.
-```
-
-A screenshot is for the manner of a thing. A command is for the thing itself.
-
 ## Correcting
 
 Correct in one line and let it fix. Then make the correction permanent:
@@ -111,7 +99,7 @@ and dark. Tell me what you checked and what you did not.
 
 ## References
 
-`reference/README.md` has a note on each of the 29 pictures: what it shows, what this app took from it, and what to leave. Without that note a model copies the wrong part. The other sources, which are not pictures in that folder:
+Keep these in `reference/`, each with one line on what to take and what to leave. Without that line a model copies the wrong part.
 
 | Reference | Take | Leave |
 |---|---|---|
