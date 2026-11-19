@@ -59,15 +59,15 @@ export function overviewProps(read: HomeRead, days: number, now: number, canEdit
   // interviewerActivity has no job filter: with a job or a department picked, its numbers still cover every job they manage.
   const allJobs = job !== null || department !== null;
   const href = (next: { days?: number; department?: string | null; job?: string | null }) => {
-    const params = new URLSearchParams();
+    // The Overview lives at ?view=overview since Tacit Tickets' Home took /client.
+    const params = new URLSearchParams({ view: "overview" });
     const d = next.days ?? days;
     const dep = next.department === undefined ? department : next.department;
     const j = next.job === undefined ? job : next.job;
     if (d !== HOME_PERIODS[0]) params.set("days", String(d));
     if (dep) params.set("department", dep);
     if (j) params.set("job", j);
-    const qs = params.toString();
-    return `/client${qs ? `?${qs}` : ""}`;
+    return `/client?${params.toString()}`;
   };
   const pipeline = (all?: string) => {
     const params = new URLSearchParams();

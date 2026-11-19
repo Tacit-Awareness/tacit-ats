@@ -50,7 +50,8 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-function applyTheme(choice: ThemeChoice) {
+/** Puts a theme on the page and keeps it in the cookie; the sidebar's sun and moon use it too. */
+export function applyTheme(choice: ThemeChoice) {
   const root = document.documentElement;
   if (choice === "system") delete root.dataset.theme;
   else root.dataset.theme = choice;

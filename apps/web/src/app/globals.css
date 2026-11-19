@@ -399,6 +399,27 @@
   --color-positive-soft: var(--green-soft);
   --color-negative: var(--red);
   --color-negative-soft: var(--red-soft);
+
+  /* Tacit Tickets' own names (design/tacit-tickets/src/index.css), on the tokens
+     the skin below sets, so its markup ports with its classes. Two of its names
+     already mean another grey here: its `raised` is `sel`, its `faint` is `dim`. */
+  --color-well: var(--frame);
+  --color-panel: var(--paper);
+  --color-hover: var(--hover);
+  --color-sel: var(--sel);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-body: var(--muted-text);
+  --color-mute: var(--faint);
+  --color-dim: var(--ink-4);
+  --color-chip: var(--chip, var(--soft-strong));
+  --color-s-needs: var(--amber);
+  --color-s-routing: var(--blue);
+  --color-s-scheduled: var(--green);
+  --color-s-done: var(--s-done, var(--faint));
+  --color-s-passed: var(--closed);
+  --color-bad: var(--red);
 }
 
 @layer base {
@@ -596,18 +617,17 @@ body:has(.ui-root) {
   align-items: flex-start;
   gap: 4px;
   min-width: 0;
-  height: 40px;
-  margin-bottom: var(--sb-head-gap);
+  height: 32px;
+  margin-bottom: 14px;
 }
 
 /* its hover block is soft-cornered like .sb-item's */
 .sb-org {
-  margin-top: 3px;
   border-radius: 8px;
 }
 
 .sb-search {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .sb-group {
@@ -664,14 +684,15 @@ body:has(.ui-root) {
 
 .sb-foot {
   display: flex;
-  flex-direction: column;
-  gap: var(--sb-sec-gap);
+  align-items: center;
+  gap: 4px;
+  border-top: 1px solid var(--line);
   /* A short window scrolls the sections under it, so your name, Tutorial and Settings stay on screen. */
   position: sticky;
   bottom: 0;
   z-index: 1;
   margin-top: auto;
-  padding-top: var(--sb-group-gap);
+  padding-top: 12px;
   background: var(--frame);
 }
 
@@ -701,14 +722,16 @@ body:has(.ui-root) {
   display: none;
 }
 
-/* design/tats's foot: Tutorial and Settings, each spelled out, under the name */
+/* Tacit Tickets' foot: Tutorial, the theme and Settings as icons, right of the name */
 .sb-tools {
   display: flex;
   gap: 2px;
+  margin-left: auto;
 }
 
-.sb-tools > .sb-item {
-  flex: 1 1 0;
+/* the prototype's sub-rows (People, Interviews) carry an icon only on the rail */
+.sb-rail-only {
+  display: none !important;
 }
 
 .sb-dragging,
@@ -726,7 +749,7 @@ body:has(.ui-root) {
   /* out of the row, so it can slide under the logo instead of jumping there */
   .sb-toggle {
     position: absolute;
-    top: 4px;
+    top: 2px;
     right: 0;
   }
 
@@ -776,12 +799,29 @@ body:has(.ui-root) {
     display: block;
   }
 
-  .sb-rail .sb-tools {
+  .sb-rail .sb-foot {
     flex-direction: column;
+    align-items: flex-start;
   }
 
-  .sb-rail .sb-tools > .sb-item {
-    flex: none;
+  .sb-rail .sb-tools {
+    flex-direction: column;
+    margin-left: 3px;
+  }
+
+  .sb-rail .sb-rail-only {
+    display: grid !important;
+  }
+
+  .sb-rail .sb-under {
+    margin-left: 0;
+    border-left: 0;
+    border-radius: 8px;
+    padding-left: 6px;
+  }
+
+  .sb-rail .sb-teams {
+    display: none;
   }
 }
 
@@ -1151,6 +1191,13 @@ body:has(.ui-root) {
   --pop-shadow: 0 0 0 1px #d6d9df, 0 16px 40px -12px rgba(22, 23, 26, 0.18);
   --btn-ring: inset 0 0 0 1px #d6d9df;
   --active-inset: none;
+  --chip: #e7e9ee;
+  --s-done: #a3a6ae;
+  --wash-needs: 214 160 60;
+  --wash-failed: 214 96 88;
+  --wash-waiting: 98 118 201;
+  --wash-running: 63 154 108;
+  --wash-a: 0.1;
   /* Inter for everything; real code keeps its monospace (--font-code, from layout.tsx) */
   --font-mona: var(--font-inter);
   --font-geist-mono: var(--font-inter);
@@ -1212,6 +1259,13 @@ body:has(.ui-root) {
     --shadow-sm: 0 0 0 1px #2a2a2d;
     --pop-shadow: 0 0 0 1px #2a2a2d, 0 16px 40px -12px rgba(0, 0, 0, 0.45);
     --btn-ring: inset 0 0 0 1px #2a2a2d;
+  --chip: #29292c;
+  --s-done: #6f6f6c;
+  --wash-needs: 220 191 142;
+  --wash-failed: 223 163 163;
+  --wash-waiting: 167 179 230;
+  --wash-running: 156 205 179;
+  --wash-a: 0.11;
   }
 }
 :root[data-theme="dark"]:has(.ui-root) {
@@ -1269,6 +1323,13 @@ body:has(.ui-root) {
   --shadow-sm: 0 0 0 1px #2a2a2d;
   --pop-shadow: 0 0 0 1px #2a2a2d, 0 16px 40px -12px rgba(0, 0, 0, 0.45);
   --btn-ring: inset 0 0 0 1px #2a2a2d;
+  --chip: #29292c;
+  --s-done: #6f6f6c;
+  --wash-needs: 220 191 142;
+  --wash-failed: 223 163 163;
+  --wash-waiting: 167 179 230;
+  --wash-running: 156 205 179;
+  --wash-a: 0.11;
 }
 
 /* Inter at 13px, a touch heavier and tighter than its default, as Tacit Tickets sets it */
@@ -1301,4 +1362,40 @@ body:has(.ui-root) :is(code, pre, .set-code) {
 }
 .tb-box ::-webkit-scrollbar {
   display: none;
+}
+
+/* ---------- Tacit Tickets' utilities (design/tacit-tickets/src/index.css) ---------- */
+/* A row's status as a soft wash from the left; a person's tile as one flat tint */
+.wash-needs { background-image: linear-gradient(90deg, rgb(var(--wash-needs) / var(--wash-a)), rgb(var(--wash-needs) / 0.03) 60%, transparent); }
+.wash-failed { background-image: linear-gradient(90deg, rgb(var(--wash-failed) / calc(var(--wash-a) + 0.02)), rgb(var(--wash-failed) / 0.035) 60%, transparent); }
+.wash-waiting { background-image: linear-gradient(90deg, rgb(var(--wash-waiting) / calc(var(--wash-a) - 0.02)), rgb(var(--wash-waiting) / 0.02) 60%, transparent); }
+.wash-running { background-image: linear-gradient(90deg, rgb(var(--wash-running) / calc(var(--wash-a) - 0.03)), rgb(var(--wash-running) / 0.02) 60%, transparent); }
+.tint-needs { background-color: rgb(var(--wash-needs) / 0.18); }
+.tint-failed { background-color: rgb(var(--wash-failed) / 0.2); }
+.tint-waiting { background-color: rgb(var(--wash-waiting) / 0.18); }
+.tint-running { background-color: rgb(var(--wash-running) / 0.18); }
+.tint-needs:hover { background-color: rgb(var(--wash-needs) / 0.28); }
+.tint-failed:hover { background-color: rgb(var(--wash-failed) / 0.3); }
+.tint-waiting:hover { background-color: rgb(var(--wash-waiting) / 0.28); }
+.tint-running:hover { background-color: rgb(var(--wash-running) / 0.28); }
+
+/* Anything that scrolls does so without a visible bar */
+.scroll-quiet {
+  scrollbar-width: none;
+}
+.scroll-quiet::-webkit-scrollbar {
+  display: none;
+}
+
+/* Something appearing: up 4px, 240ms, the one easing curve */
+@keyframes tt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .anim-rise {
+    animation: tt-rise 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }

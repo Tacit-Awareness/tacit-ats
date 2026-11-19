@@ -49,7 +49,7 @@ Your company can also add its **own bot**, a Grok bot in your Slack with your co
 - **Hiring manager or recruiter**: start with [Home & Inbox](/docs/app-home), then [CRM, Applicant Tickets & Referrals](/docs/app-candidates).
 - **Admin**: invite your team ([Members and invitations](/docs/app-interviews#members-and-invitations)), publish a job ([Job postings & applicants](/docs/app-postings)).
 
-New to the app? **Tutorial**, under your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
+New to the app? **Tutorial**, the cap beside your name at the bottom of the sidebar, starts a guided [tutorial](/docs/app-keys#tutorial).`,
   },
   {
     slug: "access",
@@ -97,7 +97,22 @@ Your company has one setting for when interviewers can read each other's feedbac
     description: "See where candidates are stuck, and clear what is waiting on you.",
     body: `## Home
 
-Home is the Recruiting Overview: it answers *where are candidates getting stuck?* Choose a period (7, 30 or 90 days), a department and a job at the top; every number follows.
+Home opens on a search field: type to find a person, a job or a page, or press \`⌘K\` from anywhere.
+
+Under it, **applications this year**: a square for each day, darker for busier days, with the days still to come left empty. Point at the map to step back a month or a year. **Referred**, **Inbound** (your careers page) and **Reached Out** (people your team added) count each way in; pick one to shade the map by it alone. **Other** appears when some came another way, such as through Tacit or an agency. Pick a day to see who came in and where each of them stands now.
+
+Then **in process now**: a block for each stage of the pipeline and a dot for each person in it. The colours mean the same everywhere:
+
+- **Amber, needs you**: interviews are done and the next move is the team's call, or an offer is waiting on your sign-off.
+- **Red, overdue**: their next step is past its date.
+- **Blue, waiting on them**: nobody has touched them in a week.
+- **Green, moving**: nothing for you to do.
+
+A block turns red or amber when anyone in it is. Point at a dot to see who it is; pick a block to list its people under the chart. Either list folds away with the button at the right of its heading, and Home remembers.
+
+### Recruiting Overview
+
+The Recruiting Overview answers *where are candidates getting stuck?* It is in the menu on your company's name. Choose a period (7, 30 or 90 days), a department and a job at the top; every number follows.
 
 The Overview is a grid of widgets that fills one screen. The default is the six cards below, **Applications over time** and **Hires**:
 
@@ -129,7 +144,7 @@ Interview workload is split by the job's department, or by interviewer if those 
 
 Admins can set a target on any card except candidates in process, using **Set a target** at the foot of the card. The whole team sees it. A card past its target shows a red dot, and bottlenecks over target come first. A target belongs to the company, so it stays the same number whichever period or department you are looking at.
 
-The tabs under the bar open New Applicants, Interviews and Referrals inside Home, so Overview stays one click away. Each is also its own page in the sidebar.
+The tabs under the bar open New Applicants, Interviews and Referrals inside the Overview, so it stays one click away.
 
 Interviewers get a simpler Home: the people they interview, the jobs they can see and the team.
 
@@ -358,11 +373,11 @@ Each person can fill in their own profile with **Edit**, and an admin can edit a
 
 ## Members and invitations
 
-These moved to Onboarding, and the Interviewers page links there. **Team**, in the sidebar's **Onboarding** section, opens the People step. Admins can invite colleagues at one of three levels, resend or withdraw an invitation, and change a member's level with the select beside their name. Your company always keeps one admin who has signed in, so the last admin cannot step down. What each level gives: [Access levels](/docs/access).
+These moved to Onboarding, and the Interviewers page links there. **Onboarding**, in the menu on your company's name, opens the People step. Admins can invite colleagues at one of three levels, resend or withdraw an invitation, and change a member's level with the select beside their name. Your company always keeps one admin who has signed in, so the last admin cannot step down. What each level gives: [Access levels](/docs/access).
 
 ## Onboarding
 
-**Onboarding** is your company's setup, in five steps with a checklist beside them: People, Teams, Interview skills, Interview process and Review. Open it from **Team** or **Interview Process** in the sidebar, or from the menu under your name. Nothing makes you finish it, and Home stays where you start. The checklist is worked out from what your company has set up, so undoing something takes its tick back.
+**Onboarding** is your company's setup, in five steps with a checklist beside them: People, Teams, Interview skills, Interview process and Review. Open it from **Onboarding** or **Interview Process** in the menu on your company's name, or from the menu under your name. Nothing makes you finish it, and Home stays where you start. The checklist is worked out from what your company has set up, so undoing something takes its tick back.
 
 | Who | What they get |
 | --- | --- |
@@ -399,7 +414,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `Integrations are in **Settings**, under your name at the bottom of the sidebar. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, the gear beside your name at the bottom of the sidebar, and in the menu on your company's name. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
@@ -425,11 +440,13 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | --- | --- |
 | \`⌘K\` | Command menu: go to any page, job or saved view, find a candidate by name, email, title or company, and on an open candidate jump to a note, labels, a stage or rejecting them. Interviewers find only the people they interview. On these docs, it searches them |
 | \`G\` then \`H\` | Home |
-| \`G\` then \`C\` | CRM |
-| \`G\` then \`J\` | Job Postings |
-| \`G\` then \`T\` | New Applicants |
-| \`G\` then \`A\` | Applicant Tickets |
+| \`G\` then \`T\` | Triage (the Inbox) |
+| \`G\` then \`W\` | Tickets (Applicant Tickets) |
+| \`G\` then \`P\` | People (the CRM) |
 | \`G\` then \`I\` | Interviews |
+| \`G\` then \`L\` | Listings & Asks (Job Postings) |
+| \`G\` then \`N\` | Insights (Analytics) |
+| \`G\` then \`S\` | Settings |
 | \`[\` | Collapse or expand the sidebar |
 | \`?\` | The list of keys |
 | \`⇧⌘Q\` | Sign out, where the browser lets the page have it. On a Mac this is also the system's Log Out, so **Sign out** in the menu under your name is the sure way |
@@ -440,7 +457,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Tutorial
 
-**Tutorial**, under your name at the bottom of the sidebar and in the menu it opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, the Inbox, the CRM, Job Postings, New Applicants, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
