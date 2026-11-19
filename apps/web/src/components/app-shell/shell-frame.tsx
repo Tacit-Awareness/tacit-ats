@@ -31,7 +31,8 @@ import { allViews, viewHref } from "@/lib/saved-views";
 // Settings. Until each of Hy's screens is ported, its link opens the page that
 // does its work today: Triage (step 2) is the Inbox and New Applicants
 // together, Tickets (step 3) the bot's tasks with People and Interviews under
-// it, Offers (step 4) its own page, and Listings & Asks is still Job Postings; the Pipeline, the CRM and
+// it, Offers (step 4) its own page, and Listings & Asks (step 5) is Job Postings
+// redrawn as Hy's careers page; the Pipeline, the CRM and
 // Interview Judgement stay in ⌘K. The pages Hy's sidebar
 // has no row for (Insights, Onboarding, Referrals, the calendar ...) are in the
 // workspace menu and ⌘K.
@@ -177,6 +178,7 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
   const sub = [
     { label: "Tickets", href: "/client/tickets", count: (st?: TeamStat) => st?.attn ?? 0 },
     { label: "People", href: "/client/tickets/people", count: () => 0 },
+    { label: "Listings & Asks", href: "/client/jobs", count: () => 0 },
     { label: "Triage", href: "/client/triage", count: (st?: TeamStat) => st?.triage ?? 0 },
   ];
   const match = (name: string) => name.toLowerCase().includes(q.trim().toLowerCase());

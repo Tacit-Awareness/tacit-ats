@@ -22,8 +22,8 @@ const mona = localFont({
   display: "swap",
 });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" });
-// The original tATS face, kept for Job Postings alone, which stays in the live
-// app's look as the careers site applicants see (client/jobs/jobs-original.css).
+// Inter: the client area's face under Tacit Tickets' skin (globals.css points the
+// signed-in shell's fonts at it).
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 // Bare shell. The client area's sidebar lives in client/layout.tsx, so the

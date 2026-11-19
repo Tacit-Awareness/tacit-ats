@@ -52,7 +52,7 @@ export default async function ClientJob({
     <Page
       bar={
         <PageBar
-          crumbs={[{ href: "/client/jobs", label: "Job Postings" }]}
+          crumbs={[{ href: "/client/jobs", label: "Listings & Asks" }]}
           title={pipeline.roleTitle}
           lead={
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
