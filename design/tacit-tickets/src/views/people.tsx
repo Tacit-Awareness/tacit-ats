@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react"
 import { ChevronRight, CircleUser, Plus } from "lucide-react"
 import { STAGES, statusOf, type Person, type Task } from "../data"
 import { Avatar, Person as Member, StagePips, StatusIcon } from "../ui"
-import { Btn, Empty, Header, Menu, heading, standing, title, TONE_COLOR, toneOf, worst, ToneLegend } from "../kit"
+import { Btn, Empty, Header, Menu, heading, standing, title, TONE_COLOR, worst, ToneLegend } from "../kit"
 import { useStore } from "../store"
 import { CheckIns } from "./checkin"
 import { FUNNEL_INSET, Funnel } from "./funnel"
@@ -24,8 +24,8 @@ export function People({ scope, people, tickets, openId, onOpen, onProfile }: { 
     { name: "New", tone: waiting.length ? TONE_COLOR.needs : undefined, dots: waiting.map((a) => ({ id: a.id, name: a.name, sub: s.roleOf(a.role).title, note: "Waiting to be routed", tone: TONE_COLOR.needs })) },
     ...STAGES.map((name, i) => {
       const here = teamOpen.filter((p) => p.stage === i)
-      const tone = worst(here.map(toneOf))
-      return { name, tone: tone && TONE_COLOR[tone], dots: here.map((p) => ({ id: p.id, name: p.name, sub: s.roleOf(p.role).title, note: p.next ?? undefined, tone: TONE_COLOR[toneOf(p)] })) }
+      const tone = worst(here.map(s.toneFor))
+      return { name, tone: tone && TONE_COLOR[tone], dots: here.map((p) => ({ id: p.id, name: p.name, sub: s.roleOf(p.role).title, note: p.next ?? undefined, tone: TONE_COLOR[s.toneFor(p)] })) }
     }),
   ]
   const shown = people.filter((p) => (tab === "All" ? true : tab === "Referred" ? p.source.startsWith("Referr") && !p.closed : !p.closed)).filter((p) => stage === null || !s.team || p.stage === stage - 1)
@@ -168,7 +168,7 @@ export function People({ scope, people, tickets, openId, onOpen, onProfile }: { 
                   }
                 }}
                 aria-expanded={isOpen}
-                className={`${COLS} h-12 w-full pr-5 pl-5 text-left transition-colors hover:bg-hover ${p.closed ? "opacity-55" : p.stalled === "overdue" ? "wash-failed" : p.stalled === "no_touch" ? "wash-needs" : ""}`}
+                className={`${COLS} h-12 w-full pr-5 pl-5 text-left transition-colors hover:bg-hover ${p.closed ? "opacity-55" : ((t) => (t === "failed" || t === "needs" ? `wash-${t}` : ""))(s.toneFor(p))}`}
               >
                 <span className="flex min-w-0 items-center gap-2.5">
                   <ChevronRight size={14} className={`shrink-0 text-faint transition-transform ${isOpen ? "rotate-90" : ""} ${kids.length ? "" : "invisible"}`} />

@@ -5,7 +5,7 @@ import {
   APPLICANTS, ORIGIN_LABEL, PEOPLE, REJECTION_REASONS, ROLES, STAFF, STAGES, TASKS, statusOf,
   type Applicant, type Command, type Person, type Role, type Task,
 } from "./data"
-import { teamOf } from "./kit"
+import { isOpen, teamOf, toneOf, type Tone } from "./kit"
 import {
   ACTIVITY, APPROVAL_FLOWS, EMAILS, FIELDS, FIELD_VALUES, INTEGRATIONS, INTERVIEWS, INVITES, ME, OFFERS, OFFICES, POOLS, PROSPECTS, CHECKINS, DEFAULT_PROCESS, newRound, TAGS, TEMPLATES,
   type Access, type RoundDef, type Activity, type Email, type Interview, type Offer,
@@ -104,6 +104,15 @@ export function useStoreState() {
   const personOf = (id: string) => people.find((p) => p.id === id)!
   const roleOf = (id: string) => roles.find((r) => r.id === id)!
   const tickets = tasks.filter((t) => !t.parent)
+  /*
+   * The one colour for a person, wherever they are drawn: red if a ticket of theirs has failed or
+   * they are overdue, amber if a ticket of theirs is waiting on you, else where they stand.
+   */
+  const toneFor = (p: Person): Tone => {
+    const mine = tickets.filter((t) => t.person === p.id).map(statusOf).filter(isOpen)
+    const own = toneOf(p)
+    return own === "failed" || mine.includes("failed") ? "failed" : mine.includes("needs") ? "needs" : own
+  }
   const attn = (t: Task) => statusOf(t) === "needs" || t.status === "failed"
   const sourceOf = (a: Applicant) => (a.by ? `${ORIGIN_LABEL[a.origin]} by ${STAFF[a.by].first}` : "Job board")
   /* Moving to another view puts away the open ticket: a panel never follows you somewhere it was not opened */
@@ -235,7 +244,7 @@ export function useStoreState() {
     tickets, approvals,
     setView, setTeam, setRoles, setOpenId, setProfile, setPalette, setSheet, setToast, setSettings, setTheme,
     setInterviews, setOffers, setPersonTags, setTags, setPools, setProspects, setCheckins, setInvites, setTemplates, setFields, setFieldValues, setOffices, setReasons, setFlows, setIntegrations, setConnector, setPeople, setTriage,
-    personOf, roleOf, attn, sourceOf, go, openProfile, openOffer, setOfferId, setTour, setAskId, setRounds, setProcess, setRoundsBuilt, patchPerson, patchRole, command, route, reopen, moveStage, addNote, sendEmail, fileFeedback, book, setOffer, addCandidate, touch, log,
+    personOf, roleOf, toneFor, attn, sourceOf, go, openProfile, openOffer, setOfferId, setTour, setAskId, setRounds, setProcess, setRoundsBuilt, patchPerson, patchRole, command, route, reopen, moveStage, addNote, sendEmail, fileFeedback, book, setOffer, addCandidate, touch, log,
   }
 }
 

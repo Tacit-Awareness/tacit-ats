@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { statusOf, type Person } from "../data"
-import { TONE_COLOR, heading, isOpen, toneOf, worst, ToneLegend } from "../kit"
+import { TONE_COLOR, heading, isOpen, worst, ToneLegend } from "../kit"
 import { useStore } from "../store"
 import { FUNNEL_INSET, Funnel } from "./funnel"
 
@@ -28,8 +28,8 @@ export function RoundBlocks({ picked, onPick }: { picked: string | null; onPick:
   const [hot, setHot] = useState<number | null>(null)
   const blocks = rounds.map((name) => {
     const here = active.filter((x) => x.at === name)
-    const tone = worst(here.map((x) => toneOf(x.p)))
-    return { name, tone: tone && TONE_COLOR[tone], dots: here.map((x) => ({ id: x.p.id, name: x.p.name, sub: s.roleOf(x.p.role).title, note: x.p.next ?? undefined, tone: TONE_COLOR[toneOf(x.p)] })) }
+    const tone = worst(here.map((x) => s.toneFor(x.p)))
+    return { name, tone: tone && TONE_COLOR[tone], dots: here.map((x) => ({ id: x.p.id, name: x.p.name, sub: s.roleOf(x.p.role).title, note: x.p.next ?? undefined, tone: TONE_COLOR[s.toneFor(x.p)] })) }
   })
   const pick = (name: string) => onPick(picked === name ? null : name)
   if (!blocks.length) return null

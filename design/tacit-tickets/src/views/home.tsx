@@ -6,7 +6,7 @@ import {
   ChevronsRight, Search, Check, ChevronsDownUp, ChevronsUpDown } from "lucide-react"
 import { STAFF, STAGES } from "../data"
 import { ME } from "../org"
-import { Empty, heading, TONE_COLOR, toneOf, toneOfName, worst, ToneLegend, Menu } from "../kit"
+import { Empty, heading, TONE_COLOR, toneOfName, worst, ToneLegend, Menu } from "../kit"
 import { useStore } from "../store"
 import { Kbd, TacitMark, mod } from "../ui"
 import type { View } from "../types"
@@ -302,10 +302,10 @@ export function Home() {
     ...STAGES.map((name, i) => ({
       name,
       to: "people" as View,
-      tone: ((t) => (t ? TONE_COLOR[t] : undefined))(worst(open.filter((p) => p.stage === i).map(toneOf))),
+      tone: ((t) => (t ? TONE_COLOR[t] : undefined))(worst(open.filter((p) => p.stage === i).map(s.toneFor))),
       dots: open
         .filter((p) => p.stage === i)
-        .map((p) => ({ id: p.id, name: p.name, person: true, sub: s.roleOf(p.role).title, note: p.next ?? undefined, tone: TONE_COLOR[toneOf(p)] })),
+        .map((p) => ({ id: p.id, name: p.name, person: true, sub: s.roleOf(p.role).title, note: p.next ?? undefined, tone: TONE_COLOR[s.toneFor(p)] })),
     })),
   ]
   const inProcess = funnel.reduce((n, f) => n + f.dots.length, 0)
@@ -526,7 +526,7 @@ export function Home() {
                 <button
                   key={p.id}
                   onClick={() => s.openProfile(p.id)}
-                  className={`tint-${toneOf(p)} flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors`}
+                  className={`tint-${s.toneFor(p)} flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors`}
                 >
                   <span className="w-full truncate font-medium text-ink">
                     {p.name}
@@ -603,7 +603,7 @@ export function Home() {
                   <button
                     key={d.id}
                     onClick={() => (d.person ? s.openProfile(d.id) : s.go("triage", null))}
-                    className={`tint-${p ? toneOf(p) : "needs"} flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors`}
+                    className={`tint-${p ? s.toneFor(p) : "needs"} flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors`}
                   >
                     <span className="w-full truncate font-medium text-ink">{d.name}</span>
                     <span className="w-full truncate text-mute">{s.roleOf((p ?? a)!.role).title}</span>
