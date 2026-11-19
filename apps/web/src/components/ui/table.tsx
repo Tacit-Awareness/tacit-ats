@@ -44,7 +44,7 @@ export function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-4 text-left align-middle font-mono text-[12px] font-normal whitespace-nowrap text-faint",
+        "h-10 px-4 text-left align-middle text-[12px] font-normal whitespace-nowrap text-faint",
         className,
       )}
       {...props}

@@ -4,9 +4,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  // Testbench's `.btn`: 7px corners, Geist Mono 13px, a raised white face with an
-  // inset ring; the primary is ink (black), a ghost has no face. A press settles to .98.
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[7px] border-0 font-mono text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none ease-[var(--ease)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-[15px]",
+  // Tacit Tickets' `Btn`: 8px corners, the page's own face at 13px, a bordered face
+  // (the inset ring); the primary is ink, a ghost has no face. A press settles to .98.
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-[8px] border-0 text-[13px] leading-none font-medium whitespace-nowrap transition-[background-color,color,transform] duration-150 select-none ease-[var(--ease)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-[15px]",
   {
     variants: {
       variant: {
@@ -17,7 +17,7 @@ export const buttonVariants = cva(
       },
       size: {
         default: "h-9 px-3.5",
-        sm: "h-[30px] rounded-[6px] px-2.5 text-[12.5px]",
+        sm: "h-[30px] rounded-[8px] px-2.5 text-[13px]",
         lg: "h-11 px-4 text-[14px]",
       },
     },

@@ -122,8 +122,8 @@ function typing(target: EventTarget | null) {
 
 const itemCls = (active: boolean, fresh = false) =>
   cn(
-    "sb-item flex w-full items-center gap-2.5 px-2.5 text-left font-sans text-[14px] font-medium whitespace-nowrap transition-colors",
-    active ? "nav-on" : fresh ? "nav-new" : "text-muted-foreground hover:bg-[color:var(--hover)] hover:text-foreground",
+    "sb-item flex w-full items-center gap-2 px-2 text-left text-[13px] whitespace-nowrap transition-colors",
+    active ? "nav-on" : fresh ? "nav-new" : "text-muted-foreground hover:bg-[color:var(--hover)] [&_svg]:text-faint hover:[&_svg]:text-foreground",
   );
 
 /** `fresh` is the mark's tooltip, when something new is there. */
@@ -187,7 +187,7 @@ function Section({ label, open, onToggle, children }: { label: string; open: boo
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="sb-sec flex items-center gap-1.5 rounded-[8px] px-2.5 text-left font-sans text-[13px] font-medium text-faint transition-colors hover:text-foreground"
+        className="sb-sec flex items-center gap-1.5 rounded-[8px] px-2 text-left text-[12px] text-[color:var(--ink-4)] transition-colors hover:text-foreground"
       >
         {label}
         <svg viewBox="0 0 8 8" className={cn("sb-tri size-2 fill-current", !open && "-rotate-90")} aria-hidden>
@@ -434,7 +434,7 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, sidebar: initial
               onClick={() => setMenu(true)}
               title={rail ? org : undefined}
               aria-label={rail ? org : undefined}
-              className="sb-org flex h-[34px] min-w-0 flex-1 items-center gap-[9px] px-2 font-sans text-[15px] font-semibold tracking-[-0.01em] transition-colors hover:bg-[color:var(--hover)]"
+              className="sb-org flex h-8 min-w-0 flex-1 items-center gap-2 px-1.5 text-[13px] font-medium text-foreground transition-colors hover:bg-[color:var(--hover)]"
             >
               <OrgLogo org={org} logoUrl={orgLogoUrl} />
               <span className="sb-label">{org}</span>
@@ -509,12 +509,13 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, sidebar: initial
         onKeyDown={onResizeKey}
         className={cn(
           "relative z-10 -mx-1 hidden w-2 shrink-0 cursor-col-resize outline-none md:block",
-          "after:absolute after:inset-y-0 after:left-[3.5px] after:w-px after:bg-[color:var(--line)] after:transition-colors hover:after:inset-y-3 hover:after:left-[3px] hover:after:w-0.5 hover:after:rounded-full hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
+          "after:absolute after:inset-y-0 after:left-[3.5px] after:w-px after:bg-transparent after:transition-colors hover:after:inset-y-3 hover:after:left-[3px] hover:after:w-0.5 hover:after:rounded-full hover:after:bg-[color:var(--line-strong)] focus-visible:after:bg-[color:var(--accent)]",
         )}
       />
 
       <div className="flex min-w-0 flex-1 flex-col pt-12 md:pt-0">
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {/* Tacit Tickets: the page is one bordered panel inset in the box, beside the sidebar on the well. */}
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[color:var(--paper)] md:my-2 md:mr-2 md:rounded-[10px] md:border md:border-[color:var(--line)]">
           <div className="shell-page mx-auto w-full max-w-[1600px] px-[var(--page-gutter)] py-7">{children}</div>
         </main>
       </div>

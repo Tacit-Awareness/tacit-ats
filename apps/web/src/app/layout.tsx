@@ -38,6 +38,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       suppressHydrationWarning
       data-theme={theme ?? undefined}
       className={`h-full ${mona.variable} ${geistMono.variable} ${inter.variable}`}
+      // Real code (a client ID, scopes, a token) keeps Geist Mono by its own name: the
+      // client area's skin points --font-geist-mono at Inter (globals.css, Tacit Tickets).
+      style={{ "--font-code": geistMono.style.fontFamily } as React.CSSProperties}
     >
       <body className="flex min-h-full flex-col bg-frame text-foreground">{children}</body>
     </html>
