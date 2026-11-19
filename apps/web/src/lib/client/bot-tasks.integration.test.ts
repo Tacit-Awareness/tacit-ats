@@ -77,11 +77,12 @@ beforeEach(async () => {
     { id: DEST, org_id: ACME, url: "https://bot.example.com/acme", secret: "acme-secret-0123456789" },
     { id: GLOBEX_DEST, org_id: GLOBEX, url: "https://bot.example.com/globex", secret: "globex-secret-0123456789" },
   ]));
+  // Every row names every column: a bulk insert sends null for one a row leaves out, past its default.
   must(await db().from("bot_tasks").insert([
     { id: task(1), org_id: ACME, agent_destination_id: DEST, ref: "t1", kind: "schedule_interview", status: "waiting", needs_you: true, application_id: app(1), waiting_on_actor_id: LEAD, waiting_channel: "slack", steps: [{ label: "Asked Lee for times" }] },
-    { id: task(2), org_id: ACME, agent_destination_id: DEST, ref: "t2", kind: "send_rejection", status: "failed", error: "Mailbox not connected", application_id: app(2), steps: [] },
-    { id: task(3), org_id: ACME, agent_destination_id: DEST, ref: "t3", kind: "get_read", status: "done", application_id: app(1), steps: [{ label: "Read filed" }] },
-    { id: task(9), org_id: GLOBEX, agent_destination_id: GLOBEX_DEST, ref: "t9", kind: "get_read", status: "running", application_id: app(9), steps: [] },
+    { id: task(2), org_id: ACME, agent_destination_id: DEST, ref: "t2", kind: "send_rejection", status: "failed", needs_you: false, error: "Mailbox not connected", application_id: app(2), steps: [] },
+    { id: task(3), org_id: ACME, agent_destination_id: DEST, ref: "t3", kind: "get_read", status: "done", needs_you: false, application_id: app(1), steps: [{ label: "Read filed" }] },
+    { id: task(9), org_id: GLOBEX, agent_destination_id: GLOBEX_DEST, ref: "t9", kind: "get_read", status: "running", needs_you: false, application_id: app(9), steps: [] },
   ]));
 });
 
