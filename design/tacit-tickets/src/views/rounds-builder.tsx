@@ -122,7 +122,7 @@ export function RoundsBuilder() {
               ...TEAMS.map((t) => ({ label: `${t.name}${s.process[t.id] ? ", its own" : ""}`, on: scope === t.id, onPick: () => { setScope(t.id); setSel(null) } })),
             ]}
             trigger={() => (
-              <button className="flex h-7 items-center gap-1.5 rounded-md px-2 text-ink transition-colors hover:bg-hover">
+              <button className="flex h-7 items-center gap-1.5 -ml-1.5 rounded-md px-1.5 text-ink transition-colors hover:bg-hover">
                 {scope !== "company" && <TeamTile id={scope} size={14} />}
                 {scopeName}
                 <span className="text-xs text-faint">{rounds.length} rounds</span>
