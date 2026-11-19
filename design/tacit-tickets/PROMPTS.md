@@ -2,6 +2,8 @@
 
 How to get work at the level of this app from a coding model, whichever one it is. Written for whoever picks this up next.
 
+`MASTER_PROMPT.md` is the single prompt to start a new project with. `PROMPT_LOG.md` is every prompt that built this one, as typed.
+
 ## Why this file exists
 
 The quality here did not come from one good prompt. It came from about seventy short requests, each followed by looking at the result and correcting it. `DESIGN.md` holds those corrections so they do not have to be made twice. This file holds the way of asking.
