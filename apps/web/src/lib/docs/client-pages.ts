@@ -261,10 +261,24 @@ Days are counted in UTC. A page view is a page load, so your team's own visits c
   },
   {
     slug: "app-candidates",
-    title: "CRM, Applicant Tickets & Referrals",
+    title: "Tickets, People, CRM & Referrals",
     category: "tATS features",
-    description: "Every candidate in one table, every open job on one board, and your referrals.",
-    body: `## CRM
+    description: "What the bot is doing, everyone in process, every candidate in one table, every open job on one board, and your referrals.",
+    body: `## Tickets
+
+**Tickets** is the record of the work your company's bot is doing for candidates: finding an interviewer, scheduling, getting a read, sending a rejection. At the top, everyone in interviews is drawn as a block per round, a dot per person, in the same colours as Home; pick a round to see only its people's tickets. Under it, anything waiting on your sign-off, then each ticket by where it stands: **Needs You**, **Failed**, **Waiting**, **Running**, and with **All**, **Done** and **Cancelled** too. Click a heading to fold it.
+
+Open a ticket to see the bot's steps. On one that is still open you can tell the bot what to do: **Retry** a failed one, **Nudge** whoever it is waiting on, or **Cancel** it. The bot picks the command up within a few minutes. You can only do this on candidates whose pipeline you may change.
+
+### People
+
+**People**, under Tickets, is everyone in process: their stage, their next action and its date, and who owns them. A row with a fold opens to that candidate's tickets. **Referred** shows only referrals, and **All** opens the CRM, which has everyone, closed too. On a team's People, its candidates are drawn as blocks by stage at the top; pick one to see only that stage.
+
+### Interviews
+
+**Interviews**, under Tickets, lists the interviews you can see: **Needs Your Feedback** first (yours, held, not filed yet), then **Upcoming** and **Done**. **Week** shows this week as a calendar. Open one to see who is on it and what each of them has called so far, and to file your own feedback right there. **Open Loop** shows the whole loop in Interview Judgement, with every read and the meeting notes.
+
+## CRM
 
 The **CRM** is one table of every candidate you can see. Use the tabs (All, In process, Hired, Rejected, Withdrew), search by name, email, headline or job, and sort by any column. Someone in no job shows as a prospect. A candidate appears in every tab one of their applications puts them in, so the tabs can add up to more than All.
 
@@ -451,8 +465,8 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`⌘K\` | Command menu: go to any page, job or saved view, find a candidate by name, email, title or company, and on an open candidate jump to a note, labels, a stage or rejecting them. Interviewers find only the people they interview. On these docs, it searches them |
 | \`G\` then \`H\` | Home |
 | \`G\` then \`T\` | Triage |
-| \`G\` then \`W\` | Tickets (Applicant Tickets) |
-| \`G\` then \`P\` | People (the CRM) |
+| \`G\` then \`W\` | Tickets |
+| \`G\` then \`P\` | People |
 | \`G\` then \`I\` | Interviews |
 | \`G\` then \`L\` | Listings & Asks (Job Postings) |
 | \`G\` then \`N\` | Insights (Analytics) |
@@ -467,11 +481,13 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Tutorial
 
-**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, Triage, the CRM, Job Postings, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, Triage, the CRM, Job Postings, Tickets, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 
-Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme, **Warmth fix** and sign out; on the icons it is the person button. A faint red tint on **Inbox** or **New Applicants** means something is there you have not seen yet, and the number beside **Inbox** is how many issues are open.\n\n**Warmth fix** undoes a display's Night Shift or True Tone tint: if whites look yellow, pick 1 to 4 until they look neutral, or Off. It is remembered in this browser for this screen, by day and by night separately, and comes back by itself when the window moves to that screen or the evening starts. Nothing is saved to your account.`,
+**All Teams** is Home, **Triage**, **Tickets** with **People** and **Interviews** under it, and **Listings & Asks**. Under **Teams** are your company's departments: open one for its own Tickets, People and Triage. The number beside a team is how many of its candidates need a look, red when one is overdue; **Needs You** shows only those teams, and the pin keeps a team at the top. Your company's name at the top opens Insights, Settings, the other pages and, if you belong to more than one company, the others to switch to.
+
+Drag its edge to resize it, or press \`[\` to shrink it to icons, then drag the edge back out to open it. Your name at the bottom opens a menu with your role, Onboarding, Settings, the tutorial, the Light / Dark / System theme, **Warmth fix** and sign out; on the icons it is the person button. Beside it are the tutorial, a sun or moon to switch the theme, and Settings. A faint red tint on **Triage** means something is there you have not seen yet, and the number beside it is how much is waiting on you.\n\n**Warmth fix** undoes a display's Night Shift or True Tone tint: if whites look yellow, pick 1 to 4 until they look neutral, or Off. It is remembered in this browser for this screen, by day and by night separately, and comes back by itself when the window moves to that screen or the evening starts. Nothing is saved to your account.`,
   },
   {
     slug: "connect",

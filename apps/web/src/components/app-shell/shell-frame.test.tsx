@@ -54,11 +54,11 @@ describe("All Teams", () => {
 
   test("each row opens the page that does its work until its own screen lands", () => {
     const html = nav();
-    for (const href of ["/client", "/client/triage", "/client/pipeline", "/client/candidates", "/client/interviews", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
+    for (const href of ["/client", "/client/triage", "/client/tickets", "/client/tickets/people", "/client/tickets/interviews", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
   });
 
   test("People and Interviews hang under Tickets", () => {
-    expect(nav()).toMatch(/sb-under[^>]*href="\/client\/candidates"|href="\/client\/candidates"[^>]*sb-under/);
+    expect(nav()).toMatch(/sb-under[^>]*href="\/client\/tickets\/people"|href="\/client\/tickets\/people"[^>]*sb-under/);
   });
 
   test("says nothing of a Grokbot", () => {

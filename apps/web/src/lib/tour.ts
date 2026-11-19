@@ -58,6 +58,12 @@ export const TOUR: TourStep[] = [
     body: "Your careers page as applicants see it. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
   },
   {
+    href: "/client/tickets",
+    targets: ['aside a[href="/client/tickets"]'],
+    title: "Tickets",
+    body: "What your company's bot is doing for each candidate, by where it stands, under everyone in interviews by round. Open a ticket to see its steps, and Retry, Nudge or Cancel it. People and Interviews are under it.",
+  },
+  {
     href: "/client/pipeline",
     targets: ['[data-tour="board"]'],
     title: "Applicant Tickets",
