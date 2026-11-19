@@ -25,8 +25,6 @@ pnpm dev
 - **Listings & Asks**: job posts and internal asks, edited as a document.
 - **Rounds builder**, **Insights**, **Settings**, a command menu, a tutorial and dark mode.
 
-[DESIGN.md](DESIGN.md) is the design system: the tokens, the rules and the method for new charts and dashboards. [PROMPTS.md](PROMPTS.md) is how to work on this with a coding model, and [CLAUDE.md](CLAUDE.md) is what such a session reads first.
-
 [COVERAGE.md](COVERAGE.md) maps every tATS connector tool to where it lives in this UI, and lists what would need backend work before it could be wired up.
 
 ## Stack
