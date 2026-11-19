@@ -75,8 +75,16 @@ export function Offers({ scope }: { scope?: ReactNode }) {
   const role = s.roleOf(p.role)
   const first = p.name.split(" ")[0]
   const set = (patch: Partial<Offer>, said: string) => s.setOffer(id, (old) => ({ ...old!, ...patch }), said)
-  const quiet = (patch: Partial<Offer>) => s.setOffers((all) => ({ ...all, [id]: { ...o, ...patch } }))
-  const editable = o.status === "draft" && o.approval !== "pending" && o.approval !== "approved"
+  /* A draft can be changed until it is sent. Changing one that was signed off, or that is waiting on someone else, puts it back to needing sign-off, so nobody approves terms they did not see. */
+  const reopens = o.approval === "approved" || (o.approval === "pending" && !mine)
+  const quiet = (patch: Partial<Offer>) => {
+    s.setOffers((all) => ({ ...all, [id]: { ...o, ...patch, ...(reopens && { approval: "none" as const }) } }))
+    if (reopens) {
+      s.log(id, { who: ME, text: "Changed the offer, so it needs sign-off again", when: "now" })
+      s.setToast("Changed, so it needs sign-off again")
+    }
+  }
+  const editable = o.status === "draft"
   const approver = STAFF[s.flows.offer[0]]
   const sent = o.status !== "draft"
   const signed = o.status === "accepted"
@@ -86,13 +94,15 @@ export function Offers({ scope }: { scope?: ReactNode }) {
   /* The letter: every blank the app can fill is filled from what it already holds */
   const duties = o.duties ?? role.post?.body.filter((b) => b.kind === "li").slice(0, 3).map((b) => b.text.charAt(0).toLowerCase() + b.text.slice(1)).join("; ")
   const clauses = buildLetter({
-    company: COMPANY.name, state: COMPANY.state, date: TODAY, name: p.name, first, address: o.address, title: role.title, supervisor: MEMBERS[role.manager]?.title, duties,
+    company: COMPANY.name, state: COMPANY.state, date: TODAY, name: p.name, first, address: o.address, title: o.title ?? role.title, supervisor: MEMBERS[role.manager]?.title, duties,
     salary: o.salary, period: o.period ?? "year", benefits: o.benefits ?? true, grant: o.grant ?? "option", shares: o.shares, plan: o.plan, expires: o.expires, start: o.start,
   })
   const edits = o.edits ?? {}
   const missing = [...blanks(clauses.filter((c) => !edits[c.key])), ...(o.address?.trim() ? [] : ["Employee address"])]
 
   const fields: [string, ReactNode][] = [
+    ["Title", <Text key="t" value={o.title ?? role.title} placeholder={role.title} label="Title" on={editable} onChange={(v) => quiet({ title: v })} />],
+    ["Duties", <Text key="d" value={duties ?? ""} placeholder="What they will do" label="Primary duties" on={editable} onChange={(v) => quiet({ duties: v })} />],
     ["Salary", <Text key="s" value={o.salary} placeholder="$180,000" label="Salary" on={editable} onChange={(v) => quiet({ salary: v })} />],
     ["Per", <Pick key="p" on={editable} value={o.period ?? "year"} options={[["year", "Year"], ["month", "Month"], ["hour", "Hour"]]} onChange={(v) => quiet({ period: v as Offer["period"] })} />],
     ["Start", <Text key="st" value={o.start} placeholder="January 5, 2027" label="Start date" on={editable} onChange={(v) => quiet({ start: v })} />],
@@ -384,7 +394,7 @@ export function Offers({ scope }: { scope?: ReactNode }) {
           <button onClick={() => s.openProfile(id)} className="block max-w-full truncate text-left text-[15px] font-semibold tracking-[-0.01em] text-ink hover:underline">
             {p.name}
           </button>
-          <div className="truncate text-mute">{role.title}</div>
+          <div className="truncate text-mute">{o.title || role.title}</div>
 
           <div className={`${small} mt-6 flex items-center`}>
             <span className="flex-1">Fills The Letter</span>
@@ -398,7 +408,7 @@ export function Offers({ scope }: { scope?: ReactNode }) {
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-xs leading-[1.5] text-faint">{editable ? "Name, title, manager, duties, date and signer are filled in for you. Click any paragraph of the letter to rewrite it." : "The letter is locked while it is out for sign-off or signature."}</p>
+          <p className="mt-2 text-xs leading-[1.5] text-faint">{editable ? `Name, manager, date and signer are filled in for you. Click any paragraph of the letter to rewrite it.${reopens ? " A change now sends it back for sign-off." : ""}` : "The letter is locked once it is out for signature."}</p>
 
           <div className={`${small} mt-7`}>Sign-Off</div>
           <ol>

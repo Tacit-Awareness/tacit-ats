@@ -61,7 +61,7 @@ export type Envelope = { sent: string; candidate: "sent" | "viewed" | "signed" |
 export type Offer = {
   status: OfferStatus; salary: string; equity: string; start: string; approval: "none" | "pending" | "approved" | "rejected"; askedBy?: string
   period?: "year" | "month" | "hour"; benefits?: boolean; grant?: "option" | "purchase" | "none"; shares?: string; plan?: string
-  expires?: string; address?: string; duties?: string; edits?: Record<string, string>; envelope?: Envelope
+  expires?: string; address?: string; title?: string; duties?: string; edits?: Record<string, string>; envelope?: Envelope
 }
 /* The company as its letters name it */
 export const COMPANY = { name: "Tacit, Inc.", state: "Delaware" }
