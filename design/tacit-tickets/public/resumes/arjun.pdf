@@ -1,0 +1,66 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2044 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Arjun Mehta) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Backend Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (Seattle, WA   |   arjun@mehta.example   |   linkedin.com/in/arjunmehta) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Backend engineer working on queues and the systems around them. Interested in moving closer to) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 623.5 Td (storage.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 587.0 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 581.0 m 554 581.0 l S
+0.1 g BT /F2 11.2 Tf 58.0 563.0 Td (Backend Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 563.0 Td (2021 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 548.5 Td (Tidepool Systems) Tj ET
+0.45 g BT /F1 10 Tf 60.0 532.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 532.5 Td (Run the queueing layer for a logistics API handling 40 million jobs a day.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 516.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 516.0 Td (Added per-tenant fairness so large batch customers no longer starve small ones.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 499.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 499.5 Td (Moved dead-letter handling from a weekly manual task to an automated replay.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 475.0 Td (Software Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 475.0 Td (2019 - 2021) Tj ET
+0.4 g BT /F1 10 Tf 58.0 460.5 Td (Halcyon) Tj ET
+0.45 g BT /F1 10 Tf 60.0 444.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 444.5 Td (Worked on payments reconciliation and its nightly batch pipeline.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 398.0 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 392.0 m 554 392.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 374.0 Td (Go, Kafka, Redis, Postgres, distributed queues, observability.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 337.5 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 331.5 m 554 331.5 l S
+0.1 g BT /F2 10.5 Tf 58.0 313.5 Td (B.S. Computer Science) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 313.5 Td (2019) Tj ET
+0.4 g BT /F1 10 Tf 58.0 299.0 Td (University of Washington) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002347 00000 n 
+0000002444 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2546
+%%EOF

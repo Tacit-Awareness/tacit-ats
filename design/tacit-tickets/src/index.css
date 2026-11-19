@@ -1,0 +1,466 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+/* ---- Tacit surface ----
+   The shell is Testbench's and tATS's: a sky at the back under a whisper of grain, and the
+   whole app in one rounded box cut out on top of it. Inside the box it is Linear: quiet
+   greys, and a soft wash behind a row as the only colour.
+   Two themes. Dark is the night sky, light the day sky; <html data-theme> picks one. */
+
+@theme inline {
+  --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+  --color-well: var(--t-well);
+  --color-panel: var(--t-panel);
+  --color-raised: var(--t-raised);
+  --color-hover: var(--t-hover);
+  --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
+  --color-ink: var(--t-ink);
+  --color-body: var(--t-body);
+  --color-mute: var(--t-mute);
+  --color-faint: var(--t-faint);
+  --color-chip: var(--t-chip);
+  --color-indigo: var(--t-ink);
+  --color-s-needs: var(--t-needs);
+  --color-s-routing: var(--t-waiting);
+  --color-s-scheduled: var(--t-running);
+  --color-s-done: var(--t-done);
+  --color-s-passed: var(--t-cancelled);
+  --color-bad: var(--t-failed);
+}
+
+:root {
+  /* the night sky (tATS dark) */
+  --sky-0: #0e1226;
+  --sky-1: #161b3a;
+  --sky-2: #242a5a;
+  --sky-3: #3b3d75;
+  --sky-4: #5a4c7a;
+  --sky-5: #6e5a7e;
+  --box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --box-inset: clamp(12px, 2vw, 28px);
+
+  --t-well: #0b0b0c;
+  --t-panel: #111112;
+  --t-raised: #1a1a1c;
+  --t-hover: #161618;
+  --t-line: #1f1f21;
+  --t-line-strong: #2a2a2d;
+  --t-ink: #ededec;
+  --t-body: #b6b6b3;
+  --t-mute: #8a8a87;
+  --t-faint: #5d5d5b;
+  --t-chip: #29292c;
+  --t-needs: #dcbf8e;
+  --t-waiting: #a7b3e6;
+  --t-running: #9ccdb3;
+  --t-done: #6f6f6c;
+  --t-cancelled: #4a4a48;
+  --t-failed: #dfa3a3;
+  --wash-needs: 220 191 142;
+  --wash-failed: 223 163 163;
+  --wash-waiting: 167 179 230;
+  --wash-running: 156 205 179;
+  --wash-a: 0.11;
+  --scrim: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  /* the day sky (Testbench's candidate sky) */
+  --sky-0: #8db5e4;
+  --sky-1: #789ce5;
+  --sky-2: #89a4e4;
+  --sky-3: #c7d0e3;
+  --sky-4: #f7f4e7;
+  --sky-5: #f9f6e9;
+  --box-shadow: 0 0 0 1px rgba(22, 23, 26, 0.08), 0 24px 60px -24px rgba(22, 23, 26, 0.35);
+
+  /* Testbench's cool greys */
+  --t-well: #f4f5f8;
+  --t-panel: #ffffff;
+  --t-raised: #eef0f4;
+  --t-hover: #f6f7f9;
+  --t-line: #e9ebef;
+  --t-line-strong: #d6d9df;
+  --t-ink: #16171a;
+  --t-body: #3a3d44;
+  --t-mute: #62656e;
+  --t-faint: #8a8d96;
+  --t-chip: #e7e9ee;
+  --t-needs: #b98a35;
+  --t-waiting: #6276c9;
+  --t-running: #3f9a6c;
+  --t-done: #a3a6ae;
+  --t-cancelled: #c3c6cd;
+  --t-failed: #c8615a;
+  --wash-needs: 214 160 60;
+  --wash-failed: 214 96 88;
+  --wash-waiting: 98 118 201;
+  --wash-running: 63 154 108;
+  --wash-a: 0.1;
+  --scrim: rgba(20, 24, 40, 0.32);
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 450;
+  letter-spacing: -0.006em;
+  font-feature-settings: "cv01", "ss03";
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  /* the sky, under a whisper of grain, fixed so it never scrolls */
+  background-color: var(--sky-5);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E"),
+    linear-gradient(180deg, var(--sky-0) 0%, var(--sky-1) 20%, var(--sky-2) 40%, var(--sky-3) 60%, var(--sky-4) 80%, var(--sky-5) 100%);
+  background-size: 220px 220px, 100% 100%;
+  background-attachment: fixed, fixed;
+}
+
+/* The box: the whole app sits in one rounded box on the sky */
+.ui-root {
+  height: 100dvh;
+  padding: var(--box-inset);
+}
+.tb-box {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--color-well);
+  box-shadow: var(--box-shadow);
+}
+@media (max-width: 767px) {
+  .ui-root {
+    padding: 0;
+  }
+  .tb-box {
+    flex-direction: column;
+    border-radius: 0;
+  }
+  .tb-box > main,
+  .tb-box > aside {
+    margin: 0 8px 8px;
+  }
+}
+
+button {
+  cursor: default;
+  font: inherit;
+  letter-spacing: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-ink) 45%, transparent);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+/* Anywhere you type shows its caret, not a ring. Buttons and links keep theirs for the keyboard. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[contenteditable]:focus-visible,
+.doc-line:focus-visible {
+  outline: none;
+}
+
+/* Skeletons take the app's own greys in both themes */
+.ui-sklc {
+  --ui-sklc-fill: var(--color-raised);
+  --ui-sklc-sheen: color-mix(in oklab, var(--color-panel) 75%, transparent);
+}
+
+.ui-estc {
+  --aui-ink: var(--color-ink);
+  --aui-muted: var(--color-mute);
+  --aui-subtle: var(--color-raised);
+  --aui-border: var(--color-line-strong);
+  --aui-font: var(--font-sans);
+}
+
+.ui-tl {
+  --aui-surface: var(--color-raised);
+  --aui-border: var(--color-line-strong);
+  --aui-font: var(--font-sans);
+}
+
+/* Anything that scrolls does so without a visible bar; wheel, trackpad, touch and keys still work */
+.scroll-quiet {
+  scrollbar-width: none;
+}
+.scroll-quiet::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes slide {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+/* Changing view: the page you leave fades as the next one settles in. The sidebar is the same in both, so it holds still. */
+::view-transition-old(root) {
+  animation: 140ms ease-out both vt-out;
+}
+::view-transition-new(root) {
+  animation: 260ms cubic-bezier(0.22, 1, 0.36, 1) both vt-in;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.anim-rise {
+  animation: rise 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-slide {
+  animation: slide 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-slide {
+    animation: none;
+  }
+}
+
+/* The only colour inside the box: a soft wash behind a row, by where the ticket stands */
+.wash-needs { background-image: linear-gradient(90deg, rgb(var(--wash-needs) / var(--wash-a)), rgb(var(--wash-needs) / 0.03) 60%, transparent); }
+.wash-failed { background-image: linear-gradient(90deg, rgb(var(--wash-failed) / calc(var(--wash-a) + 0.02)), rgb(var(--wash-failed) / 0.035) 60%, transparent); }
+.wash-waiting { background-image: linear-gradient(90deg, rgb(var(--wash-waiting) / calc(var(--wash-a) - 0.02)), rgb(var(--wash-waiting) / 0.02) 60%, transparent); }
+.wash-running { background-image: linear-gradient(90deg, rgb(var(--wash-running) / calc(var(--wash-a) - 0.03)), rgb(var(--wash-running) / 0.02) 60%, transparent); }
+
+/* A person's tile: one flat tint of their colour, light enough to read over, strong enough to recognise */
+.tint-needs { background-color: rgb(var(--wash-needs) / 0.18); }
+.tint-failed { background-color: rgb(var(--wash-failed) / 0.2); }
+.tint-waiting { background-color: rgb(var(--wash-waiting) / 0.18); }
+.tint-running { background-color: rgb(var(--wash-running) / 0.18); }
+.tint-needs:hover { background-color: rgb(var(--wash-needs) / 0.28); }
+.tint-failed:hover { background-color: rgb(var(--wash-failed) / 0.3); }
+.tint-waiting:hover { background-color: rgb(var(--wash-waiting) / 0.28); }
+.tint-running:hover { background-color: rgb(var(--wash-running) / 0.28); }
+
+/* Approvals: gold, with a slow glint across the row. The one place a row is allowed to shine. */
+:root {
+  --gold: 176 132 28;
+  --gold-ink: #8a6410;
+}
+:root[data-theme="dark"],
+.dark {
+  --gold: 226 188 104;
+  --gold-ink: #e6c273;
+}
+.wash-gold {
+  background-image:
+    linear-gradient(100deg, transparent 38%, rgb(255 255 255 / 0.55) 50%, transparent 62%),
+    linear-gradient(90deg, rgb(var(--gold) / 0.2), rgb(var(--gold) / 0.07) 60%, transparent);
+  background-size: 260% 100%, 100% 100%;
+  background-position: 130% 0, 0 0;
+  background-repeat: no-repeat;
+  animation: glint 4.5s ease-in-out infinite;
+}
+:root[data-theme="dark"] .wash-gold,
+.dark .wash-gold {
+  background-image:
+    linear-gradient(100deg, transparent 38%, rgb(255 236 180 / 0.14) 50%, transparent 62%),
+    linear-gradient(90deg, rgb(var(--gold) / 0.2), rgb(var(--gold) / 0.06) 60%, transparent);
+}
+.text-gold {
+  color: var(--gold-ink);
+}
+@keyframes glint {
+  0%,
+  55% {
+    background-position: 130% 0, 0 0;
+  }
+  100% {
+    background-position: -60% 0, 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wash-gold {
+    animation: none;
+  }
+}
+
+/* Tokens the Arc avatar components read, mapped onto this palette */
+.arc-scope {
+  --border: var(--color-line-strong);
+  --border-strong: var(--color-faint);
+  --surface: var(--color-well);
+  --surface-muted: var(--color-chip);
+  --foreground: var(--color-body);
+  --background: var(--color-well);
+  --text-muted: var(--color-faint);
+  --text-secondary: var(--color-mute);
+  --success: var(--color-s-scheduled);
+  --radius-pill: 999px;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --leading-body: 1.4;
+  --duration-fast: 140ms;
+  --duration-standard: 220ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-spring: 320ms;
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --shadow-resting: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
+}

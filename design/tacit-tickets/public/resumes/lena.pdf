@@ -1,0 +1,68 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2172 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Lena Fischer) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Design Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (Berlin, Germany   |   lena@fischer.example   |   lenafischer.example) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Design engineer. I own a design system and I ship it in code, so the thing designed is the thing) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 623.5 Td (that runs.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 587.0 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 581.0 m 554 581.0 l S
+0.1 g BT /F2 11.2 Tf 58.0 563.0 Td (Design Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 563.0 Td (2020 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 548.5 Td (Quanta) Tj ET
+0.45 g BT /F1 10 Tf 60.0 532.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 532.5 Td (Own the design system: forty components, tokens in code, adopted by four product teams.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 516.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 516.0 Td (Replaced three overlapping button sets with one and removed 9,000 lines of CSS.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 499.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 499.5 Td (Pair with product engineers weekly on the hard interaction details.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 475.0 Td (Motion Designer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 475.0 Td (2017 - 2020) Tj ET
+0.4 g BT /F1 10 Tf 58.0 460.5 Td (Neue Form) Tj ET
+0.45 g BT /F1 10 Tf 60.0 444.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 444.5 Td (Motion and prototyping for data products.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 428.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 428.0 Td (Built interactive prototypes clients could test with real data.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 381.5 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 375.5 m 554 375.5 l S
+0.2 g BT /F1 10.2 Tf 58.0 357.5 Td (React, TypeScript, CSS architecture, motion, accessibility, prototyping.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 321.0 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 315.0 m 554 315.0 l S
+0.1 g BT /F2 10.5 Tf 58.0 297.0 Td (B.A. Interface Design) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 297.0 Td (2017) Tj ET
+0.4 g BT /F1 10 Tf 58.0 282.5 Td (Fachhochschule Potsdam) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002475 00000 n 
+0000002572 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2674
+%%EOF
