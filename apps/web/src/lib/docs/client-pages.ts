@@ -112,7 +112,7 @@ A block turns red or amber when anyone in it is. Point at a dot to see who it is
 
 ### Recruiting Overview
 
-The Recruiting Overview answers *where are candidates getting stuck?* It is in the menu on your company's name. Choose a period (7, 30 or 90 days), a department and a job at the top; every number follows.
+The Recruiting Overview answers *where are candidates getting stuck?* Open it from the command menu (\`⌘K\`). Choose a period (7, 30 or 90 days), a department and a job at the top; every number follows.
 
 The Overview is a grid of widgets that fills one screen. The default is the six cards below, **Applications over time** and **Hires**:
 
@@ -251,6 +251,10 @@ Applicants can answer voluntary US equal-opportunity questions. Nobody at your c
 | \`R\` | Write a reply |
 
 A referral shows who referred them in the list and on the application. Testbench is offered on a job that has a Testbench role (see **The job** on its posting). Picking it starts the reply from a message that says \`{{testbench_link}}\` where the link goes; **Review draft** then makes that candidate's own invite link and shows it in the draft you read before sending. The link is theirs alone, lasts about seven days, and lets whoever holds it take the test. If the link can't be made (the Testbench role is closed or has no published test, the candidate has no email address, Testbench can't be reached), no draft is written and the box says why. It is sent like any other reply and moves nobody. **Template** starts it from one of your company's email templates instead, filled in for this candidate; the words are still yours to change. Picking a step moves nobody; the button does, then the next applicant opens. A reply is always two steps: **Review draft** shows what will go out and sends nothing, then **Send** delivers it. The box says who last emailed the candidate, so nobody replies twice. More in [Email to candidates](/docs/email).
+
+## Insights
+
+**Insights**, in the menu on your company's name (or \`G\` then \`N\`), puts the numbers in one place, for the last 30 or 90 days: how many applied and were hired, the median time to hire and how many offers were accepted. **Overview** shows how far applications got stage by stage, where they came from, each job's time to its first hire, and how many interviews each interviewer ran. **Outcomes** shows offers by where they ended, why people were turned down and, for admins, how many applicants answered the equal opportunity questions (totals only, with any group under five hidden). **Job Posts** lists each post's views and applications. They are the same reports Claude gives you, so both say the same thing.
 
 ## Analytics
 
@@ -448,7 +452,7 @@ On the **Canvas**, double-click to add a step, drag a step to move it, and drag 
     title: "Integrations",
     category: "tATS features",
     description: "Connect your calendar and notes, and your company's bot.",
-    body: `Integrations are in **Settings**, the gear beside your name at the bottom of the sidebar, and in the menu on your company's name. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
+    body: `Integrations are in **Settings**, the gear beside your name at the bottom of the sidebar, and in the menu on your company's name. Settings lists its sections on the left: **General** (your workspace, who you are signed in as, and the theme), **Members**, **Interviewers**, **Rounds** and **Teams** (which open where Onboarding sets them), **Templates** and **Integrations**. The same page links to People & teams, Interview process and [Email templates](/docs/email#templates), and previews the Routing Rules, which change nothing yet. Calendar and Granola are personal: each person connects their own, and can reconnect or disconnect at any time.
 
 | Integration | Who connects it | What it does |
 | --- | --- | --- |
@@ -479,7 +483,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`G\` then \`P\` | People |
 | \`G\` then \`I\` | Interviews |
 | \`G\` then \`L\` | Listings & Asks |
-| \`G\` then \`N\` | Insights (Analytics) |
+| \`G\` then \`N\` | Insights |
 | \`G\` then \`S\` | Settings |
 | \`[\` | Collapse or expand the sidebar |
 | \`?\` | The list of keys |
