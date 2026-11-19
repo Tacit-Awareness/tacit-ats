@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -263,8 +263,18 @@ export function Home() {
       title={tiles[k] ? "Hide the people" : "Show the people"}
       className="flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-raised hover:text-ink"
     >
-      {tiles[k] ? <ChevronsDownUp size={15} /> : <ChevronsUpDown size={15} />}
+      {/* Both marks sit in one place and trade over, so the button turns into the other one */}
+      <span className="relative size-[15px]">
+        <ChevronsDownUp size={15} className={`absolute inset-0 transition-[opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${tiles[k] ? "scale-100 opacity-100" : "scale-50 opacity-0"}`} />
+        <ChevronsUpDown size={15} className={`absolute inset-0 transition-[opacity,scale] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${tiles[k] ? "scale-50 opacity-0" : "scale-100 opacity-100"}`} />
+      </span>
     </button>
+  )
+  /* The people under a chart: they open and close by height, and cannot be reached while shut */
+  const fold = (k: "day" | "stage", children: ReactNode) => (
+    <div inert={!tiles[k]} className={`-mx-5 grid transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none @max-2xl:-mx-4 ${tiles[k] ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
   )
   /* Setting up, step by step. The rounds are the one a new company has not done. */
   const [setupAway, setSetupAway] = useState(false)
@@ -406,7 +416,7 @@ export function Home() {
                 </span>
               </div>
               <div className="scroll-quiet min-w-0 flex-1 overflow-x-auto">
-                <div className={`mx-auto ${fit ? "min-w-[440px]" : "min-w-[600px]"}`} style={{ maxWidth: fit ? "calc((100vh - var(--home-fixed)) * 2.71)" : undefined }}>
+                <div className={`mx-auto transition-[max-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${fit ? "min-w-[440px]" : "min-w-[600px]"}`} style={{ maxWidth: fit ? "calc((100vh - var(--home-fixed)) * 2.71)" : "1040px" }}>
                   <div
                     className="relative mb-[3px] grid h-4 gap-x-[3px] text-xs text-faint"
                     style={{ gridTemplateColumns: columns }}
@@ -506,9 +516,10 @@ export function Home() {
               </span>
             </div>
 
+            {fold("day",
             <div
               key={day.at}
-              className={`anim-rise -mx-5 mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:-mx-4 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6 ${tiles.day ? "" : "hidden"}`}
+              className="anim-rise mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6"
             >
               <Lead title={long.format(day.at)} n={dayTotal} none="Nobody came in" parts={standings} />
               {unique.slice(0, 4).map(({ p, way: via }) => (
@@ -528,7 +539,7 @@ export function Home() {
                   </span>
                 </button>
               ))}
-            </div>
+            </div>)}
           </section>
 
           <section className="mt-3 rounded-xl border border-line-strong px-5 pt-4 pb-5 @max-2xl:px-4">
@@ -539,7 +550,7 @@ export function Home() {
             </div>
             <div className="mt-4 flex items-center gap-8">
               <div className="scroll-quiet min-w-0 flex-1 overflow-x-auto">
-                <div className={`mx-auto ${fit ? "min-w-[460px]" : "min-w-[560px]"}`} style={{ maxWidth: fit ? "calc((100vh - var(--home-fixed)) * 2.87)" : undefined }}>
+                <div className={`mx-auto transition-[max-width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${fit ? "min-w-[460px]" : "min-w-[560px]"}`} style={{ maxWidth: fit ? "calc((100vh - var(--home-fixed)) * 2.87)" : "1040px" }}>
                   <Funnel
                     stages={funnel}
                     picked={stage}
@@ -582,7 +593,8 @@ export function Home() {
                 </div>
               </div>
             </div>
-            <div key={stage} className={`anim-rise -mx-5 mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:-mx-4 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6 ${tiles.stage ? "" : "hidden"}`}>
+            {fold("stage",
+            <div key={stage} className="anim-rise mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6">
               <Lead title={funnel[stage].name} n={inStage.length} none="Nobody here" parts={health} />
               {shownTiles.map((d) => {
                 const p = d.person ? s.personOf(d.id) : null
@@ -604,7 +616,7 @@ export function Home() {
                   +{inStage.length - shownTiles.length} more
                 </button>
               )}
-            </div>
+            </div>)}
           </section>
 
           {!all && (
