@@ -29,9 +29,10 @@ import { allViews, viewHref } from "@/lib/saved-views";
 // departments, each folding open to its own pages, with what needs a look
 // counted; and at the foot your name (the account menu), Tutorial, the theme and
 // Settings. Until each of Hy's screens is ported, its link opens the page that
-// does its work today (Triage is its own page, the Inbox and New Applicants
-// together, since step 2): Tickets the
-// Pipeline, People the CRM, Listings & Asks Job Postings. The pages Hy's sidebar
+// does its work today: Triage (step 2) is the Inbox and New Applicants
+// together, Tickets (step 3) the bot's tasks with People and Interviews under
+// it, and Listings & Asks is still Job Postings; the Pipeline, the CRM and
+// Interview Judgement stay in ⌘K. The pages Hy's sidebar
 // has no row for (Insights, Onboarding, Referrals, the calendar ...) are in the
 // workspace menu and ⌘K.
 // Drag the edge to resize, `[` collapses it to an icon rail (drag the rail's
@@ -41,13 +42,13 @@ import { allViews, viewHref } from "@/lib/saved-views";
 // (shell-memory.tsx). The rail is CSS (globals.css's .sb rules), so it can ease:
 // rows stay mounted either way.
 
-type NavLink = { href: string; label: string; icon: ReactNode; go: string; activeUnder?: string[]; under?: boolean };
+type NavLink = { href: string; label: string; icon: ReactNode; go: string; activeUnder?: string[]; under?: boolean; /** Lit on its own path only, not the pages under it. */ exact?: boolean };
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: <House size={15} />, go: "h" };
 const TRIAGE: NavLink = { href: "/client/triage", label: "Triage", icon: <Inbox size={15} />, go: "t", activeUnder: ["/client/inbox", "/client/applicants"] };
-const TICKETS: NavLink = { href: "/client/pipeline", label: "Tickets", icon: <Ticket size={15} />, go: "w", activeUnder: ["/client/views"] };
-const PEOPLE: NavLink = { href: "/client/candidates", label: "People", icon: <CircleUser size={15} />, go: "p", under: true };
-const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: <Calendar size={15} />, go: "i", under: true, activeUnder: ["/client/schedule"] };
+const TICKETS: NavLink = { href: "/client/tickets", label: "Tickets", icon: <Ticket size={15} />, go: "w", exact: true, activeUnder: ["/client/pipeline", "/client/views"] };
+const PEOPLE: NavLink = { href: "/client/tickets/people", label: "People", icon: <CircleUser size={15} />, go: "p", under: true, activeUnder: ["/client/candidates"] };
+const INTERVIEWS: NavLink = { href: "/client/tickets/interviews", label: "Interviews", icon: <Calendar size={15} />, go: "i", under: true, activeUnder: ["/client/interviews", "/client/schedule"] };
 const ASKS: NavLink = { href: "/client/jobs", label: "Listings & Asks", icon: <Target size={15} />, go: "l" };
 const NAV = [HOME, TRIAGE, TICKETS, PEOPLE, INTERVIEWS, ASKS];
 
@@ -78,7 +79,8 @@ function useIsActive() {
   const pathname = usePathname();
   // Segment-aware prefix match: /client/jobs must not light Home up.
   const under = (prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
-  return (link: { href: string; activeUnder?: string[] }) => (link.href === "/client" ? pathname === "/client" : under(link.href)) || (link.activeUnder ?? []).some(under);
+  return (link: { href: string; activeUnder?: string[]; exact?: boolean }) =>
+    (link.href === "/client" || link.exact ? pathname === link.href : under(link.href)) || (link.activeUnder ?? []).some(under);
 }
 
 /** True while the user is typing, so `[` stays a character there. */
@@ -172,8 +174,8 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
     });
 
   const sub = [
-    { label: "Tickets", href: "/client/pipeline", count: (st?: TeamStat) => st?.attn ?? 0 },
-    { label: "People", href: "/client/candidates", count: () => 0 },
+    { label: "Tickets", href: "/client/tickets", count: (st?: TeamStat) => st?.attn ?? 0 },
+    { label: "People", href: "/client/tickets/people", count: () => 0 },
     { label: "Triage", href: "/client/triage", count: (st?: TeamStat) => st?.triage ?? 0 },
   ];
   const match = (name: string) => name.toLowerCase().includes(q.trim().toLowerCase());
@@ -461,13 +463,16 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, teams = [], side
   const commands: CommandItem[] = [
     ...NAV.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: INSIGHTS.label, href: INSIGHTS.href },
+    { group: "Go to", label: "Applicant Tickets", href: "/client/pipeline" },
+    { group: "Go to", label: "CRM", href: "/client/candidates" },
+    { group: "Go to", label: "Interview Judgement", href: "/client/interviews" },
     { group: "Go to", label: "Inbox", href: "/client/inbox" },
     { group: "Go to", label: "New Applicants", href: "/client/applicants" },
     { group: "Go to", label: "Views", href: "/client/views" },
     ...MORE.map((m) => ({ group: "Go to", label: m.label, href: m.href })),
     { group: "Go to", label: SETTINGS.label, href: SETTINGS.href },
     { group: "Go to", label: "Documentation", href: "/client/docs" },
-    ...teams.map((t) => ({ group: "Teams", label: t.name, href: `/client/pipeline?department=${t.id}` })),
+    ...teams.map((t) => ({ group: "Teams", label: t.name, href: `/client/tickets?department=${t.id}` })),
     ...jobs.map((j) => ({ group: "Jobs", label: j.title, href: `/client/jobs/${j.id}` })),
     ...allViews(views.state).map((v) => ({ group: "Views", label: v.name, href: viewHref(v) })),
     ...others.map((c) => ({ group: "Switch company", label: c.name, run: () => switchTo(c.id) })),
