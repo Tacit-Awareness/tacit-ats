@@ -47,14 +47,14 @@ describe("All Teams", () => {
     return html.slice(at, html.indexOf("</nav>", at));
   };
 
-  test("is Home, Triage, Tickets with People and Interviews under it, then Listings & Asks", () => {
+  test("is Home, Triage, Tickets with People, Interviews and Offers under it, then Listings & Asks", () => {
     const labels = [...nav().matchAll(/class="sb-label">([^<]+)</g)].map((m) => m[1]);
-    expect(labels).toEqual(["Home", "Triage", "Tickets", "People", "Interviews", "Listings &amp; Asks"]);
+    expect(labels).toEqual(["Home", "Triage", "Tickets", "People", "Interviews", "Offers", "Listings &amp; Asks"]);
   });
 
   test("each row opens the page that does its work until its own screen lands", () => {
     const html = nav();
-    for (const href of ["/client", "/client/triage", "/client/tickets", "/client/tickets/people", "/client/tickets/interviews", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
+    for (const href of ["/client", "/client/triage", "/client/tickets", "/client/tickets/people", "/client/tickets/interviews", "/client/tickets/offers", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
   });
 
   test("People and Interviews hang under Tickets", () => {

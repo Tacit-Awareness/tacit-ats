@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { Calendar, ChevronDown, ChevronRight, CircleUser, GraduationCap, House, Inbox, Menu as MenuIcon, Moon, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
+import { Calendar, ChevronDown, ChevronRight, CircleUser, FileCheck, GraduationCap, House, Inbox, Menu as MenuIcon, Moon, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
 import { AccountMenu, applyTheme } from "@/components/app-shell/account-menu";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { OPEN_COMMAND_EVENT } from "@/components/app-shell/command-context";
@@ -25,13 +25,13 @@ import { allViews, viewHref } from "@/lib/saved-views";
 // Tacit Tickets' sidebar (design/tacit-tickets/src/views/sidebar.tsx) on the
 // client area's pages: the workspace menu (the company, and every company the
 // member is in to switch to), search, then All Teams' Home, Triage, Tickets with
-// People and Interviews under it, Listings & Asks; then Teams, the org's
+// People, Interviews and Offers under it, Listings & Asks; then Teams, the org's
 // departments, each folding open to its own pages, with what needs a look
 // counted; and at the foot your name (the account menu), Tutorial, the theme and
 // Settings. Until each of Hy's screens is ported, its link opens the page that
 // does its work today: Triage (step 2) is the Inbox and New Applicants
 // together, Tickets (step 3) the bot's tasks with People and Interviews under
-// it, and Listings & Asks is still Job Postings; the Pipeline, the CRM and
+// it, Offers (step 4) its own page, and Listings & Asks is still Job Postings; the Pipeline, the CRM and
 // Interview Judgement stay in ⌘K. The pages Hy's sidebar
 // has no row for (Insights, Onboarding, Referrals, the calendar ...) are in the
 // workspace menu and ⌘K.
@@ -49,8 +49,9 @@ const TRIAGE: NavLink = { href: "/client/triage", label: "Triage", icon: <Inbox 
 const TICKETS: NavLink = { href: "/client/tickets", label: "Tickets", icon: <Ticket size={15} />, go: "w", exact: true, activeUnder: ["/client/pipeline", "/client/views"] };
 const PEOPLE: NavLink = { href: "/client/tickets/people", label: "People", icon: <CircleUser size={15} />, go: "p", under: true, activeUnder: ["/client/candidates"] };
 const INTERVIEWS: NavLink = { href: "/client/tickets/interviews", label: "Interviews", icon: <Calendar size={15} />, go: "i", under: true, activeUnder: ["/client/interviews", "/client/schedule"] };
+const OFFERS: NavLink = { href: "/client/tickets/offers", label: "Offers", icon: <FileCheck size={15} />, go: "o", under: true };
 const ASKS: NavLink = { href: "/client/jobs", label: "Listings & Asks", icon: <Target size={15} />, go: "l" };
-const NAV = [HOME, TRIAGE, TICKETS, PEOPLE, INTERVIEWS, ASKS];
+const NAV = [HOME, TRIAGE, TICKETS, PEOPLE, INTERVIEWS, OFFERS, ASKS];
 
 const INSIGHTS = { href: "/client/analytics", label: "Insights" };
 const SETTINGS = { href: "/client/settings", label: "Settings" };
