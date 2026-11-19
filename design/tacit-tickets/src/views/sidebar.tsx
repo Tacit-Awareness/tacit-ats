@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Calendar, FileCheck, ChevronDown, ChevronRight, CircleUser, House, Inbox, Pin, Search, Settings, SquarePen, Target, Ticket as TicketIcon, X, Moon, Sun, GraduationCap } from "lucide-react"
+import { Calendar, FileCheck, ChevronDown, ChevronRight, CircleUser, House, Inbox, Pin, Search, Settings, SquarePen, Target, Ticket as TicketIcon, X, Moon, MoonStar, Sun, Contrast, Monitor, GraduationCap } from "lucide-react"
 import { AvatarGroup } from "@/components/arc/avatar-group/avatar-group"
 import { STAFF, TEAMS } from "../data"
 import { Kbd, TacitMark, mod } from "../ui"
 import { IconButton, Menu, TeamTile } from "../kit"
 import { ACCESS_LABEL, ME, MEMBERS } from "../org"
 import { useStore } from "../store"
-import { GO_KEYS, type TeamStat, type View } from "../types"
+import { GO_KEYS, THEMES, resolveTheme, type TeamStat, type Theme, type View } from "../types"
 
 /* ---------------- Sidebar ---------------- */
+
+/* One mark per look, the same in the button's menu as anywhere else it is named */
+const THEME_ICON: Record<Theme, ReactNode> = {
+  "classic-dark": <MoonStar size={14} />,
+  dark: <Moon size={14} />,
+  light: <Sun size={14} />,
+  "max-light": <Contrast size={14} />,
+  system: <Monitor size={14} />,
+}
 
 export function Sidebar({ view, team, go, triage, needs, stats }: { view: View; team: string | null; go: (v: View, t: string | null) => void; triage: number; needs: number; stats: Record<string, TeamStat> }) {
   const [q, setQ] = useState("")
@@ -18,7 +27,7 @@ export function Sidebar({ view, team, go, triage, needs, stats }: { view: View; 
   const s = useStore()
   const list = useRef<HTMLDivElement>(null)
   /* What is on screen now, whichever way the theme was chosen */
-  const dark = s.theme === "dark" || (s.theme === "system" && typeof window !== "undefined" && !window.matchMedia("(prefers-color-scheme: light)").matches)
+  const dark = resolveTheme(s.theme, typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: light)").matches).base === "dark"
   /* Keep the selected team and its sub-items in view, however long the list is */
   useEffect(() => {
     if (team) list.current?.querySelector(`[data-team="${team}"]`)?.scrollIntoView({ block: "nearest" })
@@ -215,9 +224,28 @@ export function Sidebar({ view, team, go, triage, needs, stats }: { view: View; 
           <IconButton label="Tutorial" onClick={() => s.setSheet({ kind: "tutorial" })}>
             <GraduationCap size={15} />
           </IconButton>
-          <IconButton label={dark ? "Switch to light mode" : "Switch to dark mode"} onClick={() => s.setTheme(dark ? "light" : "dark")}>
-            {dark ? <Sun size={15} /> : <Moon size={15} />}
-          </IconButton>
+          {/* The look: the button shows the one in use, and opens the list of all of them with what each is */}
+          <Menu
+            up
+            width={264}
+            items={[
+              { heading: "Appearance" },
+              ...THEMES.map((t) => ({
+                on: s.theme === t.key,
+                onPick: () => s.setTheme(t.key),
+                label: (
+                  <span className="flex items-center gap-2.5 py-0.5">
+                    <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-line-strong text-body">{THEME_ICON[t.key]}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-ink">{t.name}</span>
+                      <span className="block truncate text-xs text-mute">{t.means}</span>
+                    </span>
+                  </span>
+                ),
+              })),
+            ]}
+            trigger={() => <IconButton label={`Appearance: ${THEMES.find((t) => t.key === s.theme)?.name ?? "System"}`}>{dark ? <Moon size={15} /> : <Sun size={15} />}</IconButton>}
+          />
           <IconButton label="Settings" onClick={() => go("settings", null)}>
             <Settings size={15} />
           </IconButton>

@@ -4,7 +4,7 @@ import { STAGES, TEAMS } from "../data"
 import { Avatar, Kbd } from "../ui"
 import { TeamTile } from "../kit"
 import { useStore } from "../store"
-import { GO_KEYS, type View } from "../types"
+import { GO_KEYS, type View, THEMES } from "../types"
 
 /* ---------------- Command menu: everything, from the keyboard ---------------- */
 
@@ -75,7 +75,7 @@ export function CommandMenu() {
           s.go("settings", null)
         },
       })),
-      ...(["light", "dark", "system"] as const).map((t): Cmd => ({ group: "Appearance", label: `${t[0].toUpperCase()}${t.slice(1)}`, hint: s.theme === t ? "On" : undefined, icon: <Settings size={15} />, run: () => s.setTheme(t) })),
+      ...THEMES.map((t): Cmd => ({ group: "Appearance", label: t.name, hint: s.theme === t.key ? "On" : undefined, icon: <Settings size={15} />, run: () => s.setTheme(t.key) })),
     ]
     return query ? all.filter((c) => ["Candidates", "Roles", "Offers", "Check In"].includes(c.group) || match(c.label) || match(c.group)) : all.filter((c) => c.group !== "Teams" && c.group !== "Settings")
     // eslint-disable-next-line react-hooks/exhaustive-deps

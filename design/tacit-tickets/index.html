@@ -7,8 +7,14 @@
       // Set the theme before first paint: the saved choice, else the system's
       try {
         var t = localStorage.getItem("tacit-theme") || "system"
-        if (t === "system") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
+        var v = t === "classic-dark" ? "classic" : t === "max-light" ? "max" : "plain"
+        if (t !== "classic-dark" && t !== "dark" && t !== "light" && t !== "max-light") {
+          t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
+          v = t === "dark" ? "classic" : "plain"
+        }
+        t = t === "classic-dark" ? "dark" : t === "max-light" ? "light" : t
         document.documentElement.dataset.theme = t
+        document.documentElement.dataset.variant = v
         document.documentElement.classList.toggle("dark", t === "dark")
       } catch (e) {}
     </script>
