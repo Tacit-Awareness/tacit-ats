@@ -207,20 +207,22 @@ Each group lists its six newest. A row opens the whole candidate in a pop-up ove
   },
   {
     slug: "app-postings",
-    title: "Job postings & applicants",
+    title: "Listings & applicants",
     category: "tATS features",
     description: "Write and publish jobs, then work through who applies and how they found you.",
-    body: `## Job Postings
+    body: `## Listings & Asks
 
-**Job Postings** shows your jobs as applicants see them, grouped by department. Each row has the job's post status, how many applied and are in its pipeline, its public link, and **Board**, which opens that job's own pipeline.
+**Listings & Asks** shows your jobs as applicants see them: your careers page, a band per department that folds. Each row has the job's title, its post's state when it isn't live, how many are in its pipeline and where it is. **Careers Page** copies your public careers page's address. How many applied is in Insights. Open a team in the sidebar for just its roles.
 
-Admins add a job with **Add a role**. Whoever manages a job can edit its post in place:
+Admins add a job with **Add A Role**, or the + on a department's band. Whoever manages a job can edit its post in place:
 
 - **The post**: its title, location and description.
 - **The application form**: name and email are always asked. Phone, LinkedIn and a resume upload are optional, and you can add short-answer, long-answer, yes/no and dropdown questions.
 - **Hiring steps**: the job's interview plan. Only your team sees these. A new role starts from your interview process, and follows its department until you edit a step.
 - **The job**: its own title (what your team sees on the board and in lists), its status (open, paused or closed) and its openings. **Save job**, **Add openings** and **Close opening** take effect at once, apart from the post. Closing an opening asks why. A hire fills the oldest open opening, and the job shows as filled once none is left. Once Tacit has connected your company to Tacit Testbench, **Testbench role** picks which of your Testbench roles this job's test comes from (one that is closed or has no published test says so); with a role picked, New Applicants offers the Testbench reply for this job. **No Testbench test** turns it off.
 - **Preview as applicant**: the page exactly as an applicant will see it.
+
+Beside a live post's public link are links to share it on LinkedIn, Hacker News, X and the rest: each one tells Insights where an applicant came from.
 
 **Publish** puts a post live and **Close post** takes it down. A post can go live only while its job is open, and edits to a live post reach applicants when you save. If a teammate saved first, Tacit asks before replacing their work.
 
@@ -476,7 +478,7 @@ Connecting Claude and installing \`tats\` happen outside this page: see [Connect
 | \`G\` then \`W\` | Tickets |
 | \`G\` then \`P\` | People |
 | \`G\` then \`I\` | Interviews |
-| \`G\` then \`L\` | Listings & Asks (Job Postings) |
+| \`G\` then \`L\` | Listings & Asks |
 | \`G\` then \`N\` | Insights (Analytics) |
 | \`G\` then \`S\` | Settings |
 | \`[\` | Collapse or expand the sidebar |
@@ -489,7 +491,7 @@ Each page's keys are listed with it: [Inbox](/docs/app-home#inbox), [New Applica
 
 ## Tutorial
 
-**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, Triage, the CRM, Job Postings, Tickets, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
+**Tutorial**, the cap beside your name at the bottom of the sidebar and in the menu your name opens, starts a guided tour. It walks through Home, Triage, the CRM, Listings & Asks, Tickets, Applicant Tickets, Interviews, Referrals and Onboarding, opening each page as it goes. Use \`→\` or \`Enter\` for next, \`←\` for back and \`Esc\` to leave. Some steps depend on what you can see, so an interviewer's tour is shorter.
 
 ## Sidebar
 

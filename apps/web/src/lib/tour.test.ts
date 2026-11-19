@@ -72,7 +72,7 @@ describe("the step's page", () => {
 
 describe("what a step can spotlight", () => {
   const home = TOUR[0].targets;
-  const jobs = TOUR.find((s) => s.title === "Job Postings")!.targets;
+  const jobs = TOUR.find((s) => s.title === "Listings & Asks")!.targets;
 
   it("is all of it on a desktop", () => {
     expect(tourTargets(jobs, false)).toEqual(jobs);

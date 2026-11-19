@@ -54,8 +54,8 @@ export const TOUR: TourStep[] = [
   {
     href: "/client/jobs",
     targets: ['[data-tour="add-role"]', 'aside a[href="/client/jobs"]'],
-    title: "Job Postings",
-    body: "Your careers page as applicants see it. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
+    title: "Listings & Asks",
+    body: "Your careers page as applicants see it, a band per department. Open a role to edit it in place: the posting, the application, the hiring steps and whether it's live.",
   },
   {
     href: "/client/tickets",

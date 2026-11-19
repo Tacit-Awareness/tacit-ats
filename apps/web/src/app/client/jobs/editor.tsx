@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { clientTools } from "@tacit-ats/core";
+import { ShareLinks } from "./share-links";
 import { CopyButton } from "@/components/copy-button";
 import { MiniTitle, Notice, Page, PageBar, Section, Tabs, pillOption, pillTrack, textLink, type Tab } from "@/components/page";
 import { StatusBadge } from "@/components/status-badge";
@@ -505,7 +506,7 @@ export function PostingEditor({
 
   const bar = (
     <PageBar
-      crumbs={[{ href: "/client/jobs", label: "Job Postings" }]}
+      crumbs={[{ href: "/client/jobs", label: "Listings & Asks" }]}
       title={draft.title.trim() || job.title}
       lead={post ? <StatusChip accepting={post.accepting} label={postState(post)} /> : <StatusChip accepting={false} label="Not posted" />}
     >
@@ -518,6 +519,8 @@ export function PostingEditor({
             </svg>
           </a>
           <CopyButton value={link.url} label="Copy the public link" className="rounded-[7px]" />
+          {/* Each channel's link, tagged so an application through it is counted there (moved here from Job Postings' rows). */}
+          <ShareLinks url={link.url} />
         </span>
       ) : null}
       {job.id ? (

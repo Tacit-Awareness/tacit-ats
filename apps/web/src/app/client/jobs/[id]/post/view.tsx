@@ -35,7 +35,7 @@ export function PostingView({
   tabHref: (tab: "overview" | "application") => string;
   link: { path: string; url: string } | null;
 }) {
-  const crumbs = [{ href: "/client/jobs", label: "Job Postings" }];
+  const crumbs = [{ href: "/client/jobs", label: "Listings & Asks" }];
   const board = (
     <Link href={`/client/jobs/${job.id}`} className={textLink}>
       Open the board
