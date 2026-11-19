@@ -31,11 +31,12 @@ function must<T extends { error: { message: string } | null }>(result: T): T {
 
 async function clear() {
   const ids = [ACME, GLOBEX];
-  for (const table of ["bot_task_commands", "bot_tasks", "agent_destinations", "application_events", "applications", "hiring_team", "people", "roles", "companies"] as const) {
+  // bot_task_command writes an audit_log row for the org, which holds the org until it goes.
+  for (const table of ["audit_log", "bot_task_commands", "bot_tasks", "agent_destinations", "application_events", "applications", "hiring_team", "people", "roles", "companies"] as const) {
     must(await db().from(table).delete().in("org_id", ids));
   }
-  await db().from("actors").delete().in("org_id", ids);
-  await db().from("orgs").delete().in("id", ids);
+  must(await db().from("actors").delete().in("org_id", ids));
+  must(await db().from("orgs").delete().in("id", ids));
 }
 
 const member = (subject: string, workosOrgId: string) => {
@@ -48,16 +49,16 @@ const lee = () => member("user_bt_lee", "org_itest_bt_acme");
 beforeEach(async () => {
   await clear();
   must(await db().from("orgs").insert([
-    { id: ACME, name: "Acme", slug: "itest-bt-acme", kind: "client", workos_org_id: "org_itest_bt_acme" },
-    { id: GLOBEX, name: "Globex", slug: "itest-bt-globex", kind: "client", workos_org_id: "org_itest_bt_globex" },
+    { id: ACME, name: "Bt Acme", slug: "itest-bt-acme", kind: "client", workos_org_id: "org_itest_bt_acme" },
+    { id: GLOBEX, name: "Bt Globex", slug: "itest-bt-globex", kind: "client", workos_org_id: "org_itest_bt_globex" },
   ]));
   must(await db().from("actors").insert([
     { id: ADMIN, org_id: ACME, slug: "itest-bt-admin", display_name: "Ada Admin", email: "ada@bt.test", access_level: "admin", auth_subject: "user_bt_ada" },
     { id: LEAD, org_id: ACME, slug: "itest-bt-lead", display_name: "Lee Lead", email: "lee@bt.test", access_level: "elevated", auth_subject: "user_bt_lee" },
   ]));
   for (const [org, name, roles] of [
-    [ACME, "Acme", [[ENGINEER, "Founding Engineer"], [DESIGNER, "Designer"]]],
-    [GLOBEX, "Globex", [[GLOBEX_ROLE, "Globex Role"]]],
+    [ACME, "Bt Acme Inc", [[ENGINEER, "Founding Engineer"], [DESIGNER, "Designer"]]],
+    [GLOBEX, "Bt Globex Inc", [[GLOBEX_ROLE, "Globex Role"]]],
   ] as const) {
     const { data: company } = must(await db().from("companies").insert({ org_id: org, name }).select("id").single());
     must(await db().from("roles").insert(roles.map(([id, title]) => ({ id, org_id: org, company_id: company!.id, title, status: "open" }))));
@@ -104,10 +105,14 @@ describe("Tickets' read", () => {
 });
 
 describe("telling the bot", () => {
-  test("a command on an open task is queued for the bot", async () => {
+  test("a command on an open task is queued for the bot, audited, and clears the needs-you", async () => {
     expect(await commandTicket(ada(), task(1), "nudge")).toEqual({ ok: true });
     const { data } = must(await db().from("bot_task_commands").select("task_id, command, created_by_actor_id").eq("org_id", ACME));
     expect(data).toEqual([{ task_id: task(1), command: "nudge", created_by_actor_id: ADMIN }]);
+    const audit = must(await db().from("audit_log").select("action, actor_id").eq("org_id", ACME));
+    expect(audit.data).toEqual([{ action: "bot_task.command", actor_id: ADMIN }]);
+    const { tickets } = await readTickets(ada());
+    expect(tickets.find((t) => t.id === task(1))!.status).toBe("waiting");
   });
 
   test("a finished task, a task elsewhere and one off the member's jobs are refused", async () => {
