@@ -129,6 +129,7 @@ async function offerAnswer(candidateId: string | null, write: () => Promise<Offe
     revalidatePath("/client/candidates");
     revalidatePath("/client/pipeline");
     revalidatePath("/client/inbox");
+    revalidatePath("/client/tickets/offers");
     revalidatePath("/client");
   }
   return outcome;

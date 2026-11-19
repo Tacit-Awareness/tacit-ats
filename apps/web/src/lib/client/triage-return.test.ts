@@ -8,7 +8,7 @@ vi.mock("next/headers", () => ({
   },
 }));
 
-import { postedFromTriage } from "./triage-return";
+import { postedFrom, postedFromTriage } from "./triage-return";
 
 afterEach(() => {
   referer.value = null;
@@ -34,4 +34,12 @@ test("a post from anywhere else, or with no Referer, goes where it always went",
 test("called outside a request, as a test calls an action, it is not Triage", async () => {
   referer.throws = true;
   expect(await postedFromTriage()).toBe(false);
+});
+
+test("the Offer page is the other page that borrows these actions", async () => {
+  referer.value = "https://ats.example.com/client/tickets/offers?o=1";
+  expect(await postedFrom()).toBe("/client/tickets/offers");
+  expect(await postedFromTriage()).toBe(false);
+  referer.value = "https://ats.example.com/client/triage";
+  expect(await postedFrom()).toBe("/client/triage");
 });

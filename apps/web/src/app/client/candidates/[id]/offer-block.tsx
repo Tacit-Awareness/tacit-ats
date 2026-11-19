@@ -38,7 +38,7 @@ import { OFFER_ERRORS, OFFER_NOTICES, type OfferAnswer } from "./messages";
 // its terms as label and value pairs, the dialogs Testbench's `.dialog` (the
 // title in Mona Sans, the body 24px in, the buttons right over a hairline).
 
-type Target = { candidateId: string; applicationId: string; name: string };
+export type OfferTarget = { candidateId: string; applicationId: string; name: string };
 
 const LABEL = "grid gap-1.5 text-[12.5px] text-muted-foreground";
 /** Testbench's `.dialog-body` and `.dialog-foot`. */
@@ -79,7 +79,7 @@ function Modal({ title, sub, busy, onClose, children }: { title: string; sub?: s
 }
 
 /** Runs one of the block's actions, keeping a refusal for the dialog to show. A dropped connection is `failed`, not silence. */
-function useOfferWrite(onDone: () => void) {
+export function useOfferWrite(onDone: () => void) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const run = (action: (form: FormData) => Promise<OfferAnswer>, form: FormData) => {
@@ -99,7 +99,7 @@ function useOfferWrite(onDone: () => void) {
   return { pending, error, run };
 }
 
-function TermsDialog({ target, offer, onClose }: { target: Target; offer: Offer | null; onClose: () => void }) {
+export function TermsDialog({ target, offer, onClose }: { target: OfferTarget; offer: Offer | null; onClose: () => void }) {
   const { pending, error, run } = useOfferWrite(onClose);
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -166,7 +166,7 @@ function TermsDialog({ target, offer, onClose }: { target: Target; offer: Offer 
 }
 
 /** Opens on Cancel, so a second Enter can't record what never happened. */
-function MoveDialog({ target, offer, move, onClose }: { target: Target; offer: Offer; move: OfferMove; onClose: () => void }) {
+export function MoveDialog({ target, offer, move, onClose }: { target: OfferTarget; offer: Offer; move: OfferMove; onClose: () => void }) {
   const { pending, error, run } = useOfferWrite(onClose);
   const copy = OFFER_MOVE_COPY[move];
   const submit = (e: FormEvent<HTMLFormElement>) => {
@@ -203,7 +203,7 @@ function Terms({ offer }: { offer: Offer }) {
   return <KeyValues className="grid-cols-[96px_minmax(0,1fr)] gap-y-2" items={lines.map((l) => [l.label, <span className="min-w-0 break-words">{l.value}</span>])} />;
 }
 
-function OpenOffer({ target, offer }: { target: Target; offer: Offer }) {
+function OpenOffer({ target, offer }: { target: OfferTarget; offer: Offer }) {
   const [editing, setEditing] = useState(false);
   const [move, setMove] = useState<OfferMove | null>(null);
   const gate = offerGate(offer);
@@ -259,7 +259,7 @@ function OpenOffer({ target, offer }: { target: Target; offer: Offer }) {
 }
 
 /** An application's offers: the open one, a way to draft one, then the closed ones. */
-export function OfferBlock({ target, stage, offers }: { target: Target; stage: string; offers: Offer[] }) {
+export function OfferBlock({ target, stage, offers }: { target: OfferTarget; stage: string; offers: Offer[] }) {
   const [drafting, setDrafting] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const { open, closed, canDraft } = offerBoard(stage, offers);

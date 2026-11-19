@@ -278,6 +278,14 @@ Open a ticket to see the bot's steps. On one that is still open you can tell the
 
 **Interviews**, under Tickets, lists the interviews you can see: **Needs Your Feedback** first (yours, held, not filed yet), then **Upcoming** and **Done**. **Week** shows this week as a calendar. Open one to see who is on it and what each of them has called so far, and to file your own feedback right there. **Open Loop** shows the whole loop in Interview Judgement, with every read and the meeting notes.
 
+### Offers
+
+**Offers**, under Tickets, gives each offer its own page. On the left: offers waiting on your sign-off, then drafts, extended and closed ones. In the middle, the offer's terms as they are recorded, with anything not set marked; on the right, the terms again and each sign-off step.
+
+The bar under the offer has the one next step. A draft can be edited (**Edit Terms**), sent for sign-off where the job needs it (**Ask For Sign-Off**), and once cleared marked as gone out (**Mark As Extended**). If you are the approver, **Sign Off** or **Send Back**, with a reason for whoever asked. Once extended, record **They Accepted** or **They Declined**. **Withdraw** closes an offer. Each change of status asks you first, since none can be taken back. **New** drafts an offer for someone at offer who has none.
+
+Tacit doesn't write or send the offer letter itself, and accepting doesn't mark them hired: move their stage when you are ready.
+
 ## CRM
 
 The **CRM** is one table of every candidate you can see. Use the tabs (All, In process, Hired, Rejected, Withdrew), search by name, email, headline or job, and sort by any column. Someone in no job shows as a prospect. A candidate appears in every tab one of their applications puts them in, so the tabs can add up to more than All.

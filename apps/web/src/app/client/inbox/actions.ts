@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { TRIAGE_PATH, postedFromTriage } from "@/lib/client/triage-return";
+import { postedFrom } from "@/lib/client/triage-return";
 import { sendDraft } from "@/lib/client/email";
 import { clearOverdueAction, decideInboxApplication, decideInboxApproval, dismissIssue, noteResolved, restoreIssue, touchApplication } from "@/lib/client/inbox";
 import { approvalNotice, parseDecision } from "@/lib/client/inbox-decisions";
@@ -39,8 +39,9 @@ const back = async (params: { tab?: "done"; range?: DigestRange; i?: string | nu
   if (params.notice) qs.set("notice", params.notice);
   if (params.error) qs.set("error", params.error);
   if (params.undo) qs.set("undo", params.undo);
-  // Posted from Triage's middle pane: back there on the issue it opens next (lib/client/triage-return.ts).
-  if (!params.tab && (await postedFromTriage())) return redirect(`${TRIAGE_PATH}?${qs}`);
+  // Posted from Triage's middle pane or the Offer page: back there (lib/client/triage-return.ts).
+  const from = params.tab ? null : await postedFrom();
+  if (from) return redirect(`${from}?${qs}`);
   return redirect(`/client/inbox?${qs}`);
 };
 
@@ -108,6 +109,7 @@ export async function decideIssueAction(form: FormData): Promise<void> {
 
   if (settled) await noteResolved(db, parseInstance(form, here));
   revalidatePath("/client/inbox");
+  revalidatePath("/client/tickets/offers");
   revalidatePath("/client/pipeline");
   // On to the next issue, as the page sent it.
   return back({ range, i: nextKey(form), was: settled ? here : null, notice: done.notice });
