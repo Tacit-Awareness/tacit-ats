@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Reference screenshots stay on this machine; their notes are in reference/README.md
+reference/*.png
