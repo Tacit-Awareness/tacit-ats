@@ -29,7 +29,8 @@ import { allViews, viewHref } from "@/lib/saved-views";
 // departments, each folding open to its own pages, with what needs a look
 // counted; and at the foot your name (the account menu), Tutorial, the theme and
 // Settings. Until each of Hy's screens is ported, its link opens the page that
-// does its work today: Triage the Inbox (and New Applicants), Tickets the
+// does its work today (Triage is its own page, the Inbox and New Applicants
+// together, since step 2): Tickets the
 // Pipeline, People the CRM, Listings & Asks Job Postings. The pages Hy's sidebar
 // has no row for (Insights, Onboarding, Referrals, the calendar ...) are in the
 // workspace menu and ⌘K.
@@ -43,7 +44,7 @@ import { allViews, viewHref } from "@/lib/saved-views";
 type NavLink = { href: string; label: string; icon: ReactNode; go: string; activeUnder?: string[]; under?: boolean };
 
 const HOME: NavLink = { href: "/client", label: "Home", icon: <House size={15} />, go: "h" };
-const TRIAGE: NavLink = { href: "/client/inbox", label: "Triage", icon: <Inbox size={15} />, go: "t", activeUnder: ["/client/applicants"] };
+const TRIAGE: NavLink = { href: "/client/triage", label: "Triage", icon: <Inbox size={15} />, go: "t", activeUnder: ["/client/inbox", "/client/applicants"] };
 const TICKETS: NavLink = { href: "/client/pipeline", label: "Tickets", icon: <Ticket size={15} />, go: "w", activeUnder: ["/client/views"] };
 const PEOPLE: NavLink = { href: "/client/candidates", label: "People", icon: <CircleUser size={15} />, go: "p", under: true };
 const INTERVIEWS: NavLink = { href: "/client/interviews", label: "Interviews", icon: <Calendar size={15} />, go: "i", under: true, activeUnder: ["/client/schedule"] };
@@ -173,6 +174,7 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
   const sub = [
     { label: "Tickets", href: "/client/pipeline", count: (st?: TeamStat) => st?.attn ?? 0 },
     { label: "People", href: "/client/candidates", count: () => 0 },
+    { label: "Triage", href: "/client/triage", count: (st?: TeamStat) => st?.triage ?? 0 },
   ];
   const match = (name: string) => name.toLowerCase().includes(q.trim().toLowerCase());
   const visible = teams.filter((t) => match(t.name) && (!onlyAttn || (stats[t.id]?.attn ?? 0) > 0 || t.id === here));
@@ -331,7 +333,7 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, teams = [], side
   const [counts, setCounts] = useState<SidebarCounts>({ triage: 0, teams: {} });
   const side = useRef<HTMLElement>(null);
   const views = useViews();
-  const marks = useMarks(isActive(TRIAGE) ? (pathname.startsWith("/client/applicants") ? "tickets" : "inbox") : null);
+  const marks = useMarks(isActive(TRIAGE) ? (pathname.startsWith("/client/applicants") ? "tickets" : pathname.startsWith("/client/inbox") ? "inbox" : null) : null);
   // The drag's start and where it has got to: the release saves `now`, not the
   // state from the last render, which may not have caught up. `snapUntil` is how
   // long the edge eases after a snap before it follows the pointer again.
@@ -459,6 +461,7 @@ function Frame({ org, orgLogoUrl, orgId, companies, user, jobs, teams = [], side
   const commands: CommandItem[] = [
     ...NAV.map((l) => ({ group: "Go to", label: l.label, href: l.href })),
     { group: "Go to", label: INSIGHTS.label, href: INSIGHTS.href },
+    { group: "Go to", label: "Inbox", href: "/client/inbox" },
     { group: "Go to", label: "New Applicants", href: "/client/applicants" },
     { group: "Go to", label: "Views", href: "/client/views" },
     ...MORE.map((m) => ({ group: "Go to", label: m.label, href: m.href })),

@@ -9,10 +9,7 @@ import { TONE_COLOR, TONE_MEANING } from "./tone";
 // the mark, the quiet button, the menu and the icon button. Only what a ported
 // screen uses comes over; the prototype's demo store does not.
 
-/** Every card and section title: one size, one weight, numbers included. */
-export const heading = "text-[15px] font-semibold tracking-[-0.01em] text-ink";
-/** The small label above a group. */
-export const label = "mb-2 text-xs text-dim";
+export { heading, label } from "./styles";
 
 /** What each colour means, said once beside anything coloured. */
 export function ToneLegend({ className = "" }: { className?: string }) {

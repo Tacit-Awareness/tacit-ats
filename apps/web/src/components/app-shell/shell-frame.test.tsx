@@ -54,7 +54,7 @@ describe("All Teams", () => {
 
   test("each row opens the page that does its work until its own screen lands", () => {
     const html = nav();
-    for (const href of ["/client", "/client/inbox", "/client/pipeline", "/client/candidates", "/client/interviews", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
+    for (const href of ["/client", "/client/triage", "/client/pipeline", "/client/candidates", "/client/interviews", "/client/jobs"]) expect(html).toContain(`href="${href}"`);
   });
 
   test("People and Interviews hang under Tickets", () => {
