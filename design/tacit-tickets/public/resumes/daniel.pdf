@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1938 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Daniel Okafor) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Full-Stack Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (Chicago, IL   |   daniel@okafor.example   |   linkedin.com/in/danielokafor) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Full-stack engineer who enjoys the parts of a product customers touch first.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 601.5 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 595.5 m 554 595.5 l S
+0.1 g BT /F2 11.2 Tf 58.0 577.5 Td (Full-Stack Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 577.5 Td (2021 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 563.0 Td (Parcelry) Tj ET
+0.45 g BT /F1 10 Tf 60.0 547.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 547.0 Td (Build customer dashboards and onboarding flows in React and Rails.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 530.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 530.5 Td (Rebuilt the signup flow; completion went from 61% to 78%.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 514.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 514.0 Td (Join customer calls to debug integration problems live.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 489.5 Td (Junior Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 489.5 Td (2019 - 2021) Tj ET
+0.4 g BT /F1 10 Tf 58.0 475.0 Td (Greenline) Tj ET
+0.45 g BT /F1 10 Tf 60.0 459.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 459.0 Td (Maintained internal admin tools and the support team's lookup pages.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 412.5 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 406.5 m 554 406.5 l S
+0.2 g BT /F1 10.2 Tf 58.0 388.5 Td (React, Ruby on Rails, TypeScript, SQL, customer support tooling.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 352.0 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 346.0 m 554 346.0 l S
+0.1 g BT /F2 10.5 Tf 58.0 328.0 Td (B.S. Computer Science) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 328.0 Td (2019) Tj ET
+0.4 g BT /F1 10 Tf 58.0 313.5 Td (University of Illinois Chicago) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002241 00000 n 
+0000002338 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2440
+%%EOF

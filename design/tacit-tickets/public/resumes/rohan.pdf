@@ -1,0 +1,75 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2816 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Rohan Dalal) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Staff Engineer, Storage) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (San Francisco, CA   |   rohan@dalal.example   |   linkedin.com/in/rohandalal) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Storage engineer who owns the Postgres fleet at Lattice Cloud. Most of my work is making failure) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 623.5 Td (boring: faster failover, rehearsed upgrades, and runbooks other people can follow at 3 AM.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 587.0 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 581.0 m 554 581.0 l S
+0.1 g BT /F2 11.2 Tf 58.0 563.0 Td (Staff Engineer, Storage) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 563.0 Td (2021 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 548.5 Td (Lattice Cloud) Tj ET
+0.45 g BT /F1 10 Tf 60.0 532.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 532.5 Td (Own roughly 400 managed Postgres clusters across three regions.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 516.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 516.0 Td (Cut automated failover from 90 seconds to 8 by replacing the health-check path and fencing) Tj ET
+0.2 g BT /F1 10 Tf 72.0 501.5 Td (logic.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 485.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 485.0 Td (Led the move to per-tenant connection pooling, removing the top source of customer pages.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 460.5 Td (Senior Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 460.5 Td (2018 - 2021) Tj ET
+0.4 g BT /F1 10 Tf 58.0 446.0 Td (Brightwave) Tj ET
+0.45 g BT /F1 10 Tf 60.0 430.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 430.0 Td (Rebuilt the ingest path to handle 5x volume on the same hardware.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 413.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 413.5 Td (Introduced load-shedding so a single noisy customer could no longer stall the queue.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 389.0 Td (Software Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 389.0 Td (2015 - 2018) Tj ET
+0.4 g BT /F1 10 Tf 58.0 374.5 Td (Nimbus Pay) Tj ET
+0.45 g BT /F1 10 Tf 60.0 358.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 358.5 Td (Led on-call for the ledger service and wrote its incident review process.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 312.0 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 306.0 m 554 306.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 288.0 Td (Postgres internals, replication and failover, Go, Rust, Kubernetes operators, capacity planning,) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 273.5 Td (incident response.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 237.0 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 231.0 m 554 231.0 l S
+0.1 g BT /F2 10.5 Tf 58.0 213.0 Td (B.S. Computer Science) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 213.0 Td (2015) Tj ET
+0.4 g BT /F1 10 Tf 58.0 198.5 Td (University of Illinois Urbana-Champaign) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000003119 00000 n 
+0000003216 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+3318
+%%EOF

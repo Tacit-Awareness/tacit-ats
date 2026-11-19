@@ -1,0 +1,69 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 7 0 R /F2 8 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 842 >>
+stream
+0.45 g BT /F1 9.5 Tf 58.0 724.0 Td (Selected work) Tj ET
+0.1 g BT /F2 23 Tf 58.0 694.0 Td (Query editor) Tj ET
+0.2 g BT /F1 11.5 Tf 58.0 670.0 Td (A dense editor for analysts who live in SQL all day. Designed and built end to end.) Tj ET
+0.94 g 58 395.5 496 250 re f
+0.45 g BT /F2 8.5 Tf 58.0 343.5 Td (WHAT CHANGED) Tj ET
+0.82 G 0.6 w 58 337.5 m 554 337.5 l S
+0.45 g BT /F1 10 Tf 60.0 319.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 319.5 Td (Research with nine analysts; the top complaint was losing place in long queries.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 303.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 303.0 Td (Shipped inline results, a schema drawer and keyboard-first navigation.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 286.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 286.5 Td (Median time to a first successful query fell from 4 minutes to 70 seconds.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 7 0 R /F2 8 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 778 >>
+stream
+0.45 g BT /F1 9.5 Tf 58.0 724.0 Td (Selected work) Tj ET
+0.1 g BT /F2 23 Tf 58.0 694.0 Td (Design system) Tj ET
+0.2 g BT /F1 11.5 Tf 58.0 670.0 Td (Forty components, tokens in code, and a contribution guide that engineers actually follow.) Tj ET
+0.94 g 58 395.5 496 250 re f
+0.45 g BT /F2 8.5 Tf 58.0 343.5 Td (WHAT CHANGED) Tj ET
+0.82 G 0.6 w 58 337.5 m 554 337.5 l S
+0.45 g BT /F1 10 Tf 60.0 319.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 319.5 Td (Replaced three overlapping button sets with one.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 303.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 303.0 Td (Dark mode came for free once colour moved to role tokens.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 286.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 286.5 Td (Adopted by four product teams within a quarter.) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+8 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000001150 00000 n 
+0000001286 00000 n 
+0000002115 00000 n 
+0000002212 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+2314
+%%EOF

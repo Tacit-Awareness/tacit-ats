@@ -1,0 +1,68 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2165 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Sofia Reyes) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Product Designer) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (Austin, TX   |   sofia@reyes.example   |   sofiareyes.example) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Designer who ships her own front end. I work best on dense tools for people who use them eight hours) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 623.5 Td (a day.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 587.0 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 581.0 m 554 581.0 l S
+0.1 g BT /F2 11.2 Tf 58.0 563.0 Td (Product Designer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 563.0 Td (2021 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 548.5 Td (Fathom Labs) Tj ET
+0.45 g BT /F1 10 Tf 60.0 532.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 532.5 Td (Designed and built the query editor front end in React.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 516.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 516.0 Td (Cut median time to a first successful query from 4 minutes to 70 seconds.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 499.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 499.5 Td (Set up the design tokens the rest of the product now uses.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 475.0 Td (Designer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 475.0 Td (2018 - 2021) Tj ET
+0.4 g BT /F1 10 Tf 58.0 460.5 Td (Studio Meridian) Tj ET
+0.45 g BT /F1 10 Tf 60.0 444.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 444.5 Td (Made internal tools for logistics clients: dispatch boards, exception queues, audit views.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 428.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 428.0 Td (Ran on-site research with dispatchers at four depots.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 381.5 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 375.5 m 554 375.5 l S
+0.2 g BT /F1 10.2 Tf 58.0 357.5 Td (Interaction design, React, TypeScript, CSS, prototyping, usability research.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 321.0 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 315.0 m 554 315.0 l S
+0.1 g BT /F2 10.5 Tf 58.0 297.0 Td (B.F.A. Design) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 297.0 Td (2018) Tj ET
+0.4 g BT /F1 10 Tf 58.0 282.5 Td (University of Texas at Austin) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002468 00000 n 
+0000002565 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2667
+%%EOF

@@ -1,0 +1,68 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 2214 >>
+stream
+0.1 g BT /F2 23 Tf 58.0 724.0 Td (Maya Chen) Tj ET
+0.25 g BT /F1 11.5 Tf 58.0 704.0 Td (Solutions Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 58.0 688.0 Td (New York, NY   |   maya@chen.example   |   linkedin.com/in/mayachen) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 662.0 Td (SUMMARY) Tj ET
+0.82 G 0.6 w 58 656.0 m 554 656.0 l S
+0.2 g BT /F1 10.2 Tf 58.0 638.0 Td (Engineer who prefers to sit with the customer. I write the integration, run the call, and bring back) Tj ET
+0.2 g BT /F1 10.2 Tf 58.0 623.5 Td (what the product team needs to hear.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 587.0 Td (EXPERIENCE) Tj ET
+0.82 G 0.6 w 58 581.0 m 554 581.0 l S
+0.1 g BT /F2 11.2 Tf 58.0 563.0 Td (Solutions Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 563.0 Td (2021 - Present) Tj ET
+0.4 g BT /F1 10 Tf 58.0 548.5 Td (Orbit Data) Tj ET
+0.45 g BT /F1 10 Tf 60.0 532.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 532.5 Td (Embedded with six enterprise customers and shipped inside their stacks.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 516.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 516.0 Td (Took the largest account from a stalled pilot to production in eleven weeks.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 499.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 499.5 Td (Wrote the escalation guide the support team now uses for integration failures.) Tj ET
+0.1 g BT /F2 11.2 Tf 58.0 475.0 Td (Software Engineer) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 475.0 Td (2018 - 2021) Tj ET
+0.4 g BT /F1 10 Tf 58.0 460.5 Td (Kestrel) Tj ET
+0.45 g BT /F1 10 Tf 60.0 444.5 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 444.5 Td (Built the integrations SDK in TypeScript and Python.) Tj ET
+0.45 g BT /F1 10 Tf 60.0 428.0 Td (-) Tj ET
+0.2 g BT /F1 10 Tf 72.0 428.0 Td (Ran office hours for partner developers every week.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 381.5 Td (SKILLS) Tj ET
+0.82 G 0.6 w 58 375.5 m 554 375.5 l S
+0.2 g BT /F1 10.2 Tf 58.0 357.5 Td (TypeScript, Python, REST and webhook design, SQL, customer discovery, technical writing.) Tj ET
+0.45 g BT /F2 8.5 Tf 58.0 321.0 Td (EDUCATION) Tj ET
+0.82 G 0.6 w 58 315.0 m 554 315.0 l S
+0.1 g BT /F2 10.5 Tf 58.0 297.0 Td (B.S. Information Science) Tj ET
+0.45 g BT /F1 9.5 Tf 490.0 297.0 Td (2018) Tj ET
+0.4 g BT /F1 10 Tf 58.0 282.5 Td (Cornell University) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000251 00000 n 
+0000002517 00000 n 
+0000002614 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2716
+%%EOF
