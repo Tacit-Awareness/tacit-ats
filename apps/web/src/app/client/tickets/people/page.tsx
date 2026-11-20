@@ -127,8 +127,12 @@ export default async function ClientPeople({ searchParams }: { searchParams: Pro
             const row = (
               <>
                 <span className="flex min-w-0 items-center gap-2.5">
-                  <ChevronRight size={14} className={`shrink-0 text-dim transition-transform group-open/p:rotate-90 ${kids.length ? "" : "invisible"}`} />
-                  <Link href={`/client/candidates/${e.personId}`} className="flex min-w-0 items-center gap-2.5 rounded-md font-medium text-ink decoration-dim underline-offset-4 hover:underline">
+                  {/* The arrow sits above the row's link, so it alone folds the tickets open */}
+                  <span className={`relative z-10 -m-1.5 flex shrink-0 rounded-md p-1.5 ${kids.length ? "hover:bg-sel" : "invisible"}`}>
+                    <ChevronRight size={14} className="text-dim transition-transform group-open/p:rotate-90" />
+                  </span>
+                  {/* The whole row is the way to the candidate: the link's own box is stretched over it, and the row takes the focus ring */}
+                  <Link href={`/client/candidates/${e.personId}`} className="flex min-w-0 items-center gap-2.5 rounded-md font-medium text-ink outline-none after:absolute after:inset-0">
                     <Avatar name={e.personName} size={22} />
                     <span className="truncate">{e.personName}</span>
                   </Link>
@@ -144,7 +148,7 @@ export default async function ClientPeople({ searchParams }: { searchParams: Pro
             );
             return kids.length ? (
               <details key={e.applicationId} className="group/p anim-rise">
-                <summary className={`${COLS} h-12 w-full cursor-default list-none pr-5 pl-5 text-left transition-colors hover:bg-hover ${wash} [&::-webkit-details-marker]:hidden`}>{row}</summary>
+                <summary className={`${COLS} h-12 w-full cursor-default list-none pr-5 pl-5 text-left transition-colors hover:bg-hover ${wash} relative has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-ink [&::-webkit-details-marker]:hidden`}>{row}</summary>
                 {kids.map((t, i) => (
                   <Link key={t.id} href={`/client/tickets?t=${t.id}&all=1`} className="relative flex h-10 w-full items-center gap-2.5 pr-5 pl-[62px] text-left transition-colors hover:bg-hover">
                     <span className={`absolute left-[38px] w-px bg-line-strong ${i === kids.length - 1 ? "top-0 h-1/2" : "inset-y-0"}`} />
@@ -156,7 +160,7 @@ export default async function ClientPeople({ searchParams }: { searchParams: Pro
                 ))}
               </details>
             ) : (
-              <div key={e.applicationId} className={`${COLS} anim-rise h-12 w-full pr-5 pl-5 transition-colors hover:bg-hover ${wash}`}>
+              <div key={e.applicationId} className={`${COLS} anim-rise h-12 w-full pr-5 pl-5 transition-colors hover:bg-hover ${wash} relative has-[a:focus-visible]:outline has-[a:focus-visible]:outline-2 has-[a:focus-visible]:-outline-offset-2 has-[a:focus-visible]:outline-ink`}>
                 {row}
               </div>
             );
