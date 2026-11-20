@@ -1215,7 +1215,7 @@ body:has(.ui-root) {
     --fg-rgb: 237, 237, 236;
     --muted-text: #b6b6b3;
     --faint: #8a8a87;
-    --ink-4: #5d5d5b;
+    --ink-4: #6b6b68; /* 3.5:1 on the panel; #5d5d5b was 2.9:1 */
     --line: #1f1f21;
     --line-strong: #2a2a2d;
     --field: #2a2a2d;
@@ -1279,7 +1279,7 @@ body:has(.ui-root) {
   --fg-rgb: 237, 237, 236;
   --muted-text: #b6b6b3;
   --faint: #8a8a87;
-  --ink-4: #5d5d5b;
+  --ink-4: #6b6b68; /* 3.5:1 on the panel; #5d5d5b was 2.9:1 */
   --line: #1f1f21;
   --line-strong: #2a2a2d;
   --field: #2a2a2d;

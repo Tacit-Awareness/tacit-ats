@@ -39,18 +39,18 @@ import {
 // the pins are, because a department has no icon column.
 
 // Each icon has its own hue, so a team can be found by colour as well as shape. The hues are
-// mid-tones that read on both the light and the dark sidebar, and the same icon is always the
+// mid-tones that read on both the light and the dark sidebar (at least 3.2:1 on the light well, 4.5:1 on the dark), and the same icon is always the
 // same colour. They mark teams only; red, amber, blue and green as status are the tokens.
 const HUES = {
   slate: "#7c8494",
-  pink: "#d0669c",
-  rose: "#d9657a",
-  orange: "#d98548",
-  amber: "#c59a2e",
-  lime: "#7fa83c",
-  teal: "#2fa392",
-  cyan: "#2f9fc4",
-  sky: "#4a8fe0",
+  pink: "#cf6299",
+  rose: "#d86176",
+  orange: "#ce6f2b",
+  amber: "#a88327",
+  lime: "#6e9134",
+  teal: "#2c9787",
+  cyan: "#2b92b4",
+  sky: "#418adf",
   indigo: "#6c79e0",
   violet: "#9a6fd8",
 } as const;
