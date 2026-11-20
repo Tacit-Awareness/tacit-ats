@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react"
+import { THEMES } from "../types"
 import { Check, ChevronDown, Copy, FileText, Plus, X } from "lucide-react"
 import { STAFF, TEAMS } from "../data"
 import { Person as Member } from "../ui"
@@ -122,16 +123,7 @@ export function SettingsView() {
               <Group title="Appearance">
                 <Line>
                   <span className="flex-1 text-body">Theme</span>
-                  <Segmented
-                    label="Theme"
-                    value={s.theme}
-                    onChange={s.setTheme}
-                    options={[
-                      { key: "light", label: "Light" },
-                      { key: "dark", label: "Dark" },
-                      { key: "system", label: "System" },
-                    ]}
-                  />
+                  <Segmented label="Theme" value={s.theme} onChange={s.setTheme} options={THEMES.map((t) => ({ key: t.key, label: t.name, hint: t.means }))} />
                 </Line>
               </Group>
             </>

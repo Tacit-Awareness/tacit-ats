@@ -11,7 +11,7 @@ import {
   type Access, type RoundDef, type Activity, type Email, type Interview, type Offer,
 } from "./org"
 import { PROFILES, type Feedback } from "./profiles"
-import type { Routing, Theme, View, Passed } from "./types"
+import { resolveTheme, type Routing, type Theme, type View, type Passed } from "./types"
 
 export type Sheet =
   | { kind: "candidate" }
@@ -75,17 +75,18 @@ export function useStoreState() {
   const [theme, setTheme] = useState<Theme>(() => {
     try { return (localStorage.getItem("tacit-theme") as Theme | null) ?? "system" } catch { return "system" }
   })
-  /* Light, dark, or whatever the system is on; remembered in this browser */
+  /* One of four looks, or whatever the system is on; remembered in this browser */
   useEffect(() => {
     try { localStorage.setItem("tacit-theme", theme) } catch { /* private window: the choice lasts the session */ }
     const system = window.matchMedia("(prefers-color-scheme: light)")
     const apply = () => {
-      const t = theme === "system" ? (system.matches ? "light" : "dark") : theme
+      const { base: t, variant } = resolveTheme(theme, system.matches)
       const root = document.documentElement
-      if (root.dataset.theme === t) return
+      if (root.dataset.theme === t && root.dataset.variant === variant) return
       // Flip every colour in one frame: no row fades from the old theme's colour
       root.classList.add("theme-switching")
       root.dataset.theme = t
+      root.dataset.variant = variant
       root.classList.toggle("dark", t === "dark")
       void root.offsetHeight
       window.setTimeout(() => root.classList.remove("theme-switching"), 60)

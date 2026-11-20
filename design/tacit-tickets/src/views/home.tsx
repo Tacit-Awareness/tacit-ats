@@ -6,7 +6,7 @@ import {
   ChevronsRight, Search, Check, ChevronsDownUp, ChevronsUpDown } from "lucide-react"
 import { STAFF, STAGES } from "../data"
 import { ME } from "../org"
-import { Empty, heading, TONE_COLOR, toneOfName, worst, ToneLegend, Menu } from "../kit"
+import { Empty, heading, Pill, TONE_COLOR, toneOfName, worst, ToneLegend, Menu } from "../kit"
 import { useStore } from "../store"
 import { Kbd, TacitMark, mod } from "../ui"
 import type { View } from "../types"
@@ -534,8 +534,8 @@ export function Home() {
                   <span className="w-full truncate text-mute">
                     {s.roleOf(p.role).title}
                   </span>
-                  <span className="mt-auto w-full truncate pt-2 text-xs text-faint">
-                    {p.closed ?? STAGES[p.stage]}, {via.toLowerCase()}
+                  <span className="mt-auto flex w-full min-w-0 pt-2.5" title={via}>
+                    <Pill tone={s.toneFor(p)}>{p.closed ?? STAGES[p.stage]}</Pill>
                   </span>
                 </button>
               ))}
@@ -607,7 +607,9 @@ export function Home() {
                   >
                     <span className="w-full truncate font-medium text-ink">{d.name}</span>
                     <span className="w-full truncate text-mute">{s.roleOf((p ?? a)!.role).title}</span>
-                    <span className="mt-auto w-full truncate pt-2 text-xs text-faint">{p ? (p.next ?? "Nothing set") : "Waiting to be routed"}</span>
+                    <span className="mt-auto flex w-full min-w-0 pt-2.5">
+                      <Pill tone={p ? s.toneFor(p) : "needs"}>{p ? (p.next ?? "Nothing set") : "Waiting to be routed"}</Pill>
+                    </span>
                   </button>
                 )
               })}

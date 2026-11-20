@@ -230,6 +230,47 @@
   color-scheme: light;
 }
 
+/* Dark: the same night, lifted to a soft charcoal. Classic Dark is the near-black set on :root above. */
+:root[data-theme="dark"][data-variant="plain"] {
+  --t-well: #131417;
+  --t-panel: #191a1e;
+  --t-raised: #24262b;
+  --t-hover: #1e2024;
+  --t-line: #26282d;
+  --t-line-strong: #34373d;
+  --t-ink: #f0f0f2;
+  --t-body: #c1c3c9;
+  --t-mute: #92959d;
+  --t-faint: #686c74;
+  --t-chip: #2f3238;
+  --wash-a: 0.12;
+  --scrim: rgba(0, 0, 0, 0.5);
+}
+/* Max Light: white throughout, black ink, deeper status colours. Structure comes from the lines alone. */
+:root[data-theme="light"][data-variant="max"] {
+  --t-well: #ffffff;
+  --t-panel: #ffffff;
+  --t-raised: #e9ebf0;
+  --t-hover: #f3f4f7;
+  --t-line: #dcdfe5;
+  --t-line-strong: #b7bbc5;
+  --t-ink: #000000;
+  --t-body: #1b1d21;
+  --t-mute: #474a52;
+  --t-faint: #6b6e77;
+  --t-chip: #dfe2e9;
+  --t-needs: #96690f;
+  --t-waiting: #3b50b5;
+  --t-running: #1c7a4e;
+  --t-done: #8a8d96;
+  --t-cancelled: #b3b7c0;
+  --t-failed: #b0352e;
+  --wash-needs: 190 135 20;
+  --wash-failed: 196 62 54;
+  --wash-waiting: 66 88 190;
+  --wash-running: 34 132 86;
+  --wash-a: 0.14;
+}
 html,
 body,
 #root {

@@ -63,6 +63,15 @@ export function ToneLegend({ className = "" }: { className?: string }) {
     </span>
   )
 }
+/* Where someone stands, as a pill: the words in their colour on a low wash of it. No dot. */
+export function Pill({ tone, children }: { tone: Tone; children: ReactNode }) {
+  const c = TONE_COLOR[tone]
+  return (
+    <span className="inline-flex h-6 max-w-full items-center rounded-md px-2 text-xs font-medium" style={{ background: `color-mix(in oklab, ${c} 22%, transparent)`, color: `color-mix(in oklab, ${c} 62%, var(--color-ink))` }}>
+      <span className="truncate">{children}</span>
+    </span>
+  )
+}
 const NAME_TONE: Record<string, Tone> = { "awaiting review": "needs", referred: "needs", applied: "needs", sourced: "needs", rejected: "failed", overdue: "failed", withdrew: "waiting", "no reply": "waiting" }
 export const toneOfName = (name: string): Tone => NAME_TONE[name] ?? "running"
 
