@@ -36,38 +36,54 @@ import {
 // A team's mark in the sidebar. Nobody has to choose one: a team is matched to
 // an icon by its name the moment it exists (teamIconFor). Right-clicking a team
 // opens the picker to choose another; that choice is kept in this browser, as
-// the pins are, because a department has no icon column. One grey for all of
-// them: colour stays for status.
+// the pins are, because a department has no icon column.
 
-export const TEAM_ICONS: { key: string; name: string; icon: LucideIcon }[] = [
-  { key: "users", name: "People", icon: Users },
-  { key: "palette", name: "Design", icon: Palette },
-  { key: "pen", name: "Writing", icon: PenTool },
-  { key: "megaphone", name: "Marketing", icon: Megaphone },
-  { key: "handshake", name: "Sales", icon: Handshake },
-  { key: "trending", name: "Growth", icon: TrendingUp },
-  { key: "package", name: "Product", icon: Package },
-  { key: "code", name: "Engineering", icon: Code },
-  { key: "server", name: "Infrastructure", icon: Server },
-  { key: "layers", name: "Platform", icon: Layers },
-  { key: "rocket", name: "Serving", icon: Rocket },
-  { key: "smartphone", name: "Mobile", icon: Smartphone },
-  { key: "cpu", name: "Hardware", icon: Cpu },
-  { key: "database", name: "Data", icon: Database },
-  { key: "flask", name: "Research", icon: FlaskConical },
-  { key: "brain", name: "Training", icon: BrainCircuit },
-  { key: "clipboard", name: "Evals", icon: ClipboardCheck },
-  { key: "sparkles", name: "Special Projects", icon: Sparkles },
-  { key: "shield", name: "Security", icon: Shield },
-  { key: "scale", name: "Legal", icon: Scale },
-  { key: "landmark", name: "Finance", icon: Landmark },
-  { key: "heart", name: "People Team", icon: HeartHandshake },
-  { key: "lifebuoy", name: "Support", icon: LifeBuoy },
-  { key: "cog", name: "Operations", icon: Cog },
-  { key: "wrench", name: "Tools", icon: Wrench },
-  { key: "truck", name: "Logistics", icon: Truck },
-  { key: "globe", name: "International", icon: Globe },
-  { key: "building", name: "Office", icon: Building2 },
+// Each icon has its own hue, so a team can be found by colour as well as shape. The hues are
+// mid-tones that read on both the light and the dark sidebar, and the same icon is always the
+// same colour. They mark teams only; red, amber, blue and green as status are the tokens.
+const HUES = {
+  slate: "#7c8494",
+  pink: "#d0669c",
+  rose: "#d9657a",
+  orange: "#d98548",
+  amber: "#c59a2e",
+  lime: "#7fa83c",
+  teal: "#2fa392",
+  cyan: "#2f9fc4",
+  sky: "#4a8fe0",
+  indigo: "#6c79e0",
+  violet: "#9a6fd8",
+} as const;
+
+export const TEAM_ICONS: { key: string; name: string; icon: LucideIcon; hue: keyof typeof HUES }[] = [
+  { key: "users", name: "People", icon: Users, hue: "slate" },
+  { key: "palette", name: "Design", icon: Palette, hue: "pink" },
+  { key: "pen", name: "Writing", icon: PenTool, hue: "rose" },
+  { key: "megaphone", name: "Marketing", icon: Megaphone, hue: "orange" },
+  { key: "handshake", name: "Sales", icon: Handshake, hue: "amber" },
+  { key: "trending", name: "Growth", icon: TrendingUp, hue: "lime" },
+  { key: "package", name: "Product", icon: Package, hue: "violet" },
+  { key: "code", name: "Engineering", icon: Code, hue: "indigo" },
+  { key: "server", name: "Infrastructure", icon: Server, hue: "sky" },
+  { key: "layers", name: "Platform", icon: Layers, hue: "teal" },
+  { key: "rocket", name: "Serving", icon: Rocket, hue: "rose" },
+  { key: "smartphone", name: "Mobile", icon: Smartphone, hue: "cyan" },
+  { key: "cpu", name: "Hardware", icon: Cpu, hue: "slate" },
+  { key: "database", name: "Data", icon: Database, hue: "cyan" },
+  { key: "flask", name: "Research", icon: FlaskConical, hue: "indigo" },
+  { key: "brain", name: "Training", icon: BrainCircuit, hue: "amber" },
+  { key: "clipboard", name: "Evals", icon: ClipboardCheck, hue: "cyan" },
+  { key: "sparkles", name: "Special Projects", icon: Sparkles, hue: "amber" },
+  { key: "shield", name: "Security", icon: Shield, hue: "sky" },
+  { key: "scale", name: "Legal", icon: Scale, hue: "slate" },
+  { key: "landmark", name: "Finance", icon: Landmark, hue: "lime" },
+  { key: "heart", name: "People Team", icon: HeartHandshake, hue: "rose" },
+  { key: "lifebuoy", name: "Support", icon: LifeBuoy, hue: "orange" },
+  { key: "cog", name: "Operations", icon: Cog, hue: "slate" },
+  { key: "wrench", name: "Tools", icon: Wrench, hue: "violet" },
+  { key: "truck", name: "Logistics", icon: Truck, hue: "amber" },
+  { key: "globe", name: "International", icon: Globe, hue: "sky" },
+  { key: "building", name: "Office", icon: Building2, hue: "violet" },
 ];
 
 // First match wins, so the narrower words come before the broader ones:
@@ -112,8 +128,8 @@ const byKey = new Map(TEAM_ICONS.map((i) => [i.key, i]));
 
 /** A team's mark: the one chosen for it here, else the one its name matches. */
 export function TeamIcon({ name, chosen, size = 14 }: { name: string; chosen?: string; size?: number }) {
-  const Icon = (byKey.get(chosen ?? "") ?? byKey.get(teamIconFor(name)) ?? TEAM_ICONS[0]!).icon;
-  return <Icon size={size} className="shrink-0 text-mute" />;
+  const { icon: Icon, hue } = byKey.get(chosen ?? "") ?? byKey.get(teamIconFor(name)) ?? TEAM_ICONS[0]!;
+  return <Icon size={size} className="shrink-0" style={{ color: HUES[hue] }} />;
 }
 
 /** What is kept in this browser: team id to icon key. Anything else stored there is ignored. */
@@ -156,7 +172,7 @@ export function TeamIconPicker({ team, at, chosen, onPick, onClose }: { team: st
       >
         <div className="px-1 pb-1.5 text-xs text-dim">Icon for {team}</div>
         <div className="grid grid-cols-7 gap-0.5">
-          {TEAM_ICONS.map(({ key, name, icon: Icon }) => (
+          {TEAM_ICONS.map(({ key, name, icon: Icon, hue }) => (
             <button
               key={key}
               type="button"
@@ -165,9 +181,9 @@ export function TeamIconPicker({ team, at, chosen, onPick, onClose }: { team: st
               aria-label={name}
               title={name}
               onClick={() => onPick(key)}
-              className={`flex size-[30px] items-center justify-center rounded-md transition-colors hover:bg-hover hover:text-ink ${current === key ? "bg-sel text-ink" : "text-mute"}`}
+              className={`flex size-[30px] items-center justify-center rounded-md transition-colors hover:bg-hover ${current === key ? "bg-sel" : ""}`}
             >
-              <Icon size={15} />
+              <Icon size={15} style={{ color: HUES[hue] }} />
             </button>
           ))}
         </div>
