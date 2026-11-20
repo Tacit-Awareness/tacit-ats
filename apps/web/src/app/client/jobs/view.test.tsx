@@ -41,6 +41,11 @@ describe("Listings & Asks", () => {
     expect(html).toContain("Careers Page");
   });
 
+  test("Careers Page opens the public careers page in a new tab", () => {
+    const html = view();
+    expect(html).toMatch(/<a href="https:\/\/ats\.example\.com\/careers\/acme" target="_blank" rel="noopener"[^>]*>Careers Page/);
+  });
+
   test("a live post says nothing; anything else shows its state", () => {
     const html = view();
     expect(html).toContain(">Draft<");

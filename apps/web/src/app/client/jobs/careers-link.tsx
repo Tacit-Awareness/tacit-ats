@@ -1,25 +1,19 @@
-"use client";
+import { ExternalLink } from "lucide-react";
 
-import { Link2 } from "lucide-react";
-import { showToast } from "@/components/toasts";
-
-// Listings & Asks' Careers Page button (design/tacit-tickets's Asks): copies the
-// company's public careers page address, as the prototype's does.
+// Listings & Asks' Careers Page button: opens the company's public careers
+// page (/careers/<org>) in a new tab, as applicants see it. The address is the
+// link's own, so it can still be copied from the browser's link menu.
 
 export function CareersLink({ url }: { url: string }) {
   return (
-    <button
-      type="button"
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener"
       title={url}
-      onClick={() => {
-        void navigator.clipboard
-          ?.writeText(url)
-          .then(() => showToast({ text: "Careers page link copied" }))
-          .catch(() => showToast({ text: "Couldn't copy the link. It's in this button's hover." }));
-      }}
       className="flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-line-strong px-2.5 whitespace-nowrap text-ink transition hover:bg-hover"
     >
-      <Link2 size={13} className="text-mute" /> Careers Page
-    </button>
+      Careers Page <ExternalLink size={13} className="text-mute" />
+    </a>
   );
 }
