@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Calendar, ChevronDown, ChevronRight, CircleUser, FileCheck, GraduationCap, House, Inbox, Contrast, Menu as MenuIcon, Monitor, Moon, MoonStar, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
 import { AccountMenu, applyAppearance } from "@/components/app-shell/account-menu";
 import { APPEARANCES, appearanceOf, type Appearance } from "@/lib/theme";
+import { TEAM_ICONS_KEY, TeamIcon, TeamIconPicker, readTeamIcons } from "@/components/app-shell/team-icons";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { OPEN_COMMAND_EVENT } from "@/components/app-shell/command-context";
 import { switchCompany, type ShellCompany } from "@/components/app-shell/company-menu";
@@ -153,6 +154,28 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [pins, setPins] = useState<string[]>([]);
   const [onlyAttn, setOnlyAttn] = useState(false);
+  // A team's icon comes from its name; one chosen by right-clicking the team is kept in this browser.
+  const [icons, setIcons] = useState<Record<string, string>>({});
+  const [picking, setPicking] = useState<{ id: string; name: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    try {
+      setIcons(readTeamIcons(localStorage.getItem(TEAM_ICONS_KEY)));
+    } catch {
+      /* every team keeps its match */
+    }
+  }, []);
+  const chooseIcon = (id: string, key: string | null) =>
+    setIcons((all) => {
+      const next = { ...all };
+      if (key) next[id] = key;
+      else delete next[id];
+      try {
+        localStorage.setItem(TEAM_ICONS_KEY, JSON.stringify(next));
+      } catch {
+        /* chosen for this visit */
+      }
+      return next;
+    });
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]");
@@ -197,10 +220,17 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
             type="button"
             onClick={() => setOpen((o) => ({ ...o, [t.id]: !isOpen }))}
             aria-expanded={isOpen}
+            // Right-click, or the keyboard's menu key, opens the icon picker where the pointer is
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const box = e.currentTarget.getBoundingClientRect();
+              setPicking({ id: t.id, name: t.name, x: e.clientX || box.left + 8, y: e.clientY || box.bottom });
+            }}
+            title="Right-click to change the icon"
             className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pl-1.5 text-left"
             style={indent ? { paddingLeft: 6 + t.depth * 12 } : undefined}
           >
-            <Users size={14} className="shrink-0 text-mute" />
+            <TeamIcon name={t.name} chosen={icons[t.id]} />
             <span className={cn("truncate", picked ? "text-ink" : "text-body")}>{t.name}</span>
             <ChevronRight size={12} className={cn("shrink-0 text-dim transition-transform", isOpen && "rotate-90")} />
           </button>
@@ -250,6 +280,18 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
 
   return (
     <div className="sb-teams flex min-h-0 flex-col">
+      {picking && (
+        <TeamIconPicker
+          team={picking.name}
+          at={picking}
+          chosen={icons[picking.id]}
+          onClose={() => setPicking(null)}
+          onPick={(key) => {
+            chooseIcon(picking.id, key);
+            setPicking(null);
+          }}
+        />
+      )}
       <div className="mt-5 flex shrink-0 items-center px-1.5 text-xs text-dim">
         Teams <span className="ml-1.5 tabular-nums">{teams.length}</span>
         <button
