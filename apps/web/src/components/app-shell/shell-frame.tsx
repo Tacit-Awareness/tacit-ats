@@ -366,6 +366,7 @@ function ThemeButton() {
   return (
     <Menu
       up
+      portal
       width={264}
       items={items}
       trigger={() => (

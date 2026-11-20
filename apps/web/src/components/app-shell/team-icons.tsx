@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   BrainCircuit,
   Building2,
@@ -159,14 +160,15 @@ export function TeamIconPicker({ team, at, chosen, onPick, onClose }: { team: st
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
-  return (
+  // On <body>, as the account menu is: the sidebar clips what spills past its edge, and its transform would trap a fixed box.
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => (e.preventDefault(), onClose())} />
+      <div className="fixed inset-0 z-[59]" onClick={onClose} onContextMenu={(e) => (e.preventDefault(), onClose())} />
       <div
         ref={box}
         role="menu"
         aria-label={`Icon for ${team}`}
-        className="anim-rise fixed z-50 w-[236px] rounded-xl border border-line-strong bg-panel p-2 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)]"
+        className="anim-rise fixed z-[60] w-[236px] rounded-xl border border-line-strong bg-panel p-2 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)]"
         // Kept on the page: the picker is about 250px tall and 236px wide
         style={{ left: Math.max(8, Math.min(at.x, innerWidth - 244)), top: Math.max(8, Math.min(at.y, innerHeight - 262)) }}
       >
@@ -193,6 +195,7 @@ export function TeamIconPicker({ team, at, chosen, onPick, onClose }: { team: st
           </button>
         )}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
