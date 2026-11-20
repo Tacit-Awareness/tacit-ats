@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsLeft, ChevronsRight,
 import { openCommandMenu } from "@/components/app-shell/command-context";
 import { FUNNEL_INSET, Funnel } from "@/components/tickets/funnel";
 import { Kbd, TacitMark, ToneLegend, heading, useMod } from "@/components/tickets/kit";
-import { TONE_COLOR, toneOfName, worst } from "@/components/tickets/tone";
+import { TONE_COLOR, toneOfName, worst, type Tone } from "@/components/tickets/tone";
 import type { HomeArrival, HomeTicketsRead } from "@/lib/client/home-tickets";
 import { FUNNEL_STAGES, HEALTH, STANDINGS, WAYS, healthOf, standingLabel, standingOf, tally, yearWindow, type Way } from "@/lib/client/home-tickets-rules";
 
@@ -120,6 +120,8 @@ function TilePills({ parts }: { parts: string[] }) {
     </span>
   );
 }
+// A pill is two words at most. In the funnel it says how the person stands; their next step, in full, is on hover.
+const TONE_WORDS: Record<Tone, string> = { failed: "Overdue", needs: "Needs You", waiting: "No Reply", running: "On Track" };
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function HomeTickets({ firstName, read }: { firstName: string; read: HomeTicketsRead }) {
@@ -426,10 +428,10 @@ export function HomeTickets({ firstName, read }: { firstName: string; read: Home
             <div key={stage} className="anim-rise mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6">
               <Lead title={funnel[stage]!.name} n={inStage.length} none="Nobody here" parts={health} />
               {shownTiles.map((l) => (
-                <Link key={l.applicationId} href={`/client/candidates/${l.personId}`} className={`tint-${l.tone} ${tileCls}`}>
+                <Link key={l.applicationId} href={`/client/candidates/${l.personId}`} title={l.next ?? undefined} className={`tint-${l.tone} ${tileCls}`}>
                   <span className={tileName}>{l.name}</span>
                   <span className={tileJob}>{l.job}</span>
-                  <TilePills parts={[l.next ?? "Nothing set"]} />
+                  <TilePills parts={[TONE_WORDS[l.tone]]} />
                 </Link>
               ))}
               {inStage.length > TILES && (
