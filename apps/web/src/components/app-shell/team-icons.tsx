@@ -56,6 +56,10 @@ const HUES = {
   violet: "#9a6fd8",
 } as const;
 
+// Drawn stronger than the hue itself: mixed a third of the way toward the ink, which is dark on the
+// light looks and light on the dark ones, so an icon stands out from the sidebar in every look.
+const strong = (hue: string) => `color-mix(in oklab, ${hue} 68%, var(--ink))`;
+
 export const TEAM_ICONS: { key: string; name: string; icon: LucideIcon; hue: keyof typeof HUES }[] = [
   { key: "users", name: "People", icon: Users, hue: "slate" },
   { key: "palette", name: "Design", icon: Palette, hue: "pink" },
@@ -130,7 +134,7 @@ const byKey = new Map(TEAM_ICONS.map((i) => [i.key, i]));
 /** A team's mark: the one chosen for it here, else the one its name matches. */
 export function TeamIcon({ name, chosen, size = 14 }: { name: string; chosen?: string; size?: number }) {
   const { icon: Icon, hue } = byKey.get(chosen ?? "") ?? byKey.get(teamIconFor(name)) ?? TEAM_ICONS[0]!;
-  return <Icon size={size} className="shrink-0" style={{ color: HUES[hue] }} />;
+  return <Icon size={size} className="shrink-0" style={{ color: strong(HUES[hue]) }} />;
 }
 
 /** What is kept in this browser: team id to icon key. Anything else stored there is ignored. */
@@ -185,7 +189,7 @@ export function TeamIconPicker({ team, at, chosen, onPick, onClose }: { team: st
               onClick={() => onPick(key)}
               className={`flex size-[30px] items-center justify-center rounded-md transition-colors hover:bg-hover ${current === key ? "bg-sel" : ""}`}
             >
-              <Icon size={15} style={{ color: HUES[hue] }} />
+              <Icon size={15} style={{ color: strong(HUES[hue]) }} />
             </button>
           ))}
         </div>
