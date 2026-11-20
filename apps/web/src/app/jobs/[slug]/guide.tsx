@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Ico, ICON } from "@/components/careers/frame";
+import { riseIn } from "@/components/careers/motion";
 import { guideProgress, type GuideStep } from "@/lib/public/application";
 
 // The application's checklist (design/careers): the role's side column while
@@ -74,22 +75,56 @@ function Bar({ share }: { share: number }) {
 export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
   const done = useDone(steps);
   const { total, finished, next, current } = guideProgress(steps, new Set(done.keys()));
+  const list = useRef<HTMLDivElement>(null);
+  const hi = useRef<HTMLSpanElement>(null);
+
+  // The steps come up one by one when the checklist arrives.
+  useEffect(() => {
+    riseIn(list.current?.querySelectorAll(".g-step") ?? [], { y: 12, duration: 500, stagger: 70, delay: 100 });
+  }, []);
+
+  // A soft highlight glides to the step you're on, and leaves once every step is done.
+  useLayoutEffect(() => {
+    const h = hi.current;
+    const on = list.current?.querySelector<HTMLElement>(".g-step.is-cur");
+    if (!h) return;
+    if (!on) {
+      h.style.opacity = "0";
+      return;
+    }
+    if (h.style.opacity !== "1") {
+      h.style.transition = "none";
+      h.style.transform = `translateY(${on.offsetTop}px)`;
+      h.style.height = `${on.offsetHeight}px`;
+      void h.offsetHeight;
+      h.style.transition = "";
+    }
+    h.style.transform = `translateY(${on.offsetTop}px)`;
+    h.style.height = `${on.offsetHeight}px`;
+    h.style.opacity = "1";
+  }, [current, finished]);
+
   return (
     <div className={`guide${finished === total ? " complete" : ""}`} role="group" aria-label="Your application">
       <div className="g-head">
         <h3>Your application</h3>
         <span className="g-count">
-          {finished}/{total}
+          <span key={finished} className="digit">
+            {finished}
+          </span>
+          /{total}
         </span>
       </div>
       <Bar share={total ? finished / total : 0} />
+      <div ref={list} className="g-steps">
+      <span ref={hi} className="g-hi" aria-hidden />
       {steps.map((s, n) => {
         const complete = s.items.every((item) => done.has(item.field));
         return (
           <div key={s.key} className={`g-step${complete ? " is-done" : ""}${current === s.key ? " is-cur" : ""}`}>
             <span className="g-node" aria-hidden>
               <i>{n + 1}</i>
-              <Ico d={ICON.check} />
+              <Ico d={ICON.check} draw />
             </span>
             <span className="g-title">{s.title}</span>
             <div className="g-items">
@@ -98,7 +133,7 @@ export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
                 return (
                   <button key={item.field} type="button" className="g-item" role="checkbox" aria-checked={value !== undefined} title={value ? `${item.label}: ${value}` : item.label} onClick={() => jumpTo(item.field)}>
                     <span className="g-check">
-                      <Ico d={ICON.check} />
+                      <Ico d={ICON.check} draw />
                     </span>
                     <span className="g-lbl">{item.label}</span>
                     {value ? <span className="g-val">{value}</span> : null}
@@ -109,6 +144,7 @@ export function ApplicationGuide({ steps }: { steps: GuideStep[] }) {
           </div>
         );
       })}
+      </div>
       <div className="g-foot">
         <span>{next ? `Next: ${next.label}` : "Ready"}</span>
         <button type="button" className="btn sm" onClick={() => jumpTo(next?.field)}>

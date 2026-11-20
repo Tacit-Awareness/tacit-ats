@@ -37,6 +37,9 @@
     --shadow: 0 0 0 1px var(--border), 0 1px 2px 0 rgba(42, 38, 30, 0.05);
     --ring: 0 0 0 1px rgba(21, 32, 39, 0.5), 0 0 0 4px rgba(21, 32, 39, 0.06);
     --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --p3-out: cubic-bezier(0.215, 0.61, 0.355, 1);
+    --p2-in: cubic-bezier(0.55, 0.085, 0.68, 0.53);
+    --back: cubic-bezier(0.34, 1.8, 0.64, 1);
     --sans: "Helvetica Neue", Helvetica, "Helvetica World", Arial, sans-serif;
     --display: var(--font-inter), "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     --gutter: max(20px, env(safe-area-inset-left));
@@ -96,7 +99,12 @@
     @media (hover: none) { & .keys { display: none; } }
 
     /* the roles: teams that fold, hairlines between rows, a soft fill that floats between the lines */
-    & .tv-row { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 14px; color: var(--text); text-align: left; }
+    & .tv { position: relative; }
+    /* one fill that glides between rows (roles.tsx); without script each row lights its own */
+    & .tv-hover { position: absolute; left: 0; right: 0; top: 0; z-index: 0; height: 0; border-radius: 8px; background: var(--wash); opacity: 0; pointer-events: none; transition: transform 340ms var(--p3-out), height 340ms var(--p3-out), opacity 200ms ease; }
+    & .tv-glide .tv-row:hover::before { opacity: 0; }
+    & .tv-kids { overflow: hidden; }
+    & .tv-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 14px; color: var(--text); text-align: left; }
     & .tv-row::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line-2); }
     & .tv-row::before { content: ""; position: absolute; inset: 4px 0; border-radius: 8px; background: var(--wash); opacity: 0; transition: opacity 160ms ease; pointer-events: none; }
     & .tv-row:hover::before { opacity: 1; }
@@ -105,15 +113,17 @@
     & .tv-row > * { position: relative; }
     & .tv-folder { min-height: 56px; font-size: 15px; font-weight: 500; color: var(--strong); cursor: pointer; list-style: none; }
     & .tv-folder::-webkit-details-marker { display: none; }
-    & .tv-chev { display: grid; place-items: center; flex: none; width: 14px; height: 16px; color: var(--muted); transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+    & .tv-chev { display: grid; place-items: center; flex: none; width: 14px; height: 16px; color: var(--muted); transition: transform 400ms var(--p3-out); }
     & .tv-chev .ico { width: 14px; height: 14px; stroke-width: 1.9; }
-    & details[open] > .tv-folder .tv-chev { transform: rotate(90deg); }
+    & details[data-open="true"] > .tv-folder .tv-chev { transform: rotate(90deg); }
     & .tv-ico { position: relative; flex: none; width: 16px; height: 16px; color: var(--muted); transition: color 160ms ease; }
-    & .tv-ico .ico { position: absolute; inset: 0; stroke-width: 1.7; transition: opacity 160ms ease; }
-    & .tv-ico .f-open { opacity: 0; }
-    & details[open] > .tv-folder .tv-ico { color: var(--strong); }
-    & details[open] > .tv-folder .f-open { opacity: 1; }
-    & details[open] > .tv-folder .f-closed { opacity: 0; }
+    & .tv-ico .ico { position: absolute; inset: 0; stroke-width: 1.7; }
+    /* the folder that is shown pops in with a small overshoot; the one leaving shrinks away fast */
+    & .tv-folder .tv-ico .ico { transition: opacity 400ms var(--back) 60ms, transform 400ms var(--back) 60ms; }
+    & .tv-folder .f-open,
+    & details[data-open="true"] > .tv-folder .f-closed { opacity: 0; transform: scale(0.6); transition: opacity 160ms var(--p2-in), transform 160ms var(--p2-in); }
+    & details[data-open="true"] > .tv-folder .tv-ico { color: var(--strong); }
+    & details[data-open="true"] > .tv-folder .f-open { opacity: 1; transform: none; transition: opacity 400ms var(--back) 60ms, transform 400ms var(--back) 60ms; }
     & .tv-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }
     & .tv-count { margin-left: 8px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
     & .tv-leaf { min-height: 66px; padding-left: 38px; }
@@ -145,12 +155,16 @@
     & .facts dd { margin: 3px 0 0; font-size: 14.5px; color: var(--text); overflow-wrap: anywhere; }
 
     /* Overview | Application: links with an underline under the one you're on */
-    & .tabbar { display: flex; gap: 28px; box-shadow: inset 0 -1px 0 var(--line-2); }
+    & .tabbar { position: relative; display: flex; gap: 28px; box-shadow: inset 0 -1px 0 var(--line-2); }
     & .tab { position: relative; display: inline-flex; align-items: center; height: 46px; font-size: 15px; font-weight: 500; color: var(--muted); transition: color 160ms ease; }
     & .tab:hover,
     & .tab[aria-current="page"] { color: var(--strong); }
     & .tab::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--strong); transform: scaleX(0); transition: transform 300ms var(--ease); }
     & .tab[aria-current="page"]::after { transform: none; }
+    /* while switching, one underline slides from the old tab to the new (jobs/[slug]/motion.tsx) */
+    & .tab-ind { position: absolute; left: 0; bottom: 0; width: 0; height: 2px; background: var(--strong); opacity: 0; pointer-events: none; }
+    & .tabbar.sliding .tab-ind { opacity: 1; }
+    & .tabbar.sliding .tab::after { transition: none; transform: scaleX(0); }
     & .panel { padding-top: 36px; }
 
     /* Overview: the post, then the apply button */
@@ -226,8 +240,9 @@
     & .trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
     & .sent { display: grid; justify-items: start; gap: 6px; padding: 34px 26px 30px; animation: careers-up 480ms var(--ease) both; }
-    & .big-ok { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 8px; border-radius: 12px; background: var(--ok-bg); color: var(--ok); }
+    & .big-ok { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 8px; border-radius: 12px; background: var(--ok-bg); color: var(--ok); animation: careers-pop 600ms var(--ease); }
     & .big-ok .ico { width: 22px; height: 22px; stroke-width: 2.2; }
+    & .big-ok .ico path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: careers-draw 520ms var(--ease) 200ms forwards; }
     & .sent h2 { margin: 0; font: 500 22px/1.3 var(--display); letter-spacing: -0.02em; color: var(--strong); }
     & .sent p { margin: 0; max-width: 52ch; color: var(--text); }
     & .sent .warn { margin-top: 4px; padding: 10px 14px; border-radius: 6px; background: var(--amber-bg); color: var(--amber); }
@@ -240,6 +255,10 @@
     & .g-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 46px; }
     & .g-head h3 { margin: 0; font-size: 15px; font-weight: 500; color: var(--strong); }
     & .g-count { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+    & .g-count .digit { display: inline-block; color: var(--ink); animation: careers-roll 560ms var(--ease); }
+    & .g-steps { position: relative; }
+    /* a soft highlight glides to the step you're on (guide.tsx) */
+    & .g-hi { position: absolute; left: -10px; right: -10px; top: 0; height: 0; border-radius: 8px; background: var(--wash); opacity: 0; pointer-events: none; transition: transform 600ms var(--p3-out), height 600ms var(--p3-out), opacity 400ms ease; }
     & .g-bar { position: relative; height: 4px; margin: -4px 0 14px; border-radius: 2px; background: var(--fill); overflow: hidden; }
     & .g-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--strong); transform-origin: 0 50%; transition: transform 1100ms var(--ease), background-color 300ms ease; }
     & .complete .g-fill { background: var(--ok); }
@@ -251,11 +270,13 @@
     & .g-step:has(+ .g-foot)::after { display: none; }
     & .g-node { position: absolute; left: 0; top: 8px; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; transition: background-color 320ms var(--ease), box-shadow 320ms var(--ease), color 320ms ease; }
     & .g-node i { font-style: normal; transition: opacity 200ms ease, transform 300ms var(--ease); }
-    & .g-node .ico { position: absolute; width: 13px; height: 13px; stroke: #fff; stroke-width: 2.4; opacity: 0; transition: opacity 200ms ease 120ms; }
+    & .g-node .ico { position: absolute; width: 13px; height: 13px; stroke: #fff; stroke-width: 2.4; }
+    & .g-node .ico path,
+    & .g-check .ico path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 120ms ease-in; }
     & .g-step.is-cur .g-node { box-shadow: inset 0 0 0 1.5px var(--strong); color: var(--strong); }
     & .g-step.is-done .g-node { background: var(--ok); box-shadow: none; animation: careers-pop 560ms var(--ease); }
     & .g-step.is-done .g-node i { opacity: 0; transform: scale(0.5); }
-    & .g-step.is-done .g-node .ico { opacity: 1; }
+    & .g-step.is-done .g-node .ico path { stroke-dashoffset: 0; transition: stroke-dashoffset 420ms var(--ease) 140ms; }
     & .g-title { display: flex; align-items: center; min-height: 21px; font-weight: 500; color: var(--strong); transition: color 300ms ease; }
     & .g-step.is-done .g-title { color: var(--muted); }
     & .g-items { padding-top: 4px; transition: opacity 300ms ease; }
@@ -263,13 +284,13 @@
     & .g-item { display: flex; min-width: 0; align-items: center; gap: 10px; width: calc(100% + 16px); margin: 0 -8px; padding: 5px 8px; border: 0; border-radius: 6px; background: none; color: var(--ink); font-size: 13.5px; text-align: left; cursor: pointer; transition: background-color 90ms ease-out; }
     & .g-item:hover { background: var(--wash); }
     & .g-check { display: grid; place-items: center; flex: none; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(21, 32, 39, 0.2); transition: background-color 220ms var(--ease), box-shadow 220ms var(--ease); }
-    & .g-check .ico { width: 12px; height: 12px; stroke: #fff; stroke-width: 2.2; opacity: 0; transition: opacity 200ms ease 120ms; }
+    & .g-check .ico { width: 12px; height: 12px; stroke: #fff; stroke-width: 2.2; }
     & .g-item[aria-checked="true"] .g-check { background: var(--ok); box-shadow: none; animation: careers-pop 560ms var(--ease); }
-    & .g-item[aria-checked="true"] .g-check .ico { opacity: 1; }
+    & .g-item[aria-checked="true"] .g-check .ico path { stroke-dashoffset: 0; transition: stroke-dashoffset 420ms var(--ease) 160ms; }
     & .g-lbl { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 300ms ease; }
     & .g-item[aria-checked="true"] .g-lbl { color: var(--muted); }
     /* what you entered shows up beside the item */
-    & .g-val { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12.5px; }
+    & .g-val { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12.5px; animation: careers-val 480ms var(--ease) 180ms backwards; }
     & .g-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; padding-top: 12px; box-shadow: 0 -1px 0 var(--line-2); }
     & .g-foot span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
     & .mbar { display: none; }
@@ -284,7 +305,7 @@
       & .facts div:first-child { padding: 10px 0; box-shadow: 0 -1px 0 var(--line-2); }
       & .facts div:nth-child(-n + 2) { padding-top: 0; box-shadow: none; }
       & .facts div:last-child:nth-child(odd) { grid-column: 1 / -1; }
-      & .mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgba(252, 251, 248, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 -1px 0 var(--line-2); }
+      & .mbar { animation: careers-bar-in 520ms var(--ease) both; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgba(252, 251, 248, 0.92); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 -1px 0 var(--line-2); }
       & .mbar .grow { flex: 1; min-width: 0; display: grid; gap: 6px; }
       & .mbar .t { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
       & .mbar .t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--strong); }
@@ -318,6 +339,18 @@
   @keyframes careers-up {
     from { opacity: 0; transform: translateY(8px); }
   }
+  @keyframes careers-draw {
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes careers-roll {
+    from { opacity: 0; transform: translateY(60%); }
+  }
+  @keyframes careers-val {
+    from { opacity: 0; transform: translateX(-6px); }
+  }
+  @keyframes careers-bar-in {
+    from { transform: translateY(110%); }
+  }
   @keyframes careers-pop {
     0% { transform: scale(0.9); }
     60% { transform: scale(1.08); }
@@ -328,4 +361,26 @@
 /* The root layout paints the day sky on <body>; a careers page covers it with its own page colour, overscroll included. */
 body:has(> .careers) {
   background: #fcfbf8;
+}
+
+/* The white sheet that flies from a role's row into its page (motion.ts's flyRow). It lives on <body>,
+   outside .careers, so it outlasts the board while the role's page loads. */
+.careers-ghost {
+  position: fixed;
+  z-index: 40;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #fcfbf8;
+  box-shadow: 0 0 0 1px rgba(84, 81, 74, 0.3), 0 30px 60px -24px rgba(21, 32, 39, 0.28);
+  pointer-events: none;
+}
+.careers-ghost-title {
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #152027;
+  font: 450 15.5px/1.45 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: -0.006em;
+  white-space: nowrap;
 }

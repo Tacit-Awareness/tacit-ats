@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { PublicBrand } from "@/lib/public/jobs";
+import { BackLink } from "./back-link";
 import "./careers.css";
 
 // The public careers pages' frame (design/careers, the Polymr prototype): a
@@ -10,10 +11,11 @@ import "./careers.css";
 // the board's title (--brand) and the apply buttons (--solid); without one the
 // name is a warm grey and the buttons near-black.
 
-export function Ico({ d }: { d: string }) {
+/** `draw`: the path's length is 1, so careers.css can draw it in with a dash (the checks). */
+export function Ico({ d, draw = false }: { d: string; draw?: boolean }) {
   return (
     <svg className="ico" viewBox="0 0 24 24" aria-hidden>
-      <path d={d} />
+      <path d={d} pathLength={draw ? 1 : undefined} />
     </svg>
   );
 }
@@ -97,10 +99,10 @@ export function CareersFrame({
       <header className="top">
         {allRoles && boardHref ? (
           <nav className="corner" aria-label="Back">
-            <Link className="navbtn" href={boardHref}>
+            <BackLink className="navbtn" href={boardHref}>
               <Ico d={ICON.back} />
               <span className="navbtn-text">All roles</span>
-            </Link>
+            </BackLink>
           </nav>
         ) : null}
         {boardHref ? (

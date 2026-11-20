@@ -12,6 +12,7 @@ import { parsePostText } from "@/lib/public/post-text";
 import { ApplicationForm, answerField } from "./application-form";
 import { CountView } from "./count-view";
 import { ApplicationBar, ApplicationGuide } from "./guide";
+import { ApplyLink, SheetEnter, TabBar } from "./motion";
 
 // A client's public job post (design/careers's role page): one sheet, the
 // title across the top, where and which team in a side column (the checklist
@@ -68,6 +69,7 @@ export default async function JobPostPage({
     <CareersFrame company={read.company} brand={brand} boardHref={boardHref} allRoles>
       {/* The form's redirect back is the same visit, so it counts no view. Always mounted, so the tabs count nothing, from there either. */}
       <CountView slug={slug} returning={Boolean(applied || error)} />
+      <SheetEnter slug={slug} />
       <div className={`wrap role${filling ? " has-mbar" : ""}`}>
         <article className="sheet">
           <h1 className="h1">{read.title}</h1>
@@ -88,20 +90,20 @@ export default async function JobPostPage({
               ) : null}
             </aside>
             <div className="role-main">
-              <nav className="tabbar" aria-label={read.title}>
-                <Link className="tab" href={withVia(`/jobs/${slug}`, channel)} aria-current={application ? undefined : "page"}>
-                  Overview
-                </Link>
-                <Link className="tab" href={withVia(`/jobs/${slug}?tab=application`, channel)} aria-current={application ? "page" : undefined}>
-                  Application
-                </Link>
-              </nav>
+              <TabBar
+                slug={slug}
+                label={read.title}
+                tabs={[
+                  { href: withVia(`/jobs/${slug}`, channel), label: "Overview", active: !application },
+                  { href: withVia(`/jobs/${slug}?tab=application`, channel), label: "Application", active: application },
+                ]}
+              />
               <section className="panel">
                 {applied ? (
                   <div className="form">
                     <div className="sent" role="status">
                       <span className="big-ok">
-                        <Ico d={ICON.check} />
+                        <Ico d={ICON.check} draw />
                       </span>
                       <h2>Application sent</h2>
                       <p>Thank you. Your application is in, and the team at {read.company} will be in touch.</p>
@@ -139,9 +141,9 @@ export default async function JobPostPage({
                         )}
                       </div>
                     ) : null}
-                    <Link className="cta" href={withVia(`/jobs/${slug}?tab=application`, channel)}>
+                    <ApplyLink slug={slug} href={withVia(`/jobs/${slug}?tab=application`, channel)}>
                       Apply for this role
-                    </Link>
+                    </ApplyLink>
                   </>
                 )}
               </section>
