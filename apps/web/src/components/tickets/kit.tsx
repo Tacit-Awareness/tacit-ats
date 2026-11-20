@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { TONE_COLOR, TONE_MEANING } from "./tone";
 
 // Tacit Tickets' shared parts (design/tacit-tickets/src/kit.tsx and ui.tsx),
@@ -76,9 +77,23 @@ export function Btn({ children, onClick, solid, disabled, title: tip, className 
 
 export type MenuItem = { label: ReactNode; onPick: () => void; on?: boolean; danger?: boolean } | { label: ReactNode; href: string; on?: boolean } | "sep" | { heading: string };
 
-/** A menu that opens from its trigger; closes on pick, outside click or Escape. */
-export function Menu({ trigger, items, align = "left", up, width = 200 }: { trigger: (open: boolean) => ReactNode; items: MenuItem[]; align?: "left" | "right"; up?: boolean; width?: number }) {
+/**
+ * A menu that opens from its trigger; closes on pick, outside click or Escape.
+ * `portal` draws it on <body>, placed from where the trigger is and kept on the page: for a trigger
+ * inside the sidebar, which clips what spills past its edge and, having a transform, traps a fixed box.
+ */
+export function Menu({ trigger, items, align = "left", up, width = 200, portal }: { trigger: (open: boolean) => ReactNode; items: MenuItem[]; align?: "left" | "right"; up?: boolean; width?: number; portal?: boolean }) {
   const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [at, setAt] = useState<CSSProperties>({});
+  const toggle = () => {
+    if (!open && portal && anchor.current) {
+      const r = anchor.current.getBoundingClientRect();
+      const left = Math.max(8, Math.min(align === "right" ? r.right - width : r.left, innerWidth - width - 8));
+      setAt(up ? { left, bottom: innerHeight - r.top + 6 } : { left, top: r.bottom + 6 });
+    }
+    setOpen(!open);
+  };
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -91,18 +106,19 @@ export function Menu({ trigger, items, align = "left", up, width = 200 }: { trig
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open]);
   const row = "flex min-h-8 shrink-0 items-center gap-2 rounded-lg px-2.5 py-1 text-left transition-colors hover:bg-hover";
+  const layer = (menu: ReactNode) => (portal ? createPortal(menu, document.body) : menu);
   return (
-    <span className="relative inline-flex min-w-0">
-      <span onClick={() => setOpen(!open)} className="inline-flex min-w-0">
+    <span ref={anchor} className="relative inline-flex min-w-0">
+      <span onClick={toggle} className="inline-flex min-w-0">
         {trigger(open)}
       </span>
-      {open && (
+      {open && layer(
         <>
-          <span className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <span className={`fixed inset-0 ${portal ? "z-[59]" : "z-40"}`} onClick={() => setOpen(false)} />
           <span
             role="menu"
-            style={{ width }}
-            className={`anim-rise scroll-quiet absolute z-50 flex max-h-[360px] flex-col overflow-y-auto rounded-xl border border-line-strong bg-panel p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)] ${up ? "bottom-full mb-1.5" : "top-full mt-1.5"} ${align === "right" ? "right-0" : "left-0"}`}
+            style={portal ? { width, maxWidth: "calc(100vw - 16px)", ...at } : { width }}
+            className={`anim-rise scroll-quiet flex max-h-[360px] flex-col overflow-y-auto rounded-xl border border-line-strong bg-panel p-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.45)] ${portal ? "fixed z-[60]" : `absolute z-50 ${up ? "bottom-full mb-1.5" : "top-full mt-1.5"} ${align === "right" ? "right-0" : "left-0"}`}`}
           >
             {items.map((it, i) =>
               it === "sep" ? (
@@ -133,7 +149,7 @@ export function Menu({ trigger, items, align = "left", up, width = 200 }: { trig
               ),
             )}
           </span>
-        </>
+        </>,
       )}
     </span>
   );
