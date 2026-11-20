@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, CircleUser } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, CircleUser } from "lucide-react";
 import { clientTools } from "@tacit-ats/core";
 import { Page, PageBar, Section, textLink } from "@/components/page";
 import { Avatar } from "@/components/tickets/avatar";
@@ -31,6 +31,21 @@ import { Refusal } from "../../refusal";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 const COLS = "grid grid-cols-[minmax(180px,1fr)_150px_minmax(140px,220px)_40px] @max-2xl:grid-cols-[minmax(160px,1fr)_150px] items-center gap-4";
+
+// The list's sorts, one per column heading (`?sort=`, with `?dir=desc` to turn it round). Names break
+// every tie: the list is put in name order first and the sort is stable.
+type SortKey = "name" | "stage" | "next" | "owner";
+type SortRow = { personName: string; stage: string; nextAction: string | null; nextActionDue: string | null; ownerName: string | null };
+// The live stages in the order StagePips draws them
+const STAGE_ORDER = ["sourced", "contacted", "screening", "interviewing", "offer"];
+const SORTS: Record<SortKey, (a: SortRow, b: SortRow) => number> = {
+  name: (a, b) => a.personName.localeCompare(b.personName),
+  stage: (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
+  next: (a, b) => (a.nextAction ?? "").localeCompare(b.nextAction ?? ""),
+  owner: (a, b) => (a.ownerName ?? "").localeCompare(b.ownerName ?? ""),
+};
+const EMPTY: Record<SortKey, (r: SortRow) => boolean> = { name: () => false, stage: () => false, next: (r) => !r.nextAction, owner: (r) => !r.ownerName };
+const isSortKey = (v: string): v is SortKey => v === "name" || v === "stage" || v === "next" || v === "owner";
 
 export default async function ClientPeople({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const gate = await resolveClient();
@@ -82,10 +97,32 @@ export default async function ClientPeople({ searchParams }: { searchParams: Pro
     return { key: st.key, name: st.label, tone: tone ? TONE_COLOR[tone] : undefined, dots: here.map((x) => ({ id: x.e.applicationId, name: x.e.personName, sub: x.e.roleTitle, note: x.e.nextAction ?? undefined, tone: TONE_COLOR[x.tone], href: `/client/candidates/${x.e.personId}` })) };
   });
   const stage = team && isColumnKey(one(sp.stage)) ? one(sp.stage) : null;
+  const sortParam = one(sp.sort);
+  const sort: SortKey = isSortKey(sortParam) ? sortParam : "name";
+  const desc = one(sp.dir) === "desc";
   const shown = live
     .filter((x) => (tab === "referred" ? x.e.source === "referral" : true))
     .filter((x) => !stage || x.e.column === stage)
-    .sort((a, b) => a.e.personName.localeCompare(b.e.personName));
+    .sort((a, b) => a.e.personName.localeCompare(b.e.personName))
+    .sort((a, b) => {
+      // A row with nothing in the column goes last whichever way the order runs
+      const [ea, eb] = [EMPTY[sort](a.e), EMPTY[sort](b.e)];
+      return ea || eb ? Number(ea) - Number(eb) : SORTS[sort](a.e, b.e) * (desc ? -1 : 1);
+    });
+  // A heading sorts by its column; the one in use turns the order round. The tab and the stage stay as they are.
+  const sortHref = (key: SortKey) =>
+    href({
+      ...(tab === "referred" ? { tab: "referred" } : {}),
+      ...(stage ? { stage } : {}),
+      ...(key === "name" && (sort !== "name" || desc) ? {} : { sort: key }),
+      ...(sort === key && !desc ? { dir: "desc" } : {}),
+    });
+  const heading = (key: SortKey, label: string, cls = "") => (
+    <Link href={sortHref(key)} aria-sort={sort === key ? (desc ? "descending" : "ascending") : undefined} title={`Sort by ${label.toLowerCase()}`} className={`-mx-1.5 inline-flex h-6 w-fit items-center gap-1 rounded-md px-1.5 transition-colors hover:bg-hover hover:text-ink ${sort === key ? "text-ink" : ""} ${cls}`}>
+      {label}
+      {sort === key && (desc ? <ChevronDown size={12} /> : <ChevronUp size={12} />)}
+    </Link>
+  );
   const ticketsOf = (applicationId: string) => tickets.filter((t) => t.applicationId === applicationId);
 
   return (
@@ -106,10 +143,10 @@ export default async function ClientPeople({ searchParams }: { searchParams: Pro
           </div>
         )}
         <div className={`${COLS} h-9 shrink-0 border-b border-line pr-5 pl-5 text-xs text-dim`}>
-          <span className="pl-6">Name</span>
-          <span>Stage</span>
-          <span className="@max-2xl:hidden">Next</span>
-          <span className="@max-2xl:hidden">Owner</span>
+          <span className="pl-6">{heading("name", "Name")}</span>
+          <span>{heading("stage", "Stage")}</span>
+          <span className="@max-2xl:hidden">{heading("next", "Next")}</span>
+          <span className="@max-2xl:hidden">{heading("owner", "Owner")}</span>
         </div>
         <div className="scroll-quiet flex-1 overflow-y-auto py-1">
           {!shown.length && (
