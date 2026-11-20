@@ -47,6 +47,7 @@ export function PopUp({
   keysTitle,
   closeLabel,
   backTo,
+  tools,
   children,
 }: {
   /** What is open. A new one starts at the top with focus in the body: the next lands here after a fix, or on J and K. */
@@ -54,8 +55,8 @@ export function PopUp({
   title: string;
   /** The line under the title: words, or facts as separate spans (they sit apart, no "·" between them). */
   subject: React.ReactNode;
-  /** Where closing lands. */
-  home: string;
+  /** Where closing lands. Null is back to wherever it was opened from (a pop-up that is its own address, not a `?` on a list). */
+  home: string | null;
   /** "Open as a page": the thing itself. Null when there's no page this member can open. */
   pageHref: string | null;
   /** The `?` sheet's heading for Esc. */
@@ -63,6 +64,8 @@ export function PopUp({
   closeLabel: string;
   /** What takes focus when it closes, the first that is there: the row, then whatever holds it once the row has been dealt with. */
   backTo: (showing: string) => string[];
+  /** More controls for the head, before "Open as a page": the way to the one before and after, say. */
+  tools?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -76,7 +79,9 @@ export function PopUp({
   const busy = () => writeInFlight(sheet.current);
   const close = () => {
     // Without scrolling: the page stays where they left it.
-    if (!busy()) router.push(home, { scroll: false });
+    if (busy()) return;
+    if (home === null) router.back();
+    else router.push(home, { scroll: false });
   };
   useKeys({ Escape: close });
   useKeyHelp(keysTitle, [{ keys: "Esc", label: closeLabel }]);
@@ -129,8 +134,10 @@ export function PopUp({
             </h2>
             {subject ? <p className="m-0 flex min-w-0 flex-wrap gap-x-3 text-[13px] break-words text-muted-foreground">{subject}</p> : null}
           </div>
+          {tools}
           {pageHref ? (
-            <Link
+            // A plain link, loaded afresh: a candidate's address followed inside the area opens the pop-up (client/@modal), and this is the way to the page itself.
+            <a
               href={pageHref}
               aria-label="Open as a page"
               title="Open as a page"
@@ -141,21 +148,28 @@ export function PopUp({
             >
               <PageIcon />
               <span className="max-sm:hidden">Open as a page</span>
-            </Link>
+            </a>
           ) : null}
-          <Link
-            href={home}
-            scroll={false}
-            aria-label="Close"
-            onClick={(e) => {
-              if (busy()) e.preventDefault();
-            }}
-            title="Close (esc)"
-            className="ov-icon-btn"
-          >
-            <Kbd className="max-sm:hidden">esc</Kbd>
-            <CloseIcon />
-          </Link>
+          {home === null ? (
+            <button type="button" aria-label="Close" onClick={close} title="Close (esc)" className="ov-icon-btn">
+              <Kbd className="max-sm:hidden">esc</Kbd>
+              <CloseIcon />
+            </button>
+          ) : (
+            <Link
+              href={home}
+              scroll={false}
+              aria-label="Close"
+              onClick={(e) => {
+                if (busy()) e.preventDefault();
+              }}
+              title="Close (esc)"
+              className="ov-icon-btn"
+            >
+              <Kbd className="max-sm:hidden">esc</Kbd>
+              <CloseIcon />
+            </Link>
+          )}
         </header>
         <div ref={body} tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto overscroll-contain outline-none">
           {children}

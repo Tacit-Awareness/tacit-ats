@@ -21,7 +21,9 @@ export const dynamic = "force-dynamic";
 // (resolveClient() is cached per request, so the page's call reuses it), and
 // its width from a cookie so the first paint is already right. A refused
 // sign-in gets no sidebar: the page renders its refusal on the bare frame.
-export default async function ClientLayout({ children }: { children: React.ReactNode }) {
+// `modal` is the pop-up slot (@modal): a candidate opened from a link inside the
+// area shows there, over the page, and is nothing otherwise.
+export default async function ClientLayout({ children, modal }: { children: React.ReactNode; modal: React.ReactNode }) {
   const gate = await resolveClient();
   if (gate.status !== "ok") {
     return <div className="flex min-h-dvh flex-1 flex-col bg-frame px-4 py-8">{children}</div>;
@@ -62,6 +64,7 @@ export default async function ClientLayout({ children }: { children: React.React
         sidebar={parseSidebar(jar.get(SIDEBAR_COOKIE)?.value)}
       >
         {children}
+        {modal}
       </ShellFrame>
     </>
   );

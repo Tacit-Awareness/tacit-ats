@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { Calendar, ChevronDown, ChevronRight, CircleUser, FileCheck, GraduationCap, House, Inbox, Menu as MenuIcon, Moon, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
-import { AccountMenu, applyTheme } from "@/components/app-shell/account-menu";
+import { Calendar, ChevronDown, ChevronRight, CircleUser, FileCheck, GraduationCap, House, Inbox, Contrast, Menu as MenuIcon, Monitor, Moon, MoonStar, PanelLeft, Pin, Search, Settings, Sun, Target, Ticket, Users, X } from "lucide-react";
+import { AccountMenu, applyAppearance } from "@/components/app-shell/account-menu";
+import { APPEARANCES, appearanceOf, type Appearance } from "@/lib/theme";
+import { TEAM_ICONS_KEY, TeamIcon, TeamIconPicker, readTeamIcons } from "@/components/app-shell/team-icons";
 import { CommandMenu, type CommandItem } from "@/components/app-shell/command-menu";
 import { OPEN_COMMAND_EVENT } from "@/components/app-shell/command-context";
 import { switchCompany, type ShellCompany } from "@/components/app-shell/company-menu";
@@ -152,6 +154,28 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [pins, setPins] = useState<string[]>([]);
   const [onlyAttn, setOnlyAttn] = useState(false);
+  // A team's icon comes from its name; one chosen by right-clicking the team is kept in this browser.
+  const [icons, setIcons] = useState<Record<string, string>>({});
+  const [picking, setPicking] = useState<{ id: string; name: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    try {
+      setIcons(readTeamIcons(localStorage.getItem(TEAM_ICONS_KEY)));
+    } catch {
+      /* every team keeps its match */
+    }
+  }, []);
+  const chooseIcon = (id: string, key: string | null) =>
+    setIcons((all) => {
+      const next = { ...all };
+      if (key) next[id] = key;
+      else delete next[id];
+      try {
+        localStorage.setItem(TEAM_ICONS_KEY, JSON.stringify(next));
+      } catch {
+        /* chosen for this visit */
+      }
+      return next;
+    });
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(PINS_KEY) ?? "[]");
@@ -196,10 +220,17 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
             type="button"
             onClick={() => setOpen((o) => ({ ...o, [t.id]: !isOpen }))}
             aria-expanded={isOpen}
+            // Right-click, or the keyboard's menu key, opens the icon picker where the pointer is
+            onContextMenu={(e) => {
+              e.preventDefault();
+              const box = e.currentTarget.getBoundingClientRect();
+              setPicking({ id: t.id, name: t.name, x: e.clientX || box.left + 8, y: e.clientY || box.bottom });
+            }}
+            title="Right-click to change the icon"
             className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pl-1.5 text-left"
             style={indent ? { paddingLeft: 6 + t.depth * 12 } : undefined}
           >
-            <Users size={14} className="shrink-0 text-mute" />
+            <TeamIcon name={t.name} chosen={icons[t.id]} />
             <span className={cn("truncate", picked ? "text-ink" : "text-body")}>{t.name}</span>
             <ChevronRight size={12} className={cn("shrink-0 text-dim transition-transform", isOpen && "rotate-90")} />
           </button>
@@ -249,6 +280,18 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
 
   return (
     <div className="sb-teams flex min-h-0 flex-col">
+      {picking && (
+        <TeamIconPicker
+          team={picking.name}
+          at={picking}
+          chosen={icons[picking.id]}
+          onClose={() => setPicking(null)}
+          onPick={(key) => {
+            chooseIcon(picking.id, key);
+            setPicking(null);
+          }}
+        />
+      )}
       <div className="mt-5 flex shrink-0 items-center px-1.5 text-xs text-dim">
         Teams <span className="ml-1.5 tabular-nums">{teams.length}</span>
         <button
@@ -280,27 +323,57 @@ function Teams({ teams, stats }: { teams: ShellTeam[]; stats: Record<string, Tea
   );
 }
 
-/** The sun or the moon: whichever theme is not on screen now. The account menu keeps Light, Dark and System. */
+/** One mark per look, the same wherever it is named. */
+const LOOK_ICON: Record<Appearance, React.ReactNode> = {
+  "classic-dark": <MoonStar size={14} />,
+  dark: <Moon size={14} />,
+  light: <Sun size={14} />,
+  "max-light": <Contrast size={14} />,
+  system: <Monitor size={14} />,
+};
+
+/** The look: the button opens the list of them, each with its mark and a line saying what it is. The account menu keeps Light, Dark and System. */
 function ThemeButton() {
+  // Until the page is read, nothing is marked as chosen; the server cannot know what System resolves to.
+  const [pick, setPick] = useState<Appearance | null>(null);
   const [dark, setDark] = useState(false);
-  useEffect(() => {
-    const t = document.documentElement.dataset.theme;
+  const read = () => {
+    const root = document.documentElement;
+    const t = root.dataset.theme;
+    setPick(appearanceOf(t, root.dataset.look));
     setDark(t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches));
-  }, []);
-  const name = dark ? "Switch to light mode" : "Switch to dark mode";
+  };
+  useEffect(read, []);
+  const items: MenuItem[] = [
+    { heading: "Appearance" },
+    ...APPEARANCES.map((a) => ({
+      on: pick === a.key,
+      onPick: () => {
+        applyAppearance(a.key);
+        read();
+      },
+      label: (
+        <span className="flex items-center gap-2.5 py-0.5">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-line-strong text-body">{LOOK_ICON[a.key]}</span>
+          <span className="min-w-0">
+            <span className="block truncate text-ink">{a.name}</span>
+            <span className="block truncate text-xs text-mute">{a.means}</span>
+          </span>
+        </span>
+      ),
+    })),
+  ];
   return (
-    <button
-      type="button"
-      aria-label={name}
-      title={name}
-      onClick={() => {
-        applyTheme(dark ? "light" : "dark");
-        setDark(!dark);
-      }}
-      className="flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-sel hover:text-ink"
-    >
-      {dark ? <Sun size={15} /> : <Moon size={15} />}
-    </button>
+    <Menu
+      up
+      width={264}
+      items={items}
+      trigger={() => (
+        <button type="button" aria-label="Appearance" title="Appearance" className="flex size-7 shrink-0 items-center justify-center rounded-md text-mute transition-colors hover:bg-sel hover:text-ink">
+          {dark ? <Moon size={15} /> : <Sun size={15} />}
+        </button>
+      )}
+    />
   );
 }
 

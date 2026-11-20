@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsLeft, ChevronsRight,
 import { openCommandMenu } from "@/components/app-shell/command-context";
 import { FUNNEL_INSET, Funnel } from "@/components/tickets/funnel";
 import { Kbd, TacitMark, ToneLegend, heading, useMod } from "@/components/tickets/kit";
-import { TONE_COLOR, toneOfName, worst } from "@/components/tickets/tone";
+import { TONE_COLOR, toneOfName, worst, type Tone } from "@/components/tickets/tone";
 import type { HomeArrival, HomeTicketsRead } from "@/lib/client/home-tickets";
 import { FUNNEL_STAGES, HEALTH, STANDINGS, WAYS, healthOf, standingLabel, standingOf, tally, yearWindow, type Way } from "@/lib/client/home-tickets-rules";
 
@@ -102,7 +102,27 @@ function Lead({ title, n, none, parts }: { title: string; n: number; none: strin
   );
 }
 
-const tileCls = "flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors";
+// A person's tile, set as Testbench sets a candidate's card: the name in Mona Sans, the job and
+// the pill in the code face. No border: the tint is the tile.
+const tileCls = "flex min-h-[92px] min-w-0 flex-col rounded-lg px-3.5 py-3 text-left transition-colors";
+const tileName = "w-full truncate font-[family-name:var(--font-display)] text-[14px] font-medium tracking-[-0.01em] text-ink";
+// Small enough that a whole job title fits, on two lines if it must
+const tileJob = "mt-0.5 line-clamp-2 w-full font-[family-name:var(--font-code)] text-[11px] leading-[1.35] text-mute";
+/** Where someone stands, as pills at the foot of their tile: one per thing said, each whole, wrapping to a second line before it is ever cut. */
+function TilePills({ parts }: { parts: string[] }) {
+  return (
+    <span className="mt-auto flex w-full min-w-0 flex-wrap gap-1 pt-2.5">
+      {parts.map((p) => (
+        <span key={p} style={{ background: "rgba(var(--fg-rgb), 0.1)" }} className="max-w-full rounded-md px-1.5 py-[3px] font-[family-name:var(--font-code)] text-[11px] leading-[1.3] text-ink">
+          {p}
+        </span>
+      ))}
+    </span>
+  );
+}
+// A pill is two words at most. In the funnel it says how the person stands; their next step, in full, is on hover.
+const TONE_WORDS: Record<Tone, string> = { failed: "Overdue", needs: "Needs You", waiting: "No Reply", running: "On Track" };
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export function HomeTickets({ firstName, read }: { firstName: string; read: HomeTicketsRead }) {
   const mod = useMod("K");
@@ -352,11 +372,9 @@ export function HomeTickets({ firstName, read }: { firstName: string; read: Home
               <Lead title={long.format(day.at)} n={unique.length} none="Nobody came in" parts={standings} />
               {unique.slice(0, 4).map((a) => (
                 <Link key={a.personId} href={`/client/candidates/${a.personId}`} className={`tint-${a.tone} ${tileCls}`}>
-                  <span className="w-full truncate font-medium text-ink">{a.name}</span>
-                  <span className="w-full truncate text-mute">{a.job}</span>
-                  <span className="mt-auto w-full truncate pt-2 text-xs text-dim">
-                    {standingLabel(a.stage)}, {wayLabel(a.way)}
-                  </span>
+                  <span className={tileName}>{a.name}</span>
+                  <span className={tileJob}>{a.job}</span>
+                  <TilePills parts={[standingLabel(a.stage), capital(wayLabel(a.way))]} />
                 </Link>
               ))}
             </div>,
@@ -410,10 +428,10 @@ export function HomeTickets({ firstName, read }: { firstName: string; read: Home
             <div key={stage} className="anim-rise mt-5 grid grid-cols-2 gap-2 border-t border-line px-5 pt-5 @max-2xl:px-4 @2xl:grid-cols-4 @5xl:grid-cols-6">
               <Lead title={funnel[stage]!.name} n={inStage.length} none="Nobody here" parts={health} />
               {shownTiles.map((l) => (
-                <Link key={l.applicationId} href={`/client/candidates/${l.personId}`} className={`tint-${l.tone} ${tileCls}`}>
-                  <span className="w-full truncate font-medium text-ink">{l.name}</span>
-                  <span className="w-full truncate text-mute">{l.job}</span>
-                  <span className="mt-auto w-full truncate pt-2 text-xs text-dim">{l.next ?? "Nothing set"}</span>
+                <Link key={l.applicationId} href={`/client/candidates/${l.personId}`} title={l.next ?? undefined} className={`tint-${l.tone} ${tileCls}`}>
+                  <span className={tileName}>{l.name}</span>
+                  <span className={tileJob}>{l.job}</span>
+                  <TilePills parts={[TONE_WORDS[l.tone]]} />
                 </Link>
               ))}
               {inStage.length > TILES && (

@@ -128,10 +128,15 @@ export default async function ClientTickets({ searchParams }: { searchParams: Pr
     <div className="@container flex h-full min-w-0 flex-1 flex-col">
       <Header scope={team} title="Tickets" tabs={[{ label: "Active", href: qs({ all: null, t: null }), on: !all }, { label: "All", href: qs({ all: "1", t: null }), on: all }]} />
       <div className="scroll-quiet flex-1 overflow-y-auto">
-        <Blocks title={`${interviewing.length} interviewing now`} blocks={blocks} param="round" />
+        {/* The rounds stand apart from the list under them, and each group of the list from the next */}
+        {blocks.length > 0 && (
+          <div className="mb-3 border-b border-line pb-4">
+            <Blocks title={`${interviewing.length} interviewing now`} blocks={blocks} param="round" />
+          </div>
+        )}
         {isTicketError(error) && <div className="px-5 pt-3"><Notice tone="error">{TICKET_ERRORS[error]}</Notice></div>}
         {asks.length > 0 && !round && (
-          <details open className="group/s">
+          <details open className="group/s mb-5">
             <summary className="sticky top-0 z-10 flex h-9 cursor-default list-none items-center gap-2.5 bg-panel pt-1 pr-3 pl-5 [&::-webkit-details-marker]:hidden">
               <StatusIcon status="needs" label="Waiting on your sign-off" />
               <span className="font-medium text-ink">Approvals</span>
@@ -156,7 +161,7 @@ export default async function ClientTickets({ searchParams }: { searchParams: Pr
           const rows = shown.filter((t) => t.status === s);
           if (!rows.length) return null;
           return (
-            <details key={s} open className="group/s">
+            <details key={s} open className="group/s mb-5">
               <summary className="sticky top-0 z-10 flex h-9 cursor-default list-none items-center gap-2.5 bg-panel pt-1 pr-3 pl-5 [&::-webkit-details-marker]:hidden">
                 <StatusIcon status={s} />
                 <span className="font-medium text-ink">{STATUS_LABEL[s]}</span>

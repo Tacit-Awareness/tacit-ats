@@ -1215,7 +1215,7 @@ body:has(.ui-root) {
     --fg-rgb: 237, 237, 236;
     --muted-text: #b6b6b3;
     --faint: #8a8a87;
-    --ink-4: #5d5d5b;
+    --ink-4: #6b6b68; /* 3.5:1 on the panel; #5d5d5b was 2.9:1 */
     --line: #1f1f21;
     --line-strong: #2a2a2d;
     --field: #2a2a2d;
@@ -1279,7 +1279,7 @@ body:has(.ui-root) {
   --fg-rgb: 237, 237, 236;
   --muted-text: #b6b6b3;
   --faint: #8a8a87;
-  --ink-4: #5d5d5b;
+  --ink-4: #6b6b68; /* 3.5:1 on the panel; #5d5d5b was 2.9:1 */
   --line: #1f1f21;
   --line-strong: #2a2a2d;
   --field: #2a2a2d;
@@ -1330,6 +1330,99 @@ body:has(.ui-root) {
   --wash-waiting: 167 179 230;
   --wash-running: 156 205 179;
   --wash-a: 0.11;
+}
+
+/* Two looks on top of the themes (lib/theme.ts): <html data-look> beside
+   data-theme. Each is only the tokens that differ; a look on the other theme
+   matches nothing here.
+   Dark: the same night lifted to a soft charcoal. Classic Dark is the block above. */
+:root[data-theme="dark"][data-look="soft"]:has(.ui-root) {
+  --frame: #131417;
+  --surface: #191a1e;
+  --paper: #191a1e;
+  --raised: #191a1e;
+  --pane: #191a1e;
+  --band: #1e2024;
+  --ink: #f0f0f2;
+  --fg-rgb: 240, 240, 242;
+  --muted-text: #c1c3c9;
+  --faint: #92959d;
+  --ink-4: #686c74;
+  --line: #26282d;
+  --line-strong: #34373d;
+  --field: #34373d;
+  --soft: #1e2024;
+  --soft-strong: #24262b;
+  --pick: #191a1e;
+  --pick-ink: #f0f0f2;
+  --pick-shadow: 0 0 0 1px #34373d;
+  --track: #131417;
+  --hover: #1e2024;
+  --press: #24262b;
+  --sel: #24262b;
+  --primary: #f0f0f2;
+  --primary-hover: #d9d9dc;
+  --primary-ink: #131417;
+  --tone-1: #34373d;
+  --tone-2: #686c74;
+  --ring: 0 0 0 1px #26282d;
+  --shadow: 0 0 0 1px #34373d;
+  --shadow-sm: 0 0 0 1px #34373d;
+  --pop-shadow: 0 0 0 1px #34373d, 0 16px 40px -12px rgba(0, 0, 0, 0.4);
+  --btn-ring: inset 0 0 0 1px #34373d;
+  --chip: #2f3238;
+  --wash-a: 0.12;
+}
+/* Max Light: white throughout, black ink, deeper status colours. Structure comes from the lines alone. */
+:root[data-theme="light"][data-look="max"]:has(.ui-root) {
+  --frame: #ffffff;
+  --band: #f3f4f7;
+  --ink: #000000;
+  --fg-rgb: 0, 0, 0;
+  --muted-text: #1b1d21;
+  --faint: #474a52;
+  --ink-4: #6b6e77;
+  --line: #dcdfe5;
+  --line-strong: #b7bbc5;
+  --field: #b7bbc5;
+  --soft: #f3f4f7;
+  --soft-strong: #e9ebf0;
+  --pick-ink: #000000;
+  --pick-shadow: 0 0 0 1px #b7bbc5;
+  --track: #f3f4f7;
+  --hover: #f3f4f7;
+  --press: #e9ebf0;
+  --sel: #e9ebf0;
+  --primary: #000000;
+  --primary-hover: #1b1d21;
+  --primary-ink: #ffffff;
+  --green: #1c7a4e;
+  --green-bright: #1c7a4e;
+  --green-soft: rgb(34 132 86 / 0.14);
+  --red: #b0352e;
+  --red-soft: rgb(196 62 54 / 0.14);
+  --amber: #96690f;
+  --amber-soft: rgb(190 135 20 / 0.16);
+  --blue: #3b50b5;
+  --blue-soft: rgb(66 88 190 / 0.14);
+  --tone-3: #96690f;
+  --tone-5: #3b50b5;
+  --st-3: #96690f;
+  --st-5: #3b50b5;
+  --done: #3b50b5;
+  --closed: #b3b7c0;
+  --ring: 0 0 0 1px #dcdfe5;
+  --shadow: 0 0 0 1px #b7bbc5;
+  --shadow-sm: 0 0 0 1px #b7bbc5;
+  --pop-shadow: 0 0 0 1px #b7bbc5, 0 16px 40px -12px rgba(0, 0, 0, 0.2);
+  --btn-ring: inset 0 0 0 1px #b7bbc5;
+  --chip: #dfe2e9;
+  --s-done: #8a8d96;
+  --wash-needs: 190 135 20;
+  --wash-failed: 196 62 54;
+  --wash-waiting: 66 88 190;
+  --wash-running: 34 132 86;
+  --wash-a: 0.14;
 }
 
 /* Inter at 13px, a touch heavier and tighter than its default, as Tacit Tickets sets it */
