@@ -6,18 +6,20 @@ import { Ico, ICON } from "@/components/careers/frame";
 import { groupBoard, matchRole, type BoardRole } from "@/lib/public/board";
 import { withVia, type Channel } from "@/lib/public/channel";
 
-// The board's roles: a search field beside the title, then one white card of
-// team bands (each a <details>, so it folds with no script) and role rows, as
-// Testbench's grouped lists. The prototype's ⌘K menu is the search field: ⌘K or
-// Ctrl K focuses it.
+// The board's roles (design/careers, as OpenAI's careers page): a quiet search
+// line, then each team as a folder row that folds (a <details>, so it works
+// with no script) and its roles as rows between hairlines: the title, where,
+// and "Apply now". ⌘K or Ctrl K focuses the search.
 
 function RoleRow({ role, channel }: { role: BoardRole; channel: Channel }) {
   return (
-    <Link className="row" href={withVia(`/jobs/${role.slug}`, channel)}>
-      <Ico d={ICON.file} />
-      <span className="row-title">{role.title}</span>
-      {role.location ? <span className="row-meta">{role.location}</span> : null}
-      <span className="row-apply">
+    <Link className="tv-row tv-leaf" href={withVia(`/jobs/${role.slug}`, channel)}>
+      <span className="tv-ico">
+        <Ico d={ICON.file} />
+      </span>
+      <span className="tv-label">{role.title}</span>
+      {role.location ? <span className="tv-meta">{role.location}</span> : null}
+      <span className="tv-apply">
         Apply now
         <Ico d={ICON.out} />
       </span>
@@ -25,9 +27,20 @@ function RoleRow({ role, channel }: { role: BoardRole; channel: Channel }) {
   );
 }
 
+/** ⌘ on Apple keyboards, Ctrl elsewhere; ⌘ until the browser says, as most readers are on a Mac. */
+function useApple(): boolean {
+  const [apple, setApple] = useState(true);
+  useEffect(() => {
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    setApple(/mac|iphone|ipad/i.test(nav.userAgentData?.platform || nav.platform || nav.userAgent));
+  }, []);
+  return apple;
+}
+
 export function Roles({ roles, channel }: { roles: BoardRole[]; channel: Channel }) {
   const [query, setQuery] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const apple = useApple();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -50,23 +63,36 @@ export function Roles({ roles, channel }: { roles: BoardRole[]; channel: Channel
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search ${roles.length} ${roles.length === 1 ? "role" : "roles"}`}
+          placeholder={`${roles.length} ${roles.length === 1 ? "role" : "roles"}`}
           aria-label="Search roles"
         />
-        <kbd className="kbd" title="⌘K or Ctrl K">
-          <Ico d={ICON.cmd} />k
+        <kbd className="keys" title={apple ? "⌘K" : "Ctrl K"}>
+          {apple ? <Ico d={ICON.cmd} /> : "Ctrl"}
+          <span>K</span>
         </kbd>
       </label>
-      <div className="list">
-        {groups.length === 0 ? <div className="list-empty">No roles match &ldquo;{query}&rdquo;</div> : null}
+      <div className="tv" aria-label="Open roles">
+        {groups.length === 0 ? <div className="tv-empty">No roles match &ldquo;{query}&rdquo;</div> : null}
         {groups.map((g) =>
           g.name ? (
-            // Searching opens every band; the key resets one the reader folded.
+            // Searching opens every team; the key resets one the reader folded.
             <details key={`${g.name}:${query ? "q" : ""}`} open>
-              <summary className="band">
-                <span className="band-name">{g.name}</span>
-                <span className="band-count">{g.roles.length}</span>
-                <Ico d={ICON.down} />
+              <summary className="tv-row tv-folder">
+                <span className="tv-chev">
+                  <Ico d={ICON.right} />
+                </span>
+                <span className="tv-ico">
+                  <svg className="ico f-closed" viewBox="0 0 24 24" aria-hidden>
+                    <path d={ICON.folder} />
+                  </svg>
+                  <svg className="ico f-open" viewBox="0 0 24 24" aria-hidden>
+                    <path d={ICON.folderOpen} />
+                  </svg>
+                </span>
+                <span className="tv-label">
+                  {g.name}
+                  <span className="tv-count">{g.roles.length}</span>
+                </span>
               </summary>
               {g.roles.map((r) => (
                 <RoleRow key={r.slug} role={r} channel={channel} />

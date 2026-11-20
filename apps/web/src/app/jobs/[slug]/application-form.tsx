@@ -1,6 +1,5 @@
 import { Ico, ICON } from "@/components/careers/frame";
 import { Marked } from "@/components/marked";
-import { StatusGlyph } from "@/components/page";
 import { formSections, questionLabel } from "@/lib/public/application";
 import { VIA, type Channel } from "@/lib/public/channel";
 import { ANSWER_PREFIX, DECLINE, EEOC_PREFIX, EEOC_QUESTIONS, HONEYPOT_FIELD, RESUME_FIELD, type PublicQuestion } from "@/lib/public/jobs";
@@ -12,8 +11,8 @@ import { APPLY_FORM } from "./guide";
 // answer's field is a_<question id>. The resume is a file, posted with the
 // rest as multipart (the route checks and stores it). The prototype's resume
 // reading, note writer, consent box and undo have nothing behind them yet.
-// Drawn as Testbench's sign-in card: one white card, 44px fields with a hard
-// edge, Geist Mono labels, and the company's colour on the submit button.
+// Drawn as design/careers' form: one bordered sheet of sections, white
+// fields on warm grey hairlines, and the company's colour on the submit button.
 
 export const answerField = (q: PublicQuestion) => `${ANSWER_PREFIX}${q.id}`;
 
@@ -115,10 +114,10 @@ function Question({ q }: { q: PublicQuestion }) {
 export function ApplicationForm({ slug, company, questions, notice, channel }: { slug: string; company: string; questions: PublicQuestion[]; notice: string | null; channel: Channel }) {
   const { resume, about, custom } = formSections(questions);
   return (
-    <form id={APPLY_FORM} className="form card" method="post" encType="multipart/form-data" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
+    <form id={APPLY_FORM} className="form" method="post" encType="multipart/form-data" action={`/api/jobs/${slug}/apply?${VIA}=${channel}`}>
       {notice ? (
         <p className="notice" role="alert">
-          <StatusGlyph kind="alert" />
+          <Ico d={ICON.alert} />
           {notice}
         </p>
       ) : null}

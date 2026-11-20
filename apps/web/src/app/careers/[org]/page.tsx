@@ -7,8 +7,8 @@ import { landingChannel, withVia } from "@/lib/public/channel";
 import { readJobBoard, readOrgBrand } from "@/lib/public/jobs";
 import { Roles } from "./roles";
 
-// A client's public careers page (design/careers's board): its live posts by
-// team. Public on purpose: proxy.ts runs only under /client, and the only
+// A client's public careers page (design/careers's board): "Careers at" and
+// the company's name in its own colour, then its live posts by team. Public on purpose: proxy.ts runs only under /client, and the only
 // database access is lib/public/jobs.ts as anon. An org that is not a client
 // and one with no live post are the same 404. Kept out of search engines, as
 // the posts are, until a company asks to be found. Someone who lands here from
@@ -39,7 +39,11 @@ export default async function CareersPage({
   return (
     <CareersFrame company={read.company} brand={brand} boardHref={withVia(`/careers/${org}`, channel)}>
       <section className="wrap board">
-        <h1 className="h1">Careers at {read.company}</h1>
+        <div className="board-head">
+          <h1 className="h1">
+            Careers at <span className="brand-name">{read.company}</span>
+          </h1>
+        </div>
         <Roles roles={read.roles} channel={channel} />
       </section>
     </CareersFrame>
