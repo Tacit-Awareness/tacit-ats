@@ -289,11 +289,16 @@
       & .mbar .t { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; }
       & .mbar .t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: var(--strong); }
       & .mbar .g-bar { margin: 0; }
-      & .has-mbar { padding-bottom: 80px; }
+      /* the bar never covers the foot */
+      &:has(.has-mbar) .foot-in { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
     }
     @media (max-width: 600px) {
-      & .brand { max-width: calc(100% - 150px); }
-      & .navbtn { padding: 0 12px 0 10px; font-size: 13.5px; }
+      /* the way back is an icon, so the company's name keeps the middle */
+      & .brand { max-width: calc(100% - 2 * 64px); }
+      & .navbtn { width: 36px; padding: 0; justify-content: center; }
+      & .navbtn-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      & .tv-leaf { padding-top: 12px; padding-bottom: 12px; }
+      & .tv-leaf .tv-label { white-space: normal; overflow-wrap: anywhere; }
       & .board { padding-top: 48px; }
       & .board-head { margin-bottom: 48px; }
       & .tv-meta,

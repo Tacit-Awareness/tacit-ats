@@ -71,7 +71,7 @@ export function Roles({ roles, channel }: { roles: BoardRole[]; channel: Channel
           <span>K</span>
         </kbd>
       </label>
-      <div className="tv" aria-label="Open roles">
+      <div className="tv" role="region" aria-label="Open roles">
         {groups.length === 0 ? <div className="tv-empty">No roles match &ldquo;{query}&rdquo;</div> : null}
         {groups.map((g) =>
           g.name ? (

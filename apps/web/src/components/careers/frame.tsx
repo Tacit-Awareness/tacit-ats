@@ -34,12 +34,41 @@ export const ICON = {
   cmd: "M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3",
 };
 
+const PAGE: [number, number, number] = [0xfc, 0xfb, 0xf8];
+
+function luminance(rgb: number[]): number {
+  const [r, g, b] = rgb.map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * The accent as text on the page: an accent is tuned as a button's fill, and a
+ * light one (a yellow, a pale cyan) is hard to read as a title, so it is taken
+ * darker, a step at a time, until it reads at 3:1 (large text). A colour that is
+ * not #rrggbb is used as it is.
+ */
+export function readableOnPage(hex: string): string {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return hex;
+  const page = luminance(PAGE);
+  let rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  for (let i = 0; i < 20 && (page + 0.05) / (luminance(rgb) + 0.05) < 3; i++) rgb = rgb.map((c) => c * 0.92);
+  return `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+}
+
 /** The company's colours on the page: its name in the title and the apply buttons. */
 function accentStyle(brand: PublicBrand | null): React.CSSProperties | undefined {
   if (!brand?.colors) return undefined;
   const { solid, onSolid } = brand.colors;
   // The hover is the brand a shade deeper, so a company colour never turns black under the pointer.
-  return { "--brand": solid, "--solid": solid, "--on-solid": onSolid, "--solid-hover": `color-mix(in oklab, ${solid} 86%, black)` } as React.CSSProperties;
+  return {
+    "--brand": readableOnPage(solid),
+    "--solid": solid,
+    "--on-solid": onSolid,
+    "--solid-hover": `color-mix(in oklab, ${solid} 86%, black)`,
+  } as React.CSSProperties;
 }
 
 export function CareersFrame({
@@ -70,7 +99,7 @@ export function CareersFrame({
           <nav className="corner" aria-label="Back">
             <Link className="navbtn" href={boardHref}>
               <Ico d={ICON.back} />
-              All roles
+              <span className="navbtn-text">All roles</span>
             </Link>
           </nav>
         ) : null}
