@@ -102,7 +102,21 @@ function Lead({ title, n, none, parts }: { title: string; n: number; none: strin
   );
 }
 
-const tileCls = "flex min-h-[84px] min-w-0 flex-col rounded-lg border border-line-strong px-3.5 py-3 text-left transition-colors";
+// A person's tile, set as Testbench sets a candidate's card: the name in Mona Sans, the job and
+// the pill in the code face. No border: the tint is the tile.
+const tileCls = "flex min-h-[84px] min-w-0 flex-col rounded-lg px-3.5 py-3 text-left transition-colors";
+const tileName = "w-full truncate font-[family-name:var(--font-display)] text-[14px] font-medium tracking-[-0.01em] text-ink";
+const tileJob = "mt-0.5 w-full truncate font-[family-name:var(--font-code)] text-xs text-mute";
+/** Where someone stands, as a pill on their tile. */
+function TilePill({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="mt-auto flex w-full min-w-0 pt-2.5">
+      <span className="inline-flex h-6 max-w-full items-center rounded-md bg-[rgb(var(--fg-rgb)/0.07)] px-2 font-[family-name:var(--font-code)] text-xs text-ink">
+        <span className="truncate">{children}</span>
+      </span>
+    </span>
+  );
+}
 
 export function HomeTickets({ firstName, read }: { firstName: string; read: HomeTicketsRead }) {
   const mod = useMod("K");
@@ -352,11 +366,11 @@ export function HomeTickets({ firstName, read }: { firstName: string; read: Home
               <Lead title={long.format(day.at)} n={unique.length} none="Nobody came in" parts={standings} />
               {unique.slice(0, 4).map((a) => (
                 <Link key={a.personId} href={`/client/candidates/${a.personId}`} className={`tint-${a.tone} ${tileCls}`}>
-                  <span className="w-full truncate font-medium text-ink">{a.name}</span>
-                  <span className="w-full truncate text-mute">{a.job}</span>
-                  <span className="mt-auto w-full truncate pt-2 text-xs text-dim">
+                  <span className={tileName}>{a.name}</span>
+                  <span className={tileJob}>{a.job}</span>
+                  <TilePill>
                     {standingLabel(a.stage)}, {wayLabel(a.way)}
-                  </span>
+                  </TilePill>
                 </Link>
               ))}
             </div>,
@@ -411,9 +425,9 @@ export function HomeTickets({ firstName, read }: { firstName: string; read: Home
               <Lead title={funnel[stage]!.name} n={inStage.length} none="Nobody here" parts={health} />
               {shownTiles.map((l) => (
                 <Link key={l.applicationId} href={`/client/candidates/${l.personId}`} className={`tint-${l.tone} ${tileCls}`}>
-                  <span className="w-full truncate font-medium text-ink">{l.name}</span>
-                  <span className="w-full truncate text-mute">{l.job}</span>
-                  <span className="mt-auto w-full truncate pt-2 text-xs text-dim">{l.next ?? "Nothing set"}</span>
+                  <span className={tileName}>{l.name}</span>
+                  <span className={tileJob}>{l.job}</span>
+                  <TilePill>{l.next ?? "Nothing set"}</TilePill>
                 </Link>
               ))}
               {inStage.length > TILES && (

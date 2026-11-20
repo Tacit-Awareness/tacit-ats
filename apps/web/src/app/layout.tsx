@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import localFont from "next/font/local";
 import { cookies } from "next/headers";
-import { THEME_COOKIE, parseTheme } from "@/lib/theme";
+import { LOOK_COOKIE, THEME_COOKIE, parseLook, parseTheme } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -31,16 +31,21 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 // cookie, read here so the first paint is already right; with no cookie the
 // CSS follows the system setting.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+  const jar = await cookies();
+  const theme = parseTheme(jar.get(THEME_COOKIE)?.value);
+  // The look is a variant of the theme (lib/theme.ts): Dark's charcoal, Max Light's white.
+  const look = parseLook(jar.get(LOOK_COOKIE)?.value);
   return (
     <html
       lang="en"
       suppressHydrationWarning
       data-theme={theme ?? undefined}
+      data-look={look ?? undefined}
       className={`h-full ${mona.variable} ${geistMono.variable} ${inter.variable}`}
       // Real code (a client ID, scopes, a token) keeps Geist Mono by its own name: the
       // client area's skin points --font-geist-mono at Inter (globals.css, Tacit Tickets).
-      style={{ "--font-code": geistMono.style.fontFamily } as React.CSSProperties}
+      // --font-display is Mona Sans by its own name, for the one place the client area sets a name in it (Home's people tiles).
+      style={{ "--font-code": geistMono.style.fontFamily, "--font-display": mona.style.fontFamily } as React.CSSProperties}
     >
       <body className="flex min-h-full flex-col bg-frame text-foreground">{children}</body>
     </html>
