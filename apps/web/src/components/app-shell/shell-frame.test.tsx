@@ -21,7 +21,7 @@ describe("the sidebar's foot", () => {
     const foot = html.slice(html.indexOf('class="sb-foot"'));
     const tools = foot.slice(foot.indexOf('class="sb-tools"'));
     expect(tools).toMatch(/<button[^>]*>(?:(?!<\/button>).)*Tutorial<\/span><\/button>/);
-    expect(tools).toContain("Switch to dark mode");
+    expect(tools).toContain('aria-label="Appearance"');
     expect(tools).toContain('href="/client/settings"');
     expect(tools.indexOf("Tutorial")).toBeLessThan(tools.indexOf("Settings"));
     expect(foot.indexOf("Account: Sam")).toBeLessThan(foot.indexOf('class="sb-tools"'));

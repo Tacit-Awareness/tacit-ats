@@ -8,7 +8,7 @@ import { TourButton } from "@/components/app-shell/shell-tour";
 import { useWarmth } from "@/components/app-shell/warmth";
 import { Kbd, Pill } from "@/components/page";
 import { SIGN_OUT_KEYS, menuKey, stepIndex } from "@/lib/keys";
-import { themeChoice, themeCookie, type ThemeChoice } from "@/lib/theme";
+import { appearanceParts, lookCookie, themeChoice, themeCookie, type Appearance, type ThemeChoice } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { MAX_WARMTH, warmthHint } from "@/lib/warmth";
 import "../overlays.css";
@@ -50,12 +50,24 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-/** Puts a theme on the page and keeps it in the cookie; the sidebar's sun and moon use it too. */
+/** Puts a theme on the page and keeps it in the cookie. It is the theme as it always was, so any look is dropped. */
 export function applyTheme(choice: ThemeChoice) {
   const root = document.documentElement;
   if (choice === "system") delete root.dataset.theme;
   else root.dataset.theme = choice;
+  delete root.dataset.look;
   document.cookie = themeCookie(choice);
+  document.cookie = lookCookie(null);
+}
+
+/** Puts one of the looks on the page (lib/theme.ts's APPEARANCES) and keeps it; the sidebar's menu and Settings use it. */
+export function applyAppearance(pick: Appearance) {
+  const { theme, look } = appearanceParts(pick);
+  applyTheme(theme);
+  if (look) {
+    document.documentElement.dataset.look = look;
+    document.cookie = lookCookie(look);
+  }
 }
 
 const WARMTH_STEPS = Array.from({ length: MAX_WARMTH + 1 }, (_, k) => k);
