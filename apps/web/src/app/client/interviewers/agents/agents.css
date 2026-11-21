@@ -1,0 +1,118 @@
+/* Interviewers > Agents: the board's dotted ground, the connectors' one bit
+   of motion, the cards' hover and the pop-up's entrance. Every colour is a
+   token, so the dark theme comes with them. Motion only where something is
+   live, and none at all under reduced motion. */
+
+@layer components {
+  /* The ground the graph sits on (Hy's reference's dotted grid): the box's
+     surface with a faint dot every 16px, ringed like a well. */
+  .agents-ground {
+    border-radius: 14px;
+    background-color: var(--surface);
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--line-strong) 85%, transparent) 1px, transparent 1.5px);
+    background-size: 16px 16px;
+    background-position: 7px 7px;
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+
+  /* A live connector: solid in the accent, with one faint, short light
+     drifting along it from the asking agent toward the asked, far apart so
+     a still frame shows a plain line, not a dashed one. */
+  .agents-flow {
+    stroke-width: 3px;
+    stroke-opacity: 0.22;
+    stroke-dasharray: 10 230;
+    animation: agents-flow 4s linear infinite;
+  }
+  @keyframes agents-flow {
+    from {
+      stroke-dashoffset: 10;
+    }
+    to {
+      stroke-dashoffset: -230;
+    }
+  }
+
+  /* What opens something answers the pointer: a card lifts a little, an item gets the stronger ring. */
+  .agents-card {
+    transition:
+      box-shadow 0.15s var(--ease-out),
+      transform 0.15s var(--ease-out);
+  }
+  .agents-card:hover {
+    box-shadow: var(--pop-shadow);
+  }
+  .agents-item {
+    transition: box-shadow 0.15s var(--ease-out);
+  }
+  .agents-item:hover {
+    box-shadow:
+      0 0 0 1px var(--line-strong),
+      0 1px 2px rgba(var(--fg-rgb), 0.06);
+  }
+
+  /* The last item a lane shows, when it holds more: it fades out toward the "more" under it. */
+  .agents-fade {
+    -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent);
+    mask-image: linear-gradient(to bottom, #000 35%, transparent);
+  }
+  .agents-fade:hover,
+  .agents-fade:focus-visible {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  /* A task's timeline: a hairline runs from under each step's square to
+     just above the next one's (squares sit 3px down a 20px line, 12px
+     apart), so the steps read as one line, not a row of ticks. */
+  .agents-step {
+    position: relative;
+  }
+  .agents-step:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 19px;
+    bottom: -1px;
+    left: 6.5px;
+    width: 1px;
+    background: var(--line-strong);
+  }
+
+  /* A finished handoff in the hub: flat on the ground with a dashed edge
+     (a border, so the keyboard ring, an outline, still shows). */
+  .agents-faded {
+    background: var(--surface);
+    border: 1px dashed var(--line-strong);
+  }
+  .agents-faded:hover {
+    background: var(--paper);
+  }
+
+  .agents-dialog::backdrop {
+    background: var(--scrim);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  .agents-dialog[open] {
+    animation: agents-pop 0.2s var(--ease-out) both;
+  }
+  @keyframes agents-pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.99);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agents-flow {
+    display: none;
+  }
+  .agents-dialog[open] {
+    animation: none;
+  }
+  .agents-card,
+  .agents-item {
+    transition: none;
+  }
+}

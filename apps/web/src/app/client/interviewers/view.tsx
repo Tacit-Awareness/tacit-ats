@@ -1,6 +1,7 @@
 import Link from "next/link";
 import * as React from "react";
 import { Empty, KeyValues, Page, PageBar, Pill, Section } from "@/components/page";
+import { InterviewersViewSwitch } from "./view-switch";
 import { buttonVariants } from "@/components/ui/button";
 import { hoverAttr } from "@/lib/hover-card";
 import { CHANNEL_LABELS, PREFERENCE_LABELS, type StoredProfile } from "@/lib/client/interviewer-profile";
@@ -246,7 +247,7 @@ export function InterviewersView({
   return (
     <Page
       bar={
-        <PageBar title="Interviewers" count={empty ? undefined : `${total} ${total === 1 ? "interviewer" : "interviewers"}`}>
+        <PageBar title="Interviewers" count={empty ? undefined : `${total} ${total === 1 ? "interviewer" : "interviewers"}`} lead={<InterviewersViewSwitch current="people" />}>
           {actions}
         </PageBar>
       }

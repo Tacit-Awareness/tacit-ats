@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Page, PageBar, Section, textLink } from "@/components/page";
+import { InterviewersViewSwitch } from "./view-switch";
 import { awayLabel } from "@/lib/client/interviewer-profile";
 import { readInterviewers, readOwnProfile } from "@/lib/client/interviewers";
 import { onboardingAccess, readPeople, readTitles } from "@/lib/client/onboarding";
@@ -27,7 +28,7 @@ export default async function ClientInterviewers() {
   if (accessLevel === "limited") {
     const [own, titles] = await Promise.all([readOwnProfile(db, actorId), readTitles(db)]);
     return (
-      <Page bar={<PageBar title="Interviewers" />}>
+      <Page bar={<PageBar title="Interviewers" lead={<InterviewersViewSwitch current="people" />} />}>
         <Section>
           <p className="m-0 text-[13px] text-muted-foreground">
             You&apos;re an interviewer here. The people you interview are on your{" "}
