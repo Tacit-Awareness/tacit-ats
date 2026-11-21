@@ -1,0 +1,1507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Polymr Careers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..600&display=swap">
+<style>
+/* A client's public careers page and one-page application (design shell, no backend).
+   Polymr's cues: Helvetica, a blue-black ink, a near-white page with a hint of
+   their cream, warm grey hairlines, corner-bracket frames.
+   The board is a lined list of roles grouped by team. Each role is one sheet with
+   Overview / Application tabs; on Application a checklist fills as the form does.
+   Light only, on purpose. */
+:root {
+  --bg: #fcfbf8;
+  --wash-bg: #f6f4ee;
+  --card: #fcfbf8;
+  --field: #ffffff;
+  --strong: #152027;
+  --ink: rgba(21, 32, 39, 0.9);
+  --text: #4c4a44;
+  --muted: #77746b;
+  --faint: #a8a59b;
+  --icon: #77746b;
+  --line: rgba(84, 81, 74, 0.1);
+  --line-2: rgba(84, 81, 74, 0.2);
+  --border: rgba(84, 81, 74, 0.3);
+  --fill: rgba(84, 81, 74, 0.09);
+  --wash: rgba(84, 81, 74, 0.06);
+  --solid: #10171e;
+  --on-solid: #fcfbf8;
+  --accent: #152027;
+  --accent-ink: #152027;
+  --accent-soft: rgba(84, 81, 74, 0.08);
+  --ok: #1a9a52;
+  --ok-bg: rgba(26, 154, 82, 0.08);
+  --red: #d64545;
+  --red-bg: rgba(214, 69, 69, 0.07);
+  --pdf: #e5484d;
+  --doc: #3c6ee8;
+  --png: #6a5cf0;
+  --shadow: 0 0 0 1px var(--border), 0 1px 2px 0 rgba(42, 38, 30, 0.05);
+  --shadow-pop: 0 0 0 0.5px rgba(21, 32, 39, 0.08), 0 12px 28px -10px rgba(21, 32, 39, 0.16), 0 1px 2px 0 rgba(21, 32, 39, 0.05);
+  --ring: 0 0 0 1px rgba(21, 32, 39, 0.5), 0 0 0 4px rgba(21, 32, 39, 0.06);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sans: "Helvetica Neue", Helvetica, "Helvetica World", Arial, sans-serif;
+  /* Linear's headings: Inter at its display optical size, medium weight, tight */
+  --display: "Inter", "Inter Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 14px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: inherit; text-decoration: none; }
+svg { display: block; }
+.ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid rgba(21, 32, 39, 0.45); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+/* ---------- top bar: the mark in the middle, chips in the corners ---------- */
+.top { position: relative; z-index: 20; }
+.top-in { position: relative; display: flex; align-items: center; justify-content: center; height: 72px; max-width: 1280px; margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 18px; letter-spacing: -0.03em; color: var(--strong); }
+.logo { width: 22px; height: 22px; flex: none; color: var(--strong); }
+.corner { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; gap: 4px; }
+.corner.l { left: max(20px, env(safe-area-inset-left)); }
+.corner.r { right: max(20px, env(safe-area-inset-right)); }
+/* chips in the style of affectui's reaction bar (clean): inset hairline, radius 6, a 16px stroke icon, a pop on press */
+.chipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 9px 0 8px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  transition: background-color 90ms ease, box-shadow 160ms ease, color 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.chipbtn .ico { width: 16px; height: 16px; color: var(--icon); transition: color 160ms ease; }
+@media (hover: hover) { .chipbtn:hover { background: linear-gradient(var(--wash), var(--wash)), var(--card); color: var(--ink); } .chipbtn:hover .ico { color: var(--ink); } }
+.chipbtn .kbd { margin-left: 2px; }
+/* header buttons in OpenAI's manner: a soft grey pill and a solid one, no outlines */
+.navbtn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14.5px; font-weight: 500; white-space: nowrap; transition: background-color 160ms ease, transform 160ms var(--ease); -webkit-tap-highlight-color: transparent; }
+.navbtn:active { transform: scale(0.97); }
+.navbtn .ico { width: 15px; height: 15px; }
+.navbtn.soft { padding-left: 13px; background: var(--fill); color: var(--strong); }
+.navbtn.soft:hover { background: rgba(84, 81, 74, 0.14); }
+.navbtn.solid { padding-right: 14px; background: var(--solid); color: var(--on-solid); }
+.navbtn.solid:hover { background: #26303a; }
+.navbtn.solid .ico { transition: transform 220ms var(--ease); }
+.navbtn.solid:hover .ico { transform: translate(1px, -1px); }
+.all-roles { visibility: hidden; opacity: 0; transition: opacity 240ms ease, visibility 0s 240ms, background-color 90ms ease, color 160ms ease; }
+.on-job .all-roles { visibility: visible; opacity: 1; transition: opacity 240ms ease 120ms, background-color 90ms ease, color 160ms ease; }
+.chipbtn:active .ico { animation: chip-pop 320ms cubic-bezier(0.65, 0, 0.35, 1); }
+@keyframes chip-pop { 35% { transform: scale(0.75); } 70% { transform: scale(1.12); } }
+.kbd { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--border); background: var(--card); color: var(--muted); font-size: 11.5px; font-weight: 500; line-height: 1; font-family: var(--display); }
+
+/* ---------- buttons, pills ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 3px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms var(--ease), opacity 160ms ease;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn.dark { background: var(--solid); color: var(--on-solid); }
+.btn.dark:hover:not(:disabled) { background: var(--strong); }
+.btn.dark:disabled { opacity: 0.35; cursor: default; }
+.btn.light { background: var(--card); box-shadow: var(--shadow); color: var(--strong); }
+.btn.light:hover { background: linear-gradient(var(--wash), var(--wash)), var(--card); }
+.btn.ghost { color: var(--text); }
+.btn.ghost:hover { background: var(--wash); color: var(--ink); }
+.btn.sm { height: 30px; padding: 0 12px; font-size: 13px; }
+.btn.wide { width: 100%; height: 44px; font-size: 15px; }
+.btn .ico { width: 15px; height: 15px; }
+.spinner { width: 13px; height: 13px; border: 1.5px solid rgba(255, 255, 255, 0.3); border-top-color: #fff; border-radius: 50%; animation: spin 700ms linear infinite; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--wash); color: var(--text); font-size: 13px; white-space: nowrap; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 6px; font-size: 12px; font-weight: 500; line-height: 16px; }
+.badge.ok { background: var(--ok-bg); color: var(--ok); }
+.badge.blue { background: var(--accent-soft); color: var(--accent-ink); }
+
+/* ---------- board: just the open roles ---------- */
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left)); }
+.wrap.narrow { max-width: 1000px; }
+.wrap.role { max-width: 1100px; }
+.board { padding: 96px 0 0; }
+.board-head { display: flex; justify-content: center; margin-bottom: 88px; text-align: center; }
+.h1 { margin: 0; font-family: var(--display); font-optical-sizing: auto; font-variation-settings: "opsz" 32; font-size: clamp(40px, 6vw, 64px); font-weight: 500; letter-spacing: -0.032em; line-height: 1.04; color: var(--strong); text-wrap: balance; }
+.board .search { margin-bottom: 18px; width: 100%; cursor: pointer; text-align: left; }
+.search .kbd { margin-left: auto; }
+.search span.ph { flex: 1; color: var(--faint); }
+/* search that doesn't look like a box: an icon, the count, and the shortcut */
+.findline { display: flex; align-items: center; gap: 8px; width: 100%; height: 52px; margin-bottom: 12px; padding: 0 14px 0 12px; text-align: left; color: var(--muted); font-size: 15px; border-radius: 6px; transition: color 160ms ease; }
+.findline > .ico { width: 18px; height: 18px; color: var(--strong); }
+.findline .ph { flex: 1; }
+.findline:hover { color: var(--ink); }
+.keys { display: inline-flex; align-items: center; gap: 4px; padding: 0 9px; height: 28px; border-radius: 7px; background: var(--fill); color: var(--strong); font-size: 13px; font-weight: 500; font-family: var(--display); letter-spacing: 0.01em; transition: background-color 160ms ease; }
+@media (hover: none) { .findline .keys { display: none; } }
+.findline:hover .keys { background: rgba(84, 81, 74, 0.14); }
+.search { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 4px; background: var(--card); box-shadow: var(--shadow); color: var(--muted); transition: box-shadow 160ms ease; }
+.search:focus-within { box-shadow: var(--ring); }
+.search input { border: 0; outline: none; background: transparent; flex: 1; min-width: 0; color: var(--ink); }
+.search input::placeholder { color: var(--faint); }
+
+/* ---------- command menu (search) ---------- */
+.cmd-scrim { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; background: rgba(252, 251, 248, 0.6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.cmd { width: min(620px, 100%); max-height: min(560px, 76vh); display: flex; flex-direction: column; border-radius: 14px; background: var(--card); box-shadow: 0 0 0 1px var(--border), 0 24px 60px -20px rgba(21, 32, 39, 0.25), 0 2px 6px rgba(21, 32, 39, 0.05); overflow: hidden; }
+.cmd-in { display: flex; align-items: center; gap: 12px; height: 58px; padding: 0 14px 0 18px; box-shadow: 0 1px 0 var(--line-2); flex: none; }
+.cmd-in .ico { width: 18px; height: 18px; color: var(--icon); }
+.cmd-in input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font-size: 16px; color: var(--ink); }
+.cmd-in input::placeholder { color: var(--faint); }
+.cmd-list { position: relative; flex: 1; overflow-y: auto; padding: 6px 8px 8px; }
+.cmd-hi { position: absolute; left: 8px; right: 8px; top: 0; height: 0; border-radius: 8px; background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--line-2); pointer-events: none; opacity: 0; }
+.cmd-sec { padding: 14px 10px 6px; font-size: 11.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cmd-item { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 10px; border-radius: 8px; text-align: left; font-size: 15px; color: var(--strong); }
+.cmd-tile { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 7px; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); color: var(--icon); }
+.cmd-tile .ico, .cmd-tile svg { width: 15px; height: 15px; }
+.cmd-tile .logo { width: 14px; height: 14px; }
+.cmd-tile svg:not(.logo) { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.cmd-label { white-space: nowrap; }
+.cmd-sub { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.cmd-keys { display: flex; gap: 4px; flex: none; }
+.cmd-empty { padding: 28px 10px; text-align: center; color: var(--muted); }
+.cmd-foot { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 14px; box-shadow: 0 -1px 0 var(--line-2); color: var(--muted); font-size: 13px; flex: none; }
+.cmd-foot .grow { flex: 1; }
+
+/* the roles tree: uiarc's tree view, ported (36px rows, 18px indent, a hairline branch, a gliding fill) */
+.tv { position: relative; }
+.tv-hover { position: absolute; left: 0; right: 0; top: 0; height: 0; border-radius: 8px; background: var(--accent-soft); opacity: 0; pointer-events: none; }
+.tv-row::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--line-2); }
+.tv-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 14px; border-radius: 8px; text-align: left; color: var(--text); outline: none; }
+.tv-row:focus-visible { box-shadow: var(--ring); }
+.no-gsap .tv-row:hover { background: var(--wash); }
+.tv-folder { font-weight: 500; color: var(--strong); font-size: 15px; min-height: 56px; }
+.tv-ico { position: relative; flex: none; width: 16px; height: 16px; color: var(--muted); transition: color 160ms ease; }
+.tv-ico svg { position: absolute; inset: 0; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tv-folder[aria-expanded="true"] .tv-ico, .tv-leaf:hover .tv-ico { color: var(--strong); }
+.tv-count { margin-left: 8px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.tv-chev { display: grid; place-items: center; flex: none; width: 14px; height: 16px; color: var(--muted); }
+.tv-chev svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.tv-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.45; }
+.tv-kids { overflow: hidden; }
+.tv-leaf { min-height: 66px; padding-left: 38px; } /* file icons sit under the folder icon, titles under the team name */
+.tv-leaf .tv-label { font-size: 15.5px; font-weight: 450; color: var(--strong); letter-spacing: -0.006em; }
+.tv-team { color: var(--muted); font-weight: 400; margin-left: 8px; }
+.tv-apply { display: inline-flex; align-items: center; gap: 4px; color: var(--strong); font-size: 15px; font-weight: 450; white-space: nowrap; }
+.tv-apply .ico { width: 14px; height: 14px; transition: transform 220ms var(--ease); }
+.tv-leaf:hover .tv-apply .ico { transform: translate(2px, -2px); }
+.tv-meta { color: var(--muted); font-size: 15px; white-space: nowrap; margin-right: 6px; }
+.tv-go { display: grid; place-items: center; color: var(--faint); transition: transform 220ms var(--ease), color 220ms ease; }
+.tv-leaf:hover .tv-go, .tv-leaf:focus-visible .tv-go { color: var(--ink); transform: translateX(3px); }
+.tv-empty { padding: 28px 12px; text-align: center; color: var(--muted); }
+.badge .ico { width: 12px; height: 12px; }
+.foot { margin: 96px 0 0; padding: 22px 0 40px; box-shadow: 0 -1px 0 var(--line-2); }
+.foot-in { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; color: var(--muted); font-size: 13px; }
+.foot-in .grow { flex: 1; }
+.foot-in a:hover { color: var(--ink); }
+.tacit { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+.tacit-mark { width: 13px; height: 13px; }
+
+/* ---------- role page: one centered column, Overview and Application tabs ---------- */
+.sheet { margin-top: 28px; padding: 40px 48px 56px; border-radius: 10px; background: var(--card); box-shadow: 0 0 0 1px var(--border), 0 24px 48px -32px rgba(21, 32, 39, 0.18); }
+.role-head { padding: 0; }
+.ghost { position: fixed; z-index: 40; overflow: hidden; border-radius: 6px; background: var(--card); box-shadow: 0 0 0 1px var(--border), 0 30px 60px -24px rgba(21, 32, 39, 0.28); pointer-events: none; }
+.ghost-title { position: absolute; left: 36px; top: 50%; transform: translateY(-50%); font-size: 15px; font-weight: 500; color: var(--strong); white-space: nowrap; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; }
+.back:hover { color: var(--ink); }
+.back .ico { width: 15px; height: 15px; }
+.role-head .h1 { margin-top: 0; font-size: clamp(32px, 5vw, 48px); }
+.tabbar { position: relative; display: flex; gap: 28px; margin-top: 30px; box-shadow: inset 0 -1px 0 var(--line-2); }
+.tabbar [role="tab"] { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 46px; font-size: 15px; font-weight: 500; color: var(--muted); transition: color 160ms ease; }
+.tabbar [role="tab"]:hover, .tabbar [role="tab"][aria-selected="true"] { color: var(--strong); }
+.tab-ind { position: absolute; left: 0; bottom: 0; width: 0; height: 2px; background: var(--strong); }
+.no-gsap .tab-ind { transition: transform 300ms var(--ease), width 300ms var(--ease); }
+.panel { padding-top: 36px; }
+.desc { font-size: 16px; line-height: 1.7; color: var(--ink); }
+.desc .lead-p { margin: 0 0 8px; font-size: 21px; line-height: 1.5; letter-spacing: -0.012em; color: var(--strong); text-wrap: pretty; }
+.desc h2 { margin: 36px 0 10px; font-family: var(--display); font-size: 17px; font-weight: 500; color: var(--strong); letter-spacing: -0.01em; }
+.desc p { margin: 0 0 10px; color: var(--text); }
+.desc ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: var(--text); }
+.desc li { position: relative; padding-left: 20px; }
+.desc li::before { content: ""; position: absolute; left: 2px; top: 0.72em; width: 5px; height: 5px; background: var(--strong); }
+.steps { display: grid; gap: 0; counter-reset: s; }
+.steps div { display: grid; grid-template-columns: 24px 1fr; gap: 12px; align-items: baseline; padding: 10px 0; box-shadow: 0 -1px 0 var(--line-2); color: var(--text); }
+.steps div:first-child { box-shadow: none; }
+.steps div::before { counter-increment: s; content: counter(s); width: 22px; height: 22px; border-radius: 3px; background: var(--fill); display: grid; place-items: center; font-size: 12px; font-weight: 500; color: var(--strong); }
+.panel .btn.wide { margin-top: 44px; }
+/* the side: what the job is, then (on Application) how far along you are */
+.role-grid { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 56px; margin-top: 34px; }
+.side { position: sticky; top: 24px; align-self: start; display: grid; gap: 28px; }
+.facts { margin: 0; display: grid; }
+.facts div { padding: 14px 0; box-shadow: 0 -1px 0 var(--line-2); }
+.facts div:first-child { padding-top: 14px; box-shadow: none; } /* puts Location on the tab labels' baseline */
+.facts dt { font-size: 13px; font-weight: 600; color: var(--strong); }
+.facts dd { margin: 3px 0 0; font-size: 14.5px; color: var(--text); }
+.facts dd small { display: block; margin-top: 1px; font-size: 13px; color: var(--muted); }
+.role-main .tabbar { margin-top: 0; }
+.role-main .form { margin-top: 0; }
+/* inside the sheet the guide drops its own box and continues the column */
+.side .guide { padding: 22px 0 0; border-radius: 0; background: none; box-shadow: 0 -1px 0 var(--line-2); }
+.side .g-head { padding: 0; }
+.side .g-bar { margin: 12px 0 10px; }
+.side .g-foot { padding: 12px 0 0; }
+/* on Application the facts step aside and the checklist takes the top of the column */
+.side.is-app .facts { display: none; }
+.side.is-app .guide { padding-top: 0; box-shadow: none; }
+/* the heading shares the tab bar's row, and the progress bar sits on its bottom edge */
+.side.is-app .g-head { align-items: center; height: 46px; }
+.side.is-app .g-bar { margin-top: -4px; }
+.rail { visibility: hidden; opacity: 0; }
+@media (max-width: 919px) {
+  .rail { display: none; }
+  .role-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; margin-top: 24px; }
+  .side { position: static; }
+  .side.is-app { display: none; }
+  .facts { grid-template-columns: 1fr 1fr; column-gap: 20px; }
+  .facts div, .facts div:first-child { padding: 10px 0; box-shadow: 0 -1px 0 var(--line-2); }
+  .facts div:nth-child(-n+2) { box-shadow: none; padding-top: 0; }
+  .facts div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+/* ---------- application ---------- */
+.form { margin-top: 28px; border-radius: 6px; background: var(--card); box-shadow: var(--shadow); }
+.sec { padding: 22px 22px 24px; border-top: 1px solid var(--line-2); scroll-margin-top: 90px; }
+.sec:first-child { border-top: 0; }
+.sec-title { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 14px; font-weight: 600; color: var(--strong); }
+.sec-title .badge { font-weight: 500; }
+.sec-sub { margin: -10px 0 14px; color: var(--muted); font-size: 13px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: grid; gap: 6px; margin-top: 14px; scroll-margin-top: 110px; }
+.grid2 .field { margin-top: 0; }
+.grid2 + .field { margin-top: 14px; }
+.field > label, .field > .lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--ink); }
+.req { color: var(--muted); font-weight: 400; }
+.input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--field);
+  box-shadow: inset 0 0 0 1px var(--border);
+  outline: none;
+  transition: box-shadow 160ms ease, background-color 600ms ease;
+}
+.input::placeholder { color: var(--faint); }
+.input:hover { box-shadow: inset 0 0 0 1px rgba(84, 81, 74, 0.5); }
+.input:focus { box-shadow: var(--ring); }
+textarea.input { height: auto; min-height: 120px; padding: 10px 12px; resize: vertical; line-height: 1.55; }
+.input.filled { background: var(--accent-soft); }
+.auto-tag { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; font-size: 12px; font-weight: 500; color: var(--accent-ink); animation: fade 300ms ease both; }
+.auto-tag .ico { width: 13px; height: 13px; }
+.yn { display: inline-flex; justify-self: start; padding: 2px; border-radius: 5px; background: var(--wash); box-shadow: inset 0 0 0 0.5px var(--line); }
+.yn button { height: 32px; min-width: 64px; padding: 0 14px; border-radius: 3px; color: var(--text); font-weight: 500; transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+.yn button:hover { color: var(--ink); }
+.yn button[aria-pressed="true"] { background: var(--field); color: var(--strong); box-shadow: var(--shadow); }
+.check-row { display: flex; gap: 10px; align-items: flex-start; color: var(--text); font-size: 13.5px; cursor: pointer; }
+.check-row input { position: absolute; opacity: 0; pointer-events: none; }
+.box { flex: none; width: 18px; height: 18px; margin-top: 1px; border-radius: 5px; box-shadow: inset 0 0 0 1px var(--faint); display: grid; place-items: center; transition: background-color 200ms var(--ease), box-shadow 200ms var(--ease); }
+.box svg { width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 300ms var(--ease) 80ms; }
+.check-row input:checked + .box { background: var(--accent); box-shadow: none; animation: pop 500ms var(--ease); }
+.check-row input:checked + .box svg { stroke-dashoffset: 0; }
+.check-row input:focus-visible + .box { box-shadow: var(--ring); }
+.check-row a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+details.eeo { margin-top: 2px; }
+details.eeo summary { list-style: none; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--strong); }
+details.eeo summary::-webkit-details-marker { display: none; }
+details.eeo summary .chev { margin-left: auto; color: var(--icon); transition: transform 240ms var(--ease); }
+details.eeo[open] summary .chev { transform: rotate(180deg); }
+details.eeo .sec-sub { margin: 6px 0 4px; }
+select.input { appearance: none; padding-right: 34px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000000' stroke-opacity='0.45' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='m8 10 4 4 4-4'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; }
+.submit-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.submit-row .hint { color: var(--muted); font-size: 13px; }
+
+/* ---------- drop zone (the resume / cover letter drop-in) ---------- */
+.drop {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 26px 18px 24px;
+  border-radius: 2px;
+  background: var(--wash-bg);
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+.drop::before {
+  --b: rgba(84, 81, 74, 0.55);
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--b), var(--b)) left top / 14px 1.5px no-repeat, linear-gradient(var(--b), var(--b)) left top / 1.5px 14px no-repeat,
+    linear-gradient(var(--b), var(--b)) right top / 14px 1.5px no-repeat, linear-gradient(var(--b), var(--b)) right top / 1.5px 14px no-repeat,
+    linear-gradient(var(--b), var(--b)) left bottom / 14px 1.5px no-repeat, linear-gradient(var(--b), var(--b)) left bottom / 1.5px 14px no-repeat,
+    linear-gradient(var(--b), var(--b)) right bottom / 14px 1.5px no-repeat, linear-gradient(var(--b), var(--b)) right bottom / 1.5px 14px no-repeat;
+  transition: inset 320ms var(--ease);
+}
+.drop:hover::before { inset: -4px; }
+.drop.over { background: var(--accent-soft); }
+.drop.over::before { inset: -7px; --b: #152027; }
+.drop b { font-weight: 500; color: var(--strong); font-size: 14.5px; }
+.drop b span { text-decoration: underline; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.drop small { color: var(--muted); font-size: 13px; }
+.drop.compact { grid-template-columns: auto 1fr; justify-items: start; text-align: left; padding: 14px 16px; gap: 2px 14px; }
+.drop.compact .stack { grid-row: span 2; transform: scale(0.72); margin: -14px -10px; }
+.stack { position: relative; width: 120px; height: 72px; margin-bottom: 8px; }
+.stack .doc {
+  position: absolute;
+  top: 12px;
+  width: 44px;
+  height: 54px;
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  transition: transform 420ms var(--ease);
+}
+.stack .doc i { position: absolute; left: 6px; bottom: 9px; padding: 1px 3px; border-radius: 3px; font-style: normal; font-size: 8.5px; font-weight: 600; letter-spacing: 0.02em; }
+.stack .doc::before { content: ""; position: absolute; right: 0; top: 0; width: 10px; height: 10px; background: linear-gradient(225deg, var(--wash-bg) 50%, rgba(21, 32, 39, 0.07) 50%); border-radius: 0 6px 0 3px; }
+.stack .l { left: 14px; transform: rotate(-12deg); }
+.stack .l i { color: var(--pdf); background: rgba(229, 72, 77, 0.09); }
+.stack .r { right: 14px; transform: rotate(12deg); }
+.stack .r i { color: var(--doc); background: rgba(60, 110, 232, 0.09); }
+.stack .c {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 50px;
+  height: 56px;
+  margin-left: -25px;
+  border-radius: 4px;
+  background: var(--card);
+  box-shadow: var(--shadow-pop);
+  display: grid;
+  place-items: center;
+  color: var(--strong);
+  transition: transform 420ms var(--ease);
+}
+.stack .c .ico { width: 18px; height: 18px; }
+.drop:hover .stack .l, .drop.over .stack .l { transform: translate(-8px, 2px) rotate(-20deg); }
+.drop:hover .stack .r, .drop.over .stack .r { transform: translate(8px, 2px) rotate(20deg); }
+.drop:hover .stack .c, .drop.over .stack .c { transform: translateY(-4px); }
+.drop.over .stack .c { animation: bob 900ms var(--ease) infinite alternate; }
+
+/* file rows */
+.files { display: grid; margin-top: 10px; }
+.file {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 12px 4px 12px 2px;
+  border-top: 1px solid var(--line-2);
+  animation: up 420ms var(--ease) both;
+}
+.file:first-child { border-top: 0; }
+.ftype { width: 18px; height: 22px; border-radius: 3px; box-shadow: inset 0 0 0 1.2px rgba(21, 32, 39, 0.35); position: relative; grid-row: span 2; align-self: start; margin-top: 2px; }
+.ftype::after { content: ""; position: absolute; left: -2px; right: 4px; bottom: 4px; height: 5px; border-radius: 1.5px; background: var(--c, var(--pdf)); }
+.fname { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; color: var(--strong); }
+.fname span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.okdot { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--ok); display: grid; place-items: center; animation: pop 500ms var(--ease); }
+.okdot svg { width: 10px; height: 10px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.fsub { grid-column: 2; color: var(--muted); font-size: 13px; }
+.fsub.err { color: var(--red); }
+.fbar { grid-column: 2; height: 3px; margin-top: 6px; border-radius: 2px; background: var(--fill); overflow: hidden; }
+.fbar i { display: block; height: 100%; width: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform 260ms linear; }
+.fbar.err i { background: var(--red); }
+.facts-x { display: flex; gap: 2px; grid-row: 1 / span 2; grid-column: 3; }
+.iconbtn { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: var(--icon); transition: background-color 160ms ease, color 160ms ease; }
+.iconbtn:hover { background: var(--wash); color: var(--ink); }
+.reading { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13.5px; font-weight: 500; animation: up 320ms var(--ease) both; }
+.reading .shim { background: linear-gradient(90deg, var(--accent-ink) 0%, rgba(21, 32, 39, 0.3) 40%, var(--accent-ink) 80%) 0 0 / 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 1.6s linear infinite; }
+.reading .ring { width: 14px; height: 14px; border-radius: 50%; border: 1.6px solid rgba(21, 32, 39, 0.18); border-top-color: var(--accent-ink); animation: spin 800ms linear infinite; }
+
+/* your story: three ways in */
+.modes { display: inline-flex; padding: 2px; border-radius: 5px; background: var(--wash); box-shadow: inset 0 0 0 0.5px var(--line); margin-bottom: 14px; }
+.modes button { height: 30px; padding: 0 12px; border-radius: 3px; color: var(--text); font-weight: 500; font-size: 13px; transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease; }
+.modes button:hover { color: var(--ink); }
+.modes button[aria-pressed="true"] { background: var(--field); color: var(--strong); box-shadow: var(--shadow); }
+.draft.live, .draft.live .draft-text { animation: none; }
+.draft { margin-top: 12px; border-radius: 6px; background: var(--card); box-shadow: var(--shadow); animation: up 360ms var(--ease) both; }
+.draft-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 14px; box-shadow: 0 1px 0 var(--line-2); font-size: 13px; color: var(--muted); }
+.draft-head b { color: var(--strong); font-weight: 500; }
+.draft-body { padding: 14px 16px 4px; }
+.draft-text { margin: -4px -6px; padding: 4px 6px; border-radius: 6px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; cursor: text; transition: background-color 160ms ease; animation: fade 280ms ease both; }
+.draft-text:hover { background: var(--wash); }
+.draft-edit { display: block; width: calc(100% + 12px); margin: -4px -6px; padding: 4px 6px; min-height: 120px; border: 0; border-radius: 6px; background: var(--wash); box-shadow: inset 0 0 0 1px var(--border); outline: none; resize: none; font-size: 14px; line-height: 1.6; color: var(--strong); caret-color: var(--accent); }
+.draft-tune { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 12px 12px 16px; flex-wrap: wrap; }
+.tones { display: flex; gap: 4px; flex-wrap: wrap; }
+.tones button { height: 28px; padding: 0 10px; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--border); font-size: 13px; font-weight: 500; color: var(--text); transition: background-color 160ms ease, color 160ms ease; }
+.tones button:hover { background: var(--wash); color: var(--ink); }
+.tones button[aria-pressed="true"] { background: var(--fill); color: var(--ink); }
+.tones .pen { width: 28px; padding: 0; display: grid; place-items: center; box-shadow: none; color: var(--icon); }
+.draft-tune small { color: var(--faint); font-size: 12px; }
+
+/* sent */
+.sent { padding: 34px 26px 30px; display: grid; justify-items: start; gap: 6px; animation: up 480ms var(--ease) both; }
+.sent .big-ok { width: 40px; height: 40px; border-radius: 12px; background: var(--ok-bg); color: var(--ok); display: grid; place-items: center; margin-bottom: 8px; animation: pop 600ms var(--ease); }
+.sent .big-ok svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 520ms var(--ease) 200ms forwards; }
+.sent h3 { margin: 0; font-family: var(--display); font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: var(--strong); }
+.sent p { margin: 0; color: var(--text); max-width: 52ch; }
+.next { width: 100%; margin-top: 18px; display: grid; }
+.next div { display: flex; align-items: center; gap: 10px; padding: 10px 0; box-shadow: 0 -1px 0 var(--line-2); color: var(--text); }
+.next div b { color: var(--strong); font-weight: 500; }
+.next .n { width: 20px; height: 20px; border-radius: 6px; background: var(--wash); display: grid; place-items: center; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.next .n.on { background: var(--ok-bg); color: var(--ok); }
+.sent .row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+/* ---------- the guide (sticky, fills as you go) ---------- */
+.guide { padding: 16px 6px 8px; border-radius: 6px; background: var(--card); box-shadow: var(--shadow); }
+.g-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 12px; }
+.g-head h3 { margin: 0; font-size: 15px; font-weight: 500; color: var(--strong); }
+.g-count { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.g-count .digit { display: inline-block; color: var(--ink); animation: roll 560ms var(--ease); }
+.g-bar { position: relative; height: 4px; margin: 12px 12px 10px; border-radius: 2px; background: var(--fill); overflow: hidden; }
+.g-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform 1100ms var(--ease); overflow: hidden; }
+.guide.complete .g-fill { background: var(--ok); }
+.g-shine { position: absolute; inset: 0; background: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%) 0 0 / 220% 100% no-repeat; animation: shine 1400ms ease-out both; }
+/* every step is always shown; a highlight glides to the one you're on and each finished step fills in */
+.g-steps { position: relative; margin: 6px 0 0; }
+.g-hi { position: absolute; left: -10px; right: -10px; top: 0; height: 0; border-radius: 8px; background: var(--wash); opacity: 0; pointer-events: none; }
+.g-step { position: relative; padding: 8px 0 8px 32px; }
+.g-step::before { content: ""; position: absolute; left: 10px; top: 32px; bottom: -6px; width: 1px; background: var(--line-2); }
+.g-step:last-child::before, .g-step:last-child .g-link { display: none; }
+.g-link { position: absolute; left: 10px; top: 32px; bottom: -6px; width: 1px; background: var(--ok); transform-origin: top; transform: scaleY(0); transition: transform 700ms var(--ease) 200ms; }
+.g-step.is-done .g-link { transform: scaleY(1); }
+.g-node { position: absolute; left: 0; top: 8px; display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--card); box-shadow: inset 0 0 0 1px var(--border); color: var(--muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; transition: background-color 320ms var(--ease), box-shadow 320ms var(--ease), color 320ms ease; }
+.g-node i { font-style: normal; transition: opacity 200ms ease, transform 300ms var(--ease); }
+.g-node svg { position: absolute; width: 13px; height: 13px; fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 120ms ease-in; }
+.g-step.is-cur .g-node { box-shadow: inset 0 0 0 1.5px var(--strong); color: var(--strong); }
+.g-step.is-done .g-node { background: var(--ok); box-shadow: none; animation: pop 560ms var(--ease); }
+.g-step.is-done .g-node i { opacity: 0; transform: scale(0.5); }
+.g-step.is-done .g-node svg { stroke-dashoffset: 0; transition: stroke-dashoffset 420ms var(--ease) 140ms; }
+.g-step-head { display: flex; align-items: center; gap: 8px; min-height: 21px; font-weight: 500; color: var(--strong); }
+.g-step-head .t { background: linear-gradient(var(--faint), var(--faint)) 0 60% / 0% 1px no-repeat; transition: background-size 520ms var(--ease), color 300ms ease; }
+.g-step.is-done .g-step-head .t { color: var(--muted); background-size: 100% 1px; }
+.g-step-head .n { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.g-items { padding: 4px 0 0; transition: opacity 300ms ease; }
+.g-step:not(.is-cur) .g-items { opacity: 0.62; }
+.g-item { display: flex; align-items: center; gap: 10px; width: calc(100% + 16px); margin: 0 -8px; padding: 5px 8px; border-radius: 6px; text-align: left; font-size: 13.5px; color: var(--ink); transition: background-color 90ms ease-out; }
+.g-item:hover { background: var(--wash); }
+.g-check { flex: none; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(21, 32, 39, 0.2); transition: background-color 220ms var(--ease), box-shadow 220ms var(--ease); }
+.g-item.next .g-check { box-shadow: inset 0 0 0 1px var(--accent); }
+.g-check svg { width: 12px; height: 12px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 120ms ease-in; }
+.g-item[aria-checked="true"] .g-check { background: var(--ok); box-shadow: none; animation: pop 560ms var(--ease); }
+.g-item[aria-checked="true"] .g-check svg { stroke-dashoffset: 0; transition: stroke-dashoffset 420ms var(--ease) 160ms; }
+.g-lbl { flex: 1 0 auto; white-space: nowrap; transition: color 300ms ease; }
+.g-item[aria-checked="true"] .g-lbl { color: var(--muted); }
+/* what you entered shows up next to the item */
+.g-val { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12.5px; opacity: 0; transform: translateX(-6px); transition: opacity 160ms ease, transform 160ms ease; }
+.g-item[aria-checked="true"] .g-val { opacity: 1; transform: none; transition: opacity 360ms ease 180ms, transform 480ms var(--ease) 180ms; }
+.g-item .opt { color: var(--faint); font-size: 12px; }
+.g-foot { display: flex; align-items: center; gap: 10px; padding: 10px 6px 4px 12px; margin-top: 4px; box-shadow: 0 -1px 0 var(--line-2); }
+.g-foot .left { flex: 1; color: var(--muted); font-size: 13px; }
+.side-note { padding: 0 6px; color: var(--muted); font-size: 12.5px; }
+
+/* phone: the guide becomes a bar at the bottom */
+.mbar { display: none; }
+
+@keyframes up { from { opacity: 0; transform: translateY(8px); } }
+@keyframes fade { from { opacity: 0; } }
+@keyframes pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes roll { from { opacity: 0; transform: translateY(60%); } }
+@keyframes shine { from { background-position: 120% 0; opacity: 1; } to { background-position: -20% 0; opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes bob { to { transform: translateY(-9px); } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes flash { 0% { background-color: rgba(21, 32, 39, 0.08); } }
+
+@media (max-width: 919px) {
+  .mbar {
+    transform: translateY(110%);
+    transition: transform 520ms var(--ease);
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    align-items: center;
+    gap: 12px;
+    padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: rgba(252, 251, 248, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 -1px 0 var(--line-2);
+  }
+  .mbar.on { transform: none; }
+  .mbar .grow { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .mbar .t { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .mbar .t b { color: var(--strong); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mbar .g-bar { margin: 0; }
+  body.on-job { padding-bottom: 80px; }
+}
+@media (max-width: 600px) {
+  .hide-sm { display: none !important; }
+  .chipbtn { padding: 0 8px; }
+  .tv-meta, .tv-apply, .tv-team { display: none; }
+  .sheet { margin: 12px -8px 0; padding: 24px 18px 40px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .grid2 .field + .field { margin-top: 0; }
+  .board { padding-top: 48px; }
+  .sec { padding: 18px 16px 20px; }
+
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <nav class="corner l" aria-label="Back">
+    <a class="navbtn soft all-roles" href="#"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>All roles</a>
+  </nav>
+  <a class="brand" href="#" aria-label="Polymr open roles"><svg class="logo" viewBox="160 160 1660 1690" aria-hidden="true"><path fill="currentColor" d="M197 610 240 560 940 197 1040 178 1797 560 1470 732 1040 505 570 733 505 793 500 1545 470 1562 182 1398Z"/><path fill="currentColor" d="M720 1243 805 1170 1440 795 1444 1150 962 1440 958 1825 716 1708Z"/></svg>polymr</a>
+  <div class="corner r">
+    <a class="navbtn solid" href="https://www.polymr.tech/" target="_blank" rel="noopener"><span><span class="hide-sm">Polymr </span>Website</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+  </div>
+</div></header>
+<main id="view"></main>
+<div class="mbar" id="mbar" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/Flip.min.js"></script>
+<script>
+// Sample content: role copy is placeholder text for the mockup, not Polymr's.
+const DEPTS = ["Product", "GTM", "Research"];
+const ROLES = [
+  { id: "product", title: "Founding Engineer (Product)", dept: "Product", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$180K – $240K",
+    blurb: "Shape what customers see and touch, from the first screen to the last detail.",
+    does: ["Build the product's front end and the APIs behind it", "Turn rough ideas into polished, fast interfaces", "Talk to users and ship changes the same week"],
+    fit: ["You have a portfolio of product work you are proud of", "You notice details others miss", "You are as happy in TypeScript as in a design file"] },
+  { id: "platform", title: "Founding Engineer (Platform)", dept: "Product", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$180K – $240K",
+    blurb: "Build the foundation everything else runs on: infrastructure, data and the developer experience.",
+    does: ["Design the core services, data model and deploy pipeline", "Make the system fast, observable and cheap to run", "Set the engineering bar for the team as it grows"],
+    fit: ["You have run production systems and been on call for them", "You care about reliability and good defaults", "You like small teams and broad ownership"] },
+  { id: "designer", title: "Founding Product Designer", dept: "Product", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$160K – $210K",
+    blurb: "Own how the product looks, feels and works, end to end.",
+    does: ["Design flows from the first sketch to shipped pixels", "Build and keep the design system", "Sit with customers and watch them work"],
+    fit: ["You have shipped product design you can walk us through", "You prototype in code or are keen to learn", "You care about the small details"] },
+  { id: "ae", title: "Founding Account Executive", dept: "GTM", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$140K – $180K + commission",
+    blurb: "Be the first person customers talk to, and help write the sales playbook.",
+    does: ["Run the full cycle from first call to signed contract", "Feed what you hear straight back into the product", "Build the playbook the next hires will use"],
+    fit: ["You have closed technical deals with startups or enterprises", "You are curious about how customers work", "You like building from zero"] },
+  { id: "growth", title: "Head of Growth", dept: "GTM", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$170K – $220K",
+    blurb: "Find the channels that work and turn them into a repeatable engine.",
+    does: ["Own acquisition, activation and the numbers behind them", "Run fast experiments and write up what you learn", "Work with product on the first-run experience"],
+    fit: ["You have grown a product from early traction", "You are comfortable with data and with writing", "You move fast and measure everything"] },
+  { id: "applied-ai", title: "Founding Engineer (Applied AI)", dept: "Research", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$190K – $260K",
+    blurb: "Take models from a notebook to something customers rely on every day.",
+    does: ["Own features end to end, from the first prototype to production", "Build evaluation and feedback loops so the product gets better every week", "Work directly with customers to find the problems worth solving"],
+    fit: ["You have shipped ML or LLM features that real people use", "You are comfortable deciding what to build, not just how", "You write clear code and clear docs"] },
+  { id: "scientist", title: "Research Scientist", dept: "Research", place: "San Francisco", type: "Full time", mode: "On-site", pay: "$200K – $280K",
+    blurb: "Push what our models can do, and turn results into product.",
+    does: ["Design and run experiments on the problems that matter most", "Build the evaluation sets everyone trusts", "Publish internally and help engineers ship your work"],
+    fit: ["You have a research track record in ML", "You can write production-quality code", "You enjoy short loops between research and users"] },
+];
+const QUESTIONS = [
+  { id: "auth", label: "Are you authorized to work in the US?", short: "Work authorization" },
+  { id: "visa", label: "Will you need visa sponsorship now or in the future?", short: "Visa sponsorship" },
+  { id: "onsite", label: "Can you work from our office five days a week?", short: "On-site" },
+];
+const EEO = [
+  ["Gender", ["Female", "Male"]],
+  ["Race / ethnicity", ["Hispanic or Latino", "White", "Black or African American", "Native Hawaiian or Other Pacific Islander", "Asian", "American Indian or Alaska Native", "Two or more races"]],
+  ["Veteran status", ["I am a protected veteran", "I am not a protected veteran"]],
+  ["Disability status", ["Yes, I have a disability", "No, I don't have a disability"]],
+];
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
+const P = {
+  search: "M11 11m-6.5 0a6.5 6.5 0 1 0 13 0a6.5 6.5 0 1 0-13 0M20 20l-4.3-4.3",
+  arrow: "M5 12h14M13 6l6 6-6 6",
+  back: "M19 12H5M11 18l-6-6 6-6",
+  up: "M12 16V5M7 10l5-5 5 5M5 19h14",
+  x: "M7 7l10 10M17 7 7 17",
+  retry: "M19 12a7 7 0 1 1-2.1-5M19 4v4h-4",
+  chev: "m8 10 4 4 4-4",
+  wand: "M5 19 15 9M14 5l1-2 1 2 2 1-2 1-1 2-1-2-2-1ZM19 11l.6-1.2L21 9.2l-1.4-.6L19 7.4l-.6 1.2-1.4.6 1.4.6Z",
+  pen: "M14.5 5.5 18.5 9.5M5 19l1-4L15.5 5.5l4 4L10 19l-5 0Z",
+  check: "m6 12.5 4 4 8-9",
+};
+const ico = (k, cls = "ico") => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[k]}"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 12.5l3.5 3.5 7.5-8" pathLength="1"/></svg>`;
+const MAX_MB = 10;
+
+let applied = {};
+try { applied = JSON.parse(localStorage.getItem("polymr-applied") || "{}"); } catch {}
+const saveApplied = () => { try { localStorage.setItem("polymr-applied", JSON.stringify(applied)); } catch {} };
+
+/* ---------------- board ---------------- */
+const SVG = {
+  chevR: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`,
+  folder: `<svg class="f-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`,
+  folderOpen: `<svg class="f-open" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`,
+  file: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7ZM14 2v4a2 2 0 0 0 2 2h4M9 13h6M9 17h4"/></svg>`,
+};
+const tree = { open: new Set(DEPTS), q: "" };
+function treeRows() {
+  const q = tree.q.toLowerCase().trim();
+  const groups = DEPTS.map((d) => {
+    const roles = ROLES.filter((r) => r.dept === d && (!q || `${r.title} ${d}`.toLowerCase().includes(q)));
+    if (!roles.length) return "";
+    const open = q ? true : tree.open.has(d);
+    return `<div class="tv-group" data-dept="${d}">
+      <button class="tv-row tv-folder" role="treeitem" aria-level="1" aria-expanded="${open}" data-act="tvToggle" data-group="${d}">
+        <span class="tv-chev" style="transform:rotate(${open ? 90 : 0}deg)">${SVG.chevR}</span>
+        <span class="tv-ico">${SVG.folder.replace("<svg", `<svg style="opacity:${open ? 0 : 1}"`)}${SVG.folderOpen.replace("<svg", `<svg style="opacity:${open ? 1 : 0}"`)}</span>
+        <span class="tv-label">${d}<span class="tv-count">${roles.length}</span></span>
+      </button>
+      <div class="tv-kids" role="group" ${open ? "" : 'style="height:0" hidden'}>${roles.map((r) => `
+        <a class="tv-row tv-leaf" role="treeitem" aria-level="2" href="#role~${r.id}">
+          <span class="tv-ico">${SVG.file}</span>
+          <span class="tv-label">${esc(r.title)}<span class="tv-team">${esc(r.mode)}</span></span>
+          ${applied[r.id] ? `<span class="badge ok" style="margin-right:10px">${ico("check")}Applied</span>` : `<span class="tv-meta">${esc(r.place)}</span>`}
+          <span class="tv-apply">${applied[r.id] ? "View" : "Apply now"}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+        </a>`).join("")}
+      </div></div>`;
+  }).join("");
+  return `<span class="tv-hover" aria-hidden="true"></span>${groups || `<div class="tv-empty">No roles match “${esc(tree.q)}”</div>`}`;
+}
+// ⌘ on Apple keyboards, Ctrl everywhere else.
+const MOD_KEY = /mac|iphone|ipad/i.test(navigator.userAgentData?.platform || navigator.platform || navigator.userAgent) ? "⌘" : "Ctrl";
+function boardView() {
+  return `<div class="wrap narrow">
+    <section class="board">
+      <div class="board-head"><h1 class="h1">Careers at Polymr</h1></div>
+      <button class="findline" data-act="palette" aria-label="Search roles (${MOD_KEY} K)">${ico("search")}<span class="ph">${ROLES.length} roles</span><span class="keys">${MOD_KEY}<span>K</span></span></button>
+      <div class="tv" id="tree" role="tree" aria-label="Open roles">${treeRows()}</div>
+    </section>
+    ${footer()}
+  </div>`;
+}
+const footer = () => `<footer class="foot"><div class="foot-in">
+  <span class="tacit"><svg class="tacit-mark" viewBox="0 0 80 80" aria-hidden="true"><path d="M 40 14 H 66 V 40 M 40 66 H 14 V 40" fill="none" stroke="currentColor" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/></svg>Hiring with Tacit</span>
+  <span class="grow"></span><a href="#" onclick="return false">Privacy</a><a href="#" onclick="return false">Security</a></div></footer>`;
+
+/* ---------------- tree behaviour (GSAP) ---------------- */
+const G = () => !!window.gsap;
+function tvToggle(d, force) {
+  const g = $(`.tv-group[data-dept="${d}"]`);
+  if (!g) return;
+  const btn = $(".tv-folder", g), kids = $(".tv-kids", g);
+  const open = force ?? !tree.open.has(d);
+  if (open === (btn.getAttribute("aria-expanded") === "true") && force !== undefined) return;
+  open ? tree.open.add(d) : tree.open.delete(d);
+  btn.setAttribute("aria-expanded", open);
+  const chev = $(".tv-chev", btn), fc = $(".f-closed", btn), fo = $(".f-open", btn);
+  const leaves = $$(".tv-leaf", kids);
+  hideHover();
+  if (!G()) {
+    kids.hidden = !open; kids.style.height = open ? "" : "0";
+    chev.style.transform = `rotate(${open ? 90 : 0}deg)`; fc.style.opacity = open ? 0 : 1; fo.style.opacity = open ? 1 : 0;
+    return;
+  }
+  gsap.killTweensOf([kids, chev, fc, fo, ...leaves]);
+  gsap.to(chev, { rotate: open ? 90 : 0, duration: 0.4, ease: "power3.out" });
+  gsap.to(open ? fc : fo, { opacity: 0, scale: 0.6, duration: 0.16, ease: "power2.in" });
+  gsap.fromTo(open ? fo : fc, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.4, delay: 0.06, ease: "back.out(2)" });
+  if (open) {
+    kids.hidden = false;
+    gsap.fromTo(kids, { height: kids.getBoundingClientRect().height }, { height: "auto", duration: 0.5, ease: "power3.out" });
+    gsap.fromTo(leaves, { opacity: 0, x: -6, filter: "blur(3px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.42, stagger: 0.05, delay: 0.05, ease: "power3.out", clearProps: "filter" });
+  } else {
+    gsap.to(leaves, { opacity: 0, x: -4, duration: 0.14, stagger: { each: 0.02, from: "end" } });
+    gsap.to(kids, { height: 0, duration: 0.38, ease: "power3.inOut", onComplete: () => { kids.hidden = true; } });
+  }
+}
+// One fill glides between rows instead of every row lighting up on its own.
+function moveHover(row) {
+  const tv = $("#tree"), h = tv && $(".tv-hover", tv);
+  if (!h || !G()) return;
+  const top = row.getBoundingClientRect().top - tv.getBoundingClientRect().top + 4;
+  const height = row.offsetHeight - 9;
+  const fresh = +gsap.getProperty(h, "opacity") < 0.05;
+  if (fresh) gsap.set(h, { y: top, height });
+  gsap.to(h, { y: top, height, opacity: 1, duration: fresh ? 0.18 : 0.34, ease: "power3.out", overwrite: true });
+}
+function hideHover() { if (G() && $(".tv-hover")) gsap.to(".tv-hover", { opacity: 0, duration: 0.2, overwrite: true }); }
+document.addEventListener("pointerover", (e) => { const row = e.target.closest && e.target.closest("#tree .tv-row"); if (row) moveHover(row); });
+document.addEventListener("pointerout", (e) => { const tv = $("#tree"); if (tv && e.target.closest && e.target.closest("#tree") && !(e.relatedTarget && tv.contains(e.relatedTarget))) hideHover(); });
+document.addEventListener("focusin", (e) => { const row = e.target.closest && e.target.closest("#tree .tv-row"); if (row) moveHover(row); });
+document.addEventListener("keydown", (e) => {
+  const row = e.target.closest && e.target.closest("#tree .tv-row");
+  if (!row) return;
+  const rows = $$("#tree .tv-row").filter((r) => !r.closest(".tv-kids[hidden]"));
+  const i = rows.indexOf(row);
+  const folder = row.classList.contains("tv-folder");
+  if (e.key === "ArrowDown") { e.preventDefault(); rows[Math.min(i + 1, rows.length - 1)].focus(); }
+  if (e.key === "ArrowUp") { e.preventDefault(); rows[Math.max(i - 1, 0)].focus(); }
+  if (e.key === "Enter" && !folder) { e.preventDefault(); openRole(row, row.getAttribute("href").split("~")[1]); return; }
+  if (e.key === "ArrowRight" && folder) { e.preventDefault(); tvToggle(row.dataset.group, true); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); if (folder) tvToggle(row.dataset.group, false); else $(".tv-folder", row.closest(".tv-group")).focus(); }
+});
+
+function boardMotion() {
+  if (!G()) document.body.classList.add("no-gsap");
+}
+function moveInd(animate) {
+  const sel = $('.tabbar [aria-selected="true"]'), ind = $(".tab-ind");
+  if (!sel || !ind) return;
+  const x = sel.offsetLeft, w = sel.offsetWidth;
+  if (G() && animate) gsap.to(ind, { x, width: w, duration: 0.5, ease: "power3.out" });
+  else if (G()) gsap.set(ind, { x, width: w });
+  else { ind.style.transform = `translateX(${x}px)`; ind.style.width = `${w}px`; }
+}
+function roleMotion(tab) {
+  if (!G()) { document.body.classList.add("no-gsap"); moveInd(false); if (tab === "application") showGuide(false); return; }
+  moveInd(false);
+  if (tab === "application") showGuide(true);
+}
+function setTab(tab) {
+  const f = formFor(current);
+  history.replaceState(null, "", `#role~${current}${tab === "application" ? "~apply" : ""}`);
+  prevHash = location.hash;
+  const show = $(`#panel-${tab}`), hide = $(`#panel-${tab === "application" ? "overview" : "application"}`);
+  if (!show || !hide || !show.hidden) return;
+  $$('.tabbar [role="tab"]').forEach((t) => t.setAttribute("aria-selected", t.id === `tab-${tab}`));
+  moveInd(true);
+  const bar = $(".tabbar");
+  const top = bar.getBoundingClientRect().top + scrollY - 80;
+  if (scrollY > top) window.scrollTo({ top, behavior: "smooth" });
+  if (!G()) { hide.hidden = true; show.hidden = false; }
+  else {
+    gsap.to(hide, { opacity: 0, y: -6, duration: 0.16, ease: "power2.in", onComplete: () => {
+      hide.hidden = true;
+      gsap.set(hide, { clearProps: "all" });
+      show.hidden = false;
+      gsap.fromTo(show, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", clearProps: "transform,opacity" });
+    } });
+  }
+  tab === "application" ? showGuide(true) : hideGuide();
+}
+function showGuide(animate) {
+  $("#mbar").classList.add("on");
+  const side = $(".side"), rail = $("#guideWrap"), facts = $(".facts");
+  if (!rail) return;
+  if (!G() || !animate) { side.classList.add("is-app"); rail.style.visibility = "visible"; rail.style.opacity = 1; moveStepHi(false); return; }
+  const fill = $("#g-fill");
+  const target = fill.style.transform;
+  const tl = gsap.timeline({ delay: 0.1 });
+  // The facts fade out, the checklist takes their place and its steps come up one by one.
+  if (!side.classList.contains("is-app")) tl.to(facts, { autoAlpha: 0, y: -8, duration: 0.2, ease: "power2.in" });
+  tl.add(() => { side.classList.add("is-app"); gsap.set(facts, { clearProps: "all" }); moveStepHi(false); })
+    .fromTo(rail, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.5, ease: "power3.out", overwrite: true })
+    .from($$(".g-step", rail), { opacity: 0, y: 12, duration: 0.5, stagger: 0.07, ease: "power3.out", clearProps: "transform,opacity" }, "<0.05")
+    .from(".g-hi", { opacity: 0, duration: 0.4 }, "<0.25")
+    .add(() => { fill.style.transition = "none"; fill.style.transform = "scaleX(0)"; fill.getBoundingClientRect(); fill.style.transition = ""; fill.style.transform = target; }, "<");
+}
+function hideGuide() {
+  $("#mbar").classList.remove("on");
+  const side = $(".side"), rail = $("#guideWrap"), facts = $(".facts");
+  if (!rail) return;
+  if (!G()) { rail.style.visibility = "hidden"; rail.style.opacity = 0; side.classList.remove("is-app"); return; }
+  gsap.timeline()
+    .to(rail, { autoAlpha: 0, y: 6, duration: 0.2, ease: "power2.in", overwrite: true })
+    .add(() => side.classList.remove("is-app"))
+    .fromTo(facts, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out", clearProps: "all" });
+}
+/* ---------------- command menu ---------------- */
+// Search as a command menu: roles, teams and links, grouped. Arrow keys move a
+// gliding highlight, Tab jumps between sections, ⌘1–⌘9 run an item directly.
+const LOGO = `<svg class="logo" viewBox="160 160 1660 1690" aria-hidden="true"><path fill="currentColor" d="M197 610 240 560 940 197 1040 178 1797 560 1470 732 1040 505 570 733 505 793 500 1545 470 1562 182 1398Z"/><path fill="currentColor" d="M720 1243 805 1170 1440 795 1444 1150 962 1440 958 1825 716 1708Z"/></svg>`;
+const cmd = { open: false, q: "", hi: 0, items: [] };
+function cmdItems(q) {
+  q = q.trim().toLowerCase();
+  const out = [];
+  const role = current && ROLES.find((r) => r.id === current);
+  if (role) {
+    const sec = role.title;
+    out.push({ sec, label: "Apply for this role", sub: "", icon: ico("arrow"), run: () => setTab("application") });
+    out.push({ sec, label: "Overview", sub: "", icon: SVG.file, run: () => setTab("overview") });
+    out.push({ sec, label: "Copy link", sub: "", icon: `<svg class="ico" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>`, run: () => { try { navigator.clipboard.writeText(location.href); } catch {} } });
+  }
+  ROLES.forEach((r) => out.push({ sec: "Roles", label: r.title, sub: r.dept, icon: SVG.file, role: r.id, run: (el) => openRole(el, r.id) }));
+  DEPTS.forEach((d) => out.push({ sec: "Teams", label: d, sub: `${ROLES.filter((r) => r.dept === d).length} open`, icon: SVG.folder.replace(' class="f-closed"', ""), run: () => showTeam(d) }));
+  out.push({ sec: "Polymr", label: "Website", sub: "polymr.tech", icon: LOGO, run: () => window.open("https://www.polymr.tech/", "_blank", "noopener") });
+  out.push({ sec: "Polymr", label: "All open roles", sub: "", icon: ico("search"), run: () => (current ? closeRole() : null) });
+  const hit = q ? out.filter((x) => `${x.label} ${x.sub} ${x.sec}`.toLowerCase().includes(q)) : out;
+  let n = 0;
+  hit.forEach((x) => { if (n < 9) x.key = ++n; });
+  return hit;
+}
+function openCmd() {
+  if (cmd.open) return;
+  cmd.open = true; cmd.q = ""; cmd.hi = 0;
+  const el = document.createElement("div");
+  el.className = "cmd-scrim";
+  el.id = "cmd";
+  el.innerHTML = `<div class="cmd" role="dialog" aria-label="Search">
+    <div class="cmd-in">${ico("search")}<input id="cmd-q" placeholder="Search roles, teams or type a command" autocomplete="off" aria-label="Search"><span class="kbd">↵</span></div>
+    <div class="cmd-list" id="cmd-list" role="listbox"></div>
+    <div class="cmd-foot"><span class="kbd">Tab</span>to jump between sections<span class="grow"></span><span class="kbd">⌘</span><span class="kbd">K</span>to open</div>
+  </div>`;
+  document.body.appendChild(el);
+  drawCmd();
+  $("#cmd-q").focus();
+  if (G()) {
+    gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power1.out" });
+    gsap.fromTo(".cmd", { opacity: 0, y: -8, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.32, ease: "power3.out" });
+  }
+}
+function closeCmd() {
+  const el = $("#cmd");
+  cmd.open = false;
+  if (!el) return;
+  if (!G()) return el.remove();
+  gsap.to(".cmd", { opacity: 0, y: -6, scale: 0.98, duration: 0.16, ease: "power2.in" });
+  gsap.to(el, { opacity: 0, duration: 0.18, onComplete: () => el.remove() });
+}
+function drawCmd() {
+  cmd.items = cmdItems(cmd.q);
+  cmd.hi = Math.min(cmd.hi, Math.max(0, cmd.items.length - 1));
+  let sec = null;
+  $("#cmd-list").innerHTML = `<span class="cmd-hi" aria-hidden="true"></span>` + (cmd.items.map((x, i) => {
+    const head = x.sec !== sec ? `<div class="cmd-sec">${esc(x.sec)}</div>` : "";
+    sec = x.sec;
+    return `${head}<button class="cmd-item" role="option" data-i="${i}" aria-selected="${i === cmd.hi}"><span class="cmd-tile">${x.icon}</span><span class="cmd-label">${esc(x.label)}</span><span class="cmd-sub">${esc(x.sub)}</span>${x.key ? `<span class="cmd-keys"><span class="kbd">⌘</span><span class="kbd">${x.key}</span></span>` : ""}</button>`;
+  }).join("") || `<div class="cmd-empty">Nothing matches “${esc(cmd.q)}”</div>`);
+  moveCmdHi(false);
+}
+function moveCmdHi(animate = true) {
+  const list = $("#cmd-list"), hi = list && $(".cmd-hi", list);
+  const row = list && $(`.cmd-item[data-i="${cmd.hi}"]`, list);
+  if (!hi) return;
+  $$(".cmd-item", list).forEach((b) => b.setAttribute("aria-selected", +b.dataset.i === cmd.hi));
+  if (!row) { hi.style.opacity = 0; return; }
+  const y = row.offsetTop, h = row.offsetHeight;
+  if (G() && animate) gsap.to(hi, { y, height: h, opacity: 1, duration: 0.24, ease: "power3.out", overwrite: true });
+  else if (G()) gsap.set(hi, { y, height: h, opacity: 1 });
+  else Object.assign(hi.style, { transform: `translateY(${y}px)`, height: `${h}px`, opacity: 1 });
+  const top = row.offsetTop - 8, bottom = row.offsetTop + h + 8;
+  if (top < list.scrollTop) list.scrollTop = top;
+  else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+}
+function runCmd(i) {
+  const x = cmd.items[i];
+  if (!x) return;
+  const row = $(`.cmd-item[data-i="${i}"]`);
+  const rect = row ? row.getBoundingClientRect() : null;
+  closeCmd();
+  if (x.role) openRole(rect, x.role);
+  else x.run();
+}
+// A team from the menu: open just that folder on the board.
+function showTeam(d) {
+  const go = () => { DEPTS.forEach((x) => tvToggle(x, x === d)); setTimeout(() => $(`.tv-group[data-dept="${d}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 120); };
+  if (current) closeRole(go); else go();
+}
+document.addEventListener("input", (e) => { if (e.target.id === "cmd-q") { cmd.q = e.target.value; cmd.hi = 0; drawCmd(); } });
+document.addEventListener("pointermove", (e) => {
+  const row = e.target.closest && e.target.closest(".cmd-item");
+  if (row && +row.dataset.i !== cmd.hi) { cmd.hi = +row.dataset.i; moveCmdHi(); }
+});
+document.addEventListener("click", (e) => {
+  if (!cmd.open) return;
+  const row = e.target.closest(".cmd-item");
+  if (row) { e.stopPropagation(); runCmd(+row.dataset.i); return; }
+  if (e.target.id === "cmd") closeCmd();
+}, true);
+document.addEventListener("keydown", (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); cmd.open ? closeCmd() : openCmd(); return; }
+  if (!cmd.open) return;
+  if (e.key === "Escape") { e.preventDefault(); closeCmd(); return; }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = cmd.items.length; if (n) { cmd.hi = (cmd.hi + (e.key === "ArrowDown" ? 1 : -1) + n) % n; moveCmdHi(); } return; }
+  if (e.key === "Enter") { e.preventDefault(); runCmd(cmd.hi); return; }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const secs = [...new Set(cmd.items.map((x) => x.sec))];
+    if (secs.length < 2) return;
+    const cur = secs.indexOf(cmd.items[cmd.hi].sec);
+    const next = secs[(cur + (e.shiftKey ? -1 : 1) + secs.length) % secs.length];
+    cmd.hi = cmd.items.findIndex((x) => x.sec === next);
+    moveCmdHi();
+    return;
+  }
+  if (mod && /^[1-9]$/.test(e.key)) { const i = cmd.items.findIndex((x) => x.key === +e.key); if (i >= 0) { e.preventDefault(); runCmd(i); } }
+}, true);
+
+/* ---------------- opening a role: the row becomes the document ---------------- */
+// First: a white sheet sits exactly on the clicked row. Last: it fills the
+// document's frame. Flip plays between them while the list fades, then the
+// real page renders under the sheet and its content fades up.
+let opening = false;
+function docRect() {
+  const width = Math.min(1100, innerWidth) - 40;
+  const left = innerWidth <= 600 ? 12 : (innerWidth - width) / 2;
+  const top = innerWidth <= 600 ? 72 : 88;
+  return { left, top, width: innerWidth <= 600 ? innerWidth - 24 : width, height: innerHeight - top + 8 };
+}
+function openRole(leaf, id) {
+  const role = ROLES.find((r) => r.id === id);
+  if (!G() || !window.Flip || opening || !role) { location.hash = `role~${id}`; return; }
+  opening = true;
+  hideHover();
+  const r = leaf && leaf.getBoundingClientRect ? leaf.getBoundingClientRect() : leaf || { left: innerWidth / 2 - 200, top: innerHeight * 0.3, width: 400, height: 48 };
+  const ghost = document.createElement("div");
+  ghost.className = "ghost";
+  ghost.innerHTML = `<span class="ghost-title">${esc(role.title)}</span>`;
+  Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.appendChild(ghost);
+  const state = Flip.getState(ghost);
+  const d = docRect();
+  Object.assign(ghost.style, { left: `${d.left}px`, top: `${d.top}px`, width: `${d.width}px`, height: `${d.height}px`, borderRadius: "10px" });
+  const tl = gsap.timeline({ onComplete: () => { opening = false; } });
+  tl.to("#view", { opacity: 0, duration: 0.28, ease: "power2.out" }, 0)
+    .add(Flip.from(state, { duration: 0.7, ease: "expo.inOut", scale: false, absolute: true }), 0.04)
+    .to(".ghost-title", { opacity: 0, duration: 0.2 }, 0.1)
+    .add(() => {
+      history.pushState(null, "", `#role~${id}`);
+      route();
+      gsap.set("#view", { opacity: 1 });
+      const parts = [...$("#doc").children];
+      gsap.fromTo(parts, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, delay: 0.08, ease: "power3.out", clearProps: "transform,opacity" });
+    })
+    .to(ghost, { opacity: 0, duration: 0.35, ease: "power1.out", onComplete: () => ghost.remove() });
+}
+// Back to the list: the document fades, the list fades in.
+function closeRole(after) {
+  if (!G() || !$("#doc")) { history.pushState(null, "", location.pathname); route(); if (after) after(); return; }
+  gsap.to("#view", { opacity: 0, y: 6, duration: 0.22, ease: "power2.in", onComplete: () => {
+    history.pushState(null, "", location.pathname);
+    route();
+    if (after) after();
+    gsap.fromTo("#view", { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out", clearProps: "transform,opacity" });
+  } });
+}
+
+/* ---------------- the application: state per role ---------------- */
+const forms = {};
+function formFor(id) {
+  return (forms[id] ||= {
+    name: "", email: "", phone: "", location: "", linkedin: "", site: "",
+    resume: null, cover: null,
+    mode: "write", note: "", bullets: "", draft: null, tone: "friendly", editing: false,
+    answers: {}, start: "", consent: false, eeo: {},
+    auto: new Map(), sent: false, sending: false, reading: false,
+  });
+}
+// The guide: what it asks for, in order, grouped like the form.
+const GUIDE = [
+  { key: "docs", title: "Resume", items: [["resume", "Resume"]] },
+  { key: "you", title: "About you", items: [["name", "Name"], ["email", "Email"], ["linkedin", "LinkedIn"]] },
+  { key: "note", title: "Why this role", items: [["note", "Your answer"]] },
+  { key: "q", title: "Questions", items: [...QUESTIONS.map((q) => [q.id, q.short]), ["start", "Start date"]] },
+  { key: "send", title: "Submit", items: [["consent", "Privacy notice"]] },
+];
+const ITEMS = GUIDE.flatMap((s) => s.items.map(([k]) => k));
+function done(f, k) {
+  if (k === "name") return f.name.trim().split(/\s+/).length >= 2;
+  if (k === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim());
+  if (k === "linkedin") return /linkedin\.com\/in\/\S+/i.test(f.linkedin) || /^in\/\S+/.test(f.linkedin);
+  if (k === "resume") return !!(f.resume && f.resume.status === "done");
+  if (k === "note") return f.mode === "write" ? f.note.trim().length >= 20 : f.mode === "bullets" ? !!(f.draft && noteText(f).trim()) : !!(f.cover && f.cover.status === "done");
+  if (k === "start") return !!f.start;
+  if (k === "consent") return f.consent;
+  return !!f.answers[k];
+}
+const FIELD_OF = { submit: "submit-btn", name: "f-name", email: "f-email", linkedin: "f-linkedin", resume: "sec-docs", note: "sec-note", start: "f-start", consent: "f-consent", auth: "q-auth", visa: "q-visa", onsite: "q-onsite" };
+
+/* ---------------- note from bullets ---------------- */
+const TONES = [
+  { id: "friendly", label: "Friendly" },
+  { id: "short", label: "Short" },
+  { id: "formal", label: "Formal" },
+];
+function bulletsOf(f) {
+  return f.bullets.split("\n").map((l) => l.replace(/^\s*[-•*·]\s*/, "").trim().replace(/\.$/, "")).filter(Boolean);
+}
+function writeNote(f, role, tone) {
+  const b = bulletsOf(f);
+  const me = f.name.trim() || "";
+  const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+  if (tone === "short") return `I'm applying for ${role.title}. ${b.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(". ")}. Happy to talk whenever suits you.${me ? `\n\n${me}` : ""}`;
+  if (tone === "formal") return `Dear Polymr hiring team,\n\nPlease accept my application for the ${role.title} role. Highlights of my background include: ${b.map(lower).join("; ")}.\n\nThank you for considering my application.${me ? `\n\n${me}` : ""}`;
+  return `Hi Polymr team,\n\nI'd love to join as ${role.title}. A bit about me:\n${b.map((x) => `• ${x}`).join("\n")}\n\nI'd be glad to walk you through any of it.${me ? `\n\n${me}` : ""}`;
+}
+const noteText = (f) => (f.draft === null ? "" : f.draft);
+
+/* ---------------- role page ---------------- */
+let current = null;
+function roleView(id, tab) {
+  const role = ROLES.find((r) => r.id === id);
+  if (!role) return `<div class="wrap role"><div class="role-head"><a class="back" href="#">${ico("back")}Open roles</a><h1 class="h1">Role not found</h1></div></div>`;
+  const f = formFor(id);
+  const app = tab === "application";
+  return `<div class="wrap role"><div class="sheet" id="doc">
+    <div class="role-head">
+      <h1 class="h1">${esc(role.title)}</h1>
+    </div>
+    <div class="role-grid">
+    <aside class="side ${app ? "is-app" : ""}">
+      <dl class="facts">
+        <div><dt>Location</dt><dd>${esc(role.place)}</dd></div>
+        <div><dt>Employment type</dt><dd>${esc(role.type)}</dd></div>
+        <div><dt>Location type</dt><dd>${esc(role.mode)}</dd></div>
+        <div><dt>Department</dt><dd>${esc(role.dept)}</dd></div>
+        <div><dt>Compensation</dt><dd>${esc(role.pay)}<small>Offers equity</small></dd></div>
+      </dl>
+      <div class="rail" id="guideWrap" aria-label="Your application">${guideView(f)}</div>
+    </aside>
+    <div class="role-main">
+      <div class="tabbar" role="tablist" aria-label="${esc(role.title)}">
+        <button role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="${!app}" data-act="tab" data-v="overview">Overview</button>
+        <button role="tab" id="tab-application" aria-controls="panel-application" aria-selected="${app}" data-act="tab" data-v="application">Application${applied[id] ? `<span class="badge ok">Sent</span>` : ""}</button>
+        <span class="tab-ind" aria-hidden="true"></span>
+      </div>
+    <section class="panel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" ${app ? "hidden" : ""}>
+      <div class="desc">
+        <p class="lead-p">${esc(role.blurb)}</p>
+        <h2>What you'll do</h2><ul>${role.does.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+        <h2>You might be a fit if</h2><ul>${role.fit.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+        <h2>How we hire</h2><div class="steps"><div>Intro call</div><div>Technical conversation</div><div>A day with the team</div><div>References and offer</div></div>
+        <h2>Benefits</h2><ul><li>Salary and equity</li><li>Health, dental and vision</li><li>Meals in the office</li></ul>
+      </div>
+      <button class="btn dark wide" data-act="tab" data-v="application">${applied[id] ? "View application" : "Apply for this role"}</button>
+    </section>
+    <section class="panel" id="panel-application" role="tabpanel" aria-labelledby="tab-application" ${app ? "" : "hidden"}>
+      <div class="form" id="form">${f.sent ? sentView(role, f) : formView(role, f)}</div>
+    </section>
+    </div>
+    </div>
+  </div>
+    ${footer()}
+  </div>`;
+}
+function fileRow(file, kind) {
+  const color = /\.pdf$/i.test(file.name) ? "var(--pdf)" : /\.(png|jpe?g)$/i.test(file.name) ? "var(--png)" : "var(--doc)";
+  const mb = (file.size / 1048576).toFixed(1);
+  let sub = `${mb} MB`, bar = "";
+  if (file.status === "uploading") { sub = `${(file.size * file.progress / 1048576).toFixed(1)} of ${mb} MB`; bar = `<div class="fbar"><i style="transform:scaleX(${file.progress})"></i></div>`; }
+  if (file.status === "error") sub = file.error;
+  return `<div class="file" data-file="${kind}">
+    <span class="ftype" style="--c:${color}"></span>
+    <div class="fname"><span>${esc(file.name)}</span>${file.status === "done" ? `<span class="okdot" aria-label="Uploaded"><svg viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9"/></svg></span>` : ""}</div>
+    <div class="fsub ${file.status === "error" ? "err" : ""}">${esc(sub)}</div>${bar}
+    <div class="facts-x">${file.status === "error" && file.retry ? `<button class="iconbtn" data-act="retry" data-kind="${kind}" aria-label="Retry">${ico("retry")}</button>` : ""}<button class="iconbtn" data-act="removeFile" data-kind="${kind}" aria-label="Remove ${esc(file.name)}">${ico("x")}</button></div>
+  </div>`;
+}
+function dropZone(kind, compact) {
+  return `<div class="drop ${compact ? "compact" : ""}" data-drop="${kind}" role="button" tabindex="0" aria-label="Upload ${kind === "cover" ? "a cover letter" : "your resume"}">
+    <div class="stack" aria-hidden="true"><span class="doc l"><i>PDF</i></span><span class="doc r"><i>DOC</i></span><span class="c">${ico("up")}</span></div>
+    <b>Drop ${kind === "cover" ? "a cover letter" : "your resume"} or <span>browse</span></b>
+    <small>PDF or Word, up to ${MAX_MB} MB</small>
+    <input type="file" accept=".pdf,.doc,.docx" hidden data-input="${kind}">
+  </div>`;
+}
+const autoTag = (src) => `<span class="auto-tag">${ico("wand")}From ${src === "cover" ? "cover letter" : "resume"}</span>`;
+function field(id, key, label, f, opts = {}) {
+  const auto = f.auto.get(key);
+  return `<div class="field">
+    <label for="${id}">${label}${opts.req ? ` <span class="req">*</span>` : ""}${auto ? autoTag(auto) : ""}</label>
+    <input class="input ${auto ? "filled" : ""}" id="${id}" data-k="${key}" type="${opts.type || "text"}" placeholder="${esc(opts.ph || "")}" value="${esc(f[key])}" autocomplete="${opts.ac || "off"}">
+  </div>`;
+}
+function formView(role, f) {
+  const n = ITEMS.filter((k) => done(f, k)).length;
+  return `
+    <div class="sec" id="sec-docs">
+      <div class="sec-title">Resume <span class="req">*</span>${f.resume && f.resume.status === "done" && autoCount(f, "resume") ? `<span class="badge blue">${ico("wand")}${autoCount(f, "resume")} fields filled</span>` : ""}</div>
+      ${f.resume ? "" : dropZone("resume")}
+      ${f.resume ? `<div class="files">${fileRow(f.resume, "resume")}</div>` : ""}
+      ${f.reading === "resume" ? `<div class="reading"><span class="ring"></span><span class="shim">Reading resume</span></div>` : ""}
+    </div>
+    <div class="sec">
+      <div class="sec-title">About you</div>
+      <div class="grid2">
+        ${field("f-name", "name", "Name", f, { req: 1, ac: "name" })}
+        ${field("f-email", "email", "Email", f, { req: 1, type: "email", ac: "email" })}
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        ${field("f-phone", "phone", "Phone", f, { type: "tel", ac: "tel" })}
+        ${field("f-location", "location", "Location", f, {})}
+      </div>
+      <div class="grid2" style="margin-top:14px">
+        ${field("f-linkedin", "linkedin", "LinkedIn", f, { req: 1, ph: "linkedin.com/in/" })}
+        ${field("f-site", "site", "Website", f, {})}
+      </div>
+    </div>
+    <div class="sec" id="sec-note">
+      <div class="sec-title">Why this role <span class="req">*</span></div>
+      <div class="modes" role="group" aria-label="How you want to answer">${[["write", "Write"], ["bullets", "Bullet points"], ["upload", "Cover letter"]].map(([k, v]) => `<button data-act="mode" data-v="${k}" aria-pressed="${f.mode === k}">${v}</button>`).join("")}</div>
+      ${noteBody(role, f)}
+      ${f.reading === "cover" ? `<div class="reading"><span class="ring"></span><span class="shim">Reading cover letter</span></div>` : ""}
+    </div>
+    <div class="sec">
+      <div class="sec-title">Questions</div>
+      ${QUESTIONS.map((q) => `<div class="field" id="q-${q.id}"><div class="lbl">${esc(q.label)} <span class="req">*</span></div>
+        <div class="yn" role="group" aria-label="${esc(q.label)}">${["Yes", "No"].map((v) => `<button data-act="answer" data-q="${q.id}" data-v="${v}" aria-pressed="${f.answers[q.id] === v}">${v}</button>`).join("")}</div></div>`).join("")}
+      <div class="field" style="max-width:260px"><label for="f-start">Earliest start date <span class="req">*</span></label><input class="input" id="f-start" data-k="start" type="date" value="${esc(f.start)}"></div>
+    </div>
+    <div class="sec">
+      <details class="eeo"><summary>Voluntary self-identification <span class="req" style="font-weight:400">Optional</span>${ico("chev", "ico chev")}</summary>
+        <p class="sec-sub">Not shared with the hiring team.</p>
+        <div class="grid2" style="margin-top:12px">${EEO.map(([lbl, opts], i) => `<div class="field"><label for="eeo-${i}">${lbl}</label><select class="input" id="eeo-${i}" data-eeo="${i}"><option>I decline to self-identify</option>${opts.map((o) => `<option ${f.eeo[i] === o ? "selected" : ""}>${esc(o)}</option>`).join("")}</select></div>`).join("")}</div>
+      </details>
+    </div>
+    <div class="sec">
+      <label class="check-row" id="f-consent"><input type="checkbox" data-k="consent" ${f.consent ? "checked" : ""}><span class="box">${CHECK}</span><span>I agree to the <a href="#" onclick="return false">privacy notice</a>.</span></label>
+      <div class="submit-row"><button class="btn dark" id="submit-btn" data-act="send" ${n === ITEMS.length && !f.sending ? "" : "disabled"}>${f.sending ? `<span class="spinner"></span>Submitting` : "Submit application"}</button>
+        <span class="hint" id="send-hint">${n === ITEMS.length ? "" : `${ITEMS.length - n} left`}</span></div>
+    </div>`;
+}
+function noteBody(role, f) {
+  if (f.mode === "write") return `<textarea class="input" id="f-note" data-k="note">${esc(f.note)}</textarea>`;
+  if (f.mode === "upload") return f.cover ? `<div class="files">${fileRow(f.cover, "cover")}</div>` : dropZone("cover", true);
+  // Bullet points → a note that writes itself as you type, in the email-draft card's style
+  return `<textarea class="input" id="f-bullets" data-k="bullets" placeholder="• One point per line" style="min-height:110px">${esc(f.bullets)}</textarea>
+    <div id="draft-slot">${draftCard(f)}</div>`;
+}
+function draftCard(f, live) {
+  return f.draft !== null ? `<div class="draft ${live ? "live" : ""}" id="draft">
+      <div class="draft-head"><b>Your note</b><span style="flex:1"></span><span class="badge ok">Ready</span></div>
+      <div class="draft-body">${f.editing ? `<textarea class="draft-edit" id="f-draft" aria-label="Your note">${esc(f.draft)}</textarea>` : `<p class="draft-text" data-act="editDraft" title="Click to edit">${esc(f.draft)}</p>`}</div>
+      <div class="draft-tune"><div class="tones" role="group" aria-label="Tone">${TONES.map((t) => `<button data-act="tone" data-v="${t.id}" aria-pressed="${f.tone === t.id && !f.edited}">${t.label}</button>`).join("")}<button class="pen" data-act="editDraft" aria-label="Edit text" aria-pressed="${f.editing}">${ico("pen")}</button></div></div>
+    </div>` : "";
+}
+function sentView(role, f) {
+  return `<div class="sent" role="status">
+    <span class="big-ok"><svg viewBox="0 0 24 24"><path d="m6 12.5 4 4 8-9" pathLength="1"/></svg></span>
+    <h3>Application sent</h3>
+    <p>We'll reply to ${esc(f.email)}.</p>
+    <div class="row"><a class="btn light" href="#">Open roles</a><button class="btn ghost" data-act="unsend">Undo</button></div>
+  </div>`;
+}
+// The short version of what was entered, shown beside each finished item.
+function valueOf(f, k) {
+  if (k === "resume") return f.resume ? f.resume.name : "";
+  if (k === "linkedin") return f.linkedin.replace(/^https?:\/\/(www\.)?/, "").replace(/^linkedin\.com\/in\//, "in/");
+  if (k === "note") return f.mode === "write" ? "Written" : f.mode === "bullets" ? "From bullets" : f.cover ? f.cover.name : "";
+  if (k === "start") return f.start ? new Date(`${f.start}T12:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+  if (k === "consent") return "Agreed";
+  if (k in f.answers) return f.answers[k];
+  return String(f[k] || "").trim();
+}
+function guideView(f) {
+  const n = ITEMS.filter((k) => done(f, k)).length;
+  const cur = GUIDE.find((s) => s.items.some(([k]) => !done(f, k)));
+  const nextItem = ITEMS.find((k) => !done(f, k));
+  return `<div class="guide ${n === ITEMS.length ? "complete" : ""}" id="guide">
+    <div class="g-head"><h3>${f.sent ? "Applied" : "Your application"}</h3><span class="g-count"><span class="digit" id="g-digit">${n}</span>/${ITEMS.length}</span></div>
+    <div class="g-bar" role="progressbar" aria-label="Application progress" aria-valuemin="0" aria-valuemax="${ITEMS.length}" aria-valuenow="${n}"><span class="g-fill" id="g-fill" style="transform:scaleX(${n / ITEMS.length})"></span></div>
+    <div class="g-steps"><span class="g-hi" aria-hidden="true"></span>
+    ${GUIDE.map((s, i) => {
+      const c = s.items.filter(([k]) => done(f, k)).length;
+      return `<div class="g-step ${c === s.items.length ? "is-done" : ""} ${cur === s ? "is-cur" : ""}" data-sec="${s.key}">
+        <span class="g-link" aria-hidden="true"></span>
+        <span class="g-node" aria-hidden="true"><i>${i + 1}</i>${CHECK}</span>
+        <div class="g-step-head"><span class="t">${s.title}</span><span class="n">${c}/${s.items.length}</span></div>
+        <div class="g-items">${s.items.map(([k, lbl]) => `<button class="g-item ${k === nextItem ? "next" : ""}" role="checkbox" aria-checked="${done(f, k)}" data-act="jump" data-k="${k}"><span class="g-check">${CHECK}</span><span class="g-lbl">${esc(lbl)}</span><span class="g-val">${done(f, k) ? esc(valueOf(f, k)) : ""}</span></button>`).join("")}</div>
+      </div>`;
+    }).join("")}
+    </div>
+    <div class="g-foot"><span class="left" id="g-left">${f.sent ? "Sent" : n === ITEMS.length ? "Ready" : `Next: ${GUIDE.flatMap((s) => s.items).find(([k]) => k === nextItem)[1]}`}</span>
+      ${f.sent ? "" : `<button class="btn light sm" data-act="jump" data-k="${nextItem || "submit"}">${n === ITEMS.length ? "Review" : "Go"}</button>`}</div>
+  </div>`;
+}
+// The highlight behind the step you're on glides when that step changes.
+function moveStepHi(animate) {
+  const hi = $(".g-hi"), st = $(".g-step.is-cur");
+  if (!hi) return;
+  if (!st) { if (G()) gsap.to(hi, { opacity: 0, duration: 0.25 }); else hi.style.opacity = 0; return; }
+  const v = { y: st.offsetTop, height: st.offsetHeight, opacity: 1 };
+  if (G() && animate) gsap.to(hi, { ...v, duration: 0.6, ease: "power3.out", overwrite: true });
+  else if (G()) gsap.set(hi, v);
+  else Object.assign(hi.style, { transform: `translateY(${v.y}px)`, height: `${v.height}px`, opacity: 1 });
+}
+function mbarView(f) {
+  const n = ITEMS.filter((k) => done(f, k)).length;
+  const nextItem = ITEMS.find((k) => !done(f, k));
+  const lbl = nextItem ? GUIDE.flatMap((s) => s.items).find(([k]) => k === nextItem)[1] : null;
+  return `<div class="grow"><div class="t"><b>${f.sent ? "Application sent" : lbl ? `Next: ${esc(lbl)}` : "Ready"}</b><span>${n}/${ITEMS.length}</span></div>
+    <div class="g-bar"><span class="g-fill" style="transform:scaleX(${n / ITEMS.length})${n === ITEMS.length ? ";background:var(--ok)" : ""}"></span></div></div>
+    ${f.sent ? "" : `<button class="btn light sm" data-act="jump" data-k="${nextItem || "submit"}">${n === ITEMS.length ? "Review" : "Go"}</button>`}`;
+}
+
+/* ---------------- live updates without losing focus ---------------- */
+let lastCount = -1;
+function refreshGuide(force) {
+  if (!current) return;
+  const f = formFor(current);
+  const n = ITEMS.filter((k) => done(f, k)).length;
+  const old = $("#guide");
+  if (old) {
+    // Update in place so finished checks animate once, not on every keystroke.
+    const cur = GUIDE.find((s) => s.items.some(([k]) => !done(f, k)));
+    const prevCur = $(".g-step.is-cur", old);
+    const nextItem = ITEMS.find((k) => !done(f, k));
+    old.classList.toggle("complete", n === ITEMS.length);
+    $(".g-head h3", old).textContent = f.sent ? "Applied" : "Your application";
+    $("#g-fill").style.transform = `scaleX(${n / ITEMS.length})`;
+    if (n !== lastCount) {
+      const d = $("#g-digit");
+      const nd = d.cloneNode();
+      nd.textContent = n;
+      d.replaceWith(nd);
+      if (n > lastCount && lastCount >= 0) { const s = document.createElement("span"); s.className = "g-shine"; $("#g-fill").appendChild(s); setTimeout(() => s.remove(), 1500); }
+    }
+    for (const s of GUIDE) {
+      const el = $(`.g-step[data-sec="${s.key}"]`, old);
+      const c = s.items.filter(([k]) => done(f, k)).length;
+      el.classList.toggle("is-cur", cur === s);
+      el.classList.toggle("is-done", c === s.items.length);
+      $(".g-step-head .n", el).textContent = `${c}/${s.items.length}`;
+      for (const [k] of s.items) {
+        const it = $(`.g-item[data-k="${k}"]`, el);
+        it.setAttribute("aria-checked", done(f, k));
+        $(".g-val", it).textContent = done(f, k) ? valueOf(f, k) : "";
+        it.classList.toggle("next", k === nextItem);
+      }
+    }
+    if ($(".g-step.is-cur", old) !== prevCur) moveStepHi(true);
+    const foot = $(".g-foot", old);
+    foot.outerHTML = $(".g-foot", htmlToEl(guideView(f))).outerHTML;
+  }
+  lastCount = n;
+  const mb = $("#mbar");
+  mb.hidden = false;
+  mb.innerHTML = mbarView(f);
+  if (f.sent) mb.classList.add("on");
+  const send = $('[data-act="send"]', $("#form"));
+  if (send && !f.sending) send.disabled = n !== ITEMS.length;
+  const hint = $("#send-hint");
+  if (hint) hint.textContent = n === ITEMS.length ? "" : `${ITEMS.length - n} left`;
+}
+const htmlToEl = (h) => { const d = document.createElement("div"); d.innerHTML = h; return d; };
+function redrawForm() {
+  const role = ROLES.find((r) => r.id === current);
+  const f = formFor(current);
+  const act = document.activeElement;
+  const keep = act && act.id ? { id: act.id, s: act.selectionStart, e: act.selectionEnd } : null;
+  $("#form").innerHTML = f.sent ? sentView(role, f) : formView(role, f);
+  if (keep) { const el = document.getElementById(keep.id); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(keep.s, keep.e); } catch {} } }
+  refreshGuide();
+}
+
+/* ---------------- uploads (simulated) ---------------- */
+function takeFile(kind, file) {
+  const f = formFor(current);
+  const entry = { name: file.name, size: file.size || 1.8 * 1048576, status: "uploading", progress: 0 };
+  if (!/\.(pdf|docx?)$/i.test(file.name)) Object.assign(entry, { status: "error", error: "Use a PDF or Word file" });
+  else if (entry.size > MAX_MB * 1048576) Object.assign(entry, { status: "error", error: `Too large – max ${MAX_MB} MB` });
+  f[kind] = entry;
+  redrawForm();
+  if (entry.status === "uploading") upload(kind, entry);
+}
+function upload(kind, entry) {
+  const f = formFor(current);
+  const id = current;
+  const t0 = performance.now();
+  const dur = 900 + Math.min(1400, entry.size / 1048576 * 260);
+  const tick = () => {
+    if (f[kind] !== entry || current !== id) return;
+    entry.progress = Math.min(1, (performance.now() - t0) / dur);
+    const bar = $(`[data-file="${kind}"] .fbar i`);
+    const sub = $(`[data-file="${kind}"] .fsub`);
+    if (bar) bar.style.transform = `scaleX(${entry.progress})`;
+    if (sub) sub.textContent = `${(entry.size * entry.progress / 1048576).toFixed(1)} of ${(entry.size / 1048576).toFixed(1)} MB`;
+    if (entry.progress < 1) return requestAnimationFrame(tick);
+    entry.status = "done";
+    readDoc(entry, kind);
+  };
+  requestAnimationFrame(tick);
+}
+// Pretend to read the resume or cover letter: guess who it is from the file
+// name, then fill every personal detail that's still empty, one after another,
+// so the checks land in the form and in the guide.
+const autoCount = (f, src) => [...f.auto.values()].filter((v) => v === src).length;
+function readDoc(entry, kind) {
+  const f = formFor(current);
+  f.reading = kind;
+  redrawForm();
+  const words = entry.name.replace(/\.[a-z]+$/i, "").split(/[\s_\-.]+/).filter((w) => w && !/^(resume|cv|cover|letter|final|v\d+|\d+)$/i.test(w));
+  const name = f.name.trim().split(/\s+/).length >= 2 ? f.name.trim() : words.length >= 2 ? words.slice(0, 2).map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(" ") : "Alex Rivera";
+  const [a, b] = name.toLowerCase().split(/\s+/);
+  const guess = { name, email: `${a}.${b}@gmail.com`, phone: "(415) 555-0142", location: "San Francisco, CA", linkedin: `linkedin.com/in/${a}-${b}`, site: `github.com/${a}${b[0]}` };
+  setTimeout(() => {
+    f.reading = false;
+    const keys = Object.keys(guess).filter((k) => !f[k]);
+    redrawForm();
+    keys.forEach((k, i) => setTimeout(() => {
+      if (f[k]) return;
+      f[k] = guess[k];
+      f.auto.set(k, kind);
+      const el = $(`[data-k="${k}"]`);
+      if (el) { el.value = guess[k]; el.classList.add("filled"); el.style.animation = "flash 900ms ease"; const lab = $(`label[for="${el.id}"]`); if (lab && !$(".auto-tag", lab)) lab.insertAdjacentHTML("beforeend", autoTag(kind)); }
+      refreshGuide();
+      if (i === keys.length - 1) setTimeout(redrawForm, 350);
+    }, 260 * (i + 1)));
+  }, 1100);
+}
+
+// Rewrite the note a beat after typing stops; a note you edited by hand is left alone.
+let noteTimer = 0;
+function liveNote(f) {
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => {
+    const role = ROLES.find((r) => r.id === current);
+    if (!role) return;
+    if (!bulletsOf(f).length) f.draft = null;
+    else if (!f.edited) f.draft = writeNote(f, role, f.tone || "friendly");
+    const slot = $("#draft-slot");
+    if (slot) slot.innerHTML = draftCard(f, !!$("#draft", slot));
+    refreshGuide();
+  }, 420);
+}
+
+/* ---------------- routing ---------------- */
+function route() {
+  const [name, id, sub] = location.hash.slice(1).split("~");
+  window.scrollTo({ top: 0, behavior: "instant" });
+  $("#mbar").classList.remove("on");
+  if (name === "role" && id) {
+    current = id;
+    lastCount = -1;
+    const tab = sub === "apply" ? "application" : "overview";
+    $("#view").innerHTML = roleView(id, tab);
+    document.body.classList.add("on-job");
+    const role = ROLES.find((r) => r.id === id);
+    document.title = role ? `${role.title} · Polymr` : "Polymr Careers";
+    if (role) { refreshGuide(); roleMotion(tab); }
+    else $("#mbar").hidden = true;
+  } else {
+    current = null;
+    $("#view").innerHTML = boardView();
+    $("#mbar").hidden = true;
+    document.body.classList.remove("on-job");
+    document.title = "Polymr Careers";
+    boardMotion();
+    if (pendingScroll) { const el = document.getElementById(pendingScroll); pendingScroll = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: "smooth" }), 60); }
+  }
+}
+let pendingScroll = null;
+let prevHash = location.hash;
+window.addEventListener("hashchange", () => { prevHash = location.hash; route(); });
+window.addEventListener("popstate", () => route());
+if (window.gsap && window.Flip) gsap.registerPlugin(Flip);
+window.addEventListener("resize", () => moveInd(false));
+
+/* ---------------- events ---------------- */
+function jumpTo(k) {
+  if ($("#panel-application")?.hidden) { setTab("application"); return setTimeout(() => jumpTo(k), 420); }
+  const id = FIELD_OF[k];
+  const el = id && document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  const focusable = el.matches("input, textarea") ? el : $("input, textarea, button:not([disabled])", el);
+  if (focusable) setTimeout(() => focusable.focus({ preventScroll: true }), 380);
+}
+const BOARD = {
+  palette: () => openCmd(),
+  tvToggle: (el) => tvToggle(el.dataset.group),
+  tab: (el) => setTab(el.dataset.v),
+};
+document.addEventListener("click", (e) => {
+  const leaf = e.target.closest("a.tv-leaf");
+  if (leaf && !e.metaKey && !e.ctrlKey && !e.shiftKey) { e.preventDefault(); openRole(leaf, leaf.getAttribute("href").split("~")[1]); return; }
+  const back = e.target.closest("a.back, a.brand, a.all-roles, .sent a.btn");
+  if (back && current) { e.preventDefault(); closeRole(); return; }
+  const b = e.target.closest("[data-act]");
+  if (b && BOARD[b.dataset.act]) { BOARD[b.dataset.act](b, e); return; }
+  const dz = e.target.closest("[data-drop]");
+  if (dz && !e.target.closest("button")) { $(`input[data-input="${dz.dataset.drop}"]`, dz).click(); return; }
+  const el = e.target.closest("[data-act]");
+  if (!el || !current) return;
+  const f = current && formFor(current);
+  const role = current && ROLES.find((r) => r.id === current);
+  switch (el.dataset.act) {
+    case "answer": f.answers[el.dataset.q] = el.dataset.v; $$(`[data-q="${el.dataset.q}"]`).forEach((b) => b.setAttribute("aria-pressed", b === el)); refreshGuide(); break;
+    case "mode": f.mode = el.dataset.v; redrawForm(); break;
+    case "tone": f.tone = el.dataset.v; f.edited = false; f.editing = false; f.draft = writeNote(f, role, f.tone); redrawForm(); break;
+    case "editDraft": f.editing = true; redrawForm(); { const t = $("#f-draft"); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); t.style.height = t.scrollHeight + "px"; } } break;
+    case "removeFile": { const kind = el.dataset.kind; f[kind] = null; for (const [k, src] of f.auto) if (src === kind) { f[k] = ""; f.auto.delete(k); } redrawForm(); break; }
+    case "retry": { const entry = f[el.dataset.kind]; Object.assign(entry, { status: "uploading", progress: 0 }); redrawForm(); upload(el.dataset.kind, entry); break; }
+    case "jump": if (el.dataset.k) jumpTo(el.dataset.k); break;
+    case "send":
+      if (ITEMS.some((k) => !done(f, k)) || f.sending) return;
+      f.sending = true;
+      redrawForm();
+      setTimeout(() => {
+        f.sending = false; f.sent = true; applied[current] = true; saveApplied(); redrawForm();
+        const bar = $(".tabbar"); window.scrollTo({ top: bar.getBoundingClientRect().top + scrollY - 80, behavior: "smooth" });
+        $("#tab-application").insertAdjacentHTML("beforeend", `<span class="badge ok">Sent</span>`);
+        moveInd(true);
+      }, 900);
+      break;
+    case "unsend": f.sent = false; delete applied[current]; saveApplied(); redrawForm(); $("#tab-application .badge")?.remove(); moveInd(true); break;
+  }
+});
+document.addEventListener("input", (e) => {
+  if (!current) return;
+  const f = formFor(current);
+  const k = e.target.dataset.k;
+  if (k) {
+    f[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    if (f.auto.has(k)) { f.auto.delete(k); e.target.classList.remove("filled"); const tag = $(`label[for="${e.target.id}"] .auto-tag`); if (tag) tag.remove(); }
+    if (k === "bullets") liveNote(f);
+    refreshGuide();
+  }
+  if (e.target.id === "f-draft") { f.draft = e.target.value; f.edited = true; e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; $$(".tones [data-act=tone]").forEach((b) => b.setAttribute("aria-pressed", "false")); refreshGuide(); }
+  if (e.target.dataset.eeo) f.eeo[e.target.dataset.eeo] = e.target.value;
+});
+document.addEventListener("change", (e) => {
+  const inp = e.target.closest("[data-input]");
+  if (inp && inp.files[0]) takeFile(inp.dataset.input, inp.files[0]);
+  if (e.target.dataset.k === "consent") { formFor(current).consent = e.target.checked; refreshGuide(); }
+});
+document.addEventListener("focusout", (e) => {
+  if (e.target.id === "f-draft" && current) { const f = formFor(current); f.editing = false; setTimeout(redrawForm, 0); }
+});
+document.addEventListener("keydown", (e) => {
+  const dz = e.target.closest && e.target.closest("[data-drop]");
+  if (dz && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); $(`input[data-input="${dz.dataset.drop}"]`, dz).click(); }
+  if (e.target.id === "f-draft" && e.key === "Escape") e.target.blur();
+});
+// Drag and drop onto either drop zone.
+let dragDepth = 0;
+document.addEventListener("dragenter", (e) => { const dz = e.target.closest && e.target.closest("[data-drop]"); if (dz) { dragDepth++; dz.classList.add("over"); } });
+document.addEventListener("dragleave", (e) => { const dz = e.target.closest && e.target.closest("[data-drop]"); if (dz && --dragDepth <= 0) { dragDepth = 0; dz.classList.remove("over"); } });
+document.addEventListener("dragover", (e) => { if (e.target.closest && e.target.closest("[data-drop]")) e.preventDefault(); });
+document.addEventListener("drop", (e) => {
+  const dz = e.target.closest && e.target.closest("[data-drop]");
+  if (!dz) return;
+  e.preventDefault();
+  dragDepth = 0;
+  dz.classList.remove("over");
+  const file = e.dataTransfer.files[0];
+  if (file) takeFile(dz.dataset.drop, file);
+});
+
+route();
+</script>
+</body>
+</html>
