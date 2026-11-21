@@ -40,7 +40,7 @@ const PEOPLE = {
 };
 
 const TEAMS = {
-  infra: { name: "Infra", color: "#5e6ad2", members: ["daniel", "sam", "wei", "noor"] },
+  infra: { name: "Engineering", color: "#5e6ad2", members: ["daniel", "sam", "wei", "noor"] },
   research: { name: "Research", color: "#2f8a7e", members: ["marcus", "aisha", "theo"] },
   product: { name: "Product", color: "#c4663a", members: ["lena", "jonah"] },
 };

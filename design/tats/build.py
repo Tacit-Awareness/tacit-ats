@@ -2,7 +2,7 @@
 """Build the tATS prototype into one static page.
 
 src/page.html holds the markup with three placeholders, filled from src/:
-  /*STYLE*/   style.css, with the Departure Mono font and the mark inlined
+  /*STYLE*/   style.css, with the Mona Sans and Departure Mono fonts and the mark inlined
   /*DATA*/    data.js
   /*APP*/     app.js
 
@@ -19,7 +19,9 @@ def b64(name):
 
 style = (src / "style.css").read_text()
 style = style.replace("__DEPARTURE__", "data:font/woff2;base64," + b64("DepartureMono-Regular.woff2"))
+style = style.replace("__MONA__", "data:font/woff2;base64," + b64("MonaSans.woff2"))
 style = style.replace("__MARK__", "data:image/svg+xml;base64," + b64("tacit-mark.svg"))
+style = style.replace("__GROK__", "data:image/png;base64," + b64("grokbot.png"))
 
 page = (src / "page.html").read_text()
 page = page.replace("/*STYLE*/", style)
