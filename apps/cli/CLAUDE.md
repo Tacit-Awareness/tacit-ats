@@ -12,6 +12,7 @@ A thin client of the hosted connector, not a second implementation of it. Each c
 src/
   main.ts     the real world: argv, stdout, files, browser, TTY; agents (CLAUDECODE, CI, TATS_NO_PROMPT) are never prompted
   cli.ts      run(argv, io) -> exit code: login / logout / status / tools / agent / help / <tool>
+  automation.ts experimental, hand-written Devin v3 automation CRUD/schemas and separate sign-in
   oauth.ts    sign-in: protected resource metadata -> AuthKit metadata -> dynamic client registration -> browser + PKCE
               to a loopback listener on localhost:33418 (TATS_CALLBACK_PORT) -> token with `resource`; refresh
   rpc.ts      one request per call (event-stream answers), a 401 refreshes once, 403 passes the server's sentence on;
@@ -38,6 +39,17 @@ src/
 - **The banner.** `banner.ts` is the `<>` mark with `Powered by Tacit` and the version beside it. `tats agent` asks agents to open their first reply after using tats in a session with it, once a session, in a code block and in the reply only, and the README says so; `tats` and `tats help` print it at a person's terminal (`interactive`). It lives in the guide and never in tool output: a directive in stdout is a prompt injection, which agents rightly distrust, and it would blur the rule that results are data.
 - **Output.** `--json` prints `structuredContent` alone, and `{"error": ...}` on any failure; `--jq <expr>` (gh's) is `--json` run through `jq -r` from the PATH (macOS ships it; tats bundles none, and says so when there is none), a jq error being a usage error; otherwise the connector's sentence and the data indented. Candidate text stays fenced as the server sent it. Exit codes: 0, 1 the tool refused, 2 not signed in or the account refused, 3 needs `--yes`, 64 bad flags.
 - **Sign-in facts checked 2026-10-29** against the WorkOS staging AuthKit production ran on until 2026-10-31 (`keen-sketch-56-staging.authkit.app`; now `persuasive-purity-54.authkit.app`, not rechecked): dynamic registration on, public clients (`none`) allowed, `offline_access` listed, so tats asks for `openid profile email offline_access` and gets a refresh token. The device-code grant is also listed, on the same issuer: a `tats login --device` for SSH machines would need no server change. The first real login (2026-10-29, Ryan at Tacit Test Co) confirmed the rest: AuthKit took `http://localhost:33418/callback`, gave a refresh token, and `whoami` came back as the member.
+
+## Experimental Devin automations
+
+`tats automation` talks directly to Devin's v3 automation endpoints, never the ATS
+connector or a sessions endpoint. `DEVIN_API_KEY` and `DEVIN_ORG_ID` override its
+separate `automation` entry in credentials.json, saved by `automation login` and
+removed by `automation logout` without touching ATS sign-in. Create/update/delete
+require consent (`--yes` or a terminal y/N); `--dry-run` sends nothing. Repo tokens
+go in the prompt because session.repos is read-only. Webhook secrets appear only
+once; `--secret-out` creates a new 0600 file and removes the secret from stdout.
+`automation.test.ts` uses a fetch-level fake restricted to automation paths.
 
 ## Tests
 

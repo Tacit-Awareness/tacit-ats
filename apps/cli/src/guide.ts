@@ -41,6 +41,7 @@ ${COMMON.map(([n, d]) => `  ${n!.padEnd(22)} ${d}`).join("\n")}
   ...and the rest: tats tools
 
 Commands:
+  tats automation        experimental: manage Devin automations (separate credentials)
   tats login             sign in with your company's Tacit account (opens your browser)
   tats logout            sign out on this machine
   tats agent setup       teach this machine's coding agents (Claude Code, Codex, Cursor) to use
