@@ -1,4 +1,5 @@
 import { BANNER } from "./banner.js";
+import { automation, AUTOMATION_HELP } from "./automation.js";
 import { agentGuide, mainHelp, needsConfirm, toolHelp, toolList } from "./guide.js";
 import { booleanFlags, describeFlags, normalize, parseArgv, toolArguments, UsageError, type ArgsDeps, type Parsed } from "./flags.js";
 import { AuthRequired, login, type AuthDeps } from "./oauth.js";
@@ -75,6 +76,8 @@ export async function run(argv: string[], io: Io): Promise<number> {
     }
     if (flag(first, "help")) return await help(command, server, deps, io);
     switch (command) {
+      case "automation":
+        return await automation(argv.slice(argv.indexOf(command) + 1), io);
       case "version":
         io.out(`tats ${VERSION}`);
         return EXIT.ok;
@@ -139,6 +142,7 @@ function unknownCommand(name: string, catalog: Catalog): UsageError {
 }
 
 async function help(name: string, server: string, deps: AuthDeps, io: Io): Promise<number> {
+  if (name === "automation") { io.out(AUTOMATION_HELP); return EXIT.ok; }
   if (["login", "logout", "status", "agent", "tools", "help", "version"].includes(name)) {
     io.out(mainHelp(server, (await io.store.session(server)) !== null));
     return EXIT.ok;

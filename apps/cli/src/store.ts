@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -53,6 +53,8 @@ export type Catalog = { fetched_at: number; instructions: string | null; tools: 
 export type Registration = Omit<Session, "tokens">;
 
 export type Store = {
+  automationCredentials?(): Promise<AutomationCredentials | null>;
+  saveAutomationCredentials?(value: AutomationCredentials | null): Promise<void>;
   session(server: string): Promise<Session | null>;
   /** The registered client, signed in or not: a logout keeps it, so the next login does not register another. */
   registration(server: string): Promise<Registration | null>;
@@ -62,7 +64,8 @@ export type Store = {
   saveCatalog(server: string, catalog: Catalog): Promise<void>;
 };
 
-type Credentials = { servers: Record<string, Session | Registration> };
+export type AutomationCredentials = { apiKey: string; orgId: string };
+type Credentials = { servers: Record<string, Session | Registration>; automation?: AutomationCredentials };
 
 export function directories(env: NodeJS.ProcessEnv) {
   const home = env.HOME || homedir();
@@ -83,6 +86,7 @@ async function readJson<T>(path: string): Promise<T | null> {
 async function writeJson(path: string, value: unknown, mode: number) {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   await writeFile(path, JSON.stringify(value, null, 2) + "\n", { mode });
+  await chmod(path, mode);
 }
 
 const cacheName = (server: string) => encodeURIComponent(server.replace(/^https?:\/\//, "")) + ".json";
@@ -93,6 +97,13 @@ export function fileStore(env: NodeJS.ProcessEnv): Store {
   const credentials = async () => (await readJson<Credentials>(credentialsPath)) ?? { servers: {} };
 
   return {
+    automationCredentials: async () => (await credentials()).automation ?? null,
+    async saveAutomationCredentials(value) {
+      const all = await credentials();
+      if (value) all.automation = value;
+      else delete all.automation;
+      await writeJson(credentialsPath, all, 0o600);
+    },
     async session(server) {
       const s = (await credentials()).servers[server];
       return s && "tokens" in s ? s : null;
@@ -122,4 +133,3 @@ export function fileStore(env: NodeJS.ProcessEnv): Store {
     saveCatalog: (server, catalog) => writeJson(join(dirs.cache, cacheName(server)), catalog, 0o600),
   };
 }
-
