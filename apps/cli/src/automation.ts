@@ -148,7 +148,7 @@ export async function automation(argv: string[], io: Io): Promise<number> {
     if (!response.ok) {
       let error = [result?.title, result?.detail].filter(Boolean).join(": ") || `Devin API returned ${response.status}`;
       if (["create", "update"].includes(command) && /service[\s_-]*users?/i.test(error) && /run[\s_-]*as[\s_-]*creator|personal/i.test(error)) {
-        error += " Use a personal access token (needs UsePersonalAutomations) to run on your own seat, or pass --run-as organization (bills the organization).";
+        error += " Use a personal access token (needs UsePersonalAutomations) to create a personal (run-as-creator) automation, or pass --run-as organization.";
       }
       if (has("json")) output({ error }); else io.err(error);
       return [401, 403].includes(response.status) ? 2 : 1;

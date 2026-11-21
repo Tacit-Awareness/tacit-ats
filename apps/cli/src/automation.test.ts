@@ -186,7 +186,7 @@ describe("experimental automation group", () => {
   ])("adds a run-as hint for create/update errors: %s", async (detail, json) => {
     status = 400;
     response = { title: "Invalid identity", detail };
-    const hint = "Use a personal access token (needs UsePersonalAutomations) to run on your own seat, or pass --run-as organization (bills the organization).";
+    const hint = "Use a personal access token (needs UsePersonalAutomations) to create a personal (run-as-creator) automation, or pass --run-as organization.";
     for (const args of [create, ["update", "auto-1", "--enable"]]) {
       expect(await tats(...args, "--yes", ...(json ? ["--json"] : []))).toBe(1);
       if (json) expect(result()).toEqual({ error: `Invalid identity: ${detail} ${hint}` });
