@@ -180,6 +180,29 @@ describe("experimental automation group", () => {
     expect(result()).toEqual({ error: "offline" });
   });
 
+  it.each([
+    ["Service users cannot create personal (run-as-creator) automations", false],
+    ["SERVICE-USER keys cannot use RUN_AS_CREATOR", true],
+  ])("adds a run-as hint for create/update errors: %s", async (detail, json) => {
+    status = 400;
+    response = { title: "Invalid identity", detail };
+    const hint = "Use a personal access token (needs UsePersonalAutomations) to run on your own seat, or pass --run-as organization (bills the organization).";
+    for (const args of [create, ["update", "auto-1", "--enable"]]) {
+      expect(await tats(...args, "--yes", ...(json ? ["--json"] : []))).toBe(1);
+      if (json) expect(result()).toEqual({ error: `Invalid identity: ${detail} ${hint}` });
+      else expect(err.at(-1)).toBe(`Invalid identity: ${detail} ${hint}`);
+    }
+    expect(await tats("list", "--json")).toBe(1);
+    expect(result()).toEqual({ error: `Invalid identity: ${detail}` });
+  });
+
+  it.each(["Service users lack permission", "Personal automations are unavailable", ""])("does not hint for unrelated or empty error text: %s", async (detail) => {
+    status = 400;
+    response = { detail };
+    expect(await tats(...create, "--yes", "--json")).toBe(1);
+    expect(result()).toEqual({ error: detail || "Devin API returned 400" });
+  });
+
   it("shows experimental help without any API calls", async () => {
     for (const args of [["automation", "--help"], ["help", "automation"], ["help"]]) {
       expect(await run(args, io)).toBe(0);

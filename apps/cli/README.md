@@ -48,6 +48,7 @@ Run `tats agent` first. It explains how to call `tats`, what to confirm with the
 
 `tats automation` is a separate client of Devin's v3 automations API, not the ATS
 connector. It never sends your ATS token to Devin or your Devin key to Tacit.
+Personal access token → creator automations; service-user key → must use `--run-as organization`.
 Set `DEVIN_API_KEY` and `DEVIN_ORG_ID`, or save them separately on this machine:
 
 ```sh

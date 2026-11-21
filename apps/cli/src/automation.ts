@@ -20,6 +20,7 @@ Create options: --run-as creator|organization (default creator), --repo owner/na
 Common: --yes (confirm writes), --dry-run (print body, no requests), --json,
   --secret-out <file> (save webhook url/secret, 0600, omit secret from stdout).
 Webhook secrets are shown only once and cannot be retrieved again.
+Personal access token → creator automations; service-user key → must use --run-as organization.
 Uses DEVIN_API_KEY + DEVIN_ORG_ID before saved credentials; DEVIN_API_URL overrides
 https://api.devin.ai. Only automation endpoints are called; no session is started
 by this command. Enabled automations can fire later; use --disabled to create off.`;
@@ -145,7 +146,10 @@ export async function automation(argv: string[], io: Io): Promise<number> {
     let result: Body | null;
     try { result = raw ? JSON.parse(raw) : null; } catch { result = { detail: raw }; }
     if (!response.ok) {
-      const error = [result?.title, result?.detail].filter(Boolean).join(": ") || `Devin API returned ${response.status}`;
+      let error = [result?.title, result?.detail].filter(Boolean).join(": ") || `Devin API returned ${response.status}`;
+      if (["create", "update"].includes(command) && /service[\s_-]*users?/i.test(error) && /run[\s_-]*as[\s_-]*creator|personal/i.test(error)) {
+        error += " Use a personal access token (needs UsePersonalAutomations) to run on your own seat, or pass --run-as organization (bills the organization).";
+      }
       if (has("json")) output({ error }); else io.err(error);
       return [401, 403].includes(response.status) ? 2 : 1;
     }
